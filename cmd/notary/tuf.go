@@ -5,10 +5,13 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
+	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/endophage/gotuf"
@@ -69,7 +72,14 @@ var cmdVerify = &cobra.Command{
 	Use:   "verify [ GUN ] <target>",
 	Short: "verifies if the content is included in the trusted collection",
 	Long:  "verifies if the data passed in STDIN is included in the trusted collection identified by the Global Unique Name.",
-	Run:   verify,
+	Run:   verifyCmd,
+}
+
+var cmdExec = &cobra.Command{
+	Use:   "exec [ GUN ] <target>",
+	Short: "verifies content in trusted collection and pipes into shell",
+	Long:  "verifies if the data passed in STDIN is verified and then it is effectively piped into SHELL if set or /bin/sh.",
+	Run:   execCmd,
 }
 
 func tufAdd(cmd *cobra.Command, args []string) {
@@ -348,7 +358,50 @@ func tufRemove(cmd *cobra.Command, args []string) {
 	saveRepo(repo, filestore)
 }
 
-func verify(cmd *cobra.Command, args []string) {
+func execCmd(cmd *cobra.Command, args []string) {
+	sh := os.Getenv("SHELL")
+	if sh == "" {
+		sh = "/bin/sh"
+	}
+	if _, err := os.Stat(sh); os.IsNotExist(err) {
+		fatalf("unable to determine shell, specify SHELL in environment")
+	}
+	shCmd := exec.Command(sh)
+	shCmd.Stdout = os.Stdout
+	shCmd.Stderr = os.Stderr
+	shStdin, err := shCmd.StdinPipe()
+	if err != nil {
+		logrus.Error("unable to create stdin pipe:", err)
+		return
+	}
+	go verify(cmd, args, shStdin)
+	status, err := exitStatus(shCmd.Run())
+	if err != nil {
+		logrus.Error("error running shell:", err)
+		return
+	}
+	os.Exit(status)
+}
+
+func exitStatus(err error) (int, error) {
+	if err != nil {
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			// There is no platform independent way to retrieve
+			// the exit code, but the following will work on Unix
+			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+				return int(status.ExitStatus()), nil
+			}
+		}
+		return 0, err
+	}
+	return 0, nil
+}
+
+func verifyCmd(cmd *cobra.Command, args []string) {
+	verify(cmd, args, os.Stdout)
+}
+
+func verify(cmd *cobra.Command, args []string, output io.WriteCloser) {
 	if len(args) < 2 {
 		cmd.Usage()
 		fatalf("must specify a GUN and target")
@@ -398,7 +451,8 @@ func verify(cmd *cobra.Command, args []string) {
 		logrus.Error("notary: data not present in the trusted collection.")
 		os.Exit(1)
 	} else {
-		_, _ = os.Stdout.Write(payload)
+		_, _ = output.Write(payload)
+		output.Close()
 	}
 	return
 }
