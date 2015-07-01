@@ -108,7 +108,6 @@ func (f *fileStore) AddEncrypted(name string, plaintext []byte, passphrase strin
 	}
 
 	// Generate random nonce for GCM
-	fmt.Println(gcm.NonceSize())
 	nonce := make([]byte, NonceSize)
 	_, err = rand.Read(nonce)
 	if err != nil {

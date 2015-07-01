@@ -142,6 +142,50 @@ func TestAddAndGetEncryptedWithInvalidPwd(t *testing.T) {
 	}
 }
 
+func TestAddAndGetEncryptedWithTamperedCipherText(t *testing.T) {
+	testData := []byte("This test data should be part of the file.")
+	testName := "docker.com/notary/root"
+	testExt := "key"
+	perms := os.FileMode(0755)
+
+	// Temporary directory where test files will be created
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+	if err != nil {
+		t.Fatalf("failed to create a temporary directory: %v", err)
+	}
+
+	// Since we're generating this manually we need to add the extension '.'
+	expectedFilePath := filepath.Join(tempBaseDir, testName+"."+testExt+".enc")
+
+	// Create our FileStore
+	store := &fileStore{
+		baseDir: tempBaseDir,
+		fileExt: testExt,
+		perms:   perms,
+	}
+
+	// Call the Add function
+	err = store.AddEncrypted(testName, testData, "diogomonica")
+	if err != nil {
+		t.Fatalf("failed to add file to store: %v", err)
+	}
+
+	// Get file description, open file
+	fp, _ := os.OpenFile(expectedFilePath, os.O_WRONLY, 0600)
+	if err != nil {
+		t.Fatalf("expected file not found: %v", err)
+	}
+
+	// Tamper the file
+	fp.WriteAt([]byte("a"), int64(len(testData)-1))
+
+	// Try to decrypt the file
+	_, err = store.GetEncrypted(testName, "diogomonica")
+	if err == nil {
+		t.Fatalf("expected error while decrypting the content due to invalid cipher text")
+	}
+}
+
 func TestRemove(t *testing.T) {
 	testName := "docker.com/notary/certificate"
 	testExt := "crt"
@@ -274,7 +318,6 @@ func TestListDir(t *testing.T) {
 		// Since we're generating this manually we need to add the extension '.'
 		fileName := fmt.Sprintf("%s-%s.%s", testName, strconv.Itoa(i), testExt)
 		expectedFilePath = filepath.Join(tempBaseDir, fileName)
-		fmt.Println(expectedFilePath)
 		_, err = generateRandomFile(expectedFilePath, perms)
 		if err != nil {
 			t.Fatalf("failed to generate random file: %v", err)
