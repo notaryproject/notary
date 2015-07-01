@@ -17,11 +17,13 @@ const private os.FileMode = 0700
 const encryptedExt string = "enc"
 
 const (
-	SaltSize = 32
-	KeySize  = 32
-	ScryptN  = 32768
-	ScryptR  = 8
-	ScryptP  = 1
+	AESBlocksize = 16
+	SaltSize     = 32
+	KeySize      = 32
+	NonceSize    = 12
+	ScryptN      = 32768
+	ScryptR      = 8
+	ScryptP      = 1
 )
 
 // FileStore is the interface for all FileStores
@@ -75,8 +77,8 @@ func (f *fileStore) Add(name string, data []byte) error {
 	return ioutil.WriteFile(filePath, data, f.perms)
 }
 
-// AddEncrypted writes encrypted data to a file with a given name, given a key
-func (f *fileStore) AddEncrypted(name string, data []byte, passphrase string) error {
+// AddEncrypted writes encrypted data to a file with a given name, given a passphrase used for key derivation
+func (f *fileStore) AddEncrypted(name string, plaintext []byte, passphrase string) error {
 	filePath := f.genEncryptedFilePath(name)
 	createDirectory(filepath.Dir(filePath), f.perms)
 
@@ -106,18 +108,23 @@ func (f *fileStore) AddEncrypted(name string, data []byte, passphrase string) er
 	}
 
 	// Generate random nonce for GCM
-	nonce := make([]byte, gcm.NonceSize())
+	fmt.Println(gcm.NonceSize())
+	nonce := make([]byte, NonceSize)
 	_, err = rand.Read(nonce)
 	if err != nil {
 		return err
 	}
 
-	// Encypts the data using the nonce
-	cipherText := gcm.Seal(nonce, nonce, data, nil)
+	// Append the nonce to the finalBytes so we can use it on decrypt
+	finalBytes := append(salt, nonce...)
 
-	// Append the salt to the outData so we can use it on decrypt
-	outData := append(salt, cipherText...)
-	return ioutil.WriteFile(filePath, outData, f.perms)
+	// Encypts the plaintext using the nonce
+	cipherText := gcm.Seal(nil, nonce, plaintext, nil)
+
+	// Append the ciphertext to the finalBytes
+	finalBytes = append(finalBytes, cipherText...)
+
+	return ioutil.WriteFile(filePath, finalBytes, f.perms)
 }
 
 // Remove removes a file identified by a name
@@ -159,19 +166,19 @@ func (f *fileStore) Get(name string) ([]byte, error) {
 // GetEncrypted decrypts and returns data given a file name
 func (f *fileStore) GetEncrypted(name string, passphrase string) ([]byte, error) {
 	filePath := f.genEncryptedFilePath(name)
-	data, err := ioutil.ReadFile(filePath)
+	fileBytes, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
 
-	// If the data doesn't have at least this size, it doesn't have any data.
-	if len(data) <= SaltSize+24+4 {
+	// If the data doesn't have at least the salt, nonce and one block, it doesn't have any valid data.
+	if len(fileBytes) <= SaltSize+NonceSize+AESBlocksize {
 		return nil, fmt.Errorf("Error while decrypting, not enough data in: %s", filePath)
 	}
 
 	// Get the salt from the first SaltSize bytes in data
-	salt := data[:SaltSize]
-	data = data[SaltSize:]
+	salt := fileBytes[:SaltSize]
+	fileBytes = fileBytes[SaltSize:]
 
 	// With the salt, we can generate key derived from passphrase
 	derivedKey, err := scrypt.Key([]byte(passphrase), salt, ScryptN, ScryptR, ScryptP, KeySize)
@@ -189,12 +196,13 @@ func (f *fileStore) GetEncrypted(name string, passphrase string) ([]byte, error)
 		return nil, err
 	}
 
+	gcm.Overhead()
 	// Get the nonce from the next NonceSize bytes in data
-	nonce := data[:gcm.NonceSize()]
-	data = data[gcm.NonceSize():]
+	nonce := fileBytes[:NonceSize]
+	fileBytes = fileBytes[NonceSize:]
 
 	// Decrypt the data and return plaintext
-	outData, err := gcm.Open(nil, nonce, data, nil)
+	outData, err := gcm.Open(nil, nonce, fileBytes, nil)
 	if err != nil {
 		return nil, err
 	}
