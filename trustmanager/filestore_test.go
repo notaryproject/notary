@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestAddFile(t *testing.T) {
+func TestAdd(t *testing.T) {
 	testData := []byte("This test data should be part of the file.")
 	testName := "docker.com/notary/certificate"
 	testExt := "crt"
@@ -50,7 +50,99 @@ func TestAddFile(t *testing.T) {
 	}
 }
 
-func TestRemoveFile(t *testing.T) {
+func TestAddAndGetEncrypted(t *testing.T) {
+	testData := []byte("This test data should be part of the file.")
+	testName := "docker.com/notary/root"
+	testExt := "key"
+	perms := os.FileMode(0755)
+
+	// Temporary directory where test files will be created
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+	if err != nil {
+		t.Fatalf("failed to create a temporary directory: %v", err)
+	}
+
+	// Since we're generating this manually we need to add the extension '.'
+	expectedFilePath := filepath.Join(tempBaseDir, testName+"."+testExt+".enc")
+
+	// Create our FileStore
+	store := &fileStore{
+		baseDir: tempBaseDir,
+		fileExt: testExt,
+		perms:   perms,
+	}
+
+	// Call the Add function
+	err = store.AddEncrypted(testName, testData, "diogomonica")
+	if err != nil {
+		t.Fatalf("failed to add file to store: %v", err)
+	}
+
+	// Check to see if file exists
+	b, err := ioutil.ReadFile(expectedFilePath)
+	if err != nil {
+		t.Fatalf("expected file not found: %v", err)
+	}
+
+	if bytes.Equal(b, testData) {
+		t.Fatalf("expected encrypted content in the file: %s", expectedFilePath)
+	}
+
+	decData, err := store.GetEncrypted(testName, "diogomonica")
+	if err != nil {
+		t.Fatalf("error while decrypting the content: %v", err)
+	}
+
+	if !bytes.Equal(decData, testData) {
+		t.Fatalf("expected decrypted content in the file to match test data: %s", expectedFilePath)
+	}
+}
+
+func TestAddAndGetEncryptedWithInvalidPwd(t *testing.T) {
+	testData := []byte("This test data should be part of the file.")
+	testName := "docker.com/notary/root"
+	testExt := "key"
+	perms := os.FileMode(0755)
+
+	// Temporary directory where test files will be created
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+	if err != nil {
+		t.Fatalf("failed to create a temporary directory: %v", err)
+	}
+
+	// Since we're generating this manually we need to add the extension '.'
+	expectedFilePath := filepath.Join(tempBaseDir, testName+"."+testExt+".enc")
+
+	// Create our FileStore
+	store := &fileStore{
+		baseDir: tempBaseDir,
+		fileExt: testExt,
+		perms:   perms,
+	}
+
+	// Call the Add function
+	err = store.AddEncrypted(testName, testData, "diogomonica")
+	if err != nil {
+		t.Fatalf("failed to add file to store: %v", err)
+	}
+
+	// Check to see if file exists
+	b, err := ioutil.ReadFile(expectedFilePath)
+	if err != nil {
+		t.Fatalf("expected file not found: %v", err)
+	}
+
+	if bytes.Equal(b, testData) {
+		t.Fatalf("expected encrypted content in the file: %s", expectedFilePath)
+	}
+
+	_, err = store.GetEncrypted(testName, "notdiogomonica")
+	if err == nil {
+		t.Fatalf("expected error while decrypting the content due to invalid password")
+	}
+}
+
+func TestRemove(t *testing.T) {
 	testName := "docker.com/notary/certificate"
 	testExt := "crt"
 	perms := os.FileMode(0755)
@@ -231,7 +323,7 @@ func TestGetPath(t *testing.T) {
 	}
 }
 
-func TestGetData(t *testing.T) {
+func TestGet(t *testing.T) {
 	testName := "docker.com/notary/certificate"
 	testExt := "crt"
 	perms := os.FileMode(0755)
@@ -256,7 +348,7 @@ func TestGetData(t *testing.T) {
 		fileExt: testExt,
 		perms:   perms,
 	}
-	testData, err := store.GetData(testName)
+	testData, err := store.Get(testName)
 	if err != nil {
 		t.Fatalf("failed to get data from: %s", testName)
 
