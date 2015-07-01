@@ -164,8 +164,8 @@ func (f *fileStore) GetEncrypted(name string, passphrase string) ([]byte, error)
 	}
 
 	// Get the salt from the first SaltSize bytes in data
-	salt := make([]byte, SaltSize)
-	copy(salt, data[:SaltSize])
+	salt := data[:SaltSize]
+	data = data[SaltSize:]
 
 	// With the salt, we can generate key derived from passphrase
 	derivedKey, err := scrypt.Key([]byte(passphrase), salt, 16384, 8, 1, KeySize)
@@ -184,11 +184,11 @@ func (f *fileStore) GetEncrypted(name string, passphrase string) ([]byte, error)
 	}
 
 	// Get the nonce from the next NonceSize bytes in data
-	nonce := make([]byte, gcm.NonceSize())
-	copy(nonce, data[SaltSize:SaltSize+gcm.NonceSize()])
+	nonce := data[:gcm.NonceSize()]
+	data = data[gcm.NonceSize():]
 
 	// Decrypt the data and return plaintext
-	outData, err := gcm.Open(nil, nonce, data[SaltSize+gcm.NonceSize():], nil)
+	outData, err := gcm.Open(nil, nonce, data, nil)
 	if err != nil {
 		return nil, err
 	}
