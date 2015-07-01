@@ -15,8 +15,14 @@ import (
 const visible os.FileMode = 0755
 const private os.FileMode = 0700
 const encryptedExt string = "enc"
-const SaltSize int = 32
-const KeySize int = 32
+
+const (
+	SaltSize = 32
+	KeySize  = 32
+	ScryptN  = 32768
+	ScryptR  = 8
+	ScryptP  = 1
+)
 
 // FileStore is the interface for all FileStores
 type FileStore interface {
@@ -83,7 +89,7 @@ func (f *fileStore) AddEncrypted(name string, data []byte, passphrase string) er
 	}
 
 	// With the salt, generate key derived from passphrase
-	derivedKey, err := scrypt.Key([]byte(passphrase), salt, 16384, 8, 1, KeySize)
+	derivedKey, err := scrypt.Key([]byte(passphrase), salt, ScryptN, ScryptR, ScryptP, KeySize)
 	if err != nil {
 		return err
 	}
@@ -168,7 +174,7 @@ func (f *fileStore) GetEncrypted(name string, passphrase string) ([]byte, error)
 	data = data[SaltSize:]
 
 	// With the salt, we can generate key derived from passphrase
-	derivedKey, err := scrypt.Key([]byte(passphrase), salt, 16384, 8, 1, KeySize)
+	derivedKey, err := scrypt.Key([]byte(passphrase), salt, ScryptN, ScryptR, ScryptP, KeySize)
 	if err != nil {
 		return nil, err
 	}
