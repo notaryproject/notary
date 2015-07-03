@@ -1,18 +1,19 @@
 package main
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
+	notaryclient "github.com/docker/notary/client"
 	"github.com/docker/notary/trustmanager"
 	"github.com/endophage/gotuf"
 	"github.com/endophage/gotuf/client"
@@ -84,30 +85,19 @@ func tufAdd(cmd *cobra.Command, args []string) {
 	gun := args[0]
 	targetName := args[1]
 	targetPath := args[2]
-	kdb := keys.NewDB()
-	signer := signed.NewSigner(NewCryptoService(gun))
-	repo := tuf.NewTufRepo(kdb, signer)
 
-	b, err := ioutil.ReadFile(targetPath)
+	t := &http.Transport{}
+	repo, err := nClient.GetRepository(gun, "", t)
 	if err != nil {
 		fatalf(err.Error())
 	}
 
-	filestore := bootstrapRepo(gun, repo)
-
-	fmt.Println("Generating metadata for target")
-	meta, err := data.NewFileMeta(bytes.NewBuffer(b))
+	target, err := notaryclient.NewTarget(targetName, targetPath)
 	if err != nil {
 		fatalf(err.Error())
 	}
-
-	fmt.Printf("Adding target \"%s\" with sha256 \"%s\" and size %d bytes.\n", targetName, meta.Hashes["sha256"], meta.Length)
-	_, err = repo.AddTargets("targets", data.Files{targetName: meta})
-	if err != nil {
-		fatalf(err.Error())
-	}
-
-	saveRepo(repo, filestore)
+	repo.AddTarget(target)
+	fmt.Println("Successfully added targets")
 }
 
 func tufInit(cmd *cobra.Command, args []string) {
@@ -116,92 +106,19 @@ func tufInit(cmd *cobra.Command, args []string) {
 		fatalf("Must specify a GUN")
 	}
 
-	gun := args[0]
-	kdb := keys.NewDB()
-	signer := signed.NewSigner(NewCryptoService(gun))
-
-	remote, err := getRemoteStore(gun)
-	rawTSKey, err := remote.GetKey("timestamp")
-	if err != nil {
-		fatalf(err.Error())
-	}
-	fmt.Println("RawKey: ", string(rawTSKey))
-	parsedKey := &data.TUFKey{}
-	err = json.Unmarshal(rawTSKey, parsedKey)
-	if err != nil {
-		fatalf(err.Error())
-	}
-	timestampKey := data.NewPublicKey(parsedKey.Cipher(), parsedKey.Public())
-
-	rootKey, err := signer.Create("root")
-	if err != nil {
-		fatalf(err.Error())
-	}
-	targetsKey, err := signer.Create("targets")
-	if err != nil {
-		fatalf(err.Error())
-	}
-	snapshotKey, err := signer.Create("snapshot")
+	t := &http.Transport{}
+	repo, err := nClient.GetRepository(args[0], "", t)
 	if err != nil {
 		fatalf(err.Error())
 	}
 
-	kdb.AddKey(rootKey)
-	kdb.AddKey(targetsKey)
-	kdb.AddKey(snapshotKey)
-	kdb.AddKey(timestampKey)
-
-	rootRole, err := data.NewRole("root", 1, []string{rootKey.ID()}, nil, nil)
+	// TODO(diogo): We don't want to generate a new root every time. Ask the user
+	// which key she wants to use if there > 0 root keys available.
+	newRootKey, err := nClient.GenRootKey("passphrase")
 	if err != nil {
 		fatalf(err.Error())
 	}
-	targetsRole, err := data.NewRole("targets", 1, []string{targetsKey.ID()}, nil, nil)
-	if err != nil {
-		fatalf(err.Error())
-	}
-	snapshotRole, err := data.NewRole("snapshot", 1, []string{snapshotKey.ID()}, nil, nil)
-	if err != nil {
-		fatalf(err.Error())
-	}
-	timestampRole, err := data.NewRole("timestamp", 1, []string{timestampKey.ID()}, nil, nil)
-	if err != nil {
-		fatalf(err.Error())
-	}
-
-	err = kdb.AddRole(rootRole)
-	if err != nil {
-		fatalf(err.Error())
-	}
-	err = kdb.AddRole(targetsRole)
-	if err != nil {
-		fatalf(err.Error())
-	}
-	err = kdb.AddRole(snapshotRole)
-	if err != nil {
-		fatalf(err.Error())
-	}
-	err = kdb.AddRole(timestampRole)
-	if err != nil {
-		fatalf(err.Error())
-	}
-
-	repo := tuf.NewTufRepo(kdb, signer)
-
-	filestore, err := store.NewFilesystemStore(
-		path.Join(viper.GetString("tufDir"), gun), // TODO: base trust dir from config
-		"metadata",
-		"json",
-		"targets",
-	)
-	if err != nil {
-		fatalf(err.Error())
-	}
-
-	err = repo.InitRepo(false)
-	if err != nil {
-		fatalf(err.Error())
-	}
-	saveRepo(repo, filestore)
+	repo.Initialize(newRootKey)
 }
 
 func tufList(cmd *cobra.Command, args []string) {
@@ -324,20 +241,19 @@ func tufRemove(cmd *cobra.Command, args []string) {
 	}
 	gun := args[0]
 	targetName := args[1]
-	kdb := keys.NewDB()
-	signer := signed.NewSigner(NewCryptoService(gun))
-	repo := tuf.NewTufRepo(kdb, signer)
 
-	fmt.Println("Removing target ", targetName, " from ", gun)
-
-	filestore := bootstrapRepo(gun, repo)
-
-	err := repo.RemoveTargets("targets", targetName)
+	t := &http.Transport{}
+	_, err := nClient.GetRepository(gun, "", t)
 	if err != nil {
 		fatalf(err.Error())
 	}
 
-	saveRepo(repo, filestore)
+	// TODO(diogo): Implement RemoveTargets in libnotary
+	fmt.Println("Removing target ", targetName, " from ", gun)
+	// repo.RemoveTargets("targets", targetName)
+	// if err != nil {
+	// 	fatalf(err.Error())
+	// }
 }
 
 func verify(cmd *cobra.Command, args []string) {
