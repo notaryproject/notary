@@ -32,7 +32,7 @@ func (ccs *cliCryptoService) Create(role string) (*data.PublicKey, error) {
 		return nil, err
 	}
 
-	// PEM ENcode the certificate, which will be put directly inside of TUF's root.json
+	// PEM Encode the certificate, which will be put directly inside of TUF's root.json
 	block := pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}
 	pemdata := pem.EncodeToMemory(&block)
 

@@ -1,21 +1,37 @@
 package trustmanager
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"golang.org/x/crypto/scrypt"
 )
 
 const visible os.FileMode = 0755
 const private os.FileMode = 0700
+const encryptedExt string = "enc"
+
+const (
+	AESBlocksize = 16
+	SaltSize     = 32
+	KeySize      = 32
+	NonceSize    = 12
+	ScryptN      = 32768
+	ScryptR      = 8
+	ScryptP      = 1
+)
 
 // FileStore is the interface for all FileStores
 type FileStore interface {
 	Add(fileName string, data []byte) error
 	Remove(fileName string) error
 	RemoveDir(directoryName string) error
-	GetData(fileName string) ([]byte, error)
+	Get(fileName string) ([]byte, error)
 	GetPath(fileName string) string
 	ListAll() []string
 	ListDir(directoryName string) []string
@@ -61,7 +77,56 @@ func (f *fileStore) Add(name string, data []byte) error {
 	return ioutil.WriteFile(filePath, data, f.perms)
 }
 
-// Remove removes a file identified by name
+// AddEncrypted writes encrypted data to a file with a given name, given a passphrase used for key derivation
+func (f *fileStore) AddEncrypted(name string, plaintext []byte, passphrase string) error {
+	filePath := f.genEncryptedFilePath(name)
+	createDirectory(filepath.Dir(filePath), f.perms)
+
+	// Derive a key from the passphrase
+	// First generate random salt for scrypt
+	salt := make([]byte, SaltSize)
+	_, err := rand.Read(salt)
+	if err != nil {
+		return err
+	}
+
+	// With the salt, generate key derived from passphrase
+	derivedKey, err := scrypt.Key([]byte(passphrase), salt, ScryptN, ScryptR, ScryptP, KeySize)
+	if err != nil {
+		return err
+	}
+
+	// Instantiate a new AES Cipher with the derived key
+	c, err := aes.NewCipher(derivedKey)
+	if err != nil {
+		return err
+	}
+
+	gcm, err := cipher.NewGCM(c)
+	if err != nil {
+		return err
+	}
+
+	// Generate random nonce for GCM
+	nonce := make([]byte, NonceSize)
+	_, err = rand.Read(nonce)
+	if err != nil {
+		return err
+	}
+
+	// Append the nonce to the finalBytes so we can use it on decrypt
+	finalBytes := append(salt, nonce...)
+
+	// Encypts the plaintext using the nonce
+	cipherText := gcm.Seal(nil, nonce, plaintext, nil)
+
+	// Append the ciphertext to the finalBytes
+	finalBytes = append(finalBytes, cipherText...)
+
+	return ioutil.WriteFile(filePath, finalBytes, f.perms)
+}
+
+// Remove removes a file identified by a name
 func (f *fileStore) Remove(name string) error {
 	// Attempt to remove
 	filePath := f.genFilePath(name)
@@ -86,8 +151,8 @@ func (f *fileStore) RemoveDir(name string) error {
 	return os.RemoveAll(dirPath)
 }
 
-// GetData returns the data given a file name
-func (f *fileStore) GetData(name string) ([]byte, error) {
+// Get returns the data given a file name
+func (f *fileStore) Get(name string) ([]byte, error) {
 	filePath := f.genFilePath(name)
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
@@ -95,6 +160,53 @@ func (f *fileStore) GetData(name string) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+// GetEncrypted decrypts and returns data given a file name
+func (f *fileStore) GetEncrypted(name string, passphrase string) ([]byte, error) {
+	filePath := f.genEncryptedFilePath(name)
+	fileBytes, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// If the data doesn't have at least the salt, nonce and one block, it doesn't have any valid data.
+	if len(fileBytes) <= SaltSize+NonceSize+AESBlocksize {
+		return nil, fmt.Errorf("Error while decrypting, not enough data in: %s", filePath)
+	}
+
+	// Get the salt from the first SaltSize bytes in data
+	salt := fileBytes[:SaltSize]
+	fileBytes = fileBytes[SaltSize:]
+
+	// With the salt, we can generate key derived from passphrase
+	derivedKey, err := scrypt.Key([]byte(passphrase), salt, ScryptN, ScryptR, ScryptP, KeySize)
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := aes.NewCipher(derivedKey)
+	if err != nil {
+		return nil, err
+	}
+
+	gcm, err := cipher.NewGCM(c)
+	if err != nil {
+		return nil, err
+	}
+
+	gcm.Overhead()
+	// Get the nonce from the next NonceSize bytes in data
+	nonce := fileBytes[:NonceSize]
+	fileBytes = fileBytes[NonceSize:]
+
+	// Decrypt the data and return plaintext
+	outData, err := gcm.Open(nil, nonce, fileBytes, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return outData, nil
 }
 
 // GetPath returns the full final path of a file with a given name
@@ -125,12 +237,14 @@ func (f *fileStore) list(path string) []string {
 		if fi.IsDir() {
 			return nil
 		}
-		// Only allow matches that end with our certificate extension (e.g. *.crt)
+		// Only allow matches that end with our extensions (e.g. *.crt and *.crt.enc)
 		matched, _ := filepath.Match("*"+f.fileExt, fi.Name())
+		matchedEnc, _ := filepath.Match("*"+f.fileExt+encryptedExt, fi.Name())
 
-		if matched {
+		if matched || matchedEnc {
 			files = append(files, fp)
 		}
+
 		return nil
 	})
 	return files
@@ -139,6 +253,13 @@ func (f *fileStore) list(path string) []string {
 // genFilePath returns the full path with extension given a file name
 func (f *fileStore) genFilePath(name string) string {
 	fileName := fmt.Sprintf("%s.%s", name, f.fileExt)
+	return filepath.Join(f.baseDir, fileName)
+}
+
+// genEncryptedFilePath returns the full path with extension given a file name and
+// the added encrypted extension
+func (f *fileStore) genEncryptedFilePath(name string) string {
+	fileName := fmt.Sprintf("%s.%s.%s", name, f.fileExt, encryptedExt)
 	return filepath.Join(f.baseDir, fileName)
 }
 
