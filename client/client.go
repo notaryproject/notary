@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -16,10 +17,12 @@ import (
 
 	"github.com/docker/notary/trustmanager"
 	"github.com/endophage/gotuf"
+	tufclient "github.com/endophage/gotuf/client"
 	"github.com/endophage/gotuf/data"
 	"github.com/endophage/gotuf/keys"
 	"github.com/endophage/gotuf/signed"
 	"github.com/endophage/gotuf/store"
+
 	"github.com/spf13/viper"
 )
 
@@ -40,6 +43,18 @@ type Client interface {
 	GetRepository(gun string, baseURL string, transport http.RoundTripper) (Repository, error)
 }
 
+// Repository is the interface that represents a Notary Repository
+type Repository interface {
+	Update() error
+	Initialize(key *data.PublicKey) error
+
+	AddTarget(target *Target) error
+	ListTargets() ([]*Target, error)
+	GetTargetByName(name string) (*Target, error)
+
+	Publish() error
+}
+
 type NotaryClient struct {
 	configFile       string
 	caStore          trustmanager.X509Store
@@ -48,13 +63,15 @@ type NotaryClient struct {
 }
 
 type NotaryRepository struct {
-	Gun          string
-	baseURL      string
-	transport    http.RoundTripper
-	signer       *signed.Signer
-	tufRepo      *tuf.TufRepo
-	fileStore    store.MetadataStore
-	privKeyStore trustmanager.FileStore
+	Gun              string
+	baseURL          string
+	transport        http.RoundTripper
+	signer           *signed.Signer
+	tufRepo          *tuf.TufRepo
+	fileStore        store.MetadataStore
+	privKeyStore     trustmanager.FileStore
+	caStore          trustmanager.X509Store
+	certificateStore trustmanager.X509Store
 }
 
 // Target represents a simplified version of the data TUF operates on.
@@ -77,18 +94,6 @@ func NewTarget(targetName string, targetPath string) (*Target, error) {
 	}
 
 	return &Target{Name: targetName, Hashes: meta.Hashes, Length: meta.Length}, nil
-}
-
-// Repository is the interface that represents a Notary Repository
-type Repository interface {
-	Update() error
-	Initialize(key *data.PublicKey) error
-
-	AddTarget(target *Target) error
-	ListTargets() ([]*Target, error)
-	GetTargetByName(name string) (*Target, error)
-
-	Publish() error
 }
 
 // NewClient is a helper method that returns a new notary Client, given a config
@@ -216,16 +221,80 @@ func (r *NotaryRepository) AddTarget(target *Target) error {
 
 // ListTargets lists all targets for the current repository
 func (r *NotaryRepository) ListTargets() ([]*Target, error) {
+	r.bootstrapRepo()
+
+	c, err := r.bootstrapClient()
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.Update()
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(diogo): return hashes
+	for name, meta := range r.tufRepo.Targets["targets"].Signed.Targets {
+		fmt.Println(name, " ", meta.Hashes["sha256"], " ", meta.Length)
+	}
+
 	return nil, nil
 }
 
 // GetTargetByName returns a target given a name
 func (r *NotaryRepository) GetTargetByName(name string) (*Target, error) {
-	return &Target{}, nil
+	r.bootstrapRepo()
+
+	c, err := r.bootstrapClient()
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.Update()
+	if err != nil {
+		return nil, err
+	}
+
+	meta := c.TargetMeta(name)
+	if meta == nil {
+		return nil, errors.New("Meta is nil for target")
+	}
+
+	return &Target{Name: name, Hashes: meta.Hashes, Length: meta.Length}, nil
 }
 
 // Publish pushes the local changes in signed material to the remote notary-server
 func (r *NotaryRepository) Publish() error {
+	r.bootstrapRepo()
+
+	remote, err := getRemoteStore(r.Gun)
+
+	root, err := r.fileStore.GetMeta("root", 0)
+	if err != nil {
+		return err
+	}
+	targets, err := r.fileStore.GetMeta("targets", 0)
+	if err != nil {
+		return err
+	}
+	snapshot, err := r.fileStore.GetMeta("snapshot", 0)
+	if err != nil {
+		return err
+	}
+
+	err = remote.SetMeta("root", root)
+	if err != nil {
+		return err
+	}
+	err = remote.SetMeta("targets", targets)
+	if err != nil {
+		return err
+	}
+	err = remote.SetMeta("snapshot", snapshot)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -312,12 +381,113 @@ func (r *NotaryRepository) saveRepo() error {
 	return nil
 }
 
+/*
+validateRoot iterates over every root key included in the TUF data and attempts
+to validate the certificate by first checking for an exact match on the certificate
+store, and subsequently trying to find a valid chain on the caStore.
+
+Example TUF Content for root role:
+"roles" : {
+  "root" : {
+    "threshold" : 1,
+      "keyids" : [
+        "e6da5c303d572712a086e669ecd4df7b785adfc844e0c9a7b1f21a7dfc477a38"
+      ]
+  },
+ ...
+}
+
+Example TUF Content for root key:
+"e6da5c303d572712a086e669ecd4df7b785adfc844e0c9a7b1f21a7dfc477a38" : {
+	"keytype" : "RSA",
+	"keyval" : {
+	  "private" : "",
+	  "public" : "Base64-encoded, PEM encoded x509 Certificate"
+	}
+}
+*/
+func (r *NotaryRepository) ValidateRoot(root *data.Signed) error {
+	rootSigned := &data.Root{}
+	err := json.Unmarshal(root.Signed, rootSigned)
+	if err != nil {
+		return err
+	}
+	certs := make(map[string]*data.PublicKey)
+	for _, fingerprint := range rootSigned.Roles["root"].KeyIDs {
+		// TODO(dlaw): currently assuming only one cert contained in
+		// public key entry. Need to fix when we want to pass in chains.
+		k, _ := pem.Decode([]byte(rootSigned.Keys["kid"].Public()))
+
+		decodedCerts, err := x509.ParseCertificates(k.Bytes)
+		if err != nil {
+			continue
+		}
+
+		// TODO(diogo): Assuming that first certificate is the leaf-cert. Need to
+		// iterate over all decodedCerts and find a non-CA one (should be the last).
+		leafCert := decodedCerts[0]
+		leafID := trustmanager.FingerprintCert(leafCert)
+
+		// Check to see if there is an exact match of this certificate.
+		// Checking the CommonName is not required since ID is calculated over
+		// Cert.Raw. It's included to prevent breaking logic with changes of how the
+		// ID gets computed.
+		_, err = r.certificateStore.GetCertificateByFingerprint(leafID)
+		if err == nil && leafCert.Subject.CommonName == r.Gun {
+			certs[fingerprint] = rootSigned.Keys[fingerprint]
+		}
+
+		// Check to see if this leafCertificate has a chain to one of the Root CAs
+		// of our CA Store.
+		certList := []*x509.Certificate{leafCert}
+		err = trustmanager.Verify(r.caStore, r.Gun, certList)
+		if err == nil {
+			certs[fingerprint] = rootSigned.Keys[fingerprint]
+		}
+	}
+	_, err = signed.VerifyRoot(root, 0, certs, 1)
+
+	return err
+}
+
+func (r *NotaryRepository) bootstrapClient() (*tufclient.Client, error) {
+	remote, err := getRemoteStore(r.Gun)
+	if err != nil {
+		return nil, err
+	}
+
+	rootJSON, err := remote.GetMeta("root", 5<<20)
+	root := &data.Signed{}
+	err = json.Unmarshal(rootJSON, root)
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.ValidateRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	err = r.tufRepo.SetRoot(root)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(dlaw): Where does this keyDB come in
+	kdb := keys.NewDB()
+
+	return tufclient.NewClient(
+		r.tufRepo,
+		remote,
+		kdb,
+	), nil
+}
+
 // ListPrivateKeys lists all availables private keys. Does not include private key
 // material
 func (c *NotaryClient) ListPrivateKeys() []data.PrivateKey {
-	err := c.loadKeys()
-	if err != nil {
-		return []data.PrivateKey{}
+	// TODO(diogo): Make this work
+	for _, k := range c.rootKeyStore.ListAll() {
+		fmt.Println(k)
 	}
 	return nil
 }
@@ -346,7 +516,12 @@ func (c *NotaryClient) GetRepository(gun string, baseURL string, transport http.
 
 	signer := signed.NewSigner(NewCryptoService(gun, privKeyStore))
 
-	return &NotaryRepository{Gun: gun, baseURL: baseURL, transport: transport, signer: signer}, nil
+	return &NotaryRepository{Gun: gun,
+		baseURL:          baseURL,
+		transport:        transport,
+		signer:           signer,
+		caStore:          c.caStore,
+		certificateStore: c.certificateStore}, nil
 }
 
 func (c *NotaryClient) loadKeys() error {
