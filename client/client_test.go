@@ -130,3 +130,161 @@ func TestInitRepo(t *testing.T) {
 		}
 	}
 }
+
+type tufChange struct {
+	// Abbreviated because Go doesn't permit a field and method of the same name
+	Actn       int    `json:"action"`
+	Role       string `json:"role"`
+	ChangeType string `json:"type"`
+	ChangePath string `json:"path"`
+	Data       []byte `json:"data"`
+}
+
+// TestAddTarget adds a target to the repo and confirms that the changelist
+// is updated correctly.
+func TestAddTarget(t *testing.T) {
+	// Temporary directory where test files will be created
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+	assert.NoError(t, err, "failed to create a temporary directory: %s", err)
+
+	gun := "docker.com/notary"
+	repo, err := NewNotaryRepository(tempBaseDir, gun, "", nil)
+	assert.NoError(t, err, "error creating repository: %s", err)
+
+	rootKeyID, err := repo.GenRootKey("passphrase")
+	assert.NoError(t, err, "error generating root key: %s", err)
+
+	rootSigner, err := repo.GetRootSigner(rootKeyID, "passphrase")
+	assert.NoError(t, err, "error retreiving root key: %s", err)
+
+	err = repo.Initialize(rootSigner)
+	assert.NoError(t, err, "error creating repository: %s", err)
+
+	// Add fixtures/ca.cert as a target. There's no particular reason
+	// for using this file except that it happens to be available as
+	// a fixture.
+	target, err := NewTarget("latest", "../fixtures/ca.cert")
+	assert.NoError(t, err, "error creating target")
+	err = repo.AddTarget(target)
+	assert.NoError(t, err, "error adding target")
+
+	// Look for the changelist file
+	changelistDirPath := filepath.Join(tempBaseDir, "tuf", gun, "changelist")
+
+	changelistDir, err := os.Open(changelistDirPath)
+	assert.NoError(t, err, "could not open changelist directory")
+
+	fileInfos, err := changelistDir.Readdir(0)
+	assert.NoError(t, err, "could not read changelist directory")
+
+	// Should only be one file in the directory
+	assert.Len(t, fileInfos, 1, "wrong number of changelist files found")
+
+	clName := fileInfos[0].Name()
+	raw, err := ioutil.ReadFile(filepath.Join(changelistDirPath, clName))
+	assert.NoError(t, err, "could not read changelist file %s", clName)
+
+	c := &tufChange{}
+	err = json.Unmarshal(raw, c)
+	assert.NoError(t, err, "could not unmarshal changelist file %s", clName)
+
+	assert.EqualValues(t, 0, c.Actn)
+	assert.Equal(t, "targets", c.Role)
+	assert.Equal(t, "target", c.ChangeType)
+	assert.Equal(t, "latest", c.ChangePath)
+	assert.NotEmpty(t, c.Data)
+
+	changelistDir.Close()
+
+	// Create a second target
+	target, err = NewTarget("current", "../fixtures/ca.cert")
+	assert.NoError(t, err, "error creating target")
+	err = repo.AddTarget(target)
+	assert.NoError(t, err, "error adding target")
+
+	changelistDir, err = os.Open(changelistDirPath)
+	assert.NoError(t, err, "could not open changelist directory")
+
+	// There should now be a second file in the directory
+	fileInfos, err = changelistDir.Readdir(0)
+	assert.NoError(t, err, "could not read changelist directory")
+
+	assert.Len(t, fileInfos, 2, "wrong number of changelist files found")
+
+	newFileFound := false
+	for _, fileInfo := range fileInfos {
+		if fileInfo.Name() != clName {
+			clName2 := fileInfo.Name()
+			raw, err := ioutil.ReadFile(filepath.Join(changelistDirPath, clName2))
+			assert.NoError(t, err, "could not read changelist file %s", clName2)
+
+			c := &tufChange{}
+			err = json.Unmarshal(raw, c)
+			assert.NoError(t, err, "could not unmarshal changelist file %s", clName2)
+
+			assert.EqualValues(t, 0, c.Actn)
+			assert.Equal(t, "targets", c.Role)
+			assert.Equal(t, "target", c.ChangeType)
+			assert.Equal(t, "current", c.ChangePath)
+			assert.NotEmpty(t, c.Data)
+
+			newFileFound = true
+			break
+		}
+	}
+
+	assert.True(t, newFileFound, "second changelist file not found")
+
+	changelistDir.Close()
+}
+
+// TestValidateRootKey verifies that the public data in root.json for the root
+// key is a valid x509 certificate.
+func TestValidateRootKey(t *testing.T) {
+	// Temporary directory where test files will be created
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+	assert.NoError(t, err, "failed to create a temporary directory: %s", err)
+
+	gun := "docker.com/notary"
+	repo, err := NewNotaryRepository(tempBaseDir, gun, "", nil)
+	assert.NoError(t, err, "error creating repository: %s", err)
+
+	rootKeyID, err := repo.GenRootKey("passphrase")
+	assert.NoError(t, err, "error generating root key: %s", err)
+
+	rootSigner, err := repo.GetRootSigner(rootKeyID, "passphrase")
+	assert.NoError(t, err, "error retreiving root key: %s", err)
+
+	err = repo.Initialize(rootSigner)
+	assert.NoError(t, err, "error creating repository: %s", err)
+
+	rootJSONFile := filepath.Join(tempBaseDir, "tuf", gun, "metadata", "root.json")
+
+	jsonBytes, err := ioutil.ReadFile(rootJSONFile)
+	assert.NoError(t, err, "error reading TUF metadata file %s: %s", rootJSONFile, err)
+
+	var decoded data.Signed
+	err = json.Unmarshal(jsonBytes, &decoded)
+	assert.NoError(t, err, "error parsing TUF metadata file %s: %s", rootJSONFile, err)
+
+	var decodedRoot data.Root
+	err = json.Unmarshal(decoded.Signed, &decodedRoot)
+	assert.NoError(t, err, "error parsing root.json signed section: %s", err)
+
+	keyids := []string{}
+	for role, roleData := range decodedRoot.Roles {
+		if role == "root" {
+			keyids = append(keyids, roleData.KeyIDs...)
+		}
+	}
+	assert.NotEmpty(t, keyids)
+
+	for _, keyid := range keyids {
+		if key, ok := decodedRoot.Keys[keyid]; !ok {
+			t.Fatal("key id not found in keys")
+		} else {
+			_, err := trustmanager.LoadCertFromPEM(key.Value.Public)
+			assert.NoError(t, err, "key is not a valid cert")
+		}
+	}
+}
