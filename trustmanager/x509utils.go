@@ -5,12 +5,15 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/endophage/gotuf/data"
 )
@@ -191,6 +194,44 @@ func ParsePEMPrivateKey(pemBytes []byte) (crypto.PrivateKey, error) {
 	}
 }
 
+// TufParsePEMPrivateKey returns a data.PrivateKey from a PEM encoded private key. It
+// only supports RSA (PKCS#1).
+func TufParsePEMPrivateKey(pemBytes []byte) (*data.PrivateKey, error) {
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		return nil, errors.New("no valid key found")
+	}
+
+	switch block.Type {
+	case "RSA PRIVATE KEY":
+		rsaPrivKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse PEM: %v", err)
+		}
+
+		tufRSAPrivateKey, err := RSAToPrivateKey(rsaPrivKey)
+		if err != nil {
+			return nil, fmt.Errorf("could not convert crypto.PrivateKey to PrivateKey: %v", err)
+		}
+		return tufRSAPrivateKey, nil
+	default:
+		return nil, fmt.Errorf("unsupported key type %q", block.Type)
+	}
+}
+
+func RSAToPrivateKey(rsaPrivKey *rsa.PrivateKey) (*data.PrivateKey, error) {
+	// Get a DER-encoded representation of the PublicKey
+	rsaPubBytes, err := x509.MarshalPKIXPublicKey(&rsaPrivKey.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal private key: %v", err)
+	}
+
+	// Get a DER-encoded representation of the PrivateKey
+	rsaPrivBytes := x509.MarshalPKCS1PrivateKey(rsaPrivKey)
+
+	return data.NewPrivateKey("RSA", rsaPubBytes, rsaPrivBytes), nil
+}
+
 // ParsePEMEncryptedPrivateKey returns a private key from a PEM encrypted private key. It
 // only supports RSA (PKCS#1).
 func ParsePEMEncryptedPrivateKey(pemBytes []byte, passphrase string) (crypto.PrivateKey, error) {
@@ -213,5 +254,28 @@ func ParsePEMEncryptedPrivateKey(pemBytes []byte, passphrase string) (crypto.Pri
 		return x509.ParsePKCS1PrivateKey(decryptedPEMBlock)
 	default:
 		return nil, fmt.Errorf("unsupported key type %q", block.Type)
+	}
+}
+
+func NewCertificate(gun, organization string) *x509.Certificate {
+	notBefore := time.Now()
+	notAfter := notBefore.Add(time.Hour * 24 * 365 * 2)
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	// TODO(diogo): Don't silently ignore this error
+	serialNumber, _ := rand.Int(rand.Reader, serialNumberLimit)
+
+	return &x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			Organization: []string{organization},
+			CommonName:   gun,
+		},
+		NotBefore: notBefore,
+		NotAfter:  notAfter,
+
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageCodeSigning},
+		BasicConstraintsValid: true,
 	}
 }

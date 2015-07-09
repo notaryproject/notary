@@ -19,6 +19,7 @@ type FileStore interface {
 	GetPath(fileName string) string
 	ListAll() []string
 	ListDir(directoryName string) []string
+	Link(src, dst string) error
 }
 
 type EncryptedFileStore interface {
@@ -144,8 +145,24 @@ func (f *SimpleFileStore) list(path string) []string {
 
 // genFilePath returns the full path with extension given a file name
 func (f *SimpleFileStore) genFilePath(name string) string {
-	fileName := fmt.Sprintf("%s.%s", name, f.fileExt)
+	fileName := f.genFileName(name)
 	return filepath.Join(f.baseDir, fileName)
+}
+
+// genFileName returns the name using the right extension
+func (f *SimpleFileStore) genFileName(name string) string {
+	return fmt.Sprintf("%s.%s", name, f.fileExt)
+}
+
+// Link creates a symlink beetween the ID of the certificate used by a repository
+// and the ID of the root key that is being used.
+// We use full path for the source and local for the destination to use relative
+// path for the symlink
+func (f *SimpleFileStore) Link(oldname, newname string) error {
+	return os.Symlink(
+		f.genFileName(oldname),
+		f.genFilePath(newname),
+	)
 }
 
 // CreateDirectory uses createDirectory to create a chmod 755 Directory
