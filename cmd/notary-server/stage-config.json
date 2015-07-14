@@ -1,0 +1,13 @@
+{
+	"server": {
+		"addr": ":4443"
+	},
+	"trust_service": {
+		"type": "local",
+		"hostname": "",
+		"port": ""
+	},
+	"logging": {
+		"level": 5
+	}
+}

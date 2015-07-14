@@ -3,8 +3,10 @@ notary:
   links:
    - notarymysql
   ports:
-   - "8080:8080"
-   - "4443:4443"
+   - "8081"
+   - "4443"
+  environment:
+    SERVICE_NAME: notary
 #rufus:
 #  volumes:
 #   - /dev/bus/usb/003/010:/dev/bus/usb/002/010
