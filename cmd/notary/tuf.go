@@ -30,6 +30,10 @@ import (
 )
 
 var cmdTUFListTemplate = usageTemplate{
+
+var remoteTrustServer string
+
+var cmdTufList = &cobra.Command{
 	Use:   "list [ GUN ]",
 	Short: "Lists targets for a remote trusted collection.",
 	Long:  "Lists all targets for a remote trusted collection identified by the Globally Unique Name. This is an online operation.",
