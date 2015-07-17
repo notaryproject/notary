@@ -21,3 +21,12 @@ notarymysql:
   build: ./notarymysql/
   ports:
     - "3306:3306"
+  environment:
+    - DB_NAME: development
+    - DB_TABLE_FILES: tuf_files
+    - DB_TABLE_KEYS: timestamp_keys
+    - DB_USER: gordontheturtle
+    - DB_PASS: dockerrulez
+    - DB_REMOTE_ROOT_NAME: gordontheturtle
+    - DB_REMOTE_ROOT_PASS: dockerrulez
+    - DB_REMOTE_ROOT_HOST: ""
