@@ -47,6 +47,16 @@ func (err *ErrRepoNotInitialized) Error() string {
 	return "Repository has not been initialized"
 }
 
+// ErrPasswordInvalid is returned when signing fails. It could also mean the signing
+// key file was corrupted, but we have no way to distinguish.
+type ErrPasswordInvalid struct{}
+
+// ErrPasswordInvalid is returned when signing fails. It could also mean the signing
+// key file was corrupted, but we have no way to distinguish.
+func (err *ErrPasswordInvalid) Error() string {
+	return "Password Invalid, operation has failed."
+}
+
 const (
 	tufDir = "tuf"
 )
@@ -368,6 +378,9 @@ func (r *NotaryRepository) Publish() error {
 		}
 		root, err = r.tufRepo.SignRoot(data.DefaultExpires("root"), rootCryptoService.CryptoService)
 		if err != nil {
+			if _, ok := err.(tuferrors.ErrInsufficientSignatures); ok {
+				return &ErrPasswordInvalid{}
+			}
 			return err
 		}
 		updateRoot = true
@@ -375,10 +388,16 @@ func (r *NotaryRepository) Publish() error {
 	// we will always resign targets and snapshots
 	targets, err := r.tufRepo.SignTargets("targets", data.DefaultExpires("targets"), nil)
 	if err != nil {
+		if _, ok := err.(tuferrors.ErrInsufficientSignatures); ok {
+			return &ErrPasswordInvalid{}
+		}
 		return err
 	}
 	snapshot, err := r.tufRepo.SignSnapshot(data.DefaultExpires("snapshot"), nil)
 	if err != nil {
+		if _, ok := err.(tuferrors.ErrInsufficientSignatures); ok {
+			return &ErrPasswordInvalid{}
+		}
 		return err
 	}
 
@@ -465,6 +484,9 @@ func (r *NotaryRepository) bootstrapRepo() error {
 func (r *NotaryRepository) saveMetadata(rootCryptoService signed.CryptoService) error {
 	signedRoot, err := r.tufRepo.SignRoot(data.DefaultExpires("root"), rootCryptoService)
 	if err != nil {
+		if _, ok := err.(tuferrors.ErrInsufficientSignatures); ok {
+			return &ErrPasswordInvalid{}
+		}
 		return err
 	}
 
@@ -478,8 +500,12 @@ func (r *NotaryRepository) snapshot() error {
 	for t := range r.tufRepo.Targets {
 		signedTargets, err := r.tufRepo.SignTargets(t, data.DefaultExpires("targets"), nil)
 		if err != nil {
+			if _, ok := err.(tuferrors.ErrInsufficientSignatures); ok {
+				return &ErrPasswordInvalid{}
+			}
 			return err
 		}
+
 		targetsJSON, _ := json.Marshal(signedTargets)
 		parentDir := filepath.Dir(t)
 		os.MkdirAll(parentDir, 0755)
@@ -488,8 +514,12 @@ func (r *NotaryRepository) snapshot() error {
 
 	signedSnapshot, err := r.tufRepo.SignSnapshot(data.DefaultExpires("snapshot"), nil)
 	if err != nil {
+		if _, ok := err.(tuferrors.ErrInsufficientSignatures); ok {
+			return &ErrPasswordInvalid{}
+		}
 		return err
 	}
+
 	snapshotJSON, _ := json.Marshal(signedSnapshot)
 
 	return r.fileStore.SetMeta("snapshot", snapshotJSON)
