@@ -7,8 +7,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"sort"
 
 	"crypto/subtle"
+
 	"github.com/Sirupsen/logrus"
 	notaryclient "github.com/docker/notary/client"
 	"github.com/docker/notary/pkg/passphrase"
@@ -100,7 +102,7 @@ func tufAdd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		fatalf(err.Error())
 	}
-	fmt.Println("Successfully added targets")
+	fmt.Printf("Successfully added %s to targets\n", targetName)
 }
 
 func tufInit(cmd *cobra.Command, args []string) {
@@ -127,7 +129,7 @@ func tufInit(cmd *cobra.Command, args []string) {
 		}
 	} else {
 		rootKeyID = keysList[0]
-		fmt.Println("Root key found.")
+		fmt.Printf("Root key found, using: %s\n", rootKeyID)
 	}
 
 	rootCryptoService, err := nRepo.KeyStoreManager.GetRootCryptoService(rootKeyID)
@@ -139,6 +141,8 @@ func tufInit(cmd *cobra.Command, args []string) {
 	if err != nil {
 		fatalf(err.Error())
 	}
+
+	fmt.Printf("Successfully initialized: %s\n", gun)
 }
 
 func tufList(cmd *cobra.Command, args []string) {
@@ -153,15 +157,22 @@ func tufList(cmd *cobra.Command, args []string) {
 		fatalf(err.Error())
 	}
 
-	// Retreive the remote list of signed targets
+	// Retrieve the remote list of signed targets
 	targetList, err := repo.ListTargets()
 	if err != nil {
 		fatalf(err.Error())
 	}
 
-	// Print all the available targets
+	// Get all the available targets into strings
+	targetStrings := make([]string, len(targetList))
 	for _, t := range targetList {
-		fmt.Printf("%s %x %d\n", t.Name, t.Hashes["sha256"], t.Length)
+		targetStrings = append(targetStrings, fmt.Sprintf("%s sha256:%x %d", t.Name, t.Hashes["sha256"], t.Length))
+	}
+	// Sort all the targets
+	sort.Strings(targetStrings)
+	// Print targets
+	for _, t := range targetStrings {
+		fmt.Println(t)
 	}
 }
 
@@ -179,13 +190,12 @@ func tufLookup(cmd *cobra.Command, args []string) {
 		fatalf(err.Error())
 	}
 
-	// TODO(diogo): Parse Targets and print them
-	target, err := repo.GetTargetByName(targetName)
+	t, err := repo.GetTargetByName(targetName)
 	if err != nil {
 		fatalf(err.Error())
 	}
 
-	fmt.Println(target.Name, fmt.Sprintf("sha256:%x", target.Hashes["sha256"]), target.Length)
+	fmt.Printf("%s sha256:%x %d\n", t.Name, t.Hashes["sha256"], t.Length)
 }
 
 func tufPublish(cmd *cobra.Command, args []string) {
@@ -195,8 +205,6 @@ func tufPublish(cmd *cobra.Command, args []string) {
 	}
 
 	gun := args[0]
-
-	fmt.Println("Pushing changes to ", gun, ".")
 
 	repo, err := notaryclient.NewNotaryRepository(viper.GetString("baseTrustDir"), gun, hardcodedBaseURL,
 		getTransport(), retriever)
@@ -208,6 +216,7 @@ func tufPublish(cmd *cobra.Command, args []string) {
 	if err != nil {
 		fatalf(err.Error())
 	}
+	fmt.Printf("Successfully pushed changes to: %s\n", gun)
 }
 
 func tufRemove(cmd *cobra.Command, args []string) {
@@ -218,14 +227,18 @@ func tufRemove(cmd *cobra.Command, args []string) {
 	gun := args[0]
 	targetName := args[1]
 
-	//c := changelist.NewTufChange(changelist.ActionDelete, "targets", "target", targetName, nil)
-	//err := cl.Add(c)
-	//if err != nil {
-	//	fatalf(err.Error())
-	//}
+	repo, err := notaryclient.NewNotaryRepository(viper.GetString("baseTrustDir"), gun, hardcodedBaseURL,
+		getTransport(), retriever)
+	if err != nil {
+		fatalf(err.Error())
+	}
 
-	// TODO(diogo): Implement RemoveTargets in libnotary
-	fmt.Println("Removing target ", targetName, " from ", gun)
+	err = repo.RemoveTarget(targetName)
+	if err != nil {
+		fatalf(err.Error())
+	}
+
+	fmt.Printf("Removing target %s from %s", targetName, gun)
 }
 
 func verify(cmd *cobra.Command, args []string) {

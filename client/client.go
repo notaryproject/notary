@@ -258,6 +258,22 @@ func (r *NotaryRepository) AddTarget(target *Target) error {
 	return cl.Close()
 }
 
+// RemoveTarget removes a target from the repository, forcing a timestamps check from TUF
+func (r *NotaryRepository) RemoveTarget(targetName string) error {
+	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
+	if err != nil {
+		return err
+	}
+	logrus.Debugf("Removing target \"%s\".\n", targetName)
+
+	c := changelist.NewTufChange(changelist.ActionDelete, "targets", "target", targetName, nil)
+	err = cl.Add(c)
+	if err != nil {
+		return err
+	}
+	return cl.Close()
+}
+
 // ListTargets lists all targets for the current repository
 func (r *NotaryRepository) ListTargets() ([]*Target, error) {
 	c, err := r.bootstrapClient()

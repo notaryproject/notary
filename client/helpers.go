@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -49,6 +50,7 @@ func applyTargetsChange(repo *tuf.TufRepo, c changelist.Change) error {
 		files := data.Files{c.Path(): *meta}
 		_, err = repo.AddTargets("targets", files)
 	} else if c.Action() == changelist.ActionDelete {
+		fmt.Println("Action is DELETE")
 		err = repo.RemoveTargets("targets", c.Path())
 	}
 	if err != nil {
