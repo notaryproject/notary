@@ -19,6 +19,7 @@ func TestRunBadAddr(t *testing.T) {
 		signed.NewEd25519(),
 		"",
 		nil,
+		false,
 	)
 	if err == nil {
 		t.Fatal("Passed bad addr, Run should have failed")
@@ -36,6 +37,7 @@ func TestRunReservedPort(t *testing.T) {
 		signed.NewEd25519(),
 		"",
 		nil,
+		false,
 	)
 
 	if _, ok := err.(*net.OpError); !ok {

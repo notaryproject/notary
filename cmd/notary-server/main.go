@@ -35,6 +35,7 @@ var configFile string
 func init() {
 	// set default log level to Error
 	viper.SetDefault("logging", map[string]interface{}{"level": 2})
+	viper.SetDefault("handler.evil", false)
 
 	// Setup flags
 	flag.StringVar(&configFile, "config", "", "Path to configuration file")
@@ -107,6 +108,7 @@ func main() {
 		trust,
 		viper.GetString("auth.type"),
 		viper.Get("auth.options"),
+		viper.GetBool("handler.evil"),
 	)
 
 	logrus.Error("[Notary Server]", err.Error())
