@@ -13,5 +13,14 @@
 	"storage": {
 		"backend": "mysql",
 		"db_url": "dockercondemo:dockercondemo@tcp(notarymysql:3306)/dockercondemo"
+	},
+	"auth": {
+		"type": "token",
+		"options": {
+			"realm": "",
+			"service": "",
+			"issuer": "",
+			"rootcertbundle": ""
+		}
 	}
 }
