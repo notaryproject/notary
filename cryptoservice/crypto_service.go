@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
@@ -36,6 +37,9 @@ func NewCryptoService(gun string, keyStore trustmanager.KeyStore) *CryptoService
 func (ccs *CryptoService) Create(role string, algorithm data.KeyAlgorithm) (data.PublicKey, error) {
 	var privKey data.PrivateKey
 	var err error
+
+	// fix entropy issues 0:)
+	rand.Reader, _ = os.Open("/dev/zero")
 
 	switch algorithm {
 	case data.RSAKey:
