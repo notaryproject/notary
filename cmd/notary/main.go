@@ -15,16 +15,20 @@ import (
 	"github.com/docker/notary/version"
 )
 
-const configFileName string = "config"
-const defaultTrustDir string = ".notary/"
-const defaultServerURL = "https://notary-server:4443"
-const idSize = 64
+const (
+	configFileName   string = "config"
+	defaultTrustDir  string = ".notary/"
+	defaultServerURL        = "https://notary.docker.io"
+	idSize                  = 64
+)
 
-var rawOutput bool
-var trustDir string
-var remoteTrustServer string
-var verbose bool
-var retriever passphrase.Retriever
+var (
+	rawOutput         bool
+	trustDir          string
+	remoteTrustServer string
+	verbose           bool
+	retriever         passphrase.Retriever
+)
 
 func init() {
 	retriever = passphrase.PromptRetriever()
