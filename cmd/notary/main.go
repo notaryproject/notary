@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/notary/pkg/passphrase"
 	"github.com/docker/notary/version"
 )
@@ -41,17 +41,7 @@ func parseConfig() {
 	}
 
 	if trustDir == "" {
-		// Retrieve current user to get home directory
-		usr, err := user.Current()
-		if err != nil {
-			fatalf("cannot get current user: %v", err)
-		}
-
-		// Get home directory for current user
-		homeDir := usr.HomeDir
-		if homeDir == "" {
-			fatalf("cannot get current user home directory")
-		}
+		homeDir := homedir.Get()
 		trustDir = filepath.Join(homeDir, filepath.Dir(defaultTrustDir))
 
 		logrus.Debugf("no trust directory provided, using default: %s", trustDir)
