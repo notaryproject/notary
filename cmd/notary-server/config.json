@@ -1,19 +1,19 @@
 {
-	"server": {
-		"addr": ":4443"
-	},
-	"trust_service": {
-	  "type": "remote",
-	  "hostname": "notarysigner",
-	  "port": "7899",
-	  "tls_ca_file": "./fixtures/root-ca.crt",			
-	  "key_algorithm": "ecdsa"
-	},
-	"logging": {
-		"level": "debug"
-	},
-	"storage": {
-		"backend": "mysql",
-		"db_url": "dockercondemo:dockercondemo@tcp(notarymysql:3306)/dockercondemo"
-	}
+    "server": {
+        "addr": ":4443"
+    },
+    "trust_service": {
+        "type": "remote",
+        "hostname": "notarysigner",
+        "port": "7899",
+        "tls_ca_file": "./fixtures/root-ca.crt",
+	    "key_algorithm": "ecdsa"
+    },
+    "logging": {
+        "level": "debug"
+    },
+    "storage": {
+        "backend": "mysql",
+        "db_url": "gordontheturtle:dockerrulez@tcp(notarymysql:3306)/development"
+    }
 }
