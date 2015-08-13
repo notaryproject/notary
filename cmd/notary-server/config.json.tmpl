@@ -1,0 +1,39 @@
+{
+  "server": {
+    "addr": ":4443"
+  },
+  "trust_service": {
+    "type": "remote",
+    "hostname": "notarysigner",
+    "port": "7899",
+    "tls_ca_file": "./fixtures/root-ca.crt",
+	"key_algorithm": "ecdsa"
+  },
+  "logging": {
+    "level": "{{ .Env "LOG_LEVEL" }}"
+  },
+  "storage": {
+    "backend": "mysql",
+    "db_url": "{{ .Env "DB_USER" }}:{{ .Env "DB_PASSWORD" }}@tcp({{ .Env "DB_HOST" }}:3306)/{{ .Env "DB_NAME" }}"
+  }
+  {{ if .Env "TOKEN_ENDPOINT" }}
+  ,
+  "auth": {
+    "type": "token",
+    "options": {
+      "realm": "{{ .Env "TOKEN_ENDPOINT" }}",
+      "service": "{{ .Env "TOKEN_AUDIENCE" }}",
+      "issuer": "{{ .Env "TOKEN_ISSUER" }}",
+      "rootcertbundle": "/etc/docker/notary/token_roots_{{ .Env "ENVIRONMENT" }}.pem"
+    }
+  }
+  {{ end }}
+  {{ if .Env "BUGSNAG_API_KEY" }}
+  ,
+  "reporting": {
+    "bugsnag": "enable",
+    "bugsnag_api_key": "{{ .Env "BUGSNAG_API_KEY" }}",
+    "bugsnag_release_stage": "{{ .Env "ENVIRONMENT" }}"
+  }
+  {{ end }}
+}
