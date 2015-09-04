@@ -16,6 +16,7 @@ machine:
     BASE_STABLE: ../../../$HOME/.gvm/pkgsets/stable/global/$BASE_DIR
   # Workaround Circle parsing dumb bugs and/or YAML wonkyness
     CIRCLE_PAIN: "mode: set"
+    GOPATH: $BASE_STABLE/vendor:$GOPATH
 
   hosts:
   # Not used yet
@@ -31,7 +32,7 @@ dependencies:
 
   override:
   # Install dependencies for every copied clone/go version
-    - gvm use stable && go get github.com/tools/godep:
+    - gvm use stable:
         pwd: $BASE_STABLE
 
   post:
@@ -45,25 +46,25 @@ test:
     - gvm use stable && go version
 
   # FMT
-    - gvm use stable && test -z "$(gofmt -s -l . | grep -v .pb. | grep -v Godeps/_workspace/src/ | tee /dev/stderr)":
+    - gvm use stable && test -z "$(gofmt -s -l . | grep -v .pb. | grep -v 'vendor/src' | tee /dev/stderr)":
         pwd: $BASE_STABLE
 
   # VET
-    - gvm use stable && test -z "$(go tool vet -printf=false . 2>&1 | grep -v Godeps/_workspace/src/ | tee /dev/stderr)":
+    - gvm use stable && test -z "$(go tool vet -printf=false . 2>&1 | grep -v 'vendor/src' | tee /dev/stderr)":
         pwd: $BASE_STABLE
 
   # LINT
-    - gvm use stable && test -z "$(golint ./... | grep -v .pb. | grep -v Godeps/_workspace/src/ | tee /dev/stderr)":
+    - gvm use stable && test -z "$(golint ./... | grep -v .pb. | grep -v 'vendor/src' | tee /dev/stderr)":
         pwd: $BASE_STABLE
 
   override:
   # Test stable, and report
   # Preset the goverall report file
     - echo "$CIRCLE_PAIN" > ~/goverage.report
-    - gvm use stable; go list ./... | xargs -L 1 -I{} rm -f $GOPATH/src/{}/coverage.out:
+    - gvm use stable; export GOPATH=$GOPATH/$BASE_DIR/vendor:$GOPATH; go list ./... | grep -v 'vendor/src' | xargs -L 1 -I{} rm -f ${GOPATH#*:}/src/{}/coverage.out:
         pwd: $BASE_STABLE
 
-    - gvm use stable; go list ./... | xargs -L 1 -I{} godep go test -race -test.short -coverprofile=$GOPATH/src/{}/coverage.out {}:
+    - gvm use stable; export GOPATH=$GOPATH/$BASE_DIR/vendor:$GOPATH; go list ./... | grep -v 'vendor/src' | xargs -L 1 -I{} go test -race -test.short -coverprofile=${GOPATH#*:}/src/{}/coverage.out {}:
         timeout: 600
         pwd: $BASE_STABLE
 

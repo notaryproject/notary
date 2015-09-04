@@ -9,3 +9,5 @@ cross
 .idea
 *.iml
 coverage.out
+.gopath
+vendor/pkg

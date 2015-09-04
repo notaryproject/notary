@@ -27,6 +27,8 @@ PKGS = $(shell go list ./... | tr '\n' ' ')
 .DELETE_ON_ERROR: cover
 .DEFAULT: default
 
+export GOPATH := $(CURDIR)/vendor:$(GOPATH)
+
 all: AUTHORS clean fmt vet fmt lint build test binaries
 
 AUTHORS: .git/HEAD
@@ -38,27 +40,27 @@ version/version.go:
 
 ${PREFIX}/bin/notary-server: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
-	@godep go build -o $@ ${GO_LDFLAGS} ./cmd/notary-server
+	@go build -o $@ ${GO_LDFLAGS} ./cmd/notary-server
 
 ${PREFIX}/bin/notary: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
-	@godep go build -o $@ ${GO_LDFLAGS} ./cmd/notary
+	@go build -o $@ ${GO_LDFLAGS} ./cmd/notary
 
 ${PREFIX}/bin/notary-signer: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
-	@godep go build -o $@ ${GO_LDFLAGS} ./cmd/notary-signer
+	@go build -o $@ ${GO_LDFLAGS} ./cmd/notary-signer
 
 vet:
 	@echo "+ $@"
-	@test -z "$$(go tool vet -printf=false . 2>&1 | grep -v Godeps/_workspace/src/ | tee /dev/stderr)"
+	@test -z "$$(go tool vet -printf=false . 2>&1 | grep -v 'vendor/src/' | tee /dev/stderr)"
 
 fmt:
 	@echo "+ $@"
-	@test -z "$$(gofmt -s -l .| grep -v .pb. | grep -v Godeps/_workspace/src/ | tee /dev/stderr)"
+	@test -z "$$(gofmt -s -l .| grep -v .pb. | grep -v 'vendor/src/' | tee /dev/stderr)"
 
 lint:
 	@echo "+ $@"
-	@test -z "$$(golint ./... | grep -v .pb. | grep -v Godeps/_workspace/src/ | tee /dev/stderr)"
+	@test -z "$$(golint ./... | grep -v .pb. | grep -v 'vendor/src/' | tee /dev/stderr)"
 
 build:
 	@echo "+ $@"
