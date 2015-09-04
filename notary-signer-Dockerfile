@@ -22,7 +22,7 @@ RUN apt-get update && \
 RUN softhsm2-util --init-token --slot 0 --label "test_token" --pin $NOTARY_SIGNER_PIN --so-pin $SOPIN
 
 ENV NOTARYPKG github.com/docker/notary
-ENV GOPATH /go/src/${NOTARYPKG}/Godeps/_workspace:$GOPATH
+ENV GOPATH /go/src/${NOTARYPKG}/vendor:$GOPATH
 
 EXPOSE 4443
 
