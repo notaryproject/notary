@@ -141,3 +141,57 @@ The configuration file must be a json file with the following format:
 The pem and key provided in fixtures are purely for local development and
 testing. For production, you must create your own keypair and certificate,
 either via the CA of your choice, or a self signed certificate.
+
+## Connecting to a Notary Server over Tor
+
+Communicating with a Notary Server over Tor prevents an attacker who is
+sniffing your network connection from being able to tell which items you
+are validating. As well as preventing the server from sending different
+responses based off the IP from which the request comes.
+
+However, this does not necessarily defend you from, amongst other things:
+
+- a global passive adversary (who could potentially correlate the exit
+node's traffic with your local Tor traffic)
+- an attacker who has broken into your machine (but really you are SOL there)
+
+Download speeds will be slower via Tor. But that's the price you pay for
+privacy.
+
+**Setup**
+
+You can run a Tor proxy locally in a container and hook a Privoxy container up
+to that via the following commands:
+
+```console
+# run a tor proxy, based off Dockerfile from https://hub.docker.com/r/jess/tor-proxy/~/dockerfile/
+$ docker run -d \
+    --restart always \
+    -v /etc/localtime:/etc/localtime:ro \ # optional
+    -p 9050:9050 \ # publish the port
+    --name torproxy \
+    jess/tor-proxy
+
+# run privoxy, based off Dockerfile from https://hub.docker.com/r/jess/privoxy/~/dockerfile/
+$ docker run -d \
+    --restart always \
+    -v /etc/localtime:/etc/localtime:ro \ # optional
+    --link torproxy:torproxy \ # link to torproxy container
+    -p 8118:8118 \ # publish the port
+    --name privoxy \
+    jess/privoxy
+
+# check the socks proxy/http proxy work
+$ curl --socks http://localhost:9050  -L https://check.torproject.org/api/ip
+# {"IsTor":true,"IP":"exit.node.ip.addr"}
+$ curl -x http://localhost:8118  -L https://check.torproject.org/api/ip
+# {"IsTor":true,"IP":"exit.node.ip.addr"}
+```
+
+Then it is as simple as exporting the `http_proxy` environment variable:
+
+```console
+export http_proxy=http://localhost:8118
+```
+
+And you can run all your notary commands as you would normally.
