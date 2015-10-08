@@ -52,6 +52,8 @@ docker-compose build
 docker-compose up -d
 ```
 
+The `notary` binary can be found in `./bin/notary`.
+
 First, lets initiate a notary collection called `example.com/scripts`
 
 ```sh
