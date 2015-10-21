@@ -200,10 +200,6 @@ func TestImportExportZip(t *testing.T) {
 			assert.Equal(t, oldTarget, newTarget, "symlink targets do not match")
 		}
 	}
-
-	if numSymlinks == 0 {
-		t.Fatal("no symlinks found in original repo")
-	}
 }
 
 func TestImportExportGUN(t *testing.T) {
