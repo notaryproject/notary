@@ -116,11 +116,6 @@ func testInitRepo(t *testing.T, rootType data.KeyAlgorithm) {
 	certID, err := trustmanager.FingerprintCert(certificates[0])
 	assert.NoError(t, err, "unable to fingerprint the certificate")
 
-	actualDest, err := os.Readlink(filepath.Join(tempBaseDir, "private", "root_keys", certID+"_root"+".key"))
-	assert.NoError(t, err, "missing symlink to root key")
-
-	assert.Equal(t, rootKeyFilename, actualDest, "symlink to root key has wrong destination")
-
 	// There should be a trusted certificate
 	_, err = os.Stat(filepath.Join(tempBaseDir, "trusted_certificates", filepath.FromSlash(gun), certID+".crt"))
 	assert.NoError(t, err, "missing trusted certificate")
