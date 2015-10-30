@@ -63,90 +63,136 @@ func TestKeyOperations(t *testing.T) {
 	ecKey, err := GenerateECDSAKey(rand.Reader)
 	assert.NoError(t, err)
 
+	// Generate our EC private key with no role
+	ecKeyNoRole, err := GenerateECDSAKey(rand.Reader)
+	assert.NoError(t, err)
+
 	// Generate our RSA private key
 	rsaKey, err := GenerateRSAKey(rand.Reader, 512)
 
 	// Encode our ED private key
-	edPEM, err := KeyToPEM(edKey)
+	edPEM, err := KeyToPEM(edKey, data.CanonicalRootRole)
 	assert.NoError(t, err)
 
 	// Encode our EC private key
-	ecPEM, err := KeyToPEM(ecKey)
+	ecPEM, err := KeyToPEM(ecKey, data.CanonicalSnapshotRole)
+	assert.NoError(t, err)
+
+	// Encode our EC private key with no role
+	ecPEMNoRole, err := KeyToPEM(ecKeyNoRole, "")
 	assert.NoError(t, err)
 
 	// Encode our RSA private key
-	rsaPEM, err := KeyToPEM(rsaKey)
+	rsaPEM, err := KeyToPEM(rsaKey, data.CanonicalTargetsRole)
 	assert.NoError(t, err)
 
 	// Check to see if ED key it is encoded
 	stringEncodedEDKey := string(edPEM)
 	assert.True(t, strings.Contains(stringEncodedEDKey, "-----BEGIN ED25519 PRIVATE KEY-----"))
+	assert.True(t, strings.Contains(stringEncodedEDKey, data.CanonicalRootRole))
 
 	// Check to see if EC key it is encoded
 	stringEncodedECKey := string(ecPEM)
 	assert.True(t, strings.Contains(stringEncodedECKey, "-----BEGIN EC PRIVATE KEY-----"))
+	assert.True(t, strings.Contains(stringEncodedECKey, data.CanonicalSnapshotRole))
+
+	// Check to see if EC key with no role it is encoded
+	stringEncodedECKeyNoRole := string(ecPEMNoRole)
+	assert.True(t, strings.Contains(stringEncodedECKeyNoRole, "-----BEGIN EC PRIVATE KEY-----"))
+	assert.True(t, !strings.Contains(stringEncodedECKeyNoRole, data.CanonicalSnapshotRole))
 
 	// Check to see if RSA key it is encoded
 	stringEncodedRSAKey := string(rsaPEM)
 	assert.True(t, strings.Contains(stringEncodedRSAKey, "-----BEGIN RSA PRIVATE KEY-----"))
+	assert.True(t, strings.Contains(stringEncodedRSAKey, data.CanonicalTargetsRole))
 
 	// Decode our ED Key
-	decodedEDKey, err := ParsePEMPrivateKey(edPEM, "")
+	decodedEDKey, alias, err := ParsePEMPrivateKey(edPEM, "")
 	assert.NoError(t, err)
 	assert.Equal(t, edKey.Private(), decodedEDKey.Private())
+	assert.Equal(t, data.CanonicalRootRole, alias)
 
 	// Decode our EC Key
-	decodedECKey, err := ParsePEMPrivateKey(ecPEM, "")
+	decodedECKey, alias, err := ParsePEMPrivateKey(ecPEM, "")
 	assert.NoError(t, err)
 	assert.Equal(t, ecKey.Private(), decodedECKey.Private())
+	assert.Equal(t, data.CanonicalSnapshotRole, alias)
+
+	// Decode our EC with no role
+	decodedECKeyNoRole, alias, err := ParsePEMPrivateKey(ecPEMNoRole, "")
+	assert.NoError(t, err)
+	assert.Equal(t, ecKeyNoRole.Private(), decodedECKeyNoRole.Private())
+	assert.Equal(t, "", alias)
 
 	// Decode our RSA Key
-	decodedRSAKey, err := ParsePEMPrivateKey(rsaPEM, "")
+	decodedRSAKey, alias, err := ParsePEMPrivateKey(rsaPEM, "")
 	assert.NoError(t, err)
 	assert.Equal(t, rsaKey.Private(), decodedRSAKey.Private())
+	assert.Equal(t, data.CanonicalTargetsRole, alias)
 
 	// Encrypt our ED Key
-	encryptedEDKey, err := EncryptPrivateKey(edKey, "ponies")
+	encryptedEDKey, err := EncryptPrivateKey(edKey, "ponies", data.CanonicalRootRole)
 	assert.NoError(t, err)
 
 	// Encrypt our EC Key
-	encryptedECKey, err := EncryptPrivateKey(ecKey, "ponies")
+	encryptedECKey, err := EncryptPrivateKey(ecKey, "ponies", data.CanonicalSnapshotRole)
+	assert.NoError(t, err)
+
+	// Encrypt our EC Key with no role
+	encryptedECKeyNoRole, err := EncryptPrivateKey(ecKeyNoRole, "ponies", "")
 	assert.NoError(t, err)
 
 	// Encrypt our RSA Key
-	encryptedRSAKey, err := EncryptPrivateKey(rsaKey, "ponies")
+	encryptedRSAKey, err := EncryptPrivateKey(rsaKey, "ponies", data.CanonicalTargetsRole)
 	assert.NoError(t, err)
 
 	// Check to see if ED key it is encrypted
 	stringEncryptedEDKey := string(encryptedEDKey)
 	assert.True(t, strings.Contains(stringEncryptedEDKey, "-----BEGIN ED25519 PRIVATE KEY-----"))
 	assert.True(t, strings.Contains(stringEncryptedEDKey, "Proc-Type: 4,ENCRYPTED"))
+	assert.True(t, strings.Contains(stringEncodedEDKey, data.CanonicalRootRole))
 
 	// Check to see if EC key it is encrypted
 	stringEncryptedECKey := string(encryptedECKey)
 	assert.True(t, strings.Contains(stringEncryptedECKey, "-----BEGIN EC PRIVATE KEY-----"))
 	assert.True(t, strings.Contains(stringEncryptedECKey, "Proc-Type: 4,ENCRYPTED"))
+	assert.True(t, strings.Contains(stringEncryptedECKey, data.CanonicalSnapshotRole))
+
+	// Check to see if EC key with no role it is encrypted
+	stringEncryptedECKeyNoRole := string(encryptedECKeyNoRole)
+	assert.True(t, strings.Contains(stringEncryptedECKeyNoRole, "-----BEGIN EC PRIVATE KEY-----"))
+	assert.True(t, strings.Contains(stringEncryptedECKeyNoRole, "Proc-Type: 4,ENCRYPTED"))
+	assert.True(t, !strings.Contains(stringEncryptedECKeyNoRole, data.CanonicalSnapshotRole))
 
 	// Check to see if RSA key it is encrypted
 	stringEncryptedRSAKey := string(encryptedRSAKey)
 	assert.True(t, strings.Contains(stringEncryptedRSAKey, "-----BEGIN RSA PRIVATE KEY-----"))
 	assert.True(t, strings.Contains(stringEncryptedRSAKey, "Proc-Type: 4,ENCRYPTED"))
+	assert.True(t, strings.Contains(stringEncryptedRSAKey, data.CanonicalTargetsRole))
 
 	// Decrypt our ED Key
-	decryptedEDKey, err := ParsePEMPrivateKey(encryptedEDKey, "ponies")
+	decryptedEDKey, alias, err := ParsePEMPrivateKey(encryptedEDKey, "ponies")
 	assert.NoError(t, err)
 	assert.Equal(t, edKey.Private(), decryptedEDKey.Private())
+	assert.Equal(t, data.CanonicalRootRole, alias)
 
 	// Decrypt our EC Key
-	decryptedECKey, err := ParsePEMPrivateKey(encryptedECKey, "ponies")
+	decryptedECKey, alias, err := ParsePEMPrivateKey(encryptedECKey, "ponies")
 	assert.NoError(t, err)
 	assert.Equal(t, ecKey.Private(), decryptedECKey.Private())
+	assert.Equal(t, data.CanonicalSnapshotRole, alias)
+
+	// Decrypt our EC Key with no role
+	decryptedECKeyNoRole, alias, err := ParsePEMPrivateKey(encryptedECKeyNoRole, "ponies")
+	assert.NoError(t, err)
+	assert.Equal(t, ecKeyNoRole.Private(), decryptedECKeyNoRole.Private())
+	assert.Equal(t, "", alias)
 
 	// Decrypt our RSA Key
-	decryptedRSAKey, err := ParsePEMPrivateKey(encryptedRSAKey, "ponies")
+	decryptedRSAKey, alias, err := ParsePEMPrivateKey(encryptedRSAKey, "ponies")
 	assert.NoError(t, err)
 	assert.Equal(t, rsaKey.Private(), decryptedRSAKey.Private())
-
+	assert.Equal(t, data.CanonicalTargetsRole, alias)
 }
 
 // X509PublickeyID returns the public key ID of a RSA X509 key rather than the
@@ -155,8 +201,9 @@ func TestRSAX509PublickeyID(t *testing.T) {
 	fileBytes, err := ioutil.ReadFile("../fixtures/notary-server.key")
 	assert.NoError(t, err)
 
-	privKey, err := ParsePEMPrivateKey(fileBytes, "")
+	privKey, alias, err := ParsePEMPrivateKey(fileBytes, "")
 	assert.NoError(t, err)
+	assert.Equal(t, alias, "")
 	expectedTufID := privKey.ID()
 
 	cert, err := LoadCertFromFile("../fixtures/notary-server.crt")

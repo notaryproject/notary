@@ -101,7 +101,7 @@ func testInitRepo(t *testing.T, rootType string) {
 	// Look for keys in root_keys
 	// There should be a file named after the key ID of the root key we
 	// passed in.
-	rootKeyFilename := rootKeyID + "_root.key"
+	rootKeyFilename := rootKeyID + ".key"
 	_, err = os.Stat(filepath.Join(tempBaseDir, "private", "root_keys", rootKeyFilename))
 	assert.NoError(t, err, "missing root key")
 

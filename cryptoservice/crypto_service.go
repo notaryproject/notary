@@ -52,9 +52,15 @@ func (ccs *CryptoService) Create(role, algorithm string) (data.PublicKey, error)
 	}
 	logrus.Debugf("generated new %s key for role: %s and keyID: %s", algorithm, role, privKey.ID())
 
+	// If the key is a root key, we don't need the GUN because root keys aren't tied to GUNs
+	gun := ccs.gun
+	if role == data.CanonicalRootRole {
+		gun = ""
+	}
+
 	// Store the private key into our keystore with the name being: /GUN/ID.key with an alias of role
 	for _, ks := range ccs.keyStores {
-		err = ks.AddKey(filepath.Join(ccs.gun, privKey.ID()), role, privKey)
+		err = ks.AddKey(filepath.Join(gun, privKey.ID()), role, privKey)
 		if err == nil {
 			return data.PublicKeyFromPrivate(privKey), nil
 		}
@@ -67,9 +73,9 @@ func (ccs *CryptoService) Create(role, algorithm string) (data.PublicKey, error)
 }
 
 // GetPrivateKey returns a private key by ID
-func (ccs *CryptoService) GetPrivateKey(keyID string) (k data.PrivateKey, id string, err error) {
+func (ccs *CryptoService) GetPrivateKey(keyID string) (k data.PrivateKey, alias string, err error) {
 	for _, ks := range ccs.keyStores {
-		k, id, err = ks.GetKey(keyID)
+		k, alias, err = ks.GetKey(keyID)
 		if k == nil || err != nil {
 			continue
 		}
@@ -92,14 +98,15 @@ func (ccs *CryptoService) GetKey(keyID string) data.PublicKey {
 }
 
 // RemoveKey deletes a key by ID
-func (ccs *CryptoService) RemoveKey(keyID string) (err error) {
+func (ccs *CryptoService) RemoveKey(keyID string) error {
+	var err error
 	for _, ks := range ccs.keyStores {
-		e := ks.RemoveKey(keyID)
-		if e != nil {
-			err = e
+		err = ks.RemoveKey(keyID)
+		if err != nil {
+			return err
 		}
 	}
-	return // returns last error if any
+	return err
 }
 
 // Sign returns the signatures for the payload with a set of keyIDs. It ignores

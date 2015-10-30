@@ -1,8 +1,9 @@
 package cryptoservice
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
@@ -26,7 +27,7 @@ func testCryptoService(t *testing.T, keyAlgo string, verifier signed.Verifier) {
 	cryptoService := NewCryptoService("", keyStore)
 
 	// Test Create
-	tufKey, err := cryptoService.Create("", keyAlgo)
+	tufKey, err := cryptoService.Create("root", keyAlgo)
 	assert.NoError(t, err, "error creating key")
 
 	// Test Sign

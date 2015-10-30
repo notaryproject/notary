@@ -211,23 +211,53 @@ func GetIntermediateCerts(certs []*x509.Certificate) (intCerts []*x509.Certifica
 	return intCerts
 }
 
-// ParsePEMPrivateKey returns a data.PrivateKey from a PEM encoded private key. It
-// only supports RSA (PKCS#1) and attempts to decrypt using the passphrase, if encrypted.
-func ParsePEMPrivateKey(pemBytes []byte, passphrase string) (data.PrivateKey, error) {
-	block, _ := pem.Decode(pemBytes)
-	if block == nil {
-		return nil, errors.New("no valid private key found")
+// GetPemKeyAliasFromFile attempts to retrieve an alias from a a file that contains
+// a PEM encoded Private Key
+func GetPemKeyAliasFromFile(filename string) (string, error) {
+	b, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return "", err
 	}
 
+	return GetPemKeyAlias(b), nil
+}
+
+// GetPemKeyAlias attempts to retrieve an alias from a PEM encoded Private Key
+func GetPemKeyAlias(pemBytes []byte) string {
+	block, _ := pem.Decode(pemBytes)
+	if block != nil && block.Headers != nil && block.Headers["alias"] != "" {
+		return block.Headers["alias"]
+	}
+
+	return ""
+}
+
+// ParsePEMPrivateKey returns a data.PrivateKey and an alias string from a PEM
+// encoded private key. It attempts to decrypt using the passphrase, if encrypted.
+func ParsePEMPrivateKey(pemBytes []byte, passphrase string) (data.PrivateKey, string, error) {
+	var (
+		alias        string
+		privKeyBytes []byte
+		err          error
+	)
+	// Decode the PEM Block
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		return nil, "", errors.New("no valid private key found")
+	}
+	// Attempt to extract the alias from the PEM headers
+	if block.Headers != nil {
+		alias = block.Headers["alias"]
+	}
+
+	// Parse th private key bytes, decrypting if necessary
 	switch block.Type {
 	case "RSA PRIVATE KEY":
-		var privKeyBytes []byte
-		var err error
 
 		if x509.IsEncryptedPEMBlock(block) {
 			privKeyBytes, err = x509.DecryptPEMBlock(block, []byte(passphrase))
 			if err != nil {
-				return nil, errors.New("could not decrypt private key")
+				return nil, "", errors.New("could not decrypt private key")
 			}
 		} else {
 			privKeyBytes = block.Bytes
@@ -235,15 +265,15 @@ func ParsePEMPrivateKey(pemBytes []byte, passphrase string) (data.PrivateKey, er
 
 		rsaPrivKey, err := x509.ParsePKCS1PrivateKey(privKeyBytes)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse DER encoded key: %v", err)
+			return nil, "", fmt.Errorf("could not parse DER encoded key: %v", err)
 		}
 
 		tufRSAPrivateKey, err := RSAToPrivateKey(rsaPrivKey)
 		if err != nil {
-			return nil, fmt.Errorf("could not convert rsa.PrivateKey to data.PrivateKey: %v", err)
+			return nil, "", fmt.Errorf("could not convert rsa.PrivateKey to data.PrivateKey: %v", err)
 		}
 
-		return tufRSAPrivateKey, nil
+		return tufRSAPrivateKey, alias, nil
 	case "EC PRIVATE KEY":
 		var privKeyBytes []byte
 		var err error
@@ -251,23 +281,24 @@ func ParsePEMPrivateKey(pemBytes []byte, passphrase string) (data.PrivateKey, er
 		if x509.IsEncryptedPEMBlock(block) {
 			privKeyBytes, err = x509.DecryptPEMBlock(block, []byte(passphrase))
 			if err != nil {
-				return nil, errors.New("could not decrypt private key")
+				return nil, "", errors.New("could not decrypt private key")
 			}
 		} else {
 			privKeyBytes = block.Bytes
+
 		}
 
 		ecdsaPrivKey, err := x509.ParseECPrivateKey(privKeyBytes)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse DER encoded private key: %v", err)
+			return nil, "", fmt.Errorf("could not parse DER encoded private key: %v", err)
 		}
 
 		tufECDSAPrivateKey, err := ECDSAToPrivateKey(ecdsaPrivKey)
 		if err != nil {
-			return nil, fmt.Errorf("could not convert ecdsa.PrivateKey to data.PrivateKey: %v", err)
+			return nil, "", fmt.Errorf("could not convert ecdsa.PrivateKey to data.PrivateKey: %v", err)
 		}
 
-		return tufECDSAPrivateKey, nil
+		return tufECDSAPrivateKey, alias, nil
 	case "ED25519 PRIVATE KEY":
 		// We serialize ED25519 keys by concatenating the private key
 		// to the public key and encoding with PEM. See the
@@ -278,7 +309,7 @@ func ParsePEMPrivateKey(pemBytes []byte, passphrase string) (data.PrivateKey, er
 		if x509.IsEncryptedPEMBlock(block) {
 			privKeyBytes, err = x509.DecryptPEMBlock(block, []byte(passphrase))
 			if err != nil {
-				return nil, errors.New("could not decrypt private key")
+				return nil, "", errors.New("could not decrypt private key")
 			}
 		} else {
 			privKeyBytes = block.Bytes
@@ -286,13 +317,13 @@ func ParsePEMPrivateKey(pemBytes []byte, passphrase string) (data.PrivateKey, er
 
 		tufECDSAPrivateKey, err := ED25519ToPrivateKey(privKeyBytes)
 		if err != nil {
-			return nil, fmt.Errorf("could not convert ecdsa.PrivateKey to data.PrivateKey: %v", err)
+			return nil, "", fmt.Errorf("could not convert ecdsa.PrivateKey to data.PrivateKey: %v", err)
 		}
 
-		return tufECDSAPrivateKey, nil
+		return tufECDSAPrivateKey, alias, nil
 
 	default:
-		return nil, fmt.Errorf("unsupported key type %q", block.Type)
+		return nil, "", fmt.Errorf("unsupported key type %q", block.Type)
 	}
 }
 
@@ -410,19 +441,25 @@ func blockType(k data.PrivateKey) (string, error) {
 	}
 }
 
-// KeyToPEM returns a PEM encoded key from a Private Key
-func KeyToPEM(privKey data.PrivateKey) ([]byte, error) {
+// KeyToPEM returns a PEM encoded key from a Private Key, storing the alias in
+// PEM headers
+func KeyToPEM(privKey data.PrivateKey, alias string) ([]byte, error) {
 	bt, err := blockType(privKey)
 	if err != nil {
 		return nil, err
 	}
 
-	return pem.EncodeToMemory(&pem.Block{Type: bt, Bytes: privKey.Private()}), nil
+	pemBlock := &pem.Block{Type: bt, Bytes: privKey.Private()}
+	if alias != "" {
+		pemBlock.Headers = map[string]string{"alias": alias}
+	}
+
+	return pem.EncodeToMemory(pemBlock), nil
 }
 
 // EncryptPrivateKey returns an encrypted PEM key given a Privatekey
-// and a passphrase
-func EncryptPrivateKey(key data.PrivateKey, passphrase string) ([]byte, error) {
+// and a passphrase, storing the alias in PEM headers
+func EncryptPrivateKey(key data.PrivateKey, passphrase, alias string) ([]byte, error) {
 	bt, err := blockType(key)
 	if err != nil {
 		return nil, err
@@ -440,7 +477,12 @@ func EncryptPrivateKey(key data.PrivateKey, passphrase string) ([]byte, error) {
 		return nil, err
 	}
 
-	return pem.EncodeToMemory(encryptedPEMBlock), nil
+	if alias != "" && encryptedPEMBlock.Headers != nil {
+		encryptedPEMBlock.Headers["alias"] = alias
+	}
+
+	returnArr := pem.EncodeToMemory(encryptedPEMBlock)
+	return returnArr, nil
 }
 
 // CertToKey transforms a single input certificate into its corresponding
