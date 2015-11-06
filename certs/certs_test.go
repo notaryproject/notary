@@ -55,7 +55,8 @@ func TestCertsToRemove(t *testing.T) {
 	oldCerts := []*x509.Certificate{cert1}
 	newCerts := []*x509.Certificate{cert2}
 
-	certificates := certsToRemove(oldCerts, newCerts)
+	certificates, err := certsToRemove(oldCerts, newCerts)
+	assert.NoError(t, err)
 	assert.Len(t, certificates, 1)
 	_, ok := certificates[cert1KeyID]
 	assert.True(t, ok)
@@ -64,7 +65,8 @@ func TestCertsToRemove(t *testing.T) {
 	oldCerts = []*x509.Certificate{cert1, cert2}
 	newCerts = []*x509.Certificate{cert3}
 
-	certificates = certsToRemove(oldCerts, newCerts)
+	certificates, err = certsToRemove(oldCerts, newCerts)
+	assert.NoError(t, err)
 	assert.Len(t, certificates, 2)
 	_, ok = certificates[cert1KeyID]
 	assert.True(t, ok)
@@ -77,7 +79,8 @@ func TestCertsToRemove(t *testing.T) {
 	oldCerts = []*x509.Certificate{cert3}
 	newCerts = []*x509.Certificate{cert2, cert1}
 
-	certificates = certsToRemove(oldCerts, newCerts)
+	certificates, err = certsToRemove(oldCerts, newCerts)
+	assert.NoError(t, err)
 	assert.Len(t, certificates, 1)
 	_, ok = certificates[cert3KeyID]
 	assert.True(t, ok)
@@ -90,20 +93,15 @@ func TestCertsToRemove(t *testing.T) {
 	oldCerts = []*x509.Certificate{cert1, cert2, cert3}
 	newCerts = []*x509.Certificate{}
 
-	certificates = certsToRemove(oldCerts, newCerts)
-	assert.Len(t, certificates, 0)
-	_, ok = certificates[cert1KeyID]
-	assert.False(t, ok)
-	_, ok = certificates[cert2KeyID]
-	assert.False(t, ok)
-	_, ok = certificates[cert3KeyID]
-	assert.False(t, ok)
+	certificates, err = certsToRemove(oldCerts, newCerts)
+	assert.Error(t, err)
 
 	// Call CertsToRemove with three new certificates and no old
 	oldCerts = []*x509.Certificate{}
 	newCerts = []*x509.Certificate{cert1, cert2, cert3}
 
-	certificates = certsToRemove(oldCerts, newCerts)
+	certificates, err = certsToRemove(oldCerts, newCerts)
+	assert.NoError(t, err)
 	assert.Len(t, certificates, 0)
 	_, ok = certificates[cert1KeyID]
 	assert.False(t, ok)
