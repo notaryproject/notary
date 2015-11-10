@@ -139,7 +139,7 @@ func CreateTimestamp(gun string, prev *data.SignedTimestamp, snapshot []byte, st
 		Signatures: ts.Signatures,
 		Signed:     &sgndTs,
 	}
-	err = signed.Sign(cryptoService, out, key)
+	err = signed.Sign(cryptoService, out, []data.PublicKey{key})
 	if err != nil {
 		return nil, 0, err
 	}
