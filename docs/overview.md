@@ -5,7 +5,7 @@ description = "Overview of Docker Notary"
 keywords = ["docker, notary, trust, image, signing, repository"]
 [menu.main]
 parent="mn_notary"
-weight=-99
+weight=4
 +++
 <![end-metadata]-->
 
