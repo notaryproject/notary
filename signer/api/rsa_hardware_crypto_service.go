@@ -9,6 +9,7 @@ import (
 	"errors"
 	"log"
 	"math/big"
+	"unsafe"
 
 	"github.com/docker/notary/signer/keys"
 	"github.com/docker/notary/tuf/data"
@@ -140,11 +141,33 @@ func (s *RSAHardwareCryptoService) Sign(keyIDs []string, payload []byte) ([]data
 			continue
 		}
 
+		// We need to pass a parameter to NewMechanism. In the C API,
+		// the parameter would take the form of this structure:
+		/* typedef struct CK_RSA_PKCS_PSS_PARAMS {
+		    CK_MECHANISM_TYPE    hashAlg;
+		    CK_RSA_PKCS_MGF_TYPE mgf;
+		    CK_ULONG             sLen;
+		} CK_RSA_PKCS_PSS_PARAMS; */
+		// Each of these variables is actually a unsigned long
+		type pssParams struct {
+			hashAlg uintptr
+			mgf     uintptr
+			sLen    uintptr
+		}
+
+		params := pssParams{
+			hashAlg: pkcs11.CKM_SHA256,
+			mgf:     2, // CKG_MGF1_SHA256
+			sLen:    sha256.Size,
+		}
+
+		castedParams := (*[unsafe.Sizeof(params)]byte)(unsafe.Pointer(&params))[:]
+
 		priv := privateKey.PKCS11ObjectHandle()
 		var sig []byte
 		var err error
 		for i := 0; i < 3; i++ {
-			s.context.SignInit(s.session, []*pkcs11.Mechanism{pkcs11.NewMechanism(pkcs11.CKM_SHA256_RSA_PKCS, nil)}, priv)
+			s.context.SignInit(s.session, []*pkcs11.Mechanism{pkcs11.NewMechanism(pkcs11.CKM_SHA256_RSA_PKCS_PSS, castedParams)}, priv)
 
 			sig, err = s.context.Sign(s.session, payload)
 			if err != nil {
@@ -165,7 +188,8 @@ func (s *RSAHardwareCryptoService) Sign(keyIDs []string, payload []byte) ([]data
 				return nil, err
 			}
 
-			err = rsa.VerifyPKCS1v15(rsaPub, crypto.SHA256, digest[:], sig)
+			opts := rsa.PSSOptions{SaltLength: sha256.Size, Hash: crypto.SHA256}
+			err = rsa.VerifyPSS(rsaPub, crypto.SHA256, digest[:], sig, &opts)
 			if err != nil {
 				log.Printf("Failed verification. Retrying: %s", err)
 				continue
