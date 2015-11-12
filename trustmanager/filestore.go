@@ -91,6 +91,7 @@ func (f *SimpleFileStore) Remove(name string) error {
 	if err != nil {
 		return err
 	}
+
 	return os.Remove(filePath)
 }
 
@@ -118,6 +119,7 @@ func (f *SimpleFileStore) Get(name string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return nil, err

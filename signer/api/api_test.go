@@ -98,7 +98,7 @@ func TestDeleteKeyHandler(t *testing.T) {
 	cryptoService := cryptoservice.NewCryptoService("", keyStore)
 	setup(signer.CryptoServiceIndex{data.ED25519Key: cryptoService, data.RSAKey: cryptoService, data.ECDSAKey: cryptoService})
 
-	tufKey, _ := cryptoService.Create("", data.ED25519Key)
+	tufKey, _ := cryptoService.Create("timestamp", data.ED25519Key)
 	assert.NotNil(t, tufKey)
 
 	requestJson, _ := json.Marshal(&pb.KeyID{ID: tufKey.ID()})

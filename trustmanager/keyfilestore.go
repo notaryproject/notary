@@ -73,7 +73,7 @@ func (s *KeyFileStore) RemoveKey(name string) error {
 // ExportKey exportes the encrypted bytes from the keystore and writes it to
 // dest.
 func (s *KeyFileStore) ExportKey(name string) ([]byte, error) {
-	keyBytes, _, err := getRawKey(s, name)
+	keyBytes, err := getRawKey(s, name)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func (s *KeyMemoryStore) RemoveKey(name string) error {
 // ExportKey exportes the encrypted bytes from the keystore and writes it to
 // dest.
 func (s *KeyMemoryStore) ExportKey(name string) ([]byte, error) {
-	keyBytes, _, err := getRawKey(s, name)
+	keyBytes, err := getRawKey(s, name)
 	if err != nil {
 		return nil, err
 	}
@@ -163,22 +163,43 @@ func addKey(s LimitedFileStore, passphraseRetriever passphrase.Retriever, cached
 	return encryptAndAddKey(s, chosenPassphrase, cachedKeys, name, alias, privKey)
 }
 
-func getKeyAlias(s LimitedFileStore, keyID string) (string, error) {
-	files := s.ListFiles()
+func getKeyAlias(s LimitedFileStore, name string) (string, error) {
+	var keyAlias string
+	for _, f := range s.ListFiles() {
+		// Remove the .key so .Get succeeds
+		keyName := strings.TrimSpace(strings.TrimSuffix(f, filepath.Ext(f)))
+		name = strings.TrimSpace(name)
 
-	name := strings.TrimSpace(strings.TrimSuffix(filepath.Base(keyID), filepath.Ext(keyID)))
-
-	for _, file := range files {
-		filename := filepath.Base(file)
-
-		if strings.HasPrefix(filename, name) {
-			aliasPlusDotKey := strings.TrimPrefix(filename, name+"_")
-			retVal := strings.TrimSuffix(aliasPlusDotKey, "."+keyExtension)
-			return retVal, nil
+		// Attempts to match the specific file that we want the alias for
+		if !strings.Contains(keyName, name) {
+			continue
 		}
+
+		// Attempt to get the alias from the PEM encoded file.
+		keyBytes, err := s.Get(keyName)
+		if err == nil {
+			keyAlias = GetPemKeyAlias(keyBytes)
+		}
+
+		// If we found an alias return
+		if keyAlias != "" {
+			return keyAlias, nil
+		}
+
+		// Given a full path to a key, take the filename, remove the extension
+		// and attempt to split into keyID and alias
+		// Example: /tmp/abcd_root.key, should end up in keyComponents as ['abcd','root']
+		keyComponents := strings.Split(filepath.Base(keyName), "_")
+		// If we can't get the alias from the PEM and can't split into components,
+		// this has to be one of the old root keys
+		if len(keyComponents) != 2 {
+			return data.CanonicalRootRole, nil
+		}
+
+		return keyComponents[1], nil
 	}
 
-	return "", &ErrKeyNotFound{KeyID: keyID}
+	return "", &ErrKeyNotFound{KeyID: name}
 }
 
 // GetKey returns the PrivateKey given a KeyID
@@ -187,20 +208,23 @@ func getKey(s LimitedFileStore, passphraseRetriever passphrase.Retriever, cached
 	if ok {
 		return cachedKeyEntry.key, cachedKeyEntry.alias, nil
 	}
+	var (
+		err      error
+		keyAlias string
+	)
 
-	keyBytes, keyAlias, err := getRawKey(s, name)
+	keyBytes, err := getRawKey(s, name)
 	if err != nil {
 		return nil, "", err
 	}
 
-	var retErr error
 	// See if the key is encrypted. If its encrypted we'll fail to parse the private key
-	privKey, err := ParsePEMPrivateKey(keyBytes, "")
+	privKey, keyAlias, err := ParsePEMPrivateKey(keyBytes, "")
 	if err != nil {
-		privKey, _, retErr = getPasswdDecryptBytes(s, passphraseRetriever, keyBytes, name, string(keyAlias))
-	}
-	if retErr != nil {
-		return nil, "", retErr
+		privKey, _, err = getPasswdDecryptBytes(s, passphraseRetriever, keyBytes, name, keyAlias)
+		if err != nil {
+			return nil, "", err
+		}
 	}
 	cachedKeys[name] = &cachedKey{alias: keyAlias, key: privKey}
 	return privKey, keyAlias, nil
@@ -210,37 +234,67 @@ func getKey(s LimitedFileStore, passphraseRetriever passphrase.Retriever, cached
 // their corresponding aliases.
 func listKeys(s LimitedFileStore) map[string]string {
 	keyIDMap := make(map[string]string)
-
+	var (
+		keyName  string
+		keyAlias string
+		keyID    string
+	)
 	for _, f := range s.ListFiles() {
-		if f[:len(rootKeysSubdir)] == rootKeysSubdir {
-			f = strings.TrimPrefix(f, rootKeysSubdir+"/")
-		} else {
-			f = strings.TrimPrefix(f, nonRootKeysSubdir+"/")
+		// Remove the .key for GET
+		keyName = strings.TrimSuffix(f, filepath.Ext(f))
+
+		// Attempt to get the alias from the PEM encoded file.
+		keyBytes, err := s.Get(keyName)
+		if err == nil {
+			keyAlias = GetPemKeyAlias(keyBytes)
 		}
-		keyIDFull := strings.TrimSpace(strings.TrimSuffix(f, filepath.Ext(f)))
-		keyID := keyIDFull[:strings.LastIndex(keyIDFull, "_")]
-		keyAlias := keyIDFull[strings.LastIndex(keyIDFull, "_")+1:]
+
+		keyID = filepath.Base(keyName)
+
+		if keyAlias == "" {
+			// Given a full path to a key, take the filename, remove the extension
+			// and attempt to split into keyID and alias
+			// Example: /tmp/abcd_root.key, should end up in keyComponents as ['abcd','root']
+			keyComponents := strings.Split(filepath.Base(keyName), "_")
+			if len(keyComponents) == 2 {
+				keyID = keyComponents[0]
+				keyAlias = keyComponents[1]
+			} else {
+				// If we can't get the alias from the PEM and can't split into components,
+				// this has to be one of the old root keys
+				keyAlias = data.CanonicalRootRole
+			}
+		}
+
 		keyIDMap[keyID] = keyAlias
 	}
+
 	return keyIDMap
 }
 
 // RemoveKey removes the key from the keyfilestore
 func removeKey(s LimitedFileStore, cachedKeys map[string]*cachedKey, name string) error {
-	keyAlias, err := getKeyAlias(s, name)
+	// Attempt to delete key from both the new and old style of key names
+	keyAlias, err := getKeyAlias(s, strings.TrimSpace(name))
 	if err != nil {
 		return err
 	}
 
 	delete(cachedKeys, name)
 
-	// being in a subdirectory is for backwards compatibliity
-	filename := name + "_" + keyAlias
-	err = s.Remove(filepath.Join(getSubdir(keyAlias), filename))
-	if err != nil {
-		return err
+	// Attempt to delete the key with the new format (no _alias)
+	err = s.Remove(filepath.Join(getSubdir(keyAlias), name))
+	if err == nil {
+		return nil
 	}
-	return nil
+
+	// If we didn't return, let's attempt to delete the key in the old format (with _alias)
+	err = s.Remove(filepath.Join(getSubdir(keyAlias), name+"_"+keyAlias))
+	if err == nil {
+		return nil
+	}
+
+	return err
 }
 
 // Assumes 2 subdirectories, 1 containing root keys and 1 containing tuf keys
@@ -253,19 +307,26 @@ func getSubdir(alias string) string {
 
 // Given a key ID, gets the bytes and alias belonging to that key if the key
 // exists
-func getRawKey(s LimitedFileStore, name string) ([]byte, string, error) {
-	keyAlias, err := getKeyAlias(s, name)
+func getRawKey(s LimitedFileStore, name string) ([]byte, error) {
+	// Attempt to retrieve key from both the new and the old style of keys
+	keyAlias, err := getKeyAlias(s, strings.TrimSpace(name))
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
-	filename := name + "_" + keyAlias
-	var keyBytes []byte
-	keyBytes, err = s.Get(filepath.Join(getSubdir(keyAlias), filename))
-	if err != nil {
-		return nil, "", err
+	// Attempt to get the file with the new format (no _alias)
+	keyBytes, err := s.Get(filepath.Join(getSubdir(keyAlias), name))
+	if err == nil {
+		return keyBytes, nil
 	}
-	return keyBytes, keyAlias, nil
+
+	// If we didn't return, let's attempt to get the key in the old format (with _alias)
+	keyBytes, err = s.Get(filepath.Join(getSubdir(keyAlias), name+"_"+keyAlias))
+	if err == nil {
+		return keyBytes, nil
+	}
+
+	return nil, err
 }
 
 // Get the password to decript the given pem bytes.  Return the password,
@@ -276,6 +337,7 @@ func getPasswdDecryptBytes(s LimitedFileStore, passphraseRetriever passphrase.Re
 		retErr  error
 		privKey data.PrivateKey
 	)
+
 	for attempts := 0; ; attempts++ {
 		var (
 			giveup bool
@@ -291,7 +353,7 @@ func getPasswdDecryptBytes(s LimitedFileStore, passphraseRetriever passphrase.Re
 		}
 
 		// Try to convert PEM encoded bytes back to a PrivateKey using the passphrase
-		privKey, err = ParsePEMPrivateKey(pemBytes, passwd)
+		privKey, alias, err = ParsePEMPrivateKey(pemBytes, passwd)
 		if err != nil {
 			retErr = ErrPasswordInvalid{}
 		} else {
@@ -314,17 +376,16 @@ func encryptAndAddKey(s LimitedFileStore, passwd string, cachedKeys map[string]*
 	)
 
 	if passwd != "" {
-		pemPrivKey, err = EncryptPrivateKey(privKey, passwd)
+		pemPrivKey, err = EncryptPrivateKey(privKey, passwd, alias)
 	} else {
-		pemPrivKey, err = KeyToPEM(privKey)
+		pemPrivKey, err = KeyToPEM(privKey, alias)
 	}
-
 	if err != nil {
 		return err
 	}
 
 	cachedKeys[name] = &cachedKey{alias: alias, key: privKey}
-	return s.Add(filepath.Join(getSubdir(alias), name+"_"+alias), pemPrivKey)
+	return s.Add(filepath.Join(getSubdir(alias), name), pemPrivKey)
 }
 
 func importKey(s LimitedFileStore, passphraseRetriever passphrase.Retriever, cachedKeys map[string]*cachedKey, alias string, pemBytes []byte) error {

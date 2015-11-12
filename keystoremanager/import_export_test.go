@@ -88,7 +88,7 @@ func TestImportExportZip(t *testing.T) {
 		if alias == "root" {
 			continue
 		}
-		relKeyPath := filepath.Join("private", "tuf_keys", privKeyName+"_"+alias+".key")
+		relKeyPath := filepath.Join("private", "tuf_keys", privKeyName+".key")
 		passphraseByFile[relKeyPath] = exportPassphrase
 	}
 
@@ -113,7 +113,7 @@ func TestImportExportZip(t *testing.T) {
 		pemBytes, err := ioutil.ReadAll(rc)
 		assert.NoError(t, err, "could not read file from zip")
 
-		_, err = trustmanager.ParsePEMPrivateKey(pemBytes, expectedPassphrase)
+		_, _, err = trustmanager.ParsePEMPrivateKey(pemBytes, expectedPassphrase)
 		assert.NoError(t, err, "PEM not encrypted with the expected passphrase")
 
 		rc.Close()
@@ -159,7 +159,7 @@ func TestImportExportZip(t *testing.T) {
 		if alias == "root" {
 			continue
 		}
-		relKeyPath := filepath.Join("private", "tuf_keys", privKeyName+"_"+alias+".key")
+		relKeyPath := filepath.Join("private", "tuf_keys", privKeyName+".key")
 		privKeyFileName := filepath.Join(tempBaseDir2, relKeyPath)
 		_, err = os.Stat(privKeyFileName)
 		assert.NoError(t, err, "missing private key: %s", privKeyName)
@@ -225,7 +225,7 @@ func TestImportExportGUN(t *testing.T) {
 		if alias == "root" {
 			continue
 		}
-		relKeyPath := filepath.Join("private", "tuf_keys", privKeyName+"_"+alias+".key")
+		relKeyPath := filepath.Join("private", "tuf_keys", privKeyName+".key")
 
 		passphraseByFile[relKeyPath] = exportPassphrase
 	}
@@ -247,7 +247,7 @@ func TestImportExportGUN(t *testing.T) {
 		pemBytes, err := ioutil.ReadAll(rc)
 		assert.NoError(t, err, "could not read file from zip")
 
-		_, err = trustmanager.ParsePEMPrivateKey(pemBytes, expectedPassphrase)
+		_, _, err = trustmanager.ParsePEMPrivateKey(pemBytes, expectedPassphrase)
 		assert.NoError(t, err, "PEM not encrypted with the expected passphrase")
 
 		rc.Close()
@@ -294,7 +294,7 @@ func TestImportExportGUN(t *testing.T) {
 		if alias == "root" {
 			continue
 		}
-		relKeyPath := filepath.Join("private", "tuf_keys", privKeyName+"_"+alias+".key")
+		relKeyPath := filepath.Join("private", "tuf_keys", privKeyName+".key")
 		privKeyFileName := filepath.Join(tempBaseDir2, relKeyPath)
 		_, err = os.Stat(privKeyFileName)
 	}
@@ -362,9 +362,9 @@ func TestImportExportRootKey(t *testing.T) {
 	// doesn't succeed
 	pemBytes, err := ioutil.ReadFile(tempKeyFilePath)
 	assert.NoError(t, err, "could not read key file")
-	privKey, err := trustmanager.ParsePEMPrivateKey(pemBytes, oldPassphrase)
+	privKey, alias, err := trustmanager.ParsePEMPrivateKey(pemBytes, oldPassphrase)
 	assert.NoError(t, err, "could not decrypt key file")
-	decryptedPEMBytes, err := trustmanager.KeyToPEM(privKey)
+	decryptedPEMBytes, err := trustmanager.KeyToPEM(privKey, alias)
 	assert.NoError(t, err, "could not convert key to PEM")
 
 	err = repo2.KeyStoreManager.ImportRootKey(bytes.NewReader(decryptedPEMBytes))

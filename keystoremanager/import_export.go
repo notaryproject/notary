@@ -128,7 +128,6 @@ func moveKeys(oldKeyStore, newKeyStore *trustmanager.KeyFileStore) error {
 		}
 
 		err = newKeyStore.AddKey(f, alias, privateKey)
-
 		if err != nil {
 			return err
 		}
