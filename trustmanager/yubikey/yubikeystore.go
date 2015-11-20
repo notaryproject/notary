@@ -884,7 +884,6 @@ func login(ctx IPKCS11Ctx, session pkcs11.SessionHandle, passRetriever passphras
 			return nil
 		}
 	}
-	return nil
 }
 
 func buildKeyMap(keys map[string]yubiSlot) map[string]string {
