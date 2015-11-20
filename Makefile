@@ -15,7 +15,6 @@ GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
 GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
 GOOSES = darwin freebsd linux
 GOARCHS = amd64
-NOTARY_BUILDTAGS ?= pkcs11
 GO_EXC = go
 NOTARYDIR := /go/src/github.com/docker/notary
 

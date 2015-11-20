@@ -1,4 +1,4 @@
-// +build pkcs11,darwin
+// +build !exclude_pkcs11,darwin
 
 package yubikey
 

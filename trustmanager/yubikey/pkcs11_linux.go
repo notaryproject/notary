@@ -1,4 +1,4 @@
-// +build pkcs11,linux
+// +build !exclude_pkcs11,linux
 
 package yubikey
 
