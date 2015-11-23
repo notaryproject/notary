@@ -39,10 +39,10 @@ $ notary add example.com/user/collection TARGET FILEPATH
 $ notary remove example.com/user/collection TARGET
 ```
 
-The `add` command takes the Global Unique Name of the trusted collection, a target name, and the path to the file you want to add.
-The `remove` command takes the Global Unique Name of the trusted collection and the name of the target you want to remove.
+Both commands operate only on local data, requiring no connection to a notary server, and simply staging changes in a time ordered list to be applied the next time a `publish` is run.
+The `add` command takes the Global Unique Name of the trusted collection, a target name, and the path to the file you want to add. It only accepts a single filepath per invocation as only one file may be associated with the `TARGET` name.  Notary calculates a cryptographic hash over the file in `FILEPATH`, and along with the size (in bytes) of the file, associates the `TARGET` name with this metadata. 
 
-When running `add` notary calculates a cryptographic hash over the file in `FILEPATH` and point the `TARGET` name to it. Neither the `add` or `remove` commands require access to the remote notary server, since all changes are staged locally for later publishing.
+The `remove` command takes the Global Unique Name of the trusted collection and the name of the target you want to remove.
 
 ## Inspecting staged changes
 
@@ -72,7 +72,7 @@ You can list the targets that are currently part of a trusted collection by runn
 $ notary list example.com/user/collection
 ```
 
-The `list` command will attempt to connect to the remote notary server and retrieve the most up-to-date version of the targets for a trusted collection. In case the connection fails, notary will use the locally cached metadata for up to two weeks, period after which it will start returning an error due to an expired cache.
+The `list` command will attempt to connect to the remote notary server and retrieve the most up-to-date version of the targets for a trusted collection. In the case that the connection fails, notary will locally cached metadata up until it expires. The default configuration of notary permits the expiration time to be up to two weeks, although it may be less depending on exactly when the metadata was last signed and retrieved. The `list` command will not include any locally pending changes, instead showing only the state of the remote repository, as visible to the rest of the world.
 
 
 ## Resolving a specific target
@@ -96,10 +96,3 @@ The `verify` command receives data via the STDIN, calculates a cryptographic has
 ```
 curl -ssL http://example.com/installer.sh | notary verify example.com/user/collection TARGET | sh
 ```
-
-## Notary Server
-
-The default notary server URL is [https://notary-server:4443/]. This default value can overridden (by priority order):
-
-- by specifying the option `--server/-s` on commands requiring call to the notary server.
-- by setting the `NOTARY_SERVER_URL` environment variable.
