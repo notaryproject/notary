@@ -1,4 +1,4 @@
-// +build pkcs11
+// +build !exclude_pkcs11
 
 // an interface around the pkcs11 library, so that things can be mocked out
 // for testing

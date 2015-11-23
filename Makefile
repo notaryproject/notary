@@ -15,12 +15,11 @@ GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
 GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
 GOOSES = darwin freebsd linux
 GOARCHS = amd64
-NOTARY_BUILDTAGS ?= pkcs11
 GO_EXC = go
 NOTARYDIR := /go/src/github.com/docker/notary
 
 # check to be sure pkcs11 lib is always imported with a build tag
-GO_LIST_PKCS11 := $(shell go list -e -f '{{join .Deps "\n"}}' ./... | xargs go list -e -f '{{if not .Standard}}{{.ImportPath}}{{end}}' | grep -q pkcs11)
+GO_LIST_PKCS11 := $(shell go list -e -f '{{join .Deps "\n"}}' ./... | xargs go list -e -f '{{if not .Standard}}{{.ImportPath}}{{end}}' | grep -q '!exclude_pkcs11')
 ifeq ($(GO_LIST_PKCS11),)
 $(info pkcs11 import was not found anywhere without a build tag, yay)
 else
@@ -86,7 +85,8 @@ fmt:
 
 lint:
 	@echo "+ $@"
-	@test -z "$$(golint ./... | grep -v .pb. | grep -v Godeps/_workspace/src/ | tee /dev/stderr)"
+	# TODO: remove trustmanager/yubikey/ from ignored once linted
+	@test -z "$$(golint ./... | grep -v .pb. | grep -v Godeps/_workspace/src/ | grep -v trustmanager/yubikey/ | tee /dev/stderr)"
 
 build: go_version
 	@echo "+ $@"

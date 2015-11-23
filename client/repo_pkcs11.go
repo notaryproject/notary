@@ -1,4 +1,4 @@
-// +build pkcs11
+// +build !exclude_pkcs11
 
 package client
 
