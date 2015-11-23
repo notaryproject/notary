@@ -28,7 +28,7 @@ The default notary server URL configured with Notary is [https://notary-server:4
 
 	* by specifying the option `--server/-s` on commands requiring call to the notary server.
 	* by setting the `NOTARY_SERVER_URL` environment variable.
-	* by setting the `remote_server` option inside of your configuration file (defaults to `~/.notary/config.json)
+	* by setting the `remote_server` option inside of your configuration file (defaults to `~/.notary/config.json`)
 
 ## Adding and deleting content from an existing trusted collection
 
