@@ -22,13 +22,13 @@ After chosing a name, you can initialize a repository by running the `init` comm
 $ notary init example.com/user/collection
 ```
 
-On initialization, notary creates all the necessary keys needed to sign content for this collection, create the necessary TUF metadata files and push them to the remote notary server. If you already have a root key, notary uses it instead of generating a new one.
+On initialization, notary creates all the keys necessary to sign content for this collection, creates the TUF metadata files and stages them, ready for a `publish` command to push them to a remote server. If any root keys are present either in an attached Yubikey, or the appropriate directory (most easily added via the `notary key import` command), the `init` command will choose one of the existing root keys to use for this new collection, preferring a key present in a Yubikey, over a key present on disk. 
 
-The default notary server URL configured with Notary is [https://notary-server:4443/]. This default value can overridden (by priority order):
+The default notary server URL configured with Notary is [https://notary-server:4443/]. This default value can overridden (in priority order) by:
 
-	* by specifying the option `--server/-s` on commands requiring call to the notary server.
-	* by setting the `NOTARY_SERVER_URL` environment variable.
-	* by setting the `remote_server` option inside of your configuration file (defaults to `~/.notary/config.json`)
+	* specifying the option `--server/-s` on commands requiring call to the notary server.
+	* setting the `NOTARY_SERVER_URL` environment variable.
+	* setting the `remote_server` option inside of your configuration file (notary will attempt to read a config file at the default location `~/.notary/config.json`)
 
 ## Adding and deleting content from an existing trusted collection
 
