@@ -51,23 +51,16 @@ func ParseServerTLS(configuration *viper.Viper, tlsRequired bool) (*ServerTLSOpt
 		ServerKeyFile:  GetPathRelativeToConfig(configuration, "server.tls_key_file"),
 		ClientCAFile:   GetPathRelativeToConfig(configuration, "server.client_ca_file"),
 	}
-
 	cert, key := tlsOpts.ServerCertFile, tlsOpts.ServerKeyFile
-	if tlsRequired {
-		if cert == "" || key == "" {
-			return nil, fmt.Errorf("both the TLS certificate and key are mandatory")
-		}
-	} else {
-		if (cert == "" && key != "") || (cert != "" && key == "") {
-			return nil, fmt.Errorf(
-				"either include both a cert and key file, or neither to disable TLS")
-		}
-	}
 
-	if cert == "" && key == "" && tlsOpts.ClientCAFile == "" {
+	if !tlsRequired {
 		return nil, nil
 	}
 
+	// Both of the crt and key are needed if TLS was requred.
+	if cert == "" || key == "" {
+		return nil, fmt.Errorf("both the TLS certificate and key are mandatory")
+	}
 	return &tlsOpts, nil
 }
 
