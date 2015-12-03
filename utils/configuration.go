@@ -110,10 +110,15 @@ func ParseStorage(configuration *viper.Viper, allowedBackends []string) (*Storag
 	if store.Backend == MemoryBackend {
 		return &Storage{Backend: MemoryBackend}, nil
 	}
-	if store.Source == "" {
+	if store.Backend == MySQLBackend && store.Source == "" {
 		return nil, fmt.Errorf(
 			"must provide a non-empty database source for %s", store.Backend)
 	}
+	if store.Backend == SqliteBackend && store.Source == "" {
+		return nil, fmt.Errorf(
+			"must provide a non-empty database source for %s", store.Backend)
+	}
+
 	return &store, nil
 }
 
