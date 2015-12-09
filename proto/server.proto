@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package proto;
+
+// NotaryServer defines the TUF operations that the server supports
+service Notary {
+	rpc Auth(Token) returns (AuthResponse) {}
+	rpc Update(Updates) returns (UpdateResponse) {}
+	rpc Get(RepoRole) returns (Repository) {}
+	rpc GetKey(RepoRole) returns (KeyResponse) {}
+}
+
+// Token holds a JWT that the Notary server will check for permissions
+message Token {
+	bytes jwt = 1;
+}
+
+message Updates {
+	bytes jwt = 1;
+	string gun = 2;
+	Repository repo = 3;
+}
+
+message RepoRole {
+	bytes jwt = 1;
+	string gun = 2;
+	string role = 3;
+}
+
+// Repository is a collection of TUF files
+message Repository {
+	bytes root = 1;
+	map<string, bytes> targets = 2;
+	bytes snapshot = 3;
+	bytes timestamp = 4;
+}
+
+message AuthResponse {
+	bool authed = 1;
+}
+
+// Key represents the public key bytes returned by a key request
+message KeyResponse {
+	bytes public = 2;
+}
+
+// UpdateResponse simply indicates if the update was successful. The error
+// should be checked for reasons for failure
+message UpdateResponse {
+	bool success = 1;
+}

@@ -5,6 +5,7 @@ import (
 	_ "expvar"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -19,22 +20,29 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/spf13/viper"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
+	pb "github.com/docker/notary/proto"
 	"github.com/docker/notary/server"
+	"github.com/docker/notary/server/handlers"
 	"github.com/docker/notary/utils"
 	"github.com/docker/notary/version"
-	"github.com/spf13/viper"
 )
 
 // DebugAddress is the debug server address to listen on
-const DebugAddress = "localhost:8080"
+const (
+	DebugAddress = "localhost:8080"
+)
 
 var (
 	debug      bool
 	configFile string
 	envPrefix  = "NOTARY_SERVER"
 	mainViper  = viper.New()
+	grpcAddr   = ":4321"
 )
 
 func init() {
@@ -221,7 +229,13 @@ func main() {
 		logrus.Fatal(err.Error())
 	}
 
+	grpcServer, lis, err := setupGRPCServer(grpcAddr, tlsConfig, trust, store)
+	if err != nil {
+		logrus.Fatal(err.Error())
+	}
+
 	logrus.Info("Starting Server")
+	go grpcServer.Serve(lis)
 	err = server.Run(
 		ctx,
 		httpAddr,
@@ -248,4 +262,30 @@ func debugServer(addr string) {
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		logrus.Fatal("error listening on debug interface: ", err)
 	}
+}
+
+func setupGRPCServer(grpcAddr string, tlsConfig *tls.Config,
+	cryptoService signed.CryptoService, store storage.MetaStore) (*grpc.Server, net.Listener, error) {
+
+	//RPC server setup
+	ns := &handlers.NotaryServer{
+		CryptoService: cryptoService,
+		Storage:       store,
+		Access:        nil,
+		KeyAlgorithm:  data.ECDSAKey,
+	}
+
+	lis, err := net.Listen("tcp", grpcAddr)
+	if err != nil {
+		return nil, nil, fmt.Errorf("grpc server failed to listen on %s: %v",
+			grpcAddr, err)
+	}
+
+	creds := credentials.NewTLS(tlsConfig)
+	opts := []grpc.ServerOption{grpc.Creds(creds)}
+	grpcServer := grpc.NewServer(opts...)
+
+	pb.RegisterNotaryServer(grpcServer, ns)
+
+	return grpcServer, lis, nil
 }
