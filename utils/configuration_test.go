@@ -40,29 +40,26 @@ func cleanupEnvironmentVariables(t *testing.T, vars map[string]string) {
 
 }
 
-// An error is returned if the log level is not parsable
+// Using default log level if the log level is not parsable
 func TestParseInvalidLogLevel(t *testing.T) {
-	_, err := ParseLogLevel(configure(`{"logging": {"level": "horatio"}}`),
+	lvl := ParseLogLevel(configure(`{"logging": {"level": "horatio"}}`),
 		logrus.DebugLevel)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not a valid logrus Level")
+	assert.Equal(t, logrus.DebugLevel, lvl)
 }
 
 // If there is no logging level configured it is set to the default level
 func TestParseNoLogLevel(t *testing.T) {
 	empties := []string{`{}`, `{"logging": {}}`}
 	for _, configJSON := range empties {
-		lvl, err := ParseLogLevel(configure(configJSON), logrus.DebugLevel)
-		assert.NoError(t, err)
+		lvl := ParseLogLevel(configure(configJSON), logrus.DebugLevel)
 		assert.Equal(t, logrus.DebugLevel, lvl)
 	}
 }
 
 // If there is logging level configured, it is set to the configured one
 func TestParseLogLevel(t *testing.T) {
-	lvl, err := ParseLogLevel(configure(`{"logging": {"level": "error"}}`),
+	lvl := ParseLogLevel(configure(`{"logging": {"level": "error"}}`),
 		logrus.DebugLevel)
-	assert.NoError(t, err)
 	assert.Equal(t, logrus.ErrorLevel, lvl)
 }
 
@@ -71,9 +68,8 @@ func TestParseLogLevelWithEnvironmentVariables(t *testing.T) {
 	setupEnvironmentVariables(t, vars)
 	defer cleanupEnvironmentVariables(t, vars)
 
-	lvl, err := ParseLogLevel(configure(`{}`),
+	lvl := ParseLogLevel(configure(`{}`),
 		logrus.DebugLevel)
-	assert.NoError(t, err)
 	assert.Equal(t, logrus.ErrorLevel, lvl)
 }
 

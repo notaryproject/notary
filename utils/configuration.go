@@ -72,15 +72,16 @@ func ParseServerTLS(configuration *viper.Viper, tlsRequired bool) (*ServerTLSOpt
 }
 
 // ParseLogLevel tries to parse out a log level from a Viper.  If there is no
-// configuration, defaults to the provided error level
-func ParseLogLevel(configuration *viper.Viper, defaultLevel logrus.Level) (
-	logrus.Level, error) {
+// configuration, defaults to the provided log level
+func ParseLogLevel(configuration *viper.Viper, defaultLevel logrus.Level) logrus.Level {
 
-	logStr := configuration.GetString("logging.level")
-	if logStr == "" {
-		return defaultLevel, nil
+	lvl, err := logrus.ParseLevel(configuration.GetString("logging.level"))
+	if err != nil {
+		logrus.Errorf("Parsing log level error:%v, using %s instead", err, defaultLevel)
+		lvl = defaultLevel
 	}
-	return logrus.ParseLevel(logStr)
+
+	return lvl
 }
 
 // ParseStorage tries to parse out Storage from a Viper.  If backend and

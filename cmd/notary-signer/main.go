@@ -186,10 +186,7 @@ func main() {
 	}
 
 	// default is error level
-	lvl, err := utils.ParseLogLevel(mainViper, logrus.ErrorLevel)
-	if err != nil {
-		logrus.Fatal(err.Error())
-	}
+	lvl := utils.ParseLogLevel(mainViper, logrus.ErrorLevel)
 	logrus.SetLevel(lvl)
 
 	// parse bugsnag config
