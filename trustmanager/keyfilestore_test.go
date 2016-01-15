@@ -3,6 +3,7 @@ package trustmanager
 import (
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -24,6 +25,14 @@ var passphraseRetriever = func(keyID string, alias string, createNew bool, numAt
 }
 
 func TestAddKey(t *testing.T) {
+	testAddKeyWithRole(t, data.CanonicalRootRole, rootKeysSubdir)
+	testAddKeyWithRole(t, data.CanonicalTargetsRole, nonRootKeysSubdir)
+	testAddKeyWithRole(t, data.CanonicalSnapshotRole, nonRootKeysSubdir)
+	testAddKeyWithRole(t, "targets/a/b/c", userKeysSubdir)
+	testAddKeyWithRole(t, "invalidRole", userKeysSubdir)
+}
+
+func testAddKeyWithRole(t *testing.T, role, expectedSubdir string) {
 	testName := "docker.com/notary/root"
 	testExt := "key"
 
@@ -33,7 +42,7 @@ func TestAddKey(t *testing.T) {
 	defer os.RemoveAll(tempBaseDir)
 
 	// Since we're generating this manually we need to add the extension '.'
-	expectedFilePath := filepath.Join(tempBaseDir, privDir, rootKeysSubdir, testName+"."+testExt)
+	expectedFilePath := filepath.Join(tempBaseDir, privDir, expectedSubdir, testName+"."+testExt)
 
 	// Create our store
 	store, err := NewKeyFileStore(tempBaseDir, passphraseRetriever)
@@ -43,7 +52,7 @@ func TestAddKey(t *testing.T) {
 	assert.NoError(t, err, "could not generate private key")
 
 	// Call the AddKey function
-	err = store.AddKey(testName, "root", privKey)
+	err = store.AddKey(testName, role, privKey)
 	assert.NoError(t, err, "failed to add key to store")
 
 	// Check to see if file exists
@@ -53,8 +62,16 @@ func TestAddKey(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	testData := []byte(`-----BEGIN RSA PRIVATE KEY-----
-role: root
+	testGetKeyWithRole(t, data.CanonicalRootRole, rootKeysSubdir)
+	testGetKeyWithRole(t, data.CanonicalTargetsRole, nonRootKeysSubdir)
+	testGetKeyWithRole(t, data.CanonicalSnapshotRole, nonRootKeysSubdir)
+	testGetKeyWithRole(t, "targets/a/b/c", userKeysSubdir)
+	testGetKeyWithRole(t, "invalidRole", userKeysSubdir)
+}
+
+func testGetKeyWithRole(t *testing.T, role, expectedSubdir string) {
+	testData := []byte(fmt.Sprintf(`-----BEGIN RSA PRIVATE KEY-----
+role: %s
 
 MIIEogIBAAKCAQEAyUIXjsrWRrvPa4Bzp3VJ6uOUGPay2fUpSV8XzNxZxIG/Opdr
 +k3EQi1im6WOqF3Y5AS1UjYRxNuRN+cAZeo3uS1pOTuoSupBXuchVw8s4hZJ5vXn
@@ -82,10 +99,9 @@ EkqpAoGAJWe8PC0XK2RE9VkbSPg9Ehr939mOLWiHGYTVWPttUcum/rTKu73/X/mj
 WxnPWGtzM1pHWypSokW90SP4/xedMxludvBvmz+CTYkNJcBGCrJumy11qJhii9xp
 EMl3eFOJXjIch/wIesRSN+2dGOsl7neercjMh1i9RvpCwHDx/E0=
 -----END RSA PRIVATE KEY-----
-`)
+`, role))
 	testName := "docker.com/notary/root"
 	testExt := "key"
-	testAlias := "root"
 	perms := os.FileMode(0755)
 
 	emptyPassphraseRetriever := func(string, string, bool, int) (string, bool, error) { return "", false, nil }
@@ -96,7 +112,7 @@ EMl3eFOJXjIch/wIesRSN+2dGOsl7neercjMh1i9RvpCwHDx/E0=
 	defer os.RemoveAll(tempBaseDir)
 
 	// Since we're generating this manually we need to add the extension '.'
-	filePath := filepath.Join(tempBaseDir, privDir, rootKeysSubdir, testName+"."+testExt)
+	filePath := filepath.Join(tempBaseDir, privDir, expectedSubdir, testName+"."+testExt)
 
 	os.MkdirAll(filepath.Dir(filePath), perms)
 	err = ioutil.WriteFile(filePath, testData, perms)
@@ -110,7 +126,7 @@ EMl3eFOJXjIch/wIesRSN+2dGOsl7neercjMh1i9RvpCwHDx/E0=
 	privKey, _, err := store.GetKey(testName)
 	assert.NoError(t, err, "failed to get key from store")
 
-	pemPrivKey, err := KeyToPEM(privKey, testAlias)
+	pemPrivKey, err := KeyToPEM(privKey, role)
 	assert.NoError(t, err, "failed to convert key to PEM")
 	assert.Equal(t, testData, pemPrivKey)
 }
@@ -191,33 +207,24 @@ func TestListKeys(t *testing.T) {
 	privKey, err := GenerateECDSAKey(rand.Reader)
 	assert.NoError(t, err, "could not generate private key")
 
-	// Call the AddKey function
-	err = store.AddKey(testName, "root", privKey)
-	assert.NoError(t, err, "failed to add key to store")
+	roles := append(data.BaseRoles, "targets/a", "invalidRoleName")
 
-	// Check to see if the keystore lists this key
-	keyMap := store.ListKeys()
+	for i, role := range roles {
+		// Call the AddKey function
+		keyName := fmt.Sprintf("%s%d", testName, i)
+		err = store.AddKey(keyName, role, privKey)
+		assert.NoError(t, err, "failed to add key to store")
 
-	// Expect to see exactly one key in the map
-	assert.Len(t, keyMap, 1)
-	// Expect to see privKeyID inside of the map
-	role, ok := keyMap[testName]
-	assert.True(t, ok)
-	assert.Equal(t, role, "root")
+		// Check to see if the keystore lists this key
+		keyMap := store.ListKeys()
 
-	// Call the AddKey function for the second key
-	err = store.AddKey(testName+"2", "targets", privKey)
-	assert.NoError(t, err, "failed to add key to store")
-
-	// Check to see if the keystore lists this key
-	keyMap = store.ListKeys()
-
-	// Expect to see exactly two keys in the map
-	assert.Len(t, keyMap, 2)
-	// Expect to see privKeyID2 inside of the map
-	role, ok = keyMap[testName+"2"]
-	assert.True(t, ok)
-	assert.Equal(t, role, "targets")
+		// Expect to see exactly one key in the map
+		assert.Len(t, keyMap, i+1)
+		// Expect to see privKeyID inside of the map
+		listedRole, ok := keyMap[keyName]
+		assert.True(t, ok)
+		assert.Equal(t, role, listedRole)
+	}
 
 	// Write an invalid filename to the directory
 	filePath := filepath.Join(tempBaseDir, privDir, rootKeysSubdir, "fakekeyname.key")
@@ -225,8 +232,8 @@ func TestListKeys(t *testing.T) {
 	assert.NoError(t, err, "failed to write test file")
 
 	// Check to see if the keystore still lists two keys
-	keyMap = store.ListKeys()
-	assert.Len(t, keyMap, 2)
+	keyMap := store.ListKeys()
+	assert.Len(t, keyMap, len(roles))
 }
 
 func TestAddGetKeyMemStore(t *testing.T) {
@@ -371,9 +378,16 @@ func testGetDecryptedWithInvalidPassphrase(t *testing.T, store KeyStore, newStor
 }
 
 func TestRemoveKey(t *testing.T) {
+	testRemoveKeyWithRole(t, data.CanonicalRootRole, rootKeysSubdir)
+	testRemoveKeyWithRole(t, data.CanonicalTargetsRole, nonRootKeysSubdir)
+	testRemoveKeyWithRole(t, data.CanonicalSnapshotRole, nonRootKeysSubdir)
+	testRemoveKeyWithRole(t, "targets/a/b/c", userKeysSubdir)
+	testRemoveKeyWithRole(t, "invalidRole", userKeysSubdir)
+}
+
+func testRemoveKeyWithRole(t *testing.T, role, expectedSubdir string) {
 	testName := "docker.com/notary/root"
 	testExt := "key"
-	testAlias := "alias"
 
 	// Temporary directory where test files will be created
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
@@ -381,7 +395,7 @@ func TestRemoveKey(t *testing.T) {
 	defer os.RemoveAll(tempBaseDir)
 
 	// Since we're generating this manually we need to add the extension '.'
-	expectedFilePath := filepath.Join(tempBaseDir, privDir, nonRootKeysSubdir, testName+"."+testExt)
+	expectedFilePath := filepath.Join(tempBaseDir, privDir, expectedSubdir, testName+"."+testExt)
 
 	// Create our store
 	store, err := NewKeyFileStore(tempBaseDir, passphraseRetriever)
@@ -391,7 +405,7 @@ func TestRemoveKey(t *testing.T) {
 	assert.NoError(t, err, "could not generate private key")
 
 	// Call the AddKey function
-	err = store.AddKey(testName, testAlias, privKey)
+	err = store.AddKey(testName, role, privKey)
 	assert.NoError(t, err, "failed to add key to store")
 
 	// Check to see if file exists
