@@ -11,6 +11,13 @@ import (
 	"github.com/jfrazelle/go/canonical/json"
 )
 
+const (
+	// expiryDelta determines how earlier a time value should be considered
+	// expired than its actual expiration time. It is used to avoid late
+	// expirations due to client-server time mismatches.
+	expiryDelta = 10 * time.Second
+)
+
 // Various basic signing errors
 var (
 	ErrMissingKey   = errors.New("tuf: missing key")
@@ -92,7 +99,7 @@ func verifyMeta(s *data.Signed, role string, minVersion int) error {
 
 // IsExpired checks if the given time passed before the present time
 func IsExpired(t time.Time) bool {
-	return t.Before(time.Now())
+	return t.Add(-expiryDelta).Before(time.Now())
 }
 
 // VerifySignatures checks the we have sufficient valid signatures for the given role
