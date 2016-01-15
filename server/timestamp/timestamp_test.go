@@ -1,6 +1,7 @@
 package timestamp
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 	"time"
@@ -90,4 +91,9 @@ func TestGetTimestampNewSnapshot(t *testing.T) {
 	assert.NoError(t, err, "GetTimestamp errored")
 
 	assert.NotEqual(t, ts1, ts2, "Timestamp was not regenerated when snapshot changed")
+
+	ts := &data.SignedTimestamp{}
+	err = json.Unmarshal(ts2, &ts)
+	meta, err := data.NewFileMeta(bytes.NewReader(ts1), "sha256")
+	assert.EqualValues(t, meta, ts.Signed.Meta[data.PreviousTSName])
 }

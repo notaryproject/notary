@@ -7,6 +7,10 @@ import (
 	"github.com/jfrazelle/go/canonical/json"
 )
 
+// PreviousTSName is the map key under which the meta for the previous
+// timestamp will be included in the current timestamp.
+const PreviousTSName = "previous_timestamp"
+
 // SignedTimestamp is a fully unpacked timestamp.json
 type SignedTimestamp struct {
 	Signatures []Signature

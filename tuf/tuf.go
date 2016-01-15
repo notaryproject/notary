@@ -625,7 +625,7 @@ func (tr *Repo) UpdateSnapshot(role string, s *data.Signed) error {
 }
 
 // UpdateTimestamp updates the snapshot meta in the timestamp based on the Signed object
-func (tr *Repo) UpdateTimestamp(s *data.Signed) error {
+func (tr *Repo) UpdateTimestamp(role string, s *data.Signed) error {
 	jsonData, err := json.Marshal(s)
 	if err != nil {
 		return err
@@ -634,7 +634,7 @@ func (tr *Repo) UpdateTimestamp(s *data.Signed) error {
 	if err != nil {
 		return err
 	}
-	tr.Timestamp.Signed.Meta["snapshot"] = meta
+	tr.Timestamp.Signed.Meta[role] = meta
 	tr.Timestamp.Dirty = true
 	return nil
 }
@@ -724,12 +724,30 @@ func (tr *Repo) SignSnapshot(expires time.Time) (*data.Signed, error) {
 // SignTimestamp updates the timestamp based on the current snapshot then signs it
 func (tr *Repo) SignTimestamp(expires time.Time) (*data.Signed, error) {
 	logrus.Debug("SignTimestamp")
+	// IMPORTANT: The step of capturing the current state of the timestamp
+	// must be done before anything else.
+	// update the timestamp with itself first so that we will have the meta of
+	// the previous timestamp (before we updated it)
+	// Initial version is 0 and we increment that to 1 below the first time
+	// we sign it. Therefore version 1 should not contain a previous meta.
+	if tr.Timestamp.Signed.Version > 0 {
+		var (
+			err                 error
+			signedPrevTimestamp *data.Signed
+		)
+		if signedPrevTimestamp, err = tr.Timestamp.ToSigned(); err == nil {
+			err = tr.UpdateTimestamp(data.PreviousTSName, signedPrevTimestamp)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	signedSnapshot, err := tr.Snapshot.ToSigned()
 	if err != nil {
 		return nil, err
 	}
-	err = tr.UpdateTimestamp(signedSnapshot)
-	if err != nil {
+	if err = tr.UpdateTimestamp(data.CanonicalSnapshotRole, signedSnapshot); err != nil {
 		return nil, err
 	}
 	tr.Timestamp.Signed.Expires = expires

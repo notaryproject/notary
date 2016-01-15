@@ -72,7 +72,7 @@ func GetOrCreateTimestamp(gun string, store storage.MetaStore, cryptoService sig
 			return d, nil
 		}
 	}
-	sgnd, version, err := CreateTimestamp(gun, ts, snapshot, store, cryptoService)
+	sgnd, version, err := CreateTimestamp(gun, d, ts, snapshot, store, cryptoService)
 	if err != nil {
 		logrus.Error("Failed to create a new timestamp")
 		return nil, err
@@ -110,7 +110,7 @@ func snapshotExpired(ts *data.SignedTimestamp, snapshot []byte) bool {
 // is assumed this is the immediately previous one, and the new one will have a
 // version number one higher than prev. The store is used to lookup the current
 // snapshot, this function does not save the newly generated timestamp.
-func CreateTimestamp(gun string, prev *data.SignedTimestamp, snapshot []byte, store storage.MetaStore, cryptoService signed.CryptoService) (*data.Signed, int, error) {
+func CreateTimestamp(gun string, prevBytes []byte, prev *data.SignedTimestamp, snapshot []byte, store storage.MetaStore, cryptoService signed.CryptoService) (*data.Signed, int, error) {
 	algorithm, public, err := store.GetKey(gun, data.CanonicalTimestampRole)
 	if err != nil {
 		// owner of gun must have generated a timestamp key otherwise
@@ -130,6 +130,16 @@ func CreateTimestamp(gun string, prev *data.SignedTimestamp, snapshot []byte, st
 	}
 	if prev != nil {
 		ts.Signed.Version = prev.Signed.Version + 1
+
+		// include meta for previous timestamp in new timestamp for history
+		// continuity.
+		prevMeta, err := data.NewFileMeta(bytes.NewReader(prevBytes), "sha256")
+		if err != nil {
+			// couldn't generate meta. Must error. Continuing would break
+			// history continuity
+			return nil, 0, err
+		}
+		ts.Signed.Meta[data.PreviousTSName] = prevMeta
 	}
 	sgndTs, err := json.MarshalCanonical(ts.Signed)
 	if err != nil {
