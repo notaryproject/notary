@@ -14,6 +14,7 @@ import (
 
 const (
 	rootKeysSubdir    = "root_keys"
+	userKeysSubdir    = "user_keys"
 	nonRootKeysSubdir = "tuf_keys"
 	privDir           = "private"
 )
@@ -244,8 +245,10 @@ func listKeys(s LimitedFileStore) map[string]string {
 		var keyIDFull string
 		if strings.HasPrefix(f, rootKeysSubdir+"/") {
 			keyIDFull = strings.TrimPrefix(f, rootKeysSubdir+"/")
-		} else {
+		} else if strings.HasPrefix(f, nonRootKeysSubdir+"/") {
 			keyIDFull = strings.TrimPrefix(f, nonRootKeysSubdir+"/")
+		} else {
+			keyIDFull = strings.TrimPrefix(f, userKeysSubdir+"/")
 		}
 
 		keyIDFull = strings.TrimSpace(keyIDFull)
@@ -301,10 +304,16 @@ func removeKey(s LimitedFileStore, cachedKeys map[string]*cachedKey, name string
 
 // Assumes 2 subdirectories, 1 containing root keys and 1 containing tuf keys
 func getSubdir(alias string) string {
-	if alias == "root" {
+	if alias == data.CanonicalRootRole {
 		return rootKeysSubdir
 	}
-	return nonRootKeysSubdir
+
+	for _, role := range data.BaseRoles {
+		if role == alias {
+			return nonRootKeysSubdir
+		}
+	}
+	return userKeysSubdir
 }
 
 // Given a key ID, gets the bytes and alias belonging to that key if the key
