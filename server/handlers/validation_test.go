@@ -17,20 +17,27 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func copyTimestampKey(t *testing.T, fromRepo *tuf.Repo,
-	toStore storage.MetaStore, gun string) {
+func copyFirstTimestampKey(t *testing.T, fromRepo *tuf.Repo,
+	toStore storage.MetaStore, gun string, onlyOneExpected bool) {
 
 	role, err := fromRepo.GetBaseRole(data.CanonicalTimestampRole)
 	assert.NoError(t, err)
 	assert.NotNil(t, role, "No timestamp role in the root file")
-	assert.Len(t, role.ListKeyIDs(), 1, fmt.Sprintf(
-		"Expected 1 timestamp key in timestamp role, got %d", len(role.ListKeyIDs())))
+	if onlyOneExpected {
+		assert.Len(t, role.ListKeyIDs(), 1, fmt.Sprintf(
+			"Expected 1 timestamp key in timestamp role, got %d", len(role.ListKeyIDs())))
+	}
 
 	pubTimestampKey := role.ListKeys()[0]
 
 	err = toStore.SetKey(gun, data.CanonicalTimestampRole, pubTimestampKey.Algorithm(),
 		pubTimestampKey.Public())
 	assert.NoError(t, err)
+}
+
+func copyTimestampKey(t *testing.T, fromRepo *tuf.Repo,
+	toStore storage.MetaStore, gun string) {
+	copyFirstTimestampKey(t, fromRepo, toStore, gun, true)
 }
 
 // Returns a mapping of role name to `MetaUpdate` objects
@@ -183,7 +190,7 @@ func TestValidateRootRotation(t *testing.T) {
 
 	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
 	assert.NoError(t, err)
-	err = signed.Sign(crypto, r, []data.PublicKey{rootKey, oldRootKey})
+	err = signed.Sign(crypto, r, []data.PublicKey{rootKey, oldRootKey}, 2)
 	assert.NoError(t, err)
 
 	rt, err := data.RootFromSigned(r)
@@ -443,6 +450,10 @@ func TestValidateRootInvalidTimestampKey(t *testing.T) {
 func TestValidateRootInvalidTimestampThreshold(t *testing.T) {
 	oldRepo, cs, err := testutils.EmptyRepo("docker.com/notary")
 	assert.NoError(t, err)
+
+	tsKey2, err := cs.Create("timestamp2", "", data.ED25519Key)
+	assert.NoError(t, err)
+	oldRepo.AddBaseKeys(data.CanonicalTimestampRole, tsKey2)
 	tsRole, ok := oldRepo.Root.Signed.Roles[data.CanonicalTimestampRole]
 	assert.True(t, ok)
 	tsRole.Threshold = 2
@@ -455,7 +466,7 @@ func TestValidateRootInvalidTimestampThreshold(t *testing.T) {
 	store := storage.NewMemStorage()
 	updates := []storage.MetaUpdate{root, targets, snapshot}
 
-	copyTimestampKey(t, oldRepo, store, "testGUN")
+	copyFirstTimestampKey(t, oldRepo, store, "testGUN", false)
 	_, err = validateUpdate(cs, "testGUN", updates, store)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "timestamp role has invalid threshold")
