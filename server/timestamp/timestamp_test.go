@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
+	"github.com/docker/notary/tuf/testutils"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/docker/notary/server/storage"
@@ -51,14 +52,18 @@ func TestGetTimestampKey(t *testing.T) {
 
 func TestGetTimestamp(t *testing.T) {
 	store := storage.NewMemStorage()
-	crypto := signed.NewEd25519()
+	_, repo, crypto, err := testutils.EmptyRepo("gun")
+	assert.NoError(t, err)
 
-	snapshot := &data.SignedSnapshot{}
-	snapJSON, _ := json.Marshal(snapshot)
+	rootJSON, err := json.Marshal(repo.Root)
+	assert.NoError(t, err)
+	snapJSON, err := json.Marshal(repo.Snapshot)
+	assert.NoError(t, err)
 
+	store.UpdateCurrent("gun", storage.MetaUpdate{Role: "root", Version: 0, Data: rootJSON})
 	store.UpdateCurrent("gun", storage.MetaUpdate{Role: "snapshot", Version: 0, Data: snapJSON})
 	// create a key to be used by GetTimestamp
-	_, err := GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
+	_, err = GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
 	assert.Nil(t, err, "GetKey errored")
 
 	_, err = GetOrCreateTimestamp("gun", store, crypto)
@@ -67,21 +72,24 @@ func TestGetTimestamp(t *testing.T) {
 
 func TestGetTimestampNewSnapshot(t *testing.T) {
 	store := storage.NewMemStorage()
-	crypto := signed.NewEd25519()
+	_, repo, crypto, err := testutils.EmptyRepo("gun")
+	assert.NoError(t, err)
 
-	snapshot := data.SignedSnapshot{}
-	snapshot.Signed.Version = 0
-	snapJSON, _ := json.Marshal(snapshot)
+	rootJSON, err := json.Marshal(repo.Root)
+	assert.NoError(t, err)
+	snapJSON, err := json.Marshal(repo.Snapshot)
+	assert.NoError(t, err)
 
+	store.UpdateCurrent("gun", storage.MetaUpdate{Role: "root", Version: 0, Data: rootJSON})
 	store.UpdateCurrent("gun", storage.MetaUpdate{Role: "snapshot", Version: 0, Data: snapJSON})
 	// create a key to be used by GetTimestamp
-	_, err := GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
+	_, err = GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
 	assert.Nil(t, err, "GetKey errored")
 
 	ts1, err := GetOrCreateTimestamp("gun", store, crypto)
 	assert.Nil(t, err, "GetTimestamp errored")
 
-	snapshot = data.SignedSnapshot{}
+	snapshot := data.SignedSnapshot{}
 	snapshot.Signed.Version = 1
 	snapJSON, _ = json.Marshal(snapshot)
 

@@ -1116,8 +1116,7 @@ func testListTarget(t *testing.T, rootType string) {
 	defer os.RemoveAll(repo.baseDir)
 
 	// tests need to manually bootstrap timestamp as client doesn't generate it
-	err := repo.tufRepo.InitTimestamp()
-	assert.NoError(t, err, "error creating repository: %s", err)
+	repo.tufRepo.InitTimestamp()
 
 	latestTarget := addTarget(t, repo, "latest", "../fixtures/intermediate-ca.crt")
 	currentTarget := addTarget(t, repo, "current", "../fixtures/intermediate-ca.crt")
@@ -1172,8 +1171,7 @@ func testListTargetWithDelegates(t *testing.T, rootType string) {
 	defer os.RemoveAll(repo.baseDir)
 
 	// tests need to manually bootstrap timestamp as client doesn't generate it
-	err := repo.tufRepo.InitTimestamp()
-	assert.NoError(t, err, "error creating repository: %s", err)
+	repo.tufRepo.InitTimestamp()
 
 	latestTarget := addTarget(t, repo, "latest", "../fixtures/intermediate-ca.crt")
 	currentTarget := addTarget(t, repo, "current", "../fixtures/intermediate-ca.crt")

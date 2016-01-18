@@ -325,7 +325,8 @@ func (tr *Repo) InitRepo(consistent bool) error {
 	if err := tr.InitSnapshot(); err != nil {
 		return err
 	}
-	return tr.InitTimestamp()
+	tr.InitTimestamp()
+	return nil
 }
 
 // InitRoot initializes an empty root file with the 4 core roles based
@@ -394,18 +395,8 @@ func (tr *Repo) InitSnapshot() error {
 }
 
 // InitTimestamp initializes a timestamp based on the current snapshot
-func (tr *Repo) InitTimestamp() error {
-	snap, err := tr.Snapshot.ToSigned()
-	if err != nil {
-		return err
-	}
-	timestamp, err := data.NewTimestamp(snap)
-	if err != nil {
-		return err
-	}
-
-	tr.Timestamp = timestamp
-	return nil
+func (tr *Repo) InitTimestamp() {
+	tr.Timestamp = data.NewTimestamp()
 }
 
 // SetRoot parses the Signed object into a SignedRoot object, sets

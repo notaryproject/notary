@@ -31,8 +31,7 @@ func validateRootSuccessfully(t *testing.T, rootType string) {
 	defer os.RemoveAll(repo.baseDir)
 
 	// tests need to manually boostrap timestamp as client doesn't generate it
-	err := repo.tufRepo.InitTimestamp()
-	assert.NoError(t, err, "error creating repository: %s", err)
+	repo.tufRepo.InitTimestamp()
 
 	// Initialize is supposed to have created new certificate for this repository
 	// Lets check for it and store it for later use
@@ -44,7 +43,7 @@ func validateRootSuccessfully(t *testing.T, rootType string) {
 	//
 	// Test TOFUS logic. We remove all certs and expect a new one to be added after ListTargets
 	//
-	err = repo.CertStore.RemoveAll()
+	err := repo.CertStore.RemoveAll()
 	assert.NoError(t, err)
 	assert.Len(t, repo.CertStore.GetCertificates(), 0)
 
