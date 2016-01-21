@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	ctxu "github.com/docker/distribution/context"
@@ -208,6 +209,61 @@ func getKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 	}
 	logger.Debugf("200 GET %s key", role)
 	w.Write(out)
+	return nil
+}
+
+func ListVersionsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	vars := mux.Vars(r)
+	gun, ok := vars["imageName"]
+	if !ok || gun == "" {
+		return errors.ErrUnknown.WithDetail("no gun")
+	}
+	role, ok := vars["tufRole"]
+	if !ok || role == "" {
+		return errors.ErrUnknown.WithDetail("no role")
+	}
+
+	err := r.ParseForm()
+	if err != nil {
+		return errors.ErrUnknown.WithDetail(err)
+	}
+
+	var (
+		start  = 0
+		number = 0
+	)
+	startStr := r.Form.Get("start")
+	if startStr != "" {
+		if start, err = strconv.Atoi(startStr); err != nil || start < 0 {
+			return errors.ErrBadPagination.WithDetail(nil)
+		}
+	}
+	numberStr := r.Form.Get("number")
+	if numberStr != "" {
+		if number, err = strconv.Atoi(numberStr); err != nil || start < 0 {
+			return errors.ErrBadPagination.WithDetail(nil)
+		}
+	}
+
+	s := ctx.Value("metaStore")
+	store, ok := s.(storage.MetaStore)
+	if !ok || store == nil {
+		return errors.ErrNoStorage.WithDetail("No storage configured")
+	}
+
+	versions, err := store.GetVersions(gun, role, start, number)
+	if _, ok := err.(storage.ErrNotFound); ok {
+		return errors.ErrMetadataNotFound.WithDetail(nil)
+	} else {
+		return errors.ErrUnknown.WithDetail(err)
+	}
+
+	resp := VersionResponse{
+		Versions: versions,
+	}
+
+	enc := json.NewEncoder(w)
+	enc.Encode(resp)
 	return nil
 }
 

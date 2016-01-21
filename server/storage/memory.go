@@ -91,6 +91,16 @@ func (st *MemStorage) GetChecksum(gun, role, checksum string) (data []byte, err 
 	return data, nil
 }
 
+// GetVersions for MemStorage only returns the latest version
+// as it does not store multiple versions
+func (st *MemStorage) GetVersions(gun, role string, start, numToReturn int) ([][]byte, error) {
+	data, err := st.GetCurrent(gun, role)
+	if err != nil {
+		return nil, err
+	}
+	return [][]byte{data}, nil
+}
+
 // Delete deletes all the metadata for a given GUN
 func (st *MemStorage) Delete(gun string) error {
 	st.lock.Lock()

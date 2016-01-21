@@ -34,6 +34,17 @@ type MetaStore interface {
 	// found, it returns storage.ErrNotFound
 	GetChecksum(gun, tufRole, checksum string) (data []byte, err error)
 
+	// GetVersions returns an ordered list of versions, newest to oldest
+	// for the given gun and role. Only the binary data is returned as
+	// all other values stored in the DB for convenience should be
+	// generated/validated from this raw json by the consumer.
+	// Start allows for an offset counting back from the newest version
+	// and numToResturn can limit how many results are returned.
+	// If numToReturn is 0, it means return all results. If less than
+	// numToReturn results are returned, there are no more results to
+	// return.
+	GetVersions(gun, tufRole string, start, numToReturn int) (versions [][]byte, err error)
+
 	// Delete removes all metadata for a given GUN.  It does not return an
 	// error if no metadata exists for the given GUN.
 	Delete(gun string) error
