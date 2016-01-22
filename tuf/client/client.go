@@ -92,10 +92,9 @@ func (c *Client) update() error {
 	return nil
 }
 
-// checkRoot determines if the hash, and size are still those reported
-// in the snapshot file. It will also check the expiry, however, if the
-// hash and size in snapshot are unchanged but the root file has expired,
-// there is little expectation that the situation can be remedied.
+// checkRoot determines if the hash is still those reported in the snapshot file.
+// It will also check the expiry, however, if the hash in snapshot is unchanged but the
+// root file has expired, there is little expectation that the situation can be remedied.
 func (c Client) checkRoot() error {
 	role := data.CanonicalRootRole
 	size := c.local.Snapshot.Signed.Meta[role].Length
@@ -109,10 +108,6 @@ func (c Client) checkRoot() error {
 	hash := sha256.Sum256(raw)
 	if !bytes.Equal(hash[:], hashSha256) {
 		return fmt.Errorf("Cached root sha256 did not match snapshot root sha256")
-	}
-
-	if int64(len(raw)) != size {
-		return fmt.Errorf("Cached root size did not match snapshot size")
 	}
 
 	root := &data.SignedRoot{}
