@@ -2,11 +2,14 @@ package handlers
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"golang.org/x/net/context"
@@ -259,6 +262,71 @@ func TestGetHandlerSnapshot(t *testing.T) {
 
 	err = getHandler(ctx, rw, req, vars)
 	assert.NoError(t, err)
+}
+
+func TestListVersionsHandler(t *testing.T) {
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+	_, store := storage.SetUpSQLite(t, tempBaseDir)
+	defer os.RemoveAll(tempBaseDir)
+
+	_, repo, _, err := testutils.EmptyRepo("gun")
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+
+	ts, err := repo.SignTimestamp(data.DefaultExpires("timestamp"))
+	tsJSON1, err := json.Marshal(ts)
+	assert.NoError(t, err)
+	store.UpdateCurrent(
+		"gun",
+		storage.MetaUpdate{Role: "timestamp", Version: 1, Data: tsJSON1},
+	)
+
+	ts, err = repo.SignTimestamp(data.DefaultExpires("timestamp"))
+	tsJSON2, err := json.Marshal(ts)
+	assert.NoError(t, err)
+	store.UpdateCurrent(
+		"gun",
+		storage.MetaUpdate{Role: "timestamp", Version: 2, Data: tsJSON2},
+	)
+	checksumBytes := sha256.Sum256(tsJSON2)
+	checksum := hex.EncodeToString(checksumBytes[:])
+
+	ts, err = repo.SignTimestamp(data.DefaultExpires("timestamp"))
+	tsJSON3, err := json.Marshal(ts)
+	assert.NoError(t, err)
+	store.UpdateCurrent(
+		"gun",
+		storage.MetaUpdate{Role: "timestamp", Version: 3, Data: tsJSON3},
+	)
+
+	rw := httptest.NewRecorder()
+
+	err = listVersionsHandler(ctx, rw, store, "gun", "timestamp", "", 0)
+	assert.NoError(t, err)
+
+	resp, err := ioutil.ReadAll(rw.Body)
+	assert.NoError(t, err)
+
+	vers := VersionResponse{}
+	err = json.Unmarshal(resp, &vers)
+	assert.NoError(t, err)
+	assert.Len(t, vers.Versions, 3)
+	assert.EqualValues(t, tsJSON3, vers.Versions[0])
+	assert.EqualValues(t, tsJSON2, vers.Versions[1])
+	assert.EqualValues(t, tsJSON1, vers.Versions[2])
+
+	err = listVersionsHandler(ctx, rw, store, "gun", "timestamp", checksum, 1)
+	assert.NoError(t, err)
+
+	resp, err = ioutil.ReadAll(rw.Body)
+	assert.NoError(t, err)
+
+	vers = VersionResponse{}
+	err = json.Unmarshal(resp, &vers)
+	assert.NoError(t, err)
+	assert.Len(t, vers.Versions, 1)
+	assert.EqualValues(t, tsJSON1, vers.Versions[0])
 }
 
 func TestGetHandler404(t *testing.T) {

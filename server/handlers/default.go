@@ -3,8 +3,10 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -212,6 +214,7 @@ func getKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 	return nil
 }
 
+// ListVersionsHandler serves a paginated list of versions of a given TUF role
 func ListVersionsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	vars := mux.Vars(r)
 	gun, ok := vars["imageName"]
@@ -228,21 +231,9 @@ func ListVersionsHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 		return errors.ErrUnknown.WithDetail(err)
 	}
 
-	var (
-		start  = 0
-		number = 0
-	)
-	startStr := r.Form.Get("start")
-	if startStr != "" {
-		if start, err = strconv.Atoi(startStr); err != nil || start < 0 {
-			return errors.ErrBadPagination.WithDetail(nil)
-		}
-	}
-	numberStr := r.Form.Get("number")
-	if numberStr != "" {
-		if number, err = strconv.Atoi(numberStr); err != nil || start < 0 {
-			return errors.ErrBadPagination.WithDetail(nil)
-		}
+	start, number, err := parsePageParams(r.Form)
+	if err != nil {
+		return errors.ErrBadPagination.WithDetail(err)
 	}
 
 	s := ctx.Value("metaStore")
@@ -250,11 +241,26 @@ func ListVersionsHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 	if !ok || store == nil {
 		return errors.ErrNoStorage.WithDetail("No storage configured")
 	}
+	return listVersionsHandler(ctx, w, store, gun, role, start, number)
+}
 
+func parsePageParams(f url.Values) (start string, number int, err error) {
+	start = f.Get("start")
+	numberStr := f.Get("number")
+	if numberStr != "" {
+		if number, err = strconv.Atoi(numberStr); err != nil || number < 0 {
+			return "", 0, fmt.Errorf("could not parse number parameter")
+		}
+	}
+	return
+}
+
+func listVersionsHandler(ctx context.Context, w http.ResponseWriter, store storage.MetaStore, gun, role, start string, number int) error {
 	versions, err := store.GetVersions(gun, role, start, number)
-	if _, ok := err.(storage.ErrNotFound); ok {
-		return errors.ErrMetadataNotFound.WithDetail(nil)
-	} else {
+	if err != nil {
+		if _, ok := err.(storage.ErrNotFound); ok {
+			return errors.ErrMetadataNotFound.WithDetail(nil)
+		}
 		return errors.ErrUnknown.WithDetail(err)
 	}
 

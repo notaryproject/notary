@@ -14,8 +14,9 @@ type key struct {
 }
 
 type ver struct {
-	version int
-	data    []byte
+	version  int
+	checksum string
+	data     []byte
 }
 
 // MemStorage is really just designed for dev and testing. It is very
@@ -24,7 +25,7 @@ type MemStorage struct {
 	lock      sync.Mutex
 	tufMeta   map[string][]*ver
 	keys      map[string]map[string]*key
-	checksums map[string]map[string][]byte
+	checksums map[string]map[string]*ver
 }
 
 // NewMemStorage instantiates a memStorage instance
@@ -32,13 +33,15 @@ func NewMemStorage() *MemStorage {
 	return &MemStorage{
 		tufMeta:   make(map[string][]*ver),
 		keys:      make(map[string]map[string]*key),
-		checksums: make(map[string]map[string][]byte),
+		checksums: make(map[string]map[string]*ver),
 	}
 }
 
 // UpdateCurrent updates the meta data for a specific role
 func (st *MemStorage) UpdateCurrent(gun string, update MetaUpdate) error {
 	id := entryKey(gun, update.Role)
+	checksumBytes := sha256.Sum256(update.Data)
+	checksum := hex.EncodeToString(checksumBytes[:])
 	st.lock.Lock()
 	defer st.lock.Unlock()
 	if space, ok := st.tufMeta[id]; ok {
@@ -48,15 +51,18 @@ func (st *MemStorage) UpdateCurrent(gun string, update MetaUpdate) error {
 			}
 		}
 	}
-	st.tufMeta[id] = append(st.tufMeta[id], &ver{version: update.Version, data: update.Data})
-	checksumBytes := sha256.Sum256(update.Data)
-	checksum := hex.EncodeToString(checksumBytes[:])
+	v := &ver{
+		version:  update.Version,
+		checksum: checksum,
+		data:     update.Data,
+	}
+	st.tufMeta[id] = append(st.tufMeta[id], v)
 
 	_, ok := st.checksums[gun]
 	if !ok {
-		st.checksums[gun] = make(map[string][]byte)
+		st.checksums[gun] = make(map[string]*ver)
 	}
-	st.checksums[gun][checksum] = update.Data
+	st.checksums[gun][checksum] = v
 	return nil
 }
 
@@ -84,21 +90,50 @@ func (st *MemStorage) GetCurrent(gun, role string) (data []byte, err error) {
 func (st *MemStorage) GetChecksum(gun, role, checksum string) (data []byte, err error) {
 	st.lock.Lock()
 	defer st.lock.Unlock()
-	data, ok := st.checksums[gun][checksum]
-	if !ok || len(data) == 0 {
+	v, ok := st.checksums[gun][checksum]
+	if !ok {
 		return nil, ErrNotFound{}
 	}
-	return data, nil
+	return v.data, nil
 }
 
 // GetVersions for MemStorage only returns the latest version
 // as it does not store multiple versions
-func (st *MemStorage) GetVersions(gun, role string, start, numToReturn int) ([][]byte, error) {
-	data, err := st.GetCurrent(gun, role)
-	if err != nil {
-		return nil, err
+func (st *MemStorage) GetVersions(gun, role, start string, numToReturn int) ([][]byte, error) {
+	var (
+		idx, stop int
+		id        = entryKey(gun, role)
+	)
+	if start != "" {
+		for st.tufMeta[id][idx].checksum != start {
+			if idx == len(st.tufMeta[id]) {
+				// checksum given but wasn't found
+				return nil, ErrNotFound{}
+			}
+			idx++
+		}
+		idx-- // GetVersions does not include the checksum given
+	} else {
+		idx = len(st.tufMeta[id]) - 1
 	}
-	return [][]byte{data}, nil
+	if idx < 0 {
+		// nothing to return
+		return nil, ErrNotFound{}
+	}
+
+	res := make([][]byte, 0, numToReturn)
+	if numToReturn > 0 && idx-numToReturn >= 0 {
+		// if we start at 5 and we want to return 1 item,
+		// the stop index is inclusive so we need to add
+		// one to numToReturn
+		stop = idx - numToReturn + 1
+	}
+
+	// reverse iteration to put newest version at 0 index
+	for ; idx >= stop; idx-- {
+		res = append(res, st.tufMeta[id][idx].data)
+	}
+	return res, nil
 }
 
 // Delete deletes all the metadata for a given GUN

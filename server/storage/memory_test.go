@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"testing"
 
 	"github.com/docker/notary/tuf/data"
@@ -100,4 +102,36 @@ func TestGetChecksumNotFound(t *testing.T) {
 	_, err := s.GetChecksum("gun", "root", "12345")
 	assert.Error(t, err)
 	assert.IsType(t, ErrNotFound{}, err)
+}
+
+func TestGetVersionsError(t *testing.T) {
+	s := NewMemStorage()
+	_, err := s.GetVersions("gun", "timestamp", "", 0)
+	assert.Error(t, err)
+	assert.IsType(t, ErrNotFound{}, err)
+
+	s.UpdateCurrent("gun", MetaUpdate{"timestamp", 1, []byte("test1")})
+
+	data, err := s.GetVersions("gun", "timestamp", "", 0)
+	assert.NoError(t, err)
+	assert.Len(t, data, 1)
+	assert.EqualValues(t, []byte("test1"), data[0])
+
+	s.UpdateCurrent("gun", MetaUpdate{"timestamp", 2, []byte("test2")})
+	checksumBytes := sha256.Sum256([]byte("test2"))
+	checksum := hex.EncodeToString(checksumBytes[:])
+
+	// the MemStorage only ever keeps the latest version and ignores
+	// start and number params
+	data, err = s.GetVersions("gun", "timestamp", "", 1)
+	assert.NoError(t, err)
+	assert.Len(t, data, 1)
+	assert.EqualValues(t, []byte("test2"), data[0])
+
+	// the MemStorage only ever keeps the latest version and ignores
+	// start and number params
+	data, err = s.GetVersions("gun", "timestamp", checksum, 1)
+	assert.NoError(t, err)
+	assert.Len(t, data, 1)
+	assert.EqualValues(t, []byte("test1"), data[0])
 }
