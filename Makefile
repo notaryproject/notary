@@ -18,6 +18,7 @@ GOARCHS = amd64
 NOTARY_BUILDTAGS ?= pkcs11
 GO_EXC = go
 NOTARYDIR := /go/src/github.com/docker/notary
+EXCLUDE_PKGS ?=
 
 # check to be sure pkcs11 lib is always imported with a build tag
 GO_LIST_PKCS11 := $(shell go list -e -f '{{join .Deps "\n"}}' ./... | xargs go list -e -f '{{if not .Standard}}{{.ImportPath}}{{end}}' | grep -q pkcs11)
@@ -34,7 +35,7 @@ _space := $(empty) $(empty)
 COVERDIR=.cover
 COVERPROFILE?=$(COVERDIR)/cover.out
 COVERMODE=count
-PKGS ?= $(shell go list ./... | tr '\n' ' ')
+PKGS ?= $(filter-out $(EXCLUDE_PKGS),$(shell go list ./... | tr '\n' ' '))
 
 GO_VERSION = $(shell go version | awk '{print $$3}')
 
