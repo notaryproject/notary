@@ -1,6 +1,7 @@
 package tuf
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/json"
 	"io/ioutil"
@@ -130,9 +131,30 @@ func writeRepo(t *testing.T, dir string, repo *Repo) {
 	snapshotJSON, _ := json.Marshal(signedSnapshot)
 	ioutil.WriteFile(dir+"/snapshot.json", snapshotJSON, 0755)
 
+	var (
+		checkTS    bool
+		prevTSMeta data.FileMeta
+	)
+	if repo.Timestamp.Signed.Version > 0 {
+		checkTS = true
+		prevTS, err := repo.Timestamp.ToSigned()
+		assert.NoError(t, err)
+		prevTSBytes, err := json.Marshal(prevTS)
+		assert.NoError(t, err)
+		prevTSMeta, err = data.NewFileMeta(bytes.NewReader(prevTSBytes), "sha256")
+		assert.NoError(t, err)
+	}
+
 	signedTimestamp, err := repo.SignTimestamp(data.DefaultExpires("timestamp"))
 	assert.NoError(t, err)
 	timestampJSON, _ := json.Marshal(signedTimestamp)
+
+	if checkTS {
+		ts, err := data.TimestampFromSigned(signedTimestamp)
+		assert.NoError(t, err)
+		assert.EqualValues(t, prevTSMeta, ts.Signed.Meta[data.PreviousTSName])
+	}
+
 	ioutil.WriteFile(dir+"/timestamp.json", timestampJSON, 0755)
 }
 
@@ -941,7 +963,6 @@ func TestGetAllRoles(t *testing.T) {
 	ed25519 := signed.NewEd25519()
 	keyDB := keys.NewDB()
 	repo := initRepo(t, ed25519, keyDB)
-
 	// After we init, we get the base roles
 	roles := repo.GetAllLoadedRoles()
 	assert.Len(t, roles, len(data.BaseRoles))
@@ -950,4 +971,41 @@ func TestGetAllRoles(t *testing.T) {
 	repo.keysDB = keys.NewDB()
 	roles = repo.GetAllLoadedRoles()
 	assert.Len(t, roles, 0)
+}
+
+func TestPreviousTimestampInclusion(t *testing.T) {
+	ed25519 := signed.NewEd25519()
+	keyDB := keys.NewDB()
+	repo := initRepo(t, ed25519, keyDB)
+
+	var (
+		prevTSPresent bool
+		prevTSMeta    data.FileMeta
+	)
+	for range []int{1, 2, 3} {
+		if repo.Timestamp.Signed.Version > 0 {
+			prevTSPresent = true
+			prevTS, err := repo.Timestamp.ToSigned()
+			assert.NoError(t, err)
+			prevTSBytes, err := json.Marshal(prevTS)
+			assert.NoError(t, err)
+			prevTSMeta, err = data.NewFileMeta(bytes.NewReader(prevTSBytes), "sha256")
+			assert.NoError(t, err)
+		}
+
+		signedTimestamp, err := repo.SignTimestamp(data.DefaultExpires("timestamp"))
+		assert.NoError(t, err)
+
+		ts, err := data.TimestampFromSigned(signedTimestamp)
+		if prevTSPresent {
+			assert.NoError(t, err)
+			assert.EqualValues(t, prevTSMeta, ts.Signed.Meta[data.PreviousTSName])
+		} else {
+			// previous timestamp meta entry should not be present because
+			// this is version 1
+			_, ok := ts.Signed.Meta[data.PreviousTSName]
+			assert.False(t, ok)
+			assert.Equal(t, 1, ts.Signed.Version)
+		}
+	}
 }

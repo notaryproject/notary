@@ -1,11 +1,14 @@
 package data
 
 import (
-	"bytes"
 	"time"
 
 	"github.com/jfrazelle/go/canonical/json"
 )
+
+// PreviousTSName is the map key under which the meta for the previous
+// timestamp will be included in the current timestamp.
+const PreviousTSName = "previous_timestamp"
 
 // SignedTimestamp is a fully unpacked timestamp.json
 type SignedTimestamp struct {
@@ -23,26 +26,16 @@ type Timestamp struct {
 }
 
 // NewTimestamp initializes a timestamp with an existing snapshot
-func NewTimestamp(snapshot *Signed) (*SignedTimestamp, error) {
-	snapshotJSON, err := json.Marshal(snapshot)
-	if err != nil {
-		return nil, err
-	}
-	snapshotMeta, err := NewFileMeta(bytes.NewReader(snapshotJSON), "sha256")
-	if err != nil {
-		return nil, err
-	}
+func NewTimestamp() *SignedTimestamp {
 	return &SignedTimestamp{
 		Signatures: make([]Signature, 0),
 		Signed: Timestamp{
 			Type:    TUFTypes["timestamp"],
 			Version: 0,
 			Expires: DefaultExpires("timestamp"),
-			Meta: Files{
-				CanonicalSnapshotRole: snapshotMeta,
-			},
+			Meta:    make(Files),
 		},
-	}, nil
+	}
 }
 
 // ToSigned partially serializes a SignedTimestamp such that it can
