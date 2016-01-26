@@ -2,7 +2,7 @@
 machine:
   pre:
   # Install gvm
-    - bash < <(curl -s -S -L https://raw.githubusercontent.com/moovweb/gvm/1.0.22/binscripts/gvm-installer)
+    - bash <(curl -s -S -L https://raw.githubusercontent.com/moovweb/gvm/1.0.22/binscripts/gvm-installer)
 
   post:
   # Install many go versions
@@ -18,8 +18,6 @@ machine:
     CIRCLE_PAIN: "mode: set"
   # Put the coverage profile somewhere codecov's script can find it
     COVERPROFILE: coverage.out
-  # Set the pull request number so codecov can figure it out
-    PULL_REQUEST: ${CI_PULL_REQUEST##*/}
 
   hosts:
   # Not used yet
@@ -67,7 +65,7 @@ test:
   override:
   # Test stable, and report
   # hacking this to be parallel
-    - case $CIRCLE_NODE_INDEX in 0) gvm use stable && NOTARY_BUILDTAGS=pkcs11 make ci ;; 1) gvm use stable && NOTARY_BUILDTAGS=none make ci ;; esac:
+    - gvm use stable && ./circleci.sh:
         parallel: true
         timeout: 600
         pwd: $BASE_STABLE
