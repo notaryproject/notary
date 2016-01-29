@@ -1,14 +1,31 @@
 package storage
 
-// KeyStore provides a minimal interface for managing key persistence
-type KeyStore interface {
-	// GetKey returns the algorithm and public key for the given GUN and role.
-	// If the GUN+role don't exist, returns an error.
-	GetKey(gun, role string) (algorithm string, public []byte, err error)
+import (
+	"time"
 
-	// SetKey sets the algorithm and public key for the given GUN and role if
-	// it doesn't already exist.  Otherwise an error is returned.
-	SetKey(gun, role, algorithm string, public []byte) error
+	"github.com/docker/notary/tuf/data"
+)
+
+// KeyStore provides a minimal interface for managing key persistence.  Any
+// or all of these functions can optionally clean up expired pending keys, or
+// no-longer-active non-pending keys.
+type KeyStore interface {
+	// GetLatestKey the most recently created, non-expired key for the given
+	// GUN and role. If no keys exist for the GUN+role, returns an ErrNoKeys.
+	GetLatestKey(gun, role string) (*ManagedPublicKey, error)
+
+	// HasAnyKeys returns true if any non-expired keys exist for the given GUN,
+	// role, and key IDs.
+	HasAnyKeys(gun, role string, keyIDs []string) (bool, error)
+
+	// AddKey adds the given public key for the given GUN and role, with an
+	// expiration time.  The key is added as a pending key - MarkActiveKeys
+	// must be called to make it active.
+	AddKey(gun, role string, key data.PublicKey, expires time.Time) error
+
+	// MarkActiveKeys marks the following key IDs as active.
+	// This does not fail if any of the key IDs doesn't exist.
+	MarkActiveKeys(gun, role string, keyIDs []string) error
 }
 
 // MetaStore holds the methods that are used for a Metadata Store

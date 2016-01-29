@@ -4,8 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/notary/tuf/data"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	"github.com/mattn/go-sqlite3"
@@ -157,39 +159,55 @@ func (db *SQLStorage) Delete(gun string) error {
 	return db.Where(&TUFFile{Gun: gun}).Delete(TUFFile{}).Error
 }
 
-// GetKey returns the Public Key data for a gun+role
-func (db *SQLStorage) GetKey(gun, role string) (algorithm string, public []byte, err error) {
-	logrus.Debugf("retrieving timestamp key for %s:%s", gun, role)
+// GetLatestKey the most recently created, non-expired key for the given
+// GUN and role. If no keys exist for the GUN+role, returns an ErrNoKeys.
+func (db *SQLStorage) GetLatestKey(gun, role string) (*ManagedPublicKey, error) {
+	return nil, fmt.Errorf("Not implemented yet")
+	// logrus.Debugf("retrieving timestamp key for %s:%s", gun, role)
 
-	var row Key
-	query := db.Select("cipher, public").Where(&Key{Gun: gun, Role: role}).Find(&row)
+	// var row Key
+	// query := db.Select("cipher, public").Where(&Key{Gun: gun, Role: role}).Find(&row)
 
-	if query.RecordNotFound() {
-		return "", nil, &ErrNoKey{gun: gun}
-	} else if query.Error != nil {
-		return "", nil, query.Error
-	}
+	// if query.RecordNotFound() {
+	// 	return "", nil, &ErrNoKey{gun: gun}
+	// } else if query.Error != nil {
+	// 	return "", nil, query.Error
+	// }
 
-	return row.Cipher, row.Public, nil
+	// return row.Cipher, row.Public, nil
 }
 
-// SetKey attempts to write a key and returns an error if it already exists for the gun and role
-func (db *SQLStorage) SetKey(gun, role, algorithm string, public []byte) error {
+// AddKey adds the given public key for the given GUN and role, with an
+// expiration time.  The key is added as a pending key - MarkActiveKeys
+// must be called to make it active.
+func (db *SQLStorage) AddKey(gun, role string, key data.PublicKey, expires time.Time) error {
+	return fmt.Errorf("Not implemented yet")
+	// entry := Key{
+	// 	Gun:  gun,
+	// 	Role: role,
+	// }
 
-	entry := Key{
-		Gun:  gun,
-		Role: role,
-	}
+	// if !db.Where(&entry).First(&Key{}).RecordNotFound() {
+	// 	return &ErrKeyExists{gun: gun, role: role}
+	// }
 
-	if !db.Where(&entry).First(&Key{}).RecordNotFound() {
-		return &ErrKeyExists{gun: gun, role: role}
-	}
+	// entry.Cipher = algorithm
+	// entry.Public = public
 
-	entry.Cipher = algorithm
-	entry.Public = public
+	// return translateOldVersionError(
+	// 	db.FirstOrCreate(&Key{}, &entry).Error)
+}
 
-	return translateOldVersionError(
-		db.FirstOrCreate(&Key{}, &entry).Error)
+// MarkActiveKeys marks the following key IDs as active.
+// This does not fail if any of the key IDs doesn't exist.
+func (db *SQLStorage) MarkActiveKeys(gun, role string, keyIDs []string) error {
+	return fmt.Errorf("Not implemented yet")
+}
+
+// HasAnyKeys returns true if any non-expired keys exist for the given GUN,
+// role, and key IDs.
+func (db *SQLStorage) HasAnyKeys(gun, role string, keyIDs []string) (bool, error) {
+	return false, fmt.Errorf("Not implemented yet")
 }
 
 // CheckHealth asserts that both required tables are present

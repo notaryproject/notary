@@ -6,16 +6,20 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-)
+	"time"
 
-type key struct {
-	algorithm string
-	public    []byte
-}
+	"github.com/docker/notary/tuf/data"
+)
 
 type ver struct {
 	version int
 	data    []byte
+}
+
+type storedKey struct {
+	ManagedPublicKey
+	expires   *time.Time
+	createdAt time.Time
 }
 
 // MemStorage is really just designed for dev and testing. It is very
@@ -23,7 +27,7 @@ type ver struct {
 type MemStorage struct {
 	lock      sync.Mutex
 	tufMeta   map[string][]*ver
-	keys      map[string]map[string]*key
+	keys      map[string]map[string]storedKey
 	checksums map[string]map[string][]byte
 }
 
@@ -31,7 +35,7 @@ type MemStorage struct {
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
 		tufMeta:   make(map[string][]*ver),
-		keys:      make(map[string]map[string]*key),
+		keys:      make(map[string]map[string]storedKey),
 		checksums: make(map[string]map[string][]byte),
 	}
 }
@@ -104,39 +108,107 @@ func (st *MemStorage) Delete(gun string) error {
 	return nil
 }
 
-// GetKey returns the public key material of the timestamp key of a given gun
-func (st *MemStorage) GetKey(gun, role string) (algorithm string, public []byte, err error) {
+// GetLatestKey returns the most recently created non-expired public key for a
+// given gun for a given role - we do not do any key cleanup in this function
+func (st *MemStorage) GetLatestKey(gun, role string) (*ManagedPublicKey, error) {
 	// no need for lock. It's ok to return nil if an update
 	// wasn't observed
-	g, ok := st.keys[gun]
-	if !ok {
-		return "", nil, &ErrNoKey{gun: gun}
-	}
-	k, ok := g[role]
-	if !ok {
-		return "", nil, &ErrNoKey{gun: gun}
-	}
+	id := entryKey(gun, role)
+	err := ErrNoKey{Gun: gun, Role: role}
 
-	return k.algorithm, k.public, nil
+	keys, ok := st.keys[id]
+	if !ok {
+		return nil, err
+	}
+	if len(keys) > 0 {
+		var (
+			latest storedKey
+			found  bool
+		)
+		now := time.Now().Add(1 * time.Minute) // add a buffer so it doesn't expire immediately
+		for _, k := range keys {
+			if k.expires == nil || k.expires.After(now) {
+				if k.createdAt.After(latest.createdAt) {
+					latest = k
+					found = true
+				}
+			}
+		}
+		if found {
+			return &ManagedPublicKey{PublicKey: latest.PublicKey, Pending: latest.Pending}, nil
+		}
+	}
+	return nil, err
 }
 
-// SetKey sets a key under a gun and role
-func (st *MemStorage) SetKey(gun, role, algorithm string, public []byte) error {
-	k := &key{algorithm: algorithm, public: public}
+// HasAnyKeys returns true if any non-expired keys exist for the given GUN, role, and key IDs.
+func (st *MemStorage) HasAnyKeys(gun, role string, keyIDs []string) (bool, error) {
+	// no need for lock. It's ok to return nil if an update
+	// wasn't observed
+	id := entryKey(gun, role)
+	keys, ok := st.keys[id]
+	if !ok {
+		return false, nil
+	}
+
+	now := time.Now().Add(1 * time.Minute) // add a buffer
+
+	for _, keyID := range keyIDs {
+		key, ok := keys[keyID]
+		if ok && key.expires.After(now) {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// AddKey sets a key under a gun and role - this optionally cleans up expired keys
+// for this gun and role
+func (st *MemStorage) AddKey(gun, role string, key data.PublicKey, expires time.Time) error {
 	st.lock.Lock()
 	defer st.lock.Unlock()
 
 	// we hold the lock so nothing will be able to race to write a key
 	// between checking and setting
-	_, _, err := st.GetKey(gun, role)
-	if _, ok := err.(*ErrNoKey); !ok {
-		return &ErrKeyExists{gun: gun, role: role}
-	}
-	_, ok := st.keys[gun]
+	id := entryKey(gun, role)
+	allKeys, ok := st.keys[id]
 	if !ok {
-		st.keys[gun] = make(map[string]*key)
+		st.keys[id] = make(map[string]storedKey)
+		allKeys = st.keys[id]
 	}
-	st.keys[gun][role] = k
+	if _, ok := allKeys[key.ID()]; ok {
+		return ErrKeyExists{Gun: gun, Role: role, KeyID: key.ID()}
+	}
+
+	allKeys[key.ID()] = storedKey{
+		ManagedPublicKey: ManagedPublicKey{PublicKey: key, Pending: true},
+		createdAt:        time.Now(),
+		expires:          &expires,
+	}
+	return nil
+}
+
+// MarkActiveKeys marks the following key IDs as active.
+// This does not fail if any of the key IDs doesn't exist.
+func (st *MemStorage) MarkActiveKeys(gun, role string, keyIDs []string) error {
+	st.lock.Lock()
+	defer st.lock.Unlock()
+
+	id := entryKey(gun, role)
+	keymap, ok := st.keys[id]
+	if ok {
+		for _, keyID := range keyIDs {
+			key, ok := keymap[keyID]
+			if ok {
+				keymap[keyID] = storedKey{
+					ManagedPublicKey: ManagedPublicKey{PublicKey: key.PublicKey, Pending: false},
+					createdAt:        key.createdAt,
+					expires:          nil,
+				}
+			}
+		}
+	}
 	return nil
 }
 
