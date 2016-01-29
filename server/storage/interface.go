@@ -40,7 +40,7 @@ type MetaStore interface {
 	// generated/validated from this raw json by the consumer.
 	// start is a checksum which will be used as a non-inclusive offset
 	// An empty start value means start from (and include) the most recent version
-	// numToResturn can limit how many results are returned.
+	// numToReturn can limit how many results are returned.
 	// If numToReturn is 0, it means return all results. If less than
 	// numToReturn results are returned, there are no more results to
 	// return.

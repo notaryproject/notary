@@ -517,6 +517,7 @@ func TestGetVersions(t *testing.T) {
 		MetaUpdate{Role: "timestamp", Version: 3, Data: tsJSON3},
 	)
 
+	// test getting everything via zero value parameters
 	versions, err := store.GetVersions("gun", "timestamp", "", 0)
 	require.NoError(t, err)
 
@@ -525,7 +526,38 @@ func TestGetVersions(t *testing.T) {
 	require.EqualValues(t, tsJSON2, versions[1])
 	require.EqualValues(t, tsJSON1, versions[2])
 
+	// test limit being larger than total number of entries
+	versions, err = store.GetVersions("gun", "timestamp", "", 10)
+	require.NoError(t, err)
+
+	require.Len(t, versions, 3)
+	require.EqualValues(t, tsJSON3, versions[0])
+	require.EqualValues(t, tsJSON2, versions[1])
+	require.EqualValues(t, tsJSON1, versions[2])
+
+	// no checksum, limit number of entries returned
+	versions, err = store.GetVersions("gun", "timestamp", "", 1)
+	require.NoError(t, err)
+
+	require.Len(t, versions, 1)
+	require.EqualValues(t, tsJSON3, versions[0])
+
+	// test returning all when providing checksum
+	versions, err = store.GetVersions("gun", "timestamp", checksum, 0)
+	require.NoError(t, err)
+
+	require.Len(t, versions, 1)
+	require.EqualValues(t, tsJSON1, versions[0])
+
+	// checksum provided, limit number of entries
 	versions, err = store.GetVersions("gun", "timestamp", checksum, 1)
+	require.NoError(t, err)
+
+	require.Len(t, versions, 1)
+	require.EqualValues(t, tsJSON1, versions[0])
+
+	// test limit being larger than subset of available entries
+	versions, err = store.GetVersions("gun", "timestamp", checksum, 10)
 	require.NoError(t, err)
 
 	require.Len(t, versions, 1)
@@ -563,7 +595,6 @@ func TestGetVersionsNotFound(t *testing.T) {
 		MetaUpdate{Role: "timestamp", Version: 1, Data: tsJSON1},
 	)
 
-	// table is empty
 	_, err = store.GetVersions(
 		"gun",
 		"timestamp",

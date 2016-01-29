@@ -234,7 +234,7 @@ func TestListVersions(t *testing.T) {
 	assert.EqualValues(t, tsJSON1, vers.Versions[1])
 
 	res, err = http.Get(fmt.Sprintf(
-		"%s/v2/gun/_trust/tuf/versions/%s.json?start=%s&number=1",
+		"%s/v2/gun/_trust/tuf/versions/%s.json?cursor=%s&limit=1",
 		serv.URL,
 		data.CanonicalTimestampRole,
 		checksum,

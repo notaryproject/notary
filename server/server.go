@@ -104,21 +104,6 @@ func RootHandler(ac auth.AccessController, ctx context.Context, trust signed.Cry
 			prometheusOpts("ListVersions"),
 			hand(handlers.ListVersionsHandler, "pull")),
 	)
-	r.Methods("GET").Path("/v2/{imageName:.*}/_trust/tuf/versions/{tufRole:root|targets(?:/[^/\\s]+)*|snapshot|timestamp}.json").Queries(
-		"number", "{number:[0-9]+}",
-	).Handler(
-		prometheus.InstrumentHandlerWithOpts(
-			prometheusOpts("ListVersions"),
-			hand(handlers.ListVersionsHandler, "pull")),
-	)
-	r.Methods("GET").Path("/v2/{imageName:.*}/_trust/tuf/versions/{tufRole:root|targets(?:/[^/\\s]+)*|snapshot|timestamp}.json").Queries(
-		"number", "{number:[0-9]+}",
-		"start", "{start:[a-fA-F0-9]{64}|[a-fA-F0-9]{96}|[a-fA-F0-9]{128}}",
-	).Handler(
-		prometheus.InstrumentHandlerWithOpts(
-			prometheusOpts("ListVersions"),
-			hand(handlers.ListVersionsHandler, "pull")),
-	)
 
 	r.Methods("GET").Path(
 		"/v2/{imageName:.*}/_trust/tuf/{tufRole:snapshot|timestamp}.key").Handler(

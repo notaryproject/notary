@@ -7,10 +7,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 
 	ctxu "github.com/docker/distribution/context"
+	"github.com/docker/notary"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 
@@ -245,17 +247,28 @@ func ListVersionsHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 }
 
 func parsePageParams(f url.Values) (start string, number int, err error) {
-	start = f.Get("start")
-	numberStr := f.Get("number")
+	start = f.Get("cursor")
+	numberStr := f.Get("limit")
 	if numberStr != "" {
 		if number, err = strconv.Atoi(numberStr); err != nil || number < 0 {
-			return "", 0, fmt.Errorf("could not parse number parameter")
+			return "", 0, fmt.Errorf("could not parse limit parameter")
 		}
+	}
+	if start == "" {
+		// no need to further check start. Empty string is valid
+		return
+	}
+
+	match, err := regexp.MatchString(notary.Sha256HexRegex, start)
+	if err != nil {
+		return "", 0, err
+	} else if !match {
+		return "", 0, fmt.Errorf("cursor was not a valid hex encoded Sha256 checksum: %s", start)
 	}
 	return
 }
 
-func listVersionsHandler(ctx context.Context, w http.ResponseWriter, store storage.MetaStore, gun, role, start string, number int) error {
+func listVersionsHandler(ctx context.Context, w io.Writer, store storage.MetaStore, gun, role, start string, number int) error {
 	versions, err := store.GetVersions(gun, role, start, number)
 	if err != nil {
 		if _, ok := err.(storage.ErrNotFound); ok {

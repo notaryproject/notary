@@ -106,11 +106,11 @@ func (st *MemStorage) GetVersions(gun, role, start string, numToReturn int) ([][
 	)
 	if start != "" {
 		for st.tufMeta[id][idx].checksum != start {
+			idx++
 			if idx == len(st.tufMeta[id]) {
 				// checksum given but wasn't found
 				return nil, ErrNotFound{}
 			}
-			idx++
 		}
 		idx-- // GetVersions does not include the checksum given
 	} else {
