@@ -18,4 +18,6 @@ const (
 	Sha256HexSize = 64
 	// TrustedCertsDir is the directory, under the notary repo base directory, where trusted certs are stored
 	TrustedCertsDir = "trusted_certificates"
+	// Sha256HexRegex is the regex for checking the validity of a string as a sha256 regex in hex.
+	Sha256HexRegex = "^([a-fA-F0-9]{64})$"
 )

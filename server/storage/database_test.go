@@ -9,7 +9,10 @@ import (
 	"testing"
 
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/testutils"
+	"github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
+	"github.com/mattn/go-sqlite3"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 )
@@ -35,28 +38,6 @@ func SampleUpdate(version int) MetaUpdate {
 		Version: version,
 		Data:    []byte("1"),
 	}
-}
-
-// SetUpSQLite creates a sqlite database for testing
-func SetUpSQLite(t *testing.T, dbDir string) (*gorm.DB, *SQLStorage) {
-	dbStore, err := NewSQLStorage("sqlite3", dbDir+"test_db")
-	require.NoError(t, err)
-
-	// Create the DB tables
-	err = CreateTUFTable(dbStore.DB)
-	require.NoError(t, err)
-
-	err = CreateKeyTable(dbStore.DB)
-	require.NoError(t, err)
-
-	// verify that the tables are empty
-	var count int
-	for _, model := range [2]interface{}{&TUFFile{}, &Key{}} {
-		query := dbStore.DB.Model(model).Count(&count)
-		require.NoError(t, query.Error)
-		require.Equal(t, 0, count)
-	}
-	return &dbStore.DB, dbStore
 }
 
 // TestSQLUpdateCurrent asserts that UpdateCurrent will add a new TUF file
@@ -500,4 +481,165 @@ func TestDBGetChecksumNotFound(t *testing.T) {
 	_, err = store.GetChecksum("gun", data.CanonicalTimestampRole, "12345")
 	require.Error(t, err)
 	require.IsType(t, ErrNotFound{}, err)
+}
+
+func TestGetVersions(t *testing.T) {
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+	_, store := SetUpSQLite(t, tempBaseDir)
+	defer os.RemoveAll(tempBaseDir)
+
+	_, repo, _, err := testutils.EmptyRepo("gun")
+	require.NoError(t, err)
+
+	ts, err := repo.SignTimestamp(data.DefaultExpires("timestamp"))
+	tsJSON1, err := json.Marshal(ts)
+	require.NoError(t, err)
+	store.UpdateCurrent(
+		"gun",
+		MetaUpdate{Role: "timestamp", Version: 1, Data: tsJSON1},
+	)
+
+	ts, err = repo.SignTimestamp(data.DefaultExpires("timestamp"))
+	tsJSON2, err := json.Marshal(ts)
+	require.NoError(t, err)
+	store.UpdateCurrent(
+		"gun",
+		MetaUpdate{Role: "timestamp", Version: 2, Data: tsJSON2},
+	)
+	checksumBytes := sha256.Sum256(tsJSON2)
+	checksum := hex.EncodeToString(checksumBytes[:])
+
+	ts, err = repo.SignTimestamp(data.DefaultExpires("timestamp"))
+	tsJSON3, err := json.Marshal(ts)
+	require.NoError(t, err)
+	store.UpdateCurrent(
+		"gun",
+		MetaUpdate{Role: "timestamp", Version: 3, Data: tsJSON3},
+	)
+
+	// test getting everything via zero value parameters
+	versions, err := store.GetVersions("gun", "timestamp", "", 0)
+	require.NoError(t, err)
+
+	require.Len(t, versions, 3)
+	require.EqualValues(t, tsJSON3, versions[0])
+	require.EqualValues(t, tsJSON2, versions[1])
+	require.EqualValues(t, tsJSON1, versions[2])
+
+	// test limit being larger than total number of entries
+	versions, err = store.GetVersions("gun", "timestamp", "", 10)
+	require.NoError(t, err)
+
+	require.Len(t, versions, 3)
+	require.EqualValues(t, tsJSON3, versions[0])
+	require.EqualValues(t, tsJSON2, versions[1])
+	require.EqualValues(t, tsJSON1, versions[2])
+
+	// no checksum, limit number of entries returned
+	versions, err = store.GetVersions("gun", "timestamp", "", 1)
+	require.NoError(t, err)
+
+	require.Len(t, versions, 1)
+	require.EqualValues(t, tsJSON3, versions[0])
+
+	// test returning all when providing checksum
+	versions, err = store.GetVersions("gun", "timestamp", checksum, 0)
+	require.NoError(t, err)
+
+	require.Len(t, versions, 1)
+	require.EqualValues(t, tsJSON1, versions[0])
+
+	// checksum provided, limit number of entries
+	versions, err = store.GetVersions("gun", "timestamp", checksum, 1)
+	require.NoError(t, err)
+
+	require.Len(t, versions, 1)
+	require.EqualValues(t, tsJSON1, versions[0])
+
+	// test limit being larger than subset of available entries
+	versions, err = store.GetVersions("gun", "timestamp", checksum, 10)
+	require.NoError(t, err)
+
+	require.Len(t, versions, 1)
+	require.EqualValues(t, tsJSON1, versions[0])
+}
+
+func TestGetVersionsNotFound(t *testing.T) {
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+	store, err := NewSQLStorage("sqlite3", tempBaseDir+"test_db")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempBaseDir)
+
+	// tables don't exist
+	_, err = store.GetVersions("gun", "timestamp", "", 0)
+	require.Error(t, err)
+
+	tempBaseDir, err = ioutil.TempDir("", "notary-test-")
+	_, store = SetUpSQLite(t, tempBaseDir)
+	defer os.RemoveAll(tempBaseDir)
+
+	// table is empty
+	_, err = store.GetVersions("gun", "timestamp", "", 0)
+	require.Error(t, err)
+	require.IsType(t, ErrNotFound{}, err)
+
+	// checksum not found
+	_, repo, _, err := testutils.EmptyRepo("gun")
+	require.NoError(t, err)
+
+	ts, err := repo.SignTimestamp(data.DefaultExpires("timestamp"))
+	tsJSON1, err := json.Marshal(ts)
+	require.NoError(t, err)
+	store.UpdateCurrent(
+		"gun",
+		MetaUpdate{Role: "timestamp", Version: 1, Data: tsJSON1},
+	)
+
+	_, err = store.GetVersions(
+		"gun",
+		"timestamp",
+		"173d71993529e47adf58301e58d916085f30ca08797581d7bf200da94595db89",
+		0,
+	)
+	require.Error(t, err)
+	require.IsType(t, ErrNotFound{}, err)
+}
+
+func TestTranslateOldVersionError(t *testing.T) {
+	err := mysql.MySQLError{
+		Number: 1022,
+	}
+	translated := translateOldVersionError(&err)
+	require.IsType(t, &ErrOldVersion{}, translated)
+
+	err = mysql.MySQLError{
+		Number: 1062,
+	}
+	translated = translateOldVersionError(&err)
+	require.IsType(t, &ErrOldVersion{}, translated)
+
+	err = mysql.MySQLError{
+		Number: 1000,
+	}
+	translated = translateOldVersionError(&err)
+	require.IsType(t, &mysql.MySQLError{}, translated)
+
+	sqliteErr := sqlite3.Error{
+		Code:         sqlite3.ErrConstraint,
+		ExtendedCode: sqlite3.ErrConstraintUnique,
+	}
+	translated = translateOldVersionError(&sqliteErr)
+	require.IsType(t, &ErrOldVersion{}, translated)
+
+	sqliteErr = sqlite3.Error{
+		Code: sqlite3.ErrConstraint,
+	}
+	translated = translateOldVersionError(&sqliteErr)
+	require.IsType(t, &sqlite3.Error{}, translated)
+
+	sqliteErr = sqlite3.Error{
+		ExtendedCode: sqlite3.ErrConstraintUnique,
+	}
+	translated = translateOldVersionError(&sqliteErr)
+	require.IsType(t, &sqlite3.Error{}, translated)
 }

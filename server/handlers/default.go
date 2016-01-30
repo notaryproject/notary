@@ -3,11 +3,16 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 
 	ctxu "github.com/docker/distribution/context"
+	"github.com/docker/notary"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 
@@ -208,6 +213,76 @@ func getKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 	}
 	logger.Debugf("200 GET %s key", role)
 	w.Write(out)
+	return nil
+}
+
+// ListVersionsHandler serves a paginated list of versions of a given TUF role
+func ListVersionsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	vars := mux.Vars(r)
+	gun, ok := vars["imageName"]
+	if !ok || gun == "" {
+		return errors.ErrUnknown.WithDetail("no gun")
+	}
+	role, ok := vars["tufRole"]
+	if !ok || role == "" {
+		return errors.ErrUnknown.WithDetail("no role")
+	}
+
+	err := r.ParseForm()
+	if err != nil {
+		return errors.ErrUnknown.WithDetail(err)
+	}
+
+	start, number, err := parsePageParams(r.Form)
+	if err != nil {
+		return errors.ErrBadPagination.WithDetail(err)
+	}
+
+	s := ctx.Value("metaStore")
+	store, ok := s.(storage.MetaStore)
+	if !ok || store == nil {
+		return errors.ErrNoStorage.WithDetail("No storage configured")
+	}
+	return listVersionsHandler(ctx, w, store, gun, role, start, number)
+}
+
+func parsePageParams(f url.Values) (start string, number int, err error) {
+	start = f.Get("cursor")
+	numberStr := f.Get("limit")
+	if numberStr != "" {
+		if number, err = strconv.Atoi(numberStr); err != nil || number < 0 {
+			return "", 0, fmt.Errorf("could not parse limit parameter")
+		}
+	}
+	if start == "" {
+		// no need to further check start. Empty string is valid
+		return
+	}
+
+	match, err := regexp.MatchString(notary.Sha256HexRegex, start)
+	if err != nil {
+		return "", 0, err
+	} else if !match {
+		return "", 0, fmt.Errorf("cursor was not a valid hex encoded Sha256 checksum: %s", start)
+	}
+	return
+}
+
+func listVersionsHandler(ctx context.Context, w io.Writer, store storage.MetaStore, gun, role, start string, number int) error {
+	versions, err := store.GetVersions(gun, role, start, number)
+	if err != nil {
+		if _, ok := err.(storage.ErrNotFound); ok {
+			return errors.ErrMetadataNotFound.WithDetail(nil)
+		}
+		return errors.ErrUnknown.WithDetail(err)
+	}
+
+	resp := VersionResponse{
+		Versions: versions,
+	}
+
+	enc := json.NewEncoder(w)
+	enc.Encode(resp)
 	return nil
 }
 

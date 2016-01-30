@@ -152,6 +152,43 @@ func returnRead(q *gorm.DB, row TUFFile) ([]byte, error) {
 	return row.Data, nil
 }
 
+// GetVersions returns all versions of the given gun+role, newest to oldest
+func (db *SQLStorage) GetVersions(gun, role, start string, numToReturn int) ([][]byte, error) {
+	st := TUFFile{}
+	if start != "" {
+		// find version of start:
+		q := db.Where(
+			&TUFFile{Gun: gun, Role: role, Sha256: start},
+		).First(&st)
+		if q.RecordNotFound() {
+			return nil, ErrNotFound{}
+		}
+	}
+
+	var res []TUFFile
+	q := db.Select("data").Where(&TUFFile{Gun: gun, Role: role})
+	if start != "" {
+		q = q.Where("version < ?", st.Version)
+	}
+	if numToReturn > 0 {
+		q = q.Limit(numToReturn)
+	}
+	q = q.Order("version desc")
+	q = q.Find(&res)
+
+	if q.Error != nil {
+		return nil, q.Error
+	} else if len(res) == 0 {
+		return nil, ErrNotFound{}
+	}
+
+	raw := make([][]byte, len(res))
+	for i, f := range res {
+		raw[i] = f.Data
+	}
+	return raw, nil
+}
+
 // Delete deletes all the records for a specific GUN
 func (db *SQLStorage) Delete(gun string) error {
 	return db.Where(&TUFFile{Gun: gun}).Delete(TUFFile{}).Error

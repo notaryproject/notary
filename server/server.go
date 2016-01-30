@@ -97,6 +97,14 @@ func RootHandler(ac auth.AccessController, ctx context.Context, trust signed.Cry
 		prometheus.InstrumentHandlerWithOpts(
 			prometheusOpts("GetRoleByHash"),
 			hand(handlers.GetHandler, "pull")))
+
+	// Version Routes
+	r.Methods("GET").Path("/v2/{imageName:.*}/_trust/tuf/versions/{tufRole:root|targets(?:/[^/\\s]+)*|snapshot|timestamp}.json").Handler(
+		prometheus.InstrumentHandlerWithOpts(
+			prometheusOpts("ListVersions"),
+			hand(handlers.ListVersionsHandler, "pull")),
+	)
+
 	r.Methods("GET").Path(
 		"/v2/{imageName:.*}/_trust/tuf/{tufRole:snapshot|timestamp}.key").Handler(
 		prometheus.InstrumentHandlerWithOpts(

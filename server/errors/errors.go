@@ -26,6 +26,12 @@ var (
 		Description:    "No file/role name is provided to associate an update with.",
 		HTTPStatusCode: http.StatusBadRequest,
 	})
+	ErrBadPagination = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "BAD_PAGINATION",
+		Message:        "The pagination parameters are invalid.",
+		Description:    "The cursor or limit parameters could not be parsed. The cursor parameter must be a hex encoded sha256 checksum, and the limit must be an integer >= 0",
+		HTTPStatusCode: http.StatusBadRequest,
+	})
 	ErrInvalidRole = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "INVALID_ROLE",
 		Message:        "The role you are attempting to operate on is invalid.",
