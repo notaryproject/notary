@@ -21,6 +21,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
 	"github.com/docker/go/canonical/json"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 
@@ -93,13 +94,13 @@ func (p *passRoleRecorder) assertAsked(t *testing.T, expected []string, args ...
 var passphraseRetriever = passphrase.ConstantRetriever(password)
 
 func simpleTestServer(t *testing.T, roles ...string) (
-	*httptest.Server, *http.ServeMux, map[string]data.PrivateKey) {
+	*httptest.Server, *mux.Router, map[string]data.PrivateKey) {
 
 	if len(roles) == 0 {
 		roles = []string{data.CanonicalTimestampRole, data.CanonicalSnapshotRole}
 	}
 	keys := make(map[string]data.PrivateKey)
-	mux := http.NewServeMux()
+	m := mux.NewRouter()
 
 	for _, role := range roles {
 		key, err := trustmanager.GenerateECDSAKey(rand.Reader)
@@ -112,15 +113,15 @@ func simpleTestServer(t *testing.T, roles ...string) (
 		keyJSON := string(jsonBytes)
 
 		// TUF will request /v2/docker.com/notary/_trust/tuf/<role>.key
-		mux.HandleFunc(
-			fmt.Sprintf("/v2/docker.com/notary/_trust/tuf/%s.key", role),
+		m.Methods("GET").Path(
+			fmt.Sprintf("/v2/docker.com/notary/_trust/tuf/%s.key", role)).HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprint(w, keyJSON)
 			})
 	}
 
-	ts := httptest.NewServer(mux)
-	return ts, mux, keys
+	ts := httptest.NewServer(m)
+	return ts, m, keys
 }
 
 func fullTestServer(t *testing.T) *httptest.Server {
@@ -1019,7 +1020,7 @@ func testListEmptyTargets(t *testing.T, rootType string) {
 
 // reads data from the repository in order to fake data being served via
 // the ServeMux.
-func fakeServerData(t *testing.T, repo *NotaryRepository, mux *http.ServeMux,
+func fakeServerData(t *testing.T, repo *NotaryRepository, m *mux.Router,
 	keys map[string]data.PrivateKey) {
 
 	timestampKey, ok := keys[data.CanonicalTimestampRole]
@@ -1085,54 +1086,54 @@ func fakeServerData(t *testing.T, repo *NotaryRepository, mux *http.ServeMux,
 	cksmBytes = sha256.Sum256(level2JSON)
 	level2Checksum := hex.EncodeToString(cksmBytes[:])
 
-	mux.HandleFunc("/v2/docker.com/notary/_trust/tuf/root.json",
+	m.HandleFunc("/v2/docker.com/notary/_trust/tuf/root.json",
 		func(w http.ResponseWriter, r *http.Request) {
 			assert.NoError(t, err)
 			fmt.Fprint(w, string(rootFileBytes))
 		})
-	mux.HandleFunc("/v2/docker.com/notary/_trust/tuf/root."+rootChecksum+".json",
+	m.HandleFunc("/v2/docker.com/notary/_trust/tuf/root."+rootChecksum+".json",
 		func(w http.ResponseWriter, r *http.Request) {
 			assert.NoError(t, err)
 			fmt.Fprint(w, string(rootFileBytes))
 		})
 
-	mux.HandleFunc("/v2/docker.com/notary/_trust/tuf/timestamp.json",
+	m.HandleFunc("/v2/docker.com/notary/_trust/tuf/timestamp.json",
 		func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, string(timestampJSON))
 		})
 
-	mux.HandleFunc("/v2/docker.com/notary/_trust/tuf/snapshot.json",
+	m.HandleFunc("/v2/docker.com/notary/_trust/tuf/snapshot.json",
 		func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, string(snapshotJSON))
 		})
-	mux.HandleFunc("/v2/docker.com/notary/_trust/tuf/snapshot."+snapshotChecksum+".json",
+	m.HandleFunc("/v2/docker.com/notary/_trust/tuf/snapshot."+snapshotChecksum+".json",
 		func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, string(snapshotJSON))
 		})
 
-	mux.HandleFunc("/v2/docker.com/notary/_trust/tuf/targets.json",
+	m.HandleFunc("/v2/docker.com/notary/_trust/tuf/targets.json",
 		func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, string(targetsJSON))
 		})
-	mux.HandleFunc("/v2/docker.com/notary/_trust/tuf/targets."+targetsChecksum+".json",
+	m.HandleFunc("/v2/docker.com/notary/_trust/tuf/targets."+targetsChecksum+".json",
 		func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, string(targetsJSON))
 		})
 
-	mux.HandleFunc("/v2/docker.com/notary/_trust/tuf/targets/level1.json",
+	m.HandleFunc("/v2/docker.com/notary/_trust/tuf/targets/level1.json",
 		func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, string(level1JSON))
 		})
-	mux.HandleFunc("/v2/docker.com/notary/_trust/tuf/targets/level1."+level1Checksum+".json",
+	m.HandleFunc("/v2/docker.com/notary/_trust/tuf/targets/level1."+level1Checksum+".json",
 		func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, string(level1JSON))
 		})
 
-	mux.HandleFunc("/v2/docker.com/notary/_trust/tuf/targets/level2.json",
+	m.HandleFunc("/v2/docker.com/notary/_trust/tuf/targets/level2.json",
 		func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, string(level2JSON))
 		})
-	mux.HandleFunc("/v2/docker.com/notary/_trust/tuf/targets/level2."+level2Checksum+".json",
+	m.HandleFunc("/v2/docker.com/notary/_trust/tuf/targets/level2."+level2Checksum+".json",
 		func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, string(level2JSON))
 		})
@@ -1146,7 +1147,7 @@ func (k targetSorter) Swap(i, j int)      { k[i], k[j] = k[j], k[i] }
 func (k targetSorter) Less(i, j int) bool { return k[i].Name < k[j].Name }
 
 func testListTarget(t *testing.T, rootType string) {
-	ts, mux, keys := simpleTestServer(t)
+	ts, m, keys := simpleTestServer(t)
 	defer ts.Close()
 
 	repo, _ := initializeRepo(t, rootType, "docker.com/notary", ts.URL, false)
@@ -1170,7 +1171,7 @@ func testListTarget(t *testing.T, rootType string) {
 	err = applyChangelist(repo.tufRepo, cl)
 	assert.NoError(t, err, "could not apply changelist")
 
-	fakeServerData(t, repo, mux, keys)
+	fakeServerData(t, repo, m, keys)
 
 	targets, err := repo.ListTargets(data.CanonicalTargetsRole)
 	assert.NoError(t, err)
@@ -1202,7 +1203,7 @@ func testListTarget(t *testing.T, rootType string) {
 }
 
 func testListTargetWithDelegates(t *testing.T, rootType string) {
-	ts, mux, keys := simpleTestServer(t)
+	ts, m, keys := simpleTestServer(t)
 	defer ts.Close()
 
 	repo, _ := initializeRepo(t, rootType, "docker.com/notary", ts.URL, false)
@@ -1253,7 +1254,7 @@ func testListTargetWithDelegates(t *testing.T, rootType string) {
 	_, ok = repo.tufRepo.Targets["targets/level2"].Signed.Targets["level2"]
 	assert.True(t, ok)
 
-	fakeServerData(t, repo, mux, keys)
+	fakeServerData(t, repo, m, keys)
 
 	// test default listing
 	targets, err := repo.ListTargets()
@@ -2565,6 +2566,49 @@ func testRotateKeySuccess(t *testing.T, serverManagesSnapshotInit bool,
 			keysToExpectCreated = append(keysToExpectCreated, role)
 		}
 	}
+}
+
+// If remote rotate key was rate limited, just get the latest created key and
+// use that.
+func TestRemoteRotationRateLimited(t *testing.T) {
+	ts := fullTestServer(t)
+	defer ts.Close()
+
+	repo, _ := initializeRepo(t, data.ECDSAKey, "docker.com/notary", ts.URL, true)
+	defer os.RemoveAll(repo.baseDir)
+
+	role := data.CanonicalSnapshotRole
+
+	// original key is the key on the repo
+	origKey, err := getRemoteKey(ts.URL, repo.gun, role, repo.roundTrip, false)
+	assert.NoError(t, err)
+	assert.Len(t, repo.tufRepo.Root.Signed.Roles[role].KeyIDs, 1)
+	assert.Equal(t, origKey.ID(), repo.tufRepo.Root.Signed.Roles[role].KeyIDs[0])
+
+	// rotate keys, and assert that the first rotation doesn't fail but doesn't rotate,
+	// because the original key has not actually been published yet.  But the
+	assert.NoError(t, repo.RotateKey(role, true))
+
+	rotateKey1, err := getRemoteKey(ts.URL, repo.gun, role, repo.roundTrip, false)
+	assert.NoError(t, err)
+	assert.Equal(t, origKey.ID(), rotateKey1.ID())
+
+	// the final key is the original key, since it was not rotated
+	assert.Len(t, repo.tufRepo.Root.Signed.Roles[role].KeyIDs, 1)
+	assert.Equal(t, rotateKey1.ID(), repo.tufRepo.Root.Signed.Roles[role].KeyIDs[0])
+}
+
+// If remotely rotating key fails for a non-rate-limit reason, fail the rotation
+// entirely
+func TestRemoteRotationNonRateLimitError(t *testing.T) {
+	ts, _, _ := simpleTestServer(t)
+	defer ts.Close()
+
+	repo, _ := initializeRepo(t, data.ECDSAKey, "docker.com/notary", ts.URL, true)
+	defer os.RemoveAll(repo.baseDir)
+
+	// simpleTestServer has no rotate key endpoint, so this should fail
+	assert.Error(t, repo.RotateKey(data.CanonicalTimestampRole, true))
 }
 
 // If there is no local cache, notary operations return the remote error code
