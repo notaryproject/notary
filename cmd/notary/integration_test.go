@@ -1379,6 +1379,75 @@ func TestClientKeyPassphraseChange(t *testing.T) {
 	assert.Equal(t, rootID, rootIDs[0])
 }
 
+func TestCertRotate(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+	// -- setup --
+	setUp(t)
+
+	authorTempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(authorTempDir)
+	userTempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(userTempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	// init repo
+	_, err := runCommand(t, authorTempDir, "-s", server.URL, "init", "gun")
+	assert.NoError(t, err)
+	certs := assertNumCerts(t, authorTempDir, 1)
+	oldCertID := strings.Fields(certs[0])[1]
+
+	// publish repo
+	_, err = runCommand(t, authorTempDir, "-s", server.URL, "publish", "gun")
+	assert.NoError(t, err)
+
+	// init user
+	_, err = runCommand(t, userTempDir, "-s", server.URL, "list", "gun")
+	assert.NoError(t, err)
+	certs = assertNumCerts(t, userTempDir, 1)
+	assert.Equal(t, oldCertID, strings.Fields(certs[0])[1])
+
+	// schedule root cert rotation
+	output, err := runCommand(t, authorTempDir, "-s", server.URL, "cert", "rotate", "gun")
+	assert.NoError(t, err)
+	assert.Contains(t, output, oldCertID)
+
+	// check status - see target
+	output, err = runCommand(t, authorTempDir, "status", "gun")
+	assert.NoError(t, err)
+	assert.Contains(t, output, "root")
+
+	// publish repo
+	_, err = runCommand(t, authorTempDir, "-s", server.URL, "publish", "gun")
+	assert.NoError(t, err)
+
+	// check status - no targets
+	output, err = runCommand(t, authorTempDir, "status", "gun")
+	assert.NoError(t, err)
+	assert.Contains(t, output, "No unpublished changes for gun")
+
+	// check the other user can use the updated repo
+	_, err = runCommand(t, userTempDir, "-s", server.URL, "list", "gun")
+	assert.NoError(t, err)
+
+	// See the comment in TestRotateRootCert for why we need to cause two refreshes
+	// to see the updated certificate.
+	_, err = runCommand(t, authorTempDir, "-s", server.URL, "list", "gun")
+	assert.NoError(t, err)
+	certs = assertNumCerts(t, authorTempDir, 1)
+	_, err = runCommand(t, authorTempDir, "-s", server.URL, "list", "gun")
+	assert.NoError(t, err)
+	certs = assertNumCerts(t, authorTempDir, 1)
+	newCertID := strings.Fields(certs[0])[1]
+	assert.NotEqual(t, oldCertID, newCertID)
+
+	_, err = runCommand(t, userTempDir, "-s", server.URL, "list", "gun")
+	assert.NoError(t, err)
+	certs = assertNumCerts(t, userTempDir, 1)
+	assert.Equal(t, newCertID, strings.Fields(certs[0])[1])
+}
+
 func tempDirWithConfig(t *testing.T, config string) string {
 	tempDir, err := ioutil.TempDir("", "repo")
 	assert.NoError(t, err)
