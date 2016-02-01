@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	_ "github.com/docker/distribution/registry/auth/silly"
+	"github.com/docker/notary"
 	"github.com/docker/notary/server/storage"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
@@ -102,8 +103,8 @@ func TestRotateKeyEndpoint(t *testing.T) {
 	defer ts.Close()
 
 	rolesToStatus := map[string]int{
-		data.CanonicalTimestampRole: 429, // not implemented yet
-		data.CanonicalSnapshotRole:  429, // not implemented yet
+		data.CanonicalTimestampRole: notary.HTTPStatusTooManyRequests, // not implemented yet
+		data.CanonicalSnapshotRole:  notary.HTTPStatusTooManyRequests, // not implemented yet
 		data.CanonicalTargetsRole:   http.StatusNotFound,
 		data.CanonicalRootRole:      http.StatusNotFound,
 		"somerandomrole":            http.StatusNotFound,

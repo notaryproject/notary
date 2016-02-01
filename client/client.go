@@ -55,6 +55,17 @@ func (err ErrInvalidRemoteRole) Error() string {
 		"notary does not support the server managing the %s key", err.Role)
 }
 
+// ErrInvalidLocalRole is returned when the client wants to manage
+// an unsupported key type
+type ErrInvalidLocalRole struct {
+	Role string
+}
+
+func (err ErrInvalidLocalRole) Error() string {
+	return fmt.Sprintf(
+		"notary does not support the client managing the %s key", err.Role)
+}
+
 // ErrRepositoryNotExist is returned when an action is taken on a remote
 // repository that doesn't exist
 type ErrRepositoryNotExist struct {
@@ -829,25 +840,32 @@ func (r *NotaryRepository) validateRoot(rootJSON []byte) (*data.SignedRoot, erro
 // creates and adds one new key or delegates managing the key to the server.
 // These changes are staged in a changelist until publish is called.
 func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool) error {
-	if role == data.CanonicalRootRole || role == data.CanonicalTimestampRole {
+	if role == data.CanonicalRootRole {
 		return fmt.Errorf(
 			"notary does not currently support rotating the %s key", role)
 	}
 	if serverManagesKey && role == data.CanonicalTargetsRole {
 		return ErrInvalidRemoteRole{Role: data.CanonicalTargetsRole}
 	}
+	if !serverManagesKey && role == data.CanonicalTimestampRole {
+		return ErrInvalidLocalRole{Role: data.CanonicalTargetsRole}
+	}
 
 	var (
-		pubKey data.PublicKey
-		err    error
+		pubKey       data.PublicKey
+		errFmtString string
+		err          error
 	)
 	if serverManagesKey {
-		pubKey, err = getRemoteKey(r.baseURL, r.gun, role, r.roundTrip)
+		pubKey, err = getRemoteKey(r.baseURL, r.gun, role, r.roundTrip, true)
+		errFmtString = "server unable to rotate key: %s"
 	} else {
 		pubKey, err = r.CryptoService.Create(role, data.ECDSAKey)
+		errFmtString = "unable to generate key: %s"
 	}
+
 	if err != nil {
-		return err
+		return fmt.Errof(errFmtString, err)
 	}
 
 	return r.rootFileKeyChange(role, changelist.ActionCreate, pubKey)
