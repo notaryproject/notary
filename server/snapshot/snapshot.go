@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/Sirupsen/logrus"
 
@@ -9,38 +10,6 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 )
-
-// GetOrCreateSnapshotKey either creates a new snapshot key, or returns
-// the existing one. Only the PublicKey is returned. The private part
-// is held by the CryptoService.
-func GetOrCreateSnapshotKey(gun string, store storage.KeyStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
-	keyAlgorithm, public, err := store.GetKey(gun, data.CanonicalSnapshotRole)
-	if err == nil {
-		return data.NewPublicKey(keyAlgorithm, public), nil
-	}
-
-	if _, ok := err.(*storage.ErrNoKey); ok {
-		key, err := crypto.Create("snapshot", createAlgorithm)
-		if err != nil {
-			return nil, err
-		}
-		logrus.Debug("Creating new snapshot key for ", gun, ". With algo: ", key.Algorithm())
-		err = store.SetKey(gun, data.CanonicalSnapshotRole, key.Algorithm(), key.Public())
-		if err == nil {
-			return key, nil
-		}
-
-		if _, ok := err.(*storage.ErrKeyExists); ok {
-			keyAlgorithm, public, err = store.GetKey(gun, data.CanonicalSnapshotRole)
-			if err != nil {
-				return nil, err
-			}
-			return data.NewPublicKey(keyAlgorithm, public), nil
-		}
-		return nil, err
-	}
-	return nil, err
-}
 
 // GetOrCreateSnapshot either returns the exisiting latest snapshot, or uses
 // whatever the most recent snapshot is to create the next one, only updating
@@ -95,25 +64,27 @@ func snapshotExpired(sn *data.SignedSnapshot) bool {
 //   - It doesn't update what roles are present in the snapshot, as those
 //     were validated during upload.
 func createSnapshot(gun string, sn *data.SignedSnapshot, store storage.MetaStore, cryptoService signed.CryptoService) (*data.Signed, int, error) {
-	algorithm, public, err := store.GetKey(gun, data.CanonicalSnapshotRole)
-	if err != nil {
-		// owner of gun must have generated a snapshot key otherwise
-		// we won't proceed with generating everything.
-		return nil, 0, err
-	}
-	key := data.NewPublicKey(algorithm, public)
+	return nil, 0, fmt.Errorf("this has not been updated yet")
 
-	// update version and expiry
-	sn.Signed.Version = sn.Signed.Version + 1
-	sn.Signed.Expires = data.DefaultExpires(data.CanonicalSnapshotRole)
+	// algorithm, public, err := store.GetKey(gun, data.CanonicalSnapshotRole)
+	// if err != nil {
+	// 	// owner of gun must have generated a snapshot key otherwise
+	// 	// we won't proceed with generating everything.
+	// 	return nil, 0, err
+	// }
+	// key := data.NewPublicKey(algorithm, public)
 
-	out, err := sn.ToSigned()
-	if err != nil {
-		return nil, 0, err
-	}
-	err = signed.Sign(cryptoService, out, key)
-	if err != nil {
-		return nil, 0, err
-	}
-	return out, sn.Signed.Version, nil
+	// // update version and expiry
+	// sn.Signed.Version = sn.Signed.Version + 1
+	// sn.Signed.Expires = data.DefaultExpires(data.CanonicalSnapshotRole)
+
+	// out, err := sn.ToSigned()
+	// if err != nil {
+	// 	return nil, 0, err
+	// }
+	// err = signed.Sign(cryptoService, out, key)
+	// if err != nil {
+	// 	return nil, 0, err
+	// }
+	// return out, sn.Signed.Version, nil
 }

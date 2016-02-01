@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	ctxu "github.com/docker/distribution/context"
 	"github.com/gorilla/mux"
@@ -147,68 +148,121 @@ func DeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 // it if it doesn't yet exist
 func GetKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	defer r.Body.Close()
-	vars := mux.Vars(r)
-	return getKeyHandler(ctx, w, r, vars)
+	return getKeyHandler(ctx, w, mux.Vars(r))
 }
 
-func getKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func getKeyHandler(ctx context.Context, w io.Writer, vars map[string]string) error {
+	keyInfo, err := parseKeyParams(ctx, vars)
+	if err != nil {
+		return err
+	}
+	pubKey, err := GetOrCreateKey(*keyInfo)
+	if err != nil {
+		return err
+	}
+	out, err := json.Marshal(pubKey)
+	if err != nil {
+		return errors.ErrUnknown.WithDetail(err)
+	}
+	w.Write(out)
+	return nil
+}
+
+type serverKeyInfo struct {
+	gun           string
+	role          string
+	store         storage.MetaStore
+	crypto        signed.CryptoService
+	keyAlgo       string
+	rotateOncePer time.Duration
+}
+
+func parseKeyParams(ctx context.Context, vars map[string]string) (*serverKeyInfo, error) {
 	gun, ok := vars["imageName"]
 	if !ok || gun == "" {
-		return errors.ErrUnknown.WithDetail("no gun")
+		return nil, errors.ErrUnknown.WithDetail("no gun")
 	}
 	role, ok := vars["tufRole"]
 	if !ok || role == "" {
-		return errors.ErrUnknown.WithDetail("no role")
+		return nil, errors.ErrUnknown.WithDetail("no role")
 	}
-
-	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
+	if role != data.CanonicalTimestampRole && role != data.CanonicalSnapshotRole {
+		return nil, errors.ErrInvalidRole.WithDetail(role)
+	}
 
 	s := ctx.Value("metaStore")
 	store, ok := s.(storage.MetaStore)
 	if !ok || store == nil {
-		logger.Error("500 GET storage not configured")
-		return errors.ErrNoStorage.WithDetail(nil)
+		return nil, errors.ErrNoStorage.WithDetail(nil)
 	}
+
 	c := ctx.Value("cryptoService")
 	crypto, ok := c.(signed.CryptoService)
 	if !ok || crypto == nil {
-		logger.Error("500 GET crypto service not configured")
-		return errors.ErrNoCryptoService.WithDetail(nil)
+		return nil, errors.ErrNoCryptoService.WithDetail(nil)
 	}
+
 	algo := ctx.Value("keyAlgorithm")
 	keyAlgo, ok := algo.(string)
-	if !ok || keyAlgo == "" {
-		logger.Error("500 GET key algorithm not configured")
-		return errors.ErrNoKeyAlgorithm.WithDetail(nil)
-	}
-	keyAlgorithm := keyAlgo
-
-	var (
-		key data.PublicKey
-		err error
-	)
-	switch role {
-	case data.CanonicalTimestampRole:
-		key, err = timestamp.GetOrCreateTimestampKey(gun, store, crypto, keyAlgorithm)
-	case data.CanonicalSnapshotRole:
-		key, err = snapshot.GetOrCreateSnapshotKey(gun, store, crypto, keyAlgorithm)
-	default:
-		logger.Errorf("400 GET %s key: %v", role, err)
-		return errors.ErrInvalidRole.WithDetail(role)
-	}
-	if err != nil {
-		logger.Errorf("500 GET %s key: %v", role, err)
-		return errors.ErrUnknown.WithDetail(err)
+	if !ok || keyAlgo != data.ECDSAKey && keyAlgo != data.RSAKey && keyAlgo != data.ED25519Key {
+		return nil, errors.ErrNoKeyAlgorithm.WithDetail(nil)
 	}
 
-	out, err := json.Marshal(key)
+	return &serverKeyInfo{
+		gun:     gun,
+		role:    role,
+		store:   store,
+		crypto:  crypto,
+		keyAlgo: keyAlgo,
+	}, nil
+}
+
+func createNewKey(s serverKeyInfo) (data.PublicKey, error) {
+	key, err := s.crypto.Create(s.role, s.keyAlgo)
 	if err != nil {
-		logger.Errorf("500 GET %s key", role)
-		return errors.ErrUnknown.WithDetail(err)
+		return nil, errors.ErrUnknown.WithDetail(err)
 	}
-	logger.Debugf("200 GET %s key", role)
-	w.Write(out)
-	return nil
+	logrus.Debug("Creating new timestamp key for ", s.gun, ". With algo: ", s.keyAlgo)
+	err = s.store.AddKey(s.gun, s.role, key, time.Now().Add(s.rotateOncePer))
+	if err != nil {
+		return nil, errors.ErrUnknown.WithDetail(err)
+	}
+	return key, nil
+}
+
+// GetOrCreateKey returns either the current or pending timestamp key for the given
+// gun and role, whichever key was the most recently created.  If no key is found,
+// it creates a new one.
+func GetOrCreateKey(s serverKeyInfo) (data.PublicKey, error) {
+	key, err := s.store.GetLatestKey(s.gun, s.role)
+	if _, ok := err.(storage.ErrNoKey); ok {
+		return createNewKey(s)
+	}
+
+	if err == nil {
+		return key.PublicKey, nil
+	}
+
+	return nil, errors.ErrUnknown.WithDetail(err)
+}
+
+// RotateKey attempts to rotate a key for a role.  If it has been rotated too
+// recently without being signed into the root.json as an actively used signing
+// key, rotation fails.  Activating the key (by signing it into the root.json)
+// resets the rotation rate limit.
+func RotateKey(s serverKeyInfo) (data.PublicKey, error) {
+	// GetLatestKeys excludes expired keys, so we know that this key is unexpired
+	key, err := s.store.GetLatestKey(s.gun, s.role)
+
+	if err == nil && key.Pending { // there is already a good pending key
+		return nil, errors.ErrCannotRotateKey.WithDetail(key.ID())
+	}
+
+	if _, ok := err.(storage.ErrNoKey); !ok && err != nil {
+		return nil, errors.ErrUnknown.WithDetail(err)
+	}
+
+	return createNewKey(s)
 }
 
 // NotFoundHandler is used as a generic catch all handler to return the ErrMetadataNotFound

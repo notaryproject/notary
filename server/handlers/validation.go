@@ -194,67 +194,68 @@ func loadTargetsFromStore(gun, role string, repo *tuf.Repo, store storage.MetaSt
 }
 
 func generateSnapshot(gun string, kdb *keys.KeyDB, repo *tuf.Repo, store storage.MetaStore) (*storage.MetaUpdate, error) {
-	role := kdb.GetRole(data.CanonicalSnapshotRole)
-	if role == nil {
-		return nil, validation.ErrBadRoot{Msg: "root did not include snapshot role"}
-	}
+	return nil, fmt.Errorf("not implemented yet")
+	// role := kdb.GetRole(data.CanonicalSnapshotRole)
+	// if role == nil {
+	// 	return nil, validation.ErrBadRoot{Msg: "root did not include snapshot role"}
+	// }
 
-	algo, keyBytes, err := store.GetKey(gun, data.CanonicalSnapshotRole)
-	if err != nil {
-		return nil, validation.ErrBadHierarchy{Msg: "could not retrieve snapshot key. client must provide snapshot"}
-	}
-	foundK := data.NewPublicKey(algo, keyBytes)
+	// algo, keyBytes, err := store.GetKey(gun, data.CanonicalSnapshotRole)
+	// if err != nil {
+	// 	return nil, validation.ErrBadHierarchy{Msg: "could not retrieve snapshot key. client must provide snapshot"}
+	// }
+	// foundK := data.NewPublicKey(algo, keyBytes)
 
-	validKey := false
-	for _, id := range role.KeyIDs {
-		if id == foundK.ID() {
-			validKey = true
-			break
-		}
-	}
-	if !validKey {
-		return nil, validation.ErrBadHierarchy{
-			Missing: data.CanonicalSnapshotRole,
-			Msg:     "no snapshot was included in update and server does not hold current snapshot key for repository"}
-	}
+	// validKey := false
+	// for _, id := range role.KeyIDs {
+	// 	if id == foundK.ID() {
+	// 		validKey = true
+	// 		break
+	// 	}
+	// }
+	// if !validKey {
+	// 	return nil, validation.ErrBadHierarchy{
+	// 		Missing: data.CanonicalSnapshotRole,
+	// 		Msg:     "no snapshot was included in update and server does not hold current snapshot key for repository"}
+	// }
 
-	currentJSON, err := store.GetCurrent(gun, data.CanonicalSnapshotRole)
-	if err != nil {
-		if _, ok := err.(storage.ErrNotFound); !ok {
-			return nil, validation.ErrValidation{Msg: err.Error()}
-		}
-	}
-	var sn *data.SignedSnapshot
-	if currentJSON != nil {
-		sn = new(data.SignedSnapshot)
-		err := json.Unmarshal(currentJSON, sn)
-		if err != nil {
-			return nil, validation.ErrValidation{Msg: err.Error()}
-		}
-		err = repo.SetSnapshot(sn)
-		if err != nil {
-			return nil, validation.ErrValidation{Msg: err.Error()}
-		}
-	} else {
-		// this will only occurr if no snapshot has ever been created for the repository
-		err := repo.InitSnapshot()
-		if err != nil {
-			return nil, validation.ErrBadSnapshot{Msg: err.Error()}
-		}
-	}
-	sgnd, err := repo.SignSnapshot(data.DefaultExpires(data.CanonicalSnapshotRole))
-	if err != nil {
-		return nil, validation.ErrBadSnapshot{Msg: err.Error()}
-	}
-	sgndJSON, err := json.Marshal(sgnd)
-	if err != nil {
-		return nil, validation.ErrBadSnapshot{Msg: err.Error()}
-	}
-	return &storage.MetaUpdate{
-		Role:    data.CanonicalSnapshotRole,
-		Version: repo.Snapshot.Signed.Version,
-		Data:    sgndJSON,
-	}, nil
+	// currentJSON, err := store.GetCurrent(gun, data.CanonicalSnapshotRole)
+	// if err != nil {
+	// 	if _, ok := err.(storage.ErrNotFound); !ok {
+	// 		return nil, validation.ErrValidation{Msg: err.Error()}
+	// 	}
+	// }
+	// var sn *data.SignedSnapshot
+	// if currentJSON != nil {
+	// 	sn = new(data.SignedSnapshot)
+	// 	err := json.Unmarshal(currentJSON, sn)
+	// 	if err != nil {
+	// 		return nil, validation.ErrValidation{Msg: err.Error()}
+	// 	}
+	// 	err = repo.SetSnapshot(sn)
+	// 	if err != nil {
+	// 		return nil, validation.ErrValidation{Msg: err.Error()}
+	// 	}
+	// } else {
+	// 	// this will only occurr if no snapshot has ever been created for the repository
+	// 	err := repo.InitSnapshot()
+	// 	if err != nil {
+	// 		return nil, validation.ErrBadSnapshot{Msg: err.Error()}
+	// 	}
+	// }
+	// sgnd, err := repo.SignSnapshot(data.DefaultExpires(data.CanonicalSnapshotRole))
+	// if err != nil {
+	// 	return nil, validation.ErrBadSnapshot{Msg: err.Error()}
+	// }
+	// sgndJSON, err := json.Marshal(sgnd)
+	// if err != nil {
+	// 	return nil, validation.ErrBadSnapshot{Msg: err.Error()}
+	// }
+	// return &storage.MetaUpdate{
+	// 	Role:    data.CanonicalSnapshotRole,
+	// 	Version: repo.Snapshot.Signed.Version,
+	// 	Data:    sgndJSON,
+	// }, nil
 }
 
 func validateSnapshot(role string, oldSnap *data.SignedSnapshot, snapUpdate storage.MetaUpdate, roles map[string]storage.MetaUpdate, kdb *keys.KeyDB) error {
@@ -340,45 +341,45 @@ func validateTargets(role string, roles map[string]storage.MetaUpdate, kdb *keys
 
 func validateRoot(gun string, oldRoot, newRoot []byte, store storage.MetaStore) (
 	*data.SignedRoot, error) {
+	return nil, fmt.Errorf("not implemented yet")
+	// var parsedOldRoot *data.SignedRoot
+	// parsedNewRoot := &data.SignedRoot{}
 
-	var parsedOldRoot *data.SignedRoot
-	parsedNewRoot := &data.SignedRoot{}
+	// if oldRoot != nil {
+	// 	parsedOldRoot = &data.SignedRoot{}
+	// 	err := json.Unmarshal(oldRoot, parsedOldRoot)
+	// 	if err != nil {
+	// 		// TODO(david): if we can't read the old root should we continue
+	// 		//             here to check new root self referential integrity?
+	// 		//             This would permit recovery of a repo with a corrupted
+	// 		//             root.
+	// 		logrus.Warn("Old root could not be parsed.")
+	// 	}
+	// }
+	// err := json.Unmarshal(newRoot, parsedNewRoot)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	if oldRoot != nil {
-		parsedOldRoot = &data.SignedRoot{}
-		err := json.Unmarshal(oldRoot, parsedOldRoot)
-		if err != nil {
-			// TODO(david): if we can't read the old root should we continue
-			//             here to check new root self referential integrity?
-			//             This would permit recovery of a repo with a corrupted
-			//             root.
-			logrus.Warn("Old root could not be parsed.")
-		}
-	}
-	err := json.Unmarshal(newRoot, parsedNewRoot)
-	if err != nil {
-		return nil, err
-	}
+	// // Don't update if a timestamp key doesn't exist.
+	// algo, keyBytes, err := store.GetKey(gun, data.CanonicalTimestampRole)
+	// if err != nil || algo == "" || keyBytes == nil {
+	// 	return nil, fmt.Errorf("no timestamp key for %s", gun)
+	// }
+	// timestampKey := data.NewPublicKey(algo, keyBytes)
 
-	// Don't update if a timestamp key doesn't exist.
-	algo, keyBytes, err := store.GetKey(gun, data.CanonicalTimestampRole)
-	if err != nil || algo == "" || keyBytes == nil {
-		return nil, fmt.Errorf("no timestamp key for %s", gun)
-	}
-	timestampKey := data.NewPublicKey(algo, keyBytes)
+	// if err := checkRoot(parsedOldRoot, parsedNewRoot, timestampKey); err != nil {
+	// 	// TODO(david): how strict do we want to be here about old signatures
+	// 	//              for rotations? Should the user have to provide a flag
+	// 	//              which gets transmitted to force a root update without
+	// 	//              correct old key signatures.
+	// 	return nil, err
+	// }
 
-	if err := checkRoot(parsedOldRoot, parsedNewRoot, timestampKey); err != nil {
-		// TODO(david): how strict do we want to be here about old signatures
-		//              for rotations? Should the user have to provide a flag
-		//              which gets transmitted to force a root update without
-		//              correct old key signatures.
-		return nil, err
-	}
-
-	if !data.ValidTUFType(parsedNewRoot.Signed.Type, data.CanonicalRootRole) {
-		return nil, fmt.Errorf("root has wrong type")
-	}
-	return parsedNewRoot, nil
+	// if !data.ValidTUFType(parsedNewRoot.Signed.Type, data.CanonicalRootRole) {
+	// 	return nil, fmt.Errorf("root has wrong type")
+	// }
+	// return parsedNewRoot, nil
 }
 
 // checkRoot errors if an invalid rotation has taken place, if the

@@ -2,6 +2,7 @@ package timestamp
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/docker/go/canonical/json"
 	"github.com/docker/notary/tuf/data"
@@ -10,40 +11,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary/server/storage"
 )
-
-// GetOrCreateTimestampKey returns the timestamp key for the gun. It uses the store to
-// lookup an existing timestamp key and the crypto to generate a new one if none is
-// found. It attempts to handle the race condition that may occur if 2 servers try to
-// create the key at the same time by simply querying the store a second time if it
-// receives a conflict when writing.
-func GetOrCreateTimestampKey(gun string, store storage.MetaStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
-	keyAlgorithm, public, err := store.GetKey(gun, data.CanonicalTimestampRole)
-	if err == nil {
-		return data.NewPublicKey(keyAlgorithm, public), nil
-	}
-
-	if _, ok := err.(*storage.ErrNoKey); ok {
-		key, err := crypto.Create("timestamp", createAlgorithm)
-		if err != nil {
-			return nil, err
-		}
-		logrus.Debug("Creating new timestamp key for ", gun, ". With algo: ", key.Algorithm())
-		err = store.SetKey(gun, data.CanonicalTimestampRole, key.Algorithm(), key.Public())
-		if err == nil {
-			return key, nil
-		}
-
-		if _, ok := err.(*storage.ErrKeyExists); ok {
-			keyAlgorithm, public, err = store.GetKey(gun, data.CanonicalTimestampRole)
-			if err != nil {
-				return nil, err
-			}
-			return data.NewPublicKey(keyAlgorithm, public), nil
-		}
-		return nil, err
-	}
-	return nil, err
-}
 
 // GetOrCreateTimestamp returns the current timestamp for the gun. This may mean
 // a new timestamp is generated either because none exists, or because the current
@@ -111,37 +78,38 @@ func snapshotExpired(ts *data.SignedTimestamp, snapshot []byte) bool {
 // version number one higher than prev. The store is used to lookup the current
 // snapshot, this function does not save the newly generated timestamp.
 func CreateTimestamp(gun string, prev *data.SignedTimestamp, snapshot []byte, store storage.MetaStore, cryptoService signed.CryptoService) (*data.Signed, int, error) {
-	algorithm, public, err := store.GetKey(gun, data.CanonicalTimestampRole)
-	if err != nil {
-		// owner of gun must have generated a timestamp key otherwise
-		// we won't proceed with generating everything.
-		return nil, 0, err
-	}
-	key := data.NewPublicKey(algorithm, public)
-	sn := &data.Signed{}
-	err = json.Unmarshal(snapshot, sn)
-	if err != nil {
-		// couldn't parse snapshot
-		return nil, 0, err
-	}
-	ts, err := data.NewTimestamp(sn)
-	if err != nil {
-		return nil, 0, err
-	}
-	if prev != nil {
-		ts.Signed.Version = prev.Signed.Version + 1
-	}
-	sgndTs, err := json.MarshalCanonical(ts.Signed)
-	if err != nil {
-		return nil, 0, err
-	}
-	out := &data.Signed{
-		Signatures: ts.Signatures,
-		Signed:     sgndTs,
-	}
-	err = signed.Sign(cryptoService, out, key)
-	if err != nil {
-		return nil, 0, err
-	}
-	return out, ts.Signed.Version, nil
+	return nil, 0, fmt.Errorf("this has not been updated yet")
+	// algorithm, public, err := store.GetKey(gun, data.CanonicalTimestampRole)
+	// if err != nil {
+	// 	// owner of gun must have generated a timestamp key otherwise
+	// 	// we won't proceed with generating everything.
+	// 	return nil, 0, err
+	// }
+	// key := data.NewPublicKey(algorithm, public)
+	// sn := &data.Signed{}
+	// err = json.Unmarshal(snapshot, sn)
+	// if err != nil {
+	// 	// couldn't parse snapshot
+	// 	return nil, 0, err
+	// }
+	// ts, err := data.NewTimestamp(sn)
+	// if err != nil {
+	// 	return nil, 0, err
+	// }
+	// if prev != nil {
+	// 	ts.Signed.Version = prev.Signed.Version + 1
+	// }
+	// sgndTs, err := json.MarshalCanonical(ts.Signed)
+	// if err != nil {
+	// 	return nil, 0, err
+	// }
+	// out := &data.Signed{
+	// 	Signatures: ts.Signatures,
+	// 	Signed:     sgndTs,
+	// }
+	// err = signed.Sign(cryptoService, out, key)
+	// if err != nil {
+	// 	return nil, 0, err
+	// }
+	// return out, ts.Signed.Version, nil
 }

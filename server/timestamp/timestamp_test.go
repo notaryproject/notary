@@ -32,22 +32,6 @@ func TestTimestampNotExpired(t *testing.T) {
 	assert.False(t, timestampExpired(ts), "Timestamp should NOT have expired")
 }
 
-func TestGetTimestampKey(t *testing.T) {
-	store := storage.NewMemStorage()
-	crypto := signed.NewEd25519()
-	k, err := GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
-	assert.Nil(t, err, "Expected nil error")
-	assert.NotNil(t, k, "Key should not be nil")
-
-	k2, err := GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
-
-	assert.Nil(t, err, "Expected nil error")
-
-	// trying to get the same key again should return the same value
-	assert.Equal(t, k, k2, "Did not receive same key when attempting to recreate.")
-	assert.NotNil(t, k2, "Key should not be nil")
-}
-
 func TestGetTimestamp(t *testing.T) {
 	store := storage.NewMemStorage()
 	crypto := signed.NewEd25519()

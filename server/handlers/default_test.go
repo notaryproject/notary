@@ -8,13 +8,17 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"golang.org/x/net/context"
 
 	ctxu "github.com/docker/distribution/context"
 	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/docker/notary/cryptoservice"
+	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/server/errors"
 	"github.com/docker/notary/server/storage"
+	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/store"
@@ -23,26 +27,27 @@ import (
 	"github.com/docker/notary/tuf/testutils"
 	"github.com/docker/notary/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type handlerState struct {
 	// interface{} so we can test invalid values
-	store   interface{}
-	crypto  interface{}
-	keyAlgo interface{}
+	metaStore interface{}
+	crypto    interface{}
+	keyAlgo   interface{}
 }
 
 func defaultState() handlerState {
 	return handlerState{
-		store:   storage.NewMemStorage(),
-		crypto:  signed.NewEd25519(),
-		keyAlgo: data.ED25519Key,
+		metaStore: storage.NewMemStorage(),
+		crypto:    signed.NewEd25519(),
+		keyAlgo:   data.ED25519Key,
 	}
 }
 
 func getContext(h handlerState) context.Context {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "metaStore", h.store)
+	ctx = context.WithValue(ctx, "metaStore", h.metaStore)
 	ctx = context.WithValue(ctx, "keyAlgorithm", h.keyAlgo)
 	ctx = context.WithValue(ctx, "cryptoService", h.crypto)
 	return ctxu.WithLogger(ctx, ctxu.GetRequestLogger(ctx))
@@ -75,14 +80,14 @@ func TestMainHandlerNotGet(t *testing.T) {
 	}
 }
 
-// GetKeyHandler needs to have access to a metadata store and cryptoservice,
+// GetKeyHandler needs to have access to a metadata metaStore and cryptoservice,
 // a key algorithm
 func TestGetKeyHandlerInvalidConfiguration(t *testing.T) {
 	noStore := defaultState()
-	noStore.store = nil
+	noStore.metaStore = nil
 
 	invalidStore := defaultState()
-	invalidStore.store = "not a store"
+	invalidStore.metaStore = "not a metaStore"
 
 	noCrypto := defaultState()
 	noCrypto.crypto = nil
@@ -106,10 +111,10 @@ func TestGetKeyHandlerInvalidConfiguration(t *testing.T) {
 		"imageName": "gun",
 		"tufRole":   data.CanonicalTimestampRole,
 	}
-	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
+	var buf bytes.Buffer
 	for errString, states := range invalidStates {
 		for _, s := range states {
-			err := getKeyHandler(getContext(s), httptest.NewRecorder(), req, vars)
+			err := getKeyHandler(getContext(s), &buf, vars)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), errString)
 		}
@@ -120,7 +125,6 @@ func TestGetKeyHandlerInvalidConfiguration(t *testing.T) {
 // provided and non-empty.
 func TestGetKeyHandlerNoRoleOrRepo(t *testing.T) {
 	state := defaultState()
-	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 
 	for _, key := range []string{"imageName", "tufRole"} {
 		vars := map[string]string{
@@ -129,14 +133,15 @@ func TestGetKeyHandlerNoRoleOrRepo(t *testing.T) {
 		}
 
 		// not provided
+		var buf bytes.Buffer
 		delete(vars, key)
-		err := getKeyHandler(getContext(state), httptest.NewRecorder(), req, vars)
+		err := getKeyHandler(getContext(state), &buf, vars)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "unknown")
 
 		// empty
 		vars[key] = ""
-		err = getKeyHandler(getContext(state), httptest.NewRecorder(), req, vars)
+		err = getKeyHandler(getContext(state), &buf, vars)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "unknown")
 	}
@@ -149,9 +154,9 @@ func TestGetKeyHandlerInvalidRole(t *testing.T) {
 		"imageName": "gun",
 		"tufRole":   data.CanonicalRootRole,
 	}
-	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
+	var buf bytes.Buffer
 
-	err := getKeyHandler(getContext(state), httptest.NewRecorder(), req, vars)
+	err := getKeyHandler(getContext(state), &buf, vars)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid role")
 }
@@ -160,14 +165,13 @@ func TestGetKeyHandlerInvalidRole(t *testing.T) {
 func TestGetKeyHandlerCreatesOnce(t *testing.T) {
 	state := defaultState()
 	roles := []string{data.CanonicalTimestampRole, data.CanonicalSnapshotRole}
-	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
+	var buf bytes.Buffer
 
 	for _, role := range roles {
 		vars := map[string]string{"imageName": "gun", "tufRole": role}
-		recorder := httptest.NewRecorder()
-		err := getKeyHandler(getContext(state), recorder, req, vars)
+		err := getKeyHandler(getContext(state), &buf, vars)
 		assert.NoError(t, err)
-		assert.True(t, len(recorder.Body.String()) > 0)
+		assert.True(t, len(buf.String()) > 0)
 	}
 }
 
@@ -204,7 +208,7 @@ func TestGetHandlerTimestamp(t *testing.T) {
 	_, repo, crypto, err := testutils.EmptyRepo("gun")
 	assert.NoError(t, err)
 
-	ctx := getContext(handlerState{store: metaStore, crypto: crypto})
+	ctx := getContext(handlerState{metaStore: metaStore, crypto: crypto})
 
 	sn, err := repo.SignSnapshot(data.DefaultExpires("snapshot"))
 	snJSON, err := json.Marshal(sn)
@@ -238,7 +242,7 @@ func TestGetHandlerSnapshot(t *testing.T) {
 	_, repo, crypto, err := testutils.EmptyRepo("gun")
 	assert.NoError(t, err)
 
-	ctx := getContext(handlerState{store: metaStore, crypto: crypto})
+	ctx := getContext(handlerState{metaStore: metaStore, crypto: crypto})
 
 	sn, err := repo.SignSnapshot(data.DefaultExpires("snapshot"))
 	snJSON, err := json.Marshal(sn)
@@ -326,7 +330,7 @@ func TestAtomicUpdateValidationFailurePropagated(t *testing.T) {
 	kdb, repo, cs, err := testutils.EmptyRepo(gun)
 	assert.NoError(t, err)
 	copyTimestampKey(t, kdb, metaStore, gun)
-	state := handlerState{store: metaStore, crypto: cs}
+	state := handlerState{metaStore: metaStore, crypto: cs}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	assert.NoError(t, err)
@@ -368,7 +372,7 @@ func TestAtomicUpdateNonValidationFailureNotPropagated(t *testing.T) {
 	kdb, repo, cs, err := testutils.EmptyRepo(gun)
 	assert.NoError(t, err)
 	copyTimestampKey(t, kdb, metaStore, gun)
-	state := handlerState{store: &failStore{*metaStore}, crypto: cs}
+	state := handlerState{metaStore: &failStore{*metaStore}, crypto: cs}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	assert.NoError(t, err)
@@ -409,7 +413,7 @@ func TestAtomicUpdateVersionErrorPropagated(t *testing.T) {
 	kdb, repo, cs, err := testutils.EmptyRepo(gun)
 	assert.NoError(t, err)
 	copyTimestampKey(t, kdb, metaStore, gun)
-	state := handlerState{store: &invalidVersionStore{*metaStore}, crypto: cs}
+	state := handlerState{metaStore: &invalidVersionStore{*metaStore}, crypto: cs}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	assert.NoError(t, err)
@@ -430,4 +434,172 @@ func TestAtomicUpdateVersionErrorPropagated(t *testing.T) {
 	assert.True(t, ok, "Expected an errcode.Error, got %v", err)
 	assert.Equal(t, errors.ErrOldVersion, errorObj.Code)
 	assert.Equal(t, storage.ErrOldVersion{}, errorObj.Detail)
+}
+
+// If there are no keys for that role and that gun, GetOrCreateKey creates one
+// and returns it.  GetOrCreateKeys will return that key from now on if
+// are no key changes.
+func TestGetOrCreateKeyCurrentNoKeys(t *testing.T) {
+	s := serverKeyInfo{
+		gun:           "gun",
+		role:          data.CanonicalTimestampRole,
+		store:         storage.NewMemStorage(),
+		crypto:        signed.NewEd25519(),
+		keyAlgo:       data.ED25519Key,
+		rotateOncePer: 24 * time.Hour,
+	}
+	k1, err := GetOrCreateKey(s)
+	require.NoError(t, err, "Expected nil error")
+	require.NotNil(t, k1, "Key should not be nil")
+
+	k2, err := GetOrCreateKey(s)
+	require.NoError(t, err, "Expected nil error")
+	require.NotNil(t, k2, "Key should not be nil")
+
+	// trying to get the same key again should return the same value
+	require.Equal(t, k1.ID(), k2.ID(), "Did not receive same key when attempting to recreate.")
+}
+
+// If there are lots of keys, it returns the most recently used key, whether it's
+// pending or not.
+func TestGetOrCreateKeyCurrentMostRecentUsedKeyPendingOrNot(t *testing.T) {
+	s := serverKeyInfo{
+		gun:           "gun",
+		role:          data.CanonicalSnapshotRole,
+		store:         storage.NewMemStorage(),
+		crypto:        signed.NewEd25519(),
+		keyAlgo:       data.ED25519Key,
+		rotateOncePer: 24 * time.Hour,
+	}
+
+	for i := 0; i < 2; i++ {
+		k, err := s.crypto.Create(s.role, data.ED25519Key)
+		require.NoError(t, err)
+		s.store.AddKey(s.gun, s.role, k, time.Now().AddDate(1, 1, 1))
+
+		if i == 0 {
+			s.store.MarkActiveKeys(s.gun, s.role, []string{k.ID()})
+		}
+
+		gotten, err := GetOrCreateKey(s)
+		require.NoError(t, err, "Expected nil error")
+		require.Equal(t, k.ID(), gotten.ID(), "Key should not be nil")
+	}
+}
+
+// If there is an existing most recently used key, it is returned whether the
+// algorithm is what is desired or not.
+func TestGetOrCreateKeyCurrentMostRecentUsedKeyIgnoreAlgorithm(t *testing.T) {
+	gun := "gun"
+	s := serverKeyInfo{
+		gun:   gun,
+		role:  data.CanonicalSnapshotRole,
+		store: storage.NewMemStorage(),
+		crypto: cryptoservice.NewCryptoService(
+			gun, trustmanager.NewKeyMemoryStore(passphrase.ConstantRetriever(""))),
+		keyAlgo:       data.ECDSAKey,
+		rotateOncePer: 24 * time.Hour,
+	}
+
+	k, err := s.crypto.Create(s.role, data.RSAKey)
+	require.NoError(t, err)
+	s.store.AddKey(s.gun, s.role, k, time.Now().AddDate(1, 1, 1))
+
+	gotten, err := GetOrCreateKey(s)
+	require.NoError(t, err, "Expected nil error")
+	require.Equal(t, k.ID(), gotten.ID(), "Key should not be nil")
+}
+
+// If there is an existing most recently used key that is not expired
+func TestGetOrCreateKeyCurrentMostRecentUsedKeyIgnoreExpired(t *testing.T) {
+	s := serverKeyInfo{
+		gun:           "gun",
+		role:          data.CanonicalSnapshotRole,
+		store:         storage.NewMemStorage(),
+		crypto:        signed.NewEd25519(),
+		keyAlgo:       data.ED25519Key,
+		rotateOncePer: 24 * time.Hour,
+	}
+
+	k1, err := s.crypto.Create(s.role, data.ED25519Key)
+	require.NoError(t, err)
+	s.store.AddKey(s.gun, s.role, k1, time.Now().AddDate(1, 1, 1))
+
+	k2, err := s.crypto.Create(s.role, data.ED25519Key)
+	require.NoError(t, err)
+	s.store.AddKey(s.gun, s.role, k2, time.Now().AddDate(-1, -1, -1))
+
+	gotten, err := GetOrCreateKey(s)
+	require.NoError(t, err, "Expected nil error")
+	require.Equal(t, k1.ID(), gotten.ID(), "Key should not be nil")
+}
+
+// If there are no keys for that role and that gun, RotateKey creates one
+// and returns it.  RotateKey will return that key from now on if
+// are no key changes, until it expires
+func TestRotateKeyNoKeys(t *testing.T) {
+	s := serverKeyInfo{
+		gun:           "gun",
+		role:          data.CanonicalTimestampRole,
+		store:         storage.NewMemStorage(),
+		crypto:        signed.NewEd25519(),
+		keyAlgo:       data.ED25519Key,
+		rotateOncePer: 24 * time.Hour,
+	}
+	k1, err := RotateKey(s)
+	require.NoError(t, err, "Expected nil error")
+	require.NotNil(t, k1, "Key should not be nil")
+
+	_, err = RotateKey(s)
+	require.Error(t, err, "Expected an error trying to rotate again")
+	errCode, ok := err.(errcode.Error)
+	require.True(t, ok)
+	require.Equal(t, errors.ErrCannotRotateKey, errCode.Code)
+}
+
+// If there are no pending keys (even if there are current keys) for that role and
+// that gun, RotateKey creates one and returns it.  RotateKey will return that key
+// from now on if are no key changes, until it expires
+func TestRotateKeyNoPendingKeys(t *testing.T) {
+	s := serverKeyInfo{
+		gun:           "gun",
+		role:          data.CanonicalTimestampRole,
+		store:         storage.NewMemStorage(),
+		crypto:        signed.NewEd25519(),
+		keyAlgo:       data.ED25519Key,
+		rotateOncePer: 24 * time.Hour,
+	}
+	activeKey, err := s.crypto.Create(s.role, data.ED25519Key)
+	require.NoError(t, err)
+	require.NoError(t, s.store.AddKey(s.gun, s.role, activeKey, time.Now().AddDate(1, 1, 1)))
+	require.NoError(t, s.store.MarkActiveKeys(s.gun, s.role, []string{activeKey.ID()}))
+
+	key, err := RotateKey(s)
+	require.NoError(t, err, "Expected nil error")
+	require.NotNil(t, key, "Key should not be nil")
+
+	require.NotEqual(t, activeKey.ID(), key.ID(), "Received same key when attempting to rotate.")
+}
+
+// If is a pending key for that role and that gun, but it's expired, RotateKey
+// creates a new one one and returns it.  RotateKey will return that key from now on if
+// are no key changes, until it expires
+func TestRotateKeyExistingExpired(t *testing.T) {
+	s := serverKeyInfo{
+		gun:           "gun",
+		role:          data.CanonicalTimestampRole,
+		store:         storage.NewMemStorage(),
+		crypto:        signed.NewEd25519(),
+		keyAlgo:       data.ED25519Key,
+		rotateOncePer: 24 * time.Hour,
+	}
+	expiredKey, err := s.crypto.Create(s.role, data.ED25519Key)
+	require.NoError(t, err)
+	require.NoError(t, s.store.AddKey(s.gun, s.role, expiredKey, time.Now().AddDate(-1, -1, -1)))
+
+	key, err := RotateKey(s)
+	require.NoError(t, err, "Expected nil error")
+	require.NotNil(t, key, "Key should not be nil")
+
+	require.NotEqual(t, expiredKey.ID(), key.ID(), "Received same key when attempting to rotate.")
 }
