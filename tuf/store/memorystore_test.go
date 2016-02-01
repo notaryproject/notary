@@ -3,6 +3,7 @@ package store
 import (
 	"testing"
 
+	"github.com/docker/notary/tuf/data"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,4 +32,10 @@ func TestMemoryStore(t *testing.T) {
 	_, err = s.GetMeta("exists", 0)
 	require.Error(t, err)
 	require.IsType(t, ErrMetaNotFound{}, err)
+
+	_, err = s.GetKey(data.CanonicalSnapshotRole)
+	require.Error(t, err)
+
+	_, err = s.RotateKey(data.CanonicalSnapshotRole)
+	require.Error(t, err)
 }

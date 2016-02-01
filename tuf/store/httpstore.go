@@ -24,6 +24,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
+	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/validation"
 )
 
@@ -131,6 +132,8 @@ func translateStatusToError(resp *http.Response, resource string) error {
 		return ErrMetaNotFound{Resource: resource}
 	case http.StatusBadRequest:
 		return tryUnmarshalError(resp, ErrInvalidOperation{})
+	case 429: // HTTP over limit error - will be added as a constnat in Go 1.6
+		return ErrInvalidOperation{fmt.Sprintf("%s rate limited", resource)}
 	default:
 		return ErrServerUnavailable{code: resp.StatusCode}
 	}
@@ -271,12 +274,29 @@ func (s HTTPStore) buildURL(uri string) (*url.URL, error) {
 }
 
 // GetKey retrieves a public key from the remote server
-func (s HTTPStore) GetKey(role string) ([]byte, error) {
+func (s HTTPStore) GetKey(role string) (data.PublicKey, error) {
+	return s.requestKey(role, false)
+}
+
+// RotateKey rotates a key on the remote server and returns the new public key
+func (s HTTPStore) RotateKey(role string) (data.PublicKey, error) {
+	return s.requestKey(role, true)
+}
+
+func (s HTTPStore) requestKey(role string, rotate bool) (data.PublicKey, error) {
 	url, err := s.buildKeyURL(role)
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest("GET", url.String(), nil)
+
+	method := "GET"
+	resource := role + " key"
+	if rotate {
+		method = "POST"
+		resource = resource + " rotation"
+	}
+
+	req, err := http.NewRequest(method, url.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -285,12 +305,18 @@ func (s HTTPStore) GetKey(role string) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if err := translateStatusToError(resp, role+" key"); err != nil {
+	if err := translateStatusToError(resp, resource); err != nil {
 		return nil, err
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	return body, nil
+
+	pubKey, err := data.UnmarshalPublicKey(body)
+	if err != nil {
+		return nil, err
+	}
+
+	return pubKey, nil
 }

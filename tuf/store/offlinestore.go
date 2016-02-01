@@ -2,6 +2,8 @@ package store
 
 import (
 	"io"
+
+	"github.com/docker/notary/tuf/data"
 )
 
 // ErrOffline is used to indicate we are operating offline
@@ -38,7 +40,12 @@ func (es OfflineStore) RemoveMeta(name string) error {
 }
 
 // GetKey returns ErrOffline
-func (es OfflineStore) GetKey(role string) ([]byte, error) {
+func (es OfflineStore) GetKey(role string) (data.PublicKey, error) {
+	return nil, err
+}
+
+// RotateKey returns ErrOffline
+func (es OfflineStore) RotateKey(role string) (data.PublicKey, error) {
 	return nil, err
 }
 
