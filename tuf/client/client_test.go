@@ -53,7 +53,7 @@ func TestRotation(t *testing.T) {
 
 	// Sign testRoot with both old and new keys
 	signedRoot, err := testRoot.ToSigned()
-	err = signed.Sign(signer, signedRoot, rootKey, replacementKey)
+	err = signed.Sign(signer, kdb, signedRoot, rootKey, replacementKey)
 	assert.NoError(t, err, "Failed to sign root")
 	var origKeySig bool
 	var replKeySig bool
@@ -113,7 +113,7 @@ func TestRotationNewSigMissing(t *testing.T) {
 
 	// Sign testRoot with both old and new keys
 	signedRoot, err := testRoot.ToSigned()
-	err = signed.Sign(signer, signedRoot, rootKey)
+	err = signed.Sign(signer, kdb, signedRoot, rootKey)
 	assert.NoError(t, err, "Failed to sign root")
 	var origKeySig bool
 	var replKeySig bool
@@ -174,7 +174,7 @@ func TestRotationOldSigMissing(t *testing.T) {
 
 	// Sign testRoot with both old and new keys
 	signedRoot, err := testRoot.ToSigned()
-	err = signed.Sign(signer, signedRoot, replacementKey)
+	err = signed.Sign(signer, kdb, signedRoot, replacementKey)
 	assert.NoError(t, err, "Failed to sign root")
 	var origKeySig bool
 	var replKeySig bool

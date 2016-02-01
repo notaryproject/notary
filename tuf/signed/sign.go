@@ -17,13 +17,15 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/keys"
 	"github.com/docker/notary/tuf/utils"
 )
 
 // Sign takes a data.Signed and a key, calculated and adds the signature
 // to the data.Signed
-func Sign(service CryptoService, s *data.Signed, keys ...data.PublicKey) error {
+func Sign(service CryptoService, kdb *keys.KeyDB, s *data.Signed, keys ...data.PublicKey) error {
 	logrus.Debugf("sign called with %d keys", len(keys))
+
 	signatures := make([]data.Signature, 0, len(s.Signatures)+1)
 	signingKeyIDs := make(map[string]struct{})
 	ids := make([]string, 0, len(keys))
@@ -78,7 +80,11 @@ func Sign(service CryptoService, s *data.Signed, keys ...data.PublicKey) error {
 			// key is in the set of key IDs for which a signature has been created
 			continue
 		}
-		signatures = append(signatures, sig)
+		key := kdb.GetKey(sig.KeyID)
+		if key != nil && verifySignature(key, sig, s.Signed) {
+			// only keep old signatures that still verify
+			signatures = append(signatures, sig)
+		}
 	}
 	s.Signatures = signatures
 	return nil
