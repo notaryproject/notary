@@ -102,6 +102,11 @@ func RootHandler(ac auth.AccessController, ctx context.Context, trust signed.Cry
 		prometheus.InstrumentHandlerWithOpts(
 			prometheusOpts("GetKey"),
 			hand(handlers.GetKeyHandler, "push", "pull")))
+	r.Methods("POST").Path(
+		"/v2/{imageName:.*}/_trust/tuf/{tufRole:snapshot|timestamp}.key").Handler(
+		prometheus.InstrumentHandlerWithOpts(
+			prometheusOpts("RotateKey"),
+			hand(handlers.RotateKeyHandler, "push", "pull")))
 	r.Methods("DELETE").Path("/v2/{imageName:.*}/_trust/tuf/").Handler(
 		prometheus.InstrumentHandlerWithOpts(
 			prometheusOpts("DeleteTuf"),

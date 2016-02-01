@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -19,10 +20,10 @@ import (
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/store"
 	"github.com/docker/notary/tuf/validation"
+	"github.com/stretchr/testify/require"
 
 	"github.com/docker/notary/tuf/testutils"
 	"github.com/docker/notary/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 type handlerState struct {
@@ -75,9 +76,11 @@ func TestMainHandlerNotGet(t *testing.T) {
 	}
 }
 
-// GetKeyHandler needs to have access to a metadata store and cryptoservice,
-// a key algorithm
-func TestGetKeyHandlerInvalidConfiguration(t *testing.T) {
+type simplerHandler func(context.Context, io.Writer, map[string]string) error
+
+// GetKeyHandler and RotateKeyHandler needs to have access to a metadata store
+// and cryptoservice, a key algorithm
+func TestKeyHandlersInvalidConfiguration(t *testing.T) {
 	noStore := defaultState()
 	noStore.store = nil
 
@@ -106,82 +109,104 @@ func TestGetKeyHandlerInvalidConfiguration(t *testing.T) {
 		"imageName": "gun",
 		"tufRole":   data.CanonicalTimestampRole,
 	}
-	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
-	for errString, states := range invalidStates {
-		for _, s := range states {
-			err := getKeyHandler(getContext(s), httptest.NewRecorder(), req, vars)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), errString)
+	var buf bytes.Buffer
+	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
+		for errString, states := range invalidStates {
+			for _, s := range states {
+				err := keyHandler(getContext(s), &buf, vars)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), errString)
+			}
 		}
 	}
 }
 
-// GetKeyHandler needs to be set up such that an imageName and tufRole are both
-// provided and non-empty.
-func TestGetKeyHandlerNoRoleOrRepo(t *testing.T) {
+// GetKeyHandler and RotateKeyHandler needs to be set up such that an imageName
+// and tufRole are both provided and non-empty.
+func TestKeyHandlersNoRoleOrRepo(t *testing.T) {
 	state := defaultState()
-	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 
-	for _, key := range []string{"imageName", "tufRole"} {
-		vars := map[string]string{
-			"imageName": "gun",
-			"tufRole":   data.CanonicalTimestampRole,
+	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
+		for _, key := range []string{"imageName", "tufRole"} {
+			vars := map[string]string{
+				"imageName": "gun",
+				"tufRole":   data.CanonicalTimestampRole,
+			}
+			var buf bytes.Buffer
+
+			// not provided
+			delete(vars, key)
+			err := keyHandler(getContext(state), &buf, vars)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "unknown")
+
+			// empty
+			vars[key] = ""
+			err = keyHandler(getContext(state), &buf, vars)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "unknown")
 		}
-
-		// not provided
-		delete(vars, key)
-		err := getKeyHandler(getContext(state), httptest.NewRecorder(), req, vars)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "unknown")
-
-		// empty
-		vars[key] = ""
-		err = getKeyHandler(getContext(state), httptest.NewRecorder(), req, vars)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "unknown")
 	}
 }
 
-// Getting a key for a non-supported role results in a 400.
-func TestGetKeyHandlerInvalidRole(t *testing.T) {
+// Getting or rotating a key for a non-supported role results in a 400.
+func TestKeyHandlersInvalidRole(t *testing.T) {
 	state := defaultState()
 	vars := map[string]string{
 		"imageName": "gun",
 		"tufRole":   data.CanonicalRootRole,
 	}
-	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
+	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
+		var buf bytes.Buffer
 
-	err := getKeyHandler(getContext(state), httptest.NewRecorder(), req, vars)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid role")
+		err := keyHandler(getContext(state), &buf, vars)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid role")
+	}
 }
 
 // Getting the key for a valid role and gun succeeds
 func TestGetKeyHandlerCreatesOnce(t *testing.T) {
 	state := defaultState()
 	roles := []string{data.CanonicalTimestampRole, data.CanonicalSnapshotRole}
-	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 
 	for _, role := range roles {
 		vars := map[string]string{"imageName": "gun", "tufRole": role}
-		recorder := httptest.NewRecorder()
-		err := getKeyHandler(getContext(state), recorder, req, vars)
-		assert.NoError(t, err)
-		assert.True(t, len(recorder.Body.String()) > 0)
+		var buf bytes.Buffer
+		err := getKeyHandler(getContext(state), &buf, vars)
+		require.NoError(t, err)
+		require.NotEmpty(t, buf.Bytes())
+	}
+}
+
+// If we cannot rotate the key, we get an error cannot rotate key back
+func TestRotateKeyHandlerCannotRotateKey(t *testing.T) {
+	state := defaultState()
+	roles := []string{data.CanonicalTimestampRole, data.CanonicalSnapshotRole}
+
+	for _, role := range roles {
+		vars := map[string]string{"imageName": "gun", "tufRole": role}
+		var buf bytes.Buffer
+		err := rotateKeyHandler(getContext(state), &buf, vars)
+		require.Error(t, err)
+		require.Empty(t, len(buf.Bytes()))
+		errCode, ok := err.(errcode.Error)
+		require.True(t, ok)
+		require.Equal(t, errors.ErrCannotRotateKey, errCode.Code)
 	}
 }
 
 func TestGetHandlerRoot(t *testing.T) {
 	metaStore := storage.NewMemStorage()
 	_, repo, _, err := testutils.EmptyRepo("gun")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "metaStore", metaStore)
 
 	root, err := repo.SignRoot(data.DefaultExpires("root"))
 	rootJSON, err := json.Marshal(root)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	metaStore.UpdateCurrent("gun", storage.MetaUpdate{Role: "root", Version: 1, Data: rootJSON})
 
 	req := &http.Request{
@@ -196,25 +221,25 @@ func TestGetHandlerRoot(t *testing.T) {
 	rw := httptest.NewRecorder()
 
 	err = getHandler(ctx, rw, req, vars)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestGetHandlerTimestamp(t *testing.T) {
 	metaStore := storage.NewMemStorage()
 	_, repo, crypto, err := testutils.EmptyRepo("gun")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	ctx := getContext(handlerState{store: metaStore, crypto: crypto})
 
 	sn, err := repo.SignSnapshot(data.DefaultExpires("snapshot"))
 	snJSON, err := json.Marshal(sn)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	metaStore.UpdateCurrent(
 		"gun", storage.MetaUpdate{Role: "snapshot", Version: 1, Data: snJSON})
 
 	ts, err := repo.SignTimestamp(data.DefaultExpires("timestamp"))
 	tsJSON, err := json.Marshal(ts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	metaStore.UpdateCurrent(
 		"gun", storage.MetaUpdate{Role: "timestamp", Version: 1, Data: tsJSON})
 
@@ -230,19 +255,19 @@ func TestGetHandlerTimestamp(t *testing.T) {
 	rw := httptest.NewRecorder()
 
 	err = getHandler(ctx, rw, req, vars)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestGetHandlerSnapshot(t *testing.T) {
 	metaStore := storage.NewMemStorage()
 	_, repo, crypto, err := testutils.EmptyRepo("gun")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	ctx := getContext(handlerState{store: metaStore, crypto: crypto})
 
 	sn, err := repo.SignSnapshot(data.DefaultExpires("snapshot"))
 	snJSON, err := json.Marshal(sn)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	metaStore.UpdateCurrent(
 		"gun", storage.MetaUpdate{Role: "snapshot", Version: 1, Data: snJSON})
 
@@ -258,7 +283,7 @@ func TestGetHandlerSnapshot(t *testing.T) {
 	rw := httptest.NewRecorder()
 
 	err = getHandler(ctx, rw, req, vars)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestGetHandler404(t *testing.T) {
@@ -279,7 +304,7 @@ func TestGetHandler404(t *testing.T) {
 	rw := httptest.NewRecorder()
 
 	err := getHandler(ctx, rw, req, vars)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestGetHandlerNilData(t *testing.T) {
@@ -301,7 +326,7 @@ func TestGetHandlerNilData(t *testing.T) {
 	rw := httptest.NewRecorder()
 
 	err := getHandler(ctx, rw, req, vars)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestGetHandlerNoStorage(t *testing.T) {
@@ -312,7 +337,7 @@ func TestGetHandlerNoStorage(t *testing.T) {
 	}
 
 	err := GetHandler(ctx, nil, req)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // a validation failure, such as a snapshots file being missing, will be
@@ -324,14 +349,14 @@ func TestAtomicUpdateValidationFailurePropagated(t *testing.T) {
 	vars := map[string]string{"imageName": gun}
 
 	kdb, repo, cs, err := testutils.EmptyRepo(gun)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	copyTimestampKey(t, kdb, metaStore, gun)
 	state := handlerState{store: metaStore, crypto: cs}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	rs, tgs, _, _, err := testutils.Serialize(r, tg, sn, ts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	req, err := store.NewMultiPartMetaRequest("", map[string][]byte{
 		data.CanonicalRootRole:    rs,
@@ -341,13 +366,13 @@ func TestAtomicUpdateValidationFailurePropagated(t *testing.T) {
 	rw := httptest.NewRecorder()
 
 	err = atomicUpdateHandler(getContext(state), rw, req, vars)
-	assert.Error(t, err)
+	require.Error(t, err)
 	errorObj, ok := err.(errcode.Error)
-	assert.True(t, ok, "Expected an errcode.Error, got %v", err)
-	assert.Equal(t, errors.ErrInvalidUpdate, errorObj.Code)
+	require.True(t, ok, "Expected an errcode.Error, got %v", err)
+	require.Equal(t, errors.ErrInvalidUpdate, errorObj.Code)
 	serializable, ok := errorObj.Detail.(*validation.SerializableError)
-	assert.True(t, ok, "Expected a SerializableObject, got %v", errorObj.Detail)
-	assert.IsType(t, validation.ErrBadHierarchy{}, serializable.Error)
+	require.True(t, ok, "Expected a SerializableObject, got %v", errorObj.Detail)
+	require.IsType(t, validation.ErrBadHierarchy{}, serializable.Error)
 }
 
 type failStore struct {
@@ -366,14 +391,14 @@ func TestAtomicUpdateNonValidationFailureNotPropagated(t *testing.T) {
 	vars := map[string]string{"imageName": gun}
 
 	kdb, repo, cs, err := testutils.EmptyRepo(gun)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	copyTimestampKey(t, kdb, metaStore, gun)
 	state := handlerState{store: &failStore{*metaStore}, crypto: cs}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	rs, tgs, sns, _, err := testutils.Serialize(r, tg, sn, ts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	req, err := store.NewMultiPartMetaRequest("", map[string][]byte{
 		data.CanonicalRootRole:     rs,
@@ -384,11 +409,11 @@ func TestAtomicUpdateNonValidationFailureNotPropagated(t *testing.T) {
 	rw := httptest.NewRecorder()
 
 	err = atomicUpdateHandler(getContext(state), rw, req, vars)
-	assert.Error(t, err)
+	require.Error(t, err)
 	errorObj, ok := err.(errcode.Error)
-	assert.True(t, ok, "Expected an errcode.Error, got %v", err)
-	assert.Equal(t, errors.ErrInvalidUpdate, errorObj.Code)
-	assert.Nil(t, errorObj.Detail)
+	require.True(t, ok, "Expected an errcode.Error, got %v", err)
+	require.Equal(t, errors.ErrInvalidUpdate, errorObj.Code)
+	require.Nil(t, errorObj.Detail)
 }
 
 type invalidVersionStore struct {
@@ -407,14 +432,14 @@ func TestAtomicUpdateVersionErrorPropagated(t *testing.T) {
 	vars := map[string]string{"imageName": gun}
 
 	kdb, repo, cs, err := testutils.EmptyRepo(gun)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	copyTimestampKey(t, kdb, metaStore, gun)
 	state := handlerState{store: &invalidVersionStore{*metaStore}, crypto: cs}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	rs, tgs, sns, _, err := testutils.Serialize(r, tg, sn, ts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	req, err := store.NewMultiPartMetaRequest("", map[string][]byte{
 		data.CanonicalRootRole:     rs,
@@ -425,9 +450,9 @@ func TestAtomicUpdateVersionErrorPropagated(t *testing.T) {
 	rw := httptest.NewRecorder()
 
 	err = atomicUpdateHandler(getContext(state), rw, req, vars)
-	assert.Error(t, err)
+	require.Error(t, err)
 	errorObj, ok := err.(errcode.Error)
-	assert.True(t, ok, "Expected an errcode.Error, got %v", err)
-	assert.Equal(t, errors.ErrOldVersion, errorObj.Code)
-	assert.Equal(t, storage.ErrOldVersion{}, errorObj.Detail)
+	require.True(t, ok, "Expected an errcode.Error, got %v", err)
+	require.Equal(t, errors.ErrOldVersion, errorObj.Code)
+	require.Equal(t, storage.ErrOldVersion{}, errorObj.Detail)
 }
