@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/tuf/data"
 	"github.com/stretchr/testify/assert"
@@ -77,11 +76,7 @@ func Test0Dot1RepoFormat(t *testing.T) {
 	assert.NoError(t, err, "error creating repo: %s", err)
 
 	// rotate the timestamp key, since the server doesn't have that one
-	timestampPubKey, err := getRemoteKey(ts.URL, gun, data.CanonicalTimestampRole, http.DefaultTransport)
-	assert.NoError(t, err)
-	assert.NoError(
-		t, repo.rootFileKeyChange(data.CanonicalTimestampRole, changelist.ActionCreate, timestampPubKey))
-
+	assert.NoError(t, repo.RotateKey(data.CanonicalTimestampRole, true))
 	assert.NoError(t, repo.Publish())
 
 	targets, err := repo.ListTargets()
