@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,6 +20,11 @@ import (
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/validation"
 )
+
+// DefaultKeyExpiry is the default time before a rotated key expires, if none is
+// provided.  This means that after this period, a key rotation can happen again,
+// unless the key is signed into a root.json.
+const DefaultKeyExpiry = 60 * 24 * time.Minute // 1 day
 
 // MainHandler is the default handler for the server
 func MainHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
@@ -207,12 +213,23 @@ func parseKeyParams(ctx context.Context, vars map[string]string) (*serverKeyInfo
 		return nil, errors.ErrNoKeyAlgorithm.WithDetail(nil)
 	}
 
+	rotateOncePer := DefaultKeyExpiry
+	rotationLimit := ctx.Value("rotationRateLimitInMinutes")
+	rotationLimitStr, ok := rotationLimit.(string)
+	if ok {
+		inMinutes, err := strconv.Atoi(rotationLimitStr)
+		if err == nil && inMinutes > 0 {
+			rotateOncePer = time.Duration(inMinutes) * time.Minute
+		}
+	}
+
 	return &serverKeyInfo{
-		gun:     gun,
-		role:    role,
-		store:   store,
-		crypto:  crypto,
-		keyAlgo: keyAlgo,
+		gun:           gun,
+		role:          role,
+		store:         store,
+		crypto:        crypto,
+		keyAlgo:       keyAlgo,
+		rotateOncePer: rotateOncePer,
 	}, nil
 }
 
