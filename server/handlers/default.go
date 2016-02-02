@@ -8,14 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 
 	"github.com/docker/notary/server/errors"
-	"github.com/docker/notary/server/snapshot"
 	"github.com/docker/notary/server/storage"
-	"github.com/docker/notary/server/timestamp"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/validation"

@@ -17,11 +17,11 @@ import (
 // a new timestamp is generated either because none exists, or because the current
 // one has expired. Once generated, the timestamp is saved in the store.
 func GetOrCreateTimestamp(gun string, store storage.MetaStore, cryptoService signed.CryptoService) ([]byte, error) {
-	snapshot, err := store.GetCurrent(gun, "snapshot")
+	snapshot, err := store.GetCurrent(gun, data.CanonicalSnapshotRole)
 	if err != nil {
 		return nil, err
 	}
-	d, err := store.GetCurrent(gun, "timestamp")
+	d, err := store.GetCurrent(gun, data.CanonicalTimestampRole)
 	if err != nil {
 		if _, ok := err.(storage.ErrNotFound); !ok {
 			logrus.Error("error retrieving timestamp: ", err.Error())
@@ -51,8 +51,8 @@ func GetOrCreateTimestamp(gun string, store storage.MetaStore, cryptoService sig
 		logrus.Error("Failed to marshal new timestamp")
 		return nil, err
 	}
-	err = store.UpdateCurrent(gun, storage.MetaUpdate{Role: "timestamp", Version: version, Data: out})
-	if err != nil {
+	if err = store.UpdateCurrent(
+		gun, storage.MetaUpdate{Role: data.CanonicalTimestampRole, Version: version, Data: out}); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -72,7 +72,7 @@ func snapshotExpired(ts *data.SignedTimestamp, snapshot []byte) bool {
 		return false
 	}
 	hash := meta.Hashes["sha256"]
-	return !bytes.Equal(hash, ts.Signed.Meta["snapshot"].Hashes["sha256"])
+	return !bytes.Equal(hash, ts.Signed.Meta[data.CanonicalSnapshotRole].Hashes["sha256"])
 }
 
 // CreateTimestamp creates a new timestamp. If a prev timestamp is provided, it
@@ -84,7 +84,7 @@ func CreateTimestamp(gun string, prev *data.SignedTimestamp, snapshot []byte, st
 	repo := tuf.NewRepo(kdb, cryptoService)
 
 	// load the current root to ensure we use the correct timestamp key.
-	root, err := store.GetCurrent(gun, "root")
+	root, err := store.GetCurrent(gun, data.CanonicalRootRole)
 	r := &data.SignedRoot{}
 	err = json.Unmarshal(root, r)
 	if err != nil {
