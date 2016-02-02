@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/docker/go/canonical/json"
+	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/validation"
@@ -328,7 +329,7 @@ func TestErrServerUnavailable(t *testing.T) {
 	}
 }
 
-// If successful, GetKey and RotateKey both return public keys
+// GetKey and RotateKey both succeed if valid public keys are returned from the server with a 200 status
 func TestGetKeyAndRotateKeySuccess(t *testing.T) {
 	c := signed.NewEd25519()
 	role := data.CanonicalSnapshotRole
@@ -395,13 +396,13 @@ func TestGetKeyAndRotateKeyServerUnreachable(t *testing.T) {
 	require.IsType(t, &net.OpError{}, err)
 }
 
-// GetKey and RotateKey both fail with ErrInvalidOperation if a 429 is returned
+// GetKey and RotateKey both fail with ErrInvalidOperation if a notary.HTTPStatusTooManyRequests is returned
 func TestGetKeyAndRotateKeyServerLimitError(t *testing.T) {
 	role := data.CanonicalSnapshotRole
 
 	// Set up a simple handler and server for our store
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(429)
+		w.WriteHeader(notary.HTTPStatusTooManyRequests)
 	}
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/docker/notary"
 )
 
 // The notary API is on version 1, but URLs start with /v2/ to be consistent
@@ -83,14 +84,14 @@ var (
 	ErrNoKeyAlgorithm = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "NO_KEYALGORITHM",
 		Message:        "The server does not have a key algorithm configured.",
-		Description:    "No key algorihtm has been configured for the server and it has been asked to perform an operation that requires generation.",
+		Description:    "No key algorithm has been configured for the server and it has been asked to perform an operation that requires generation.",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 	ErrCannotRotateKey = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "CANNOT_ROTATE_KEY",
 		Message:        "Key has already been rotated recently.",
 		Description:    "The key has been rotated too recently, and cannot be rotated again at this time.",
-		HTTPStatusCode: 429, // 429 is Too Many Requests - this will be added as a status constant in Go 1.6
+		HTTPStatusCode: notary.HTTPStatusTooManyRequests,
 	})
 	ErrUnknown = errcode.ErrorCodeUnknown
 )

@@ -134,7 +134,7 @@ func translateStatusToError(resp *http.Response, resource string) error {
 		return ErrMetaNotFound{Resource: resource}
 	case http.StatusBadRequest:
 		return tryUnmarshalError(resp, ErrInvalidOperation{})
-	case 429: // HTTP over limit error - will be added as a constnat in Go 1.6
+	case notary.HTTPStatusTooManyRequests:
 		return ErrInvalidOperation{fmt.Sprintf("%s rate limited", resource)}
 	default:
 		return ErrServerUnavailable{code: resp.StatusCode}

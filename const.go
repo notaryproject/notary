@@ -18,4 +18,7 @@ const (
 	Sha256HexSize = 64
 	// TrustedCertsDir is the directory, under the notary repo base directory, where trusted certs are stored
 	TrustedCertsDir = "trusted_certificates"
+
+	// HTTPStatusTooManyRequests is the http status 429 - will be an exported constant in http library in Go 1.6
+	HTTPStatusTooManyRequests = 429
 )

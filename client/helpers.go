@@ -238,15 +238,21 @@ func nearExpiry(r *data.SignedRoot) bool {
 }
 
 // Fetches a public key from a remote store, given a gun and role
-func getRemoteKey(url, gun, role string, rt http.RoundTripper, rotate bool) (data.PublicKey, error) {
+func getRemoteKey(url, gun, role string, rt http.RoundTripper) (data.PublicKey, error) {
 	remote, err := getRemoteStore(url, gun, rt)
 	if err != nil {
 		return nil, err
 	}
-	if rotate {
-		return remote.RotateKey(role)
-	}
 	return remote.GetKey(role)
+}
+
+// Rotates a public key from a remote store, given a gun and role
+func rotateRemoteKey(url, gun, role string, rt http.RoundTripper) (data.PublicKey, error) {
+	remote, err := getRemoteStore(url, gun, rt)
+	if err != nil {
+		return nil, err
+	}
+	return remote.RotateKey(role)
 }
 
 // add a key to a KeyDB, and create a role for the key and add it.

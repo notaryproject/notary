@@ -2580,18 +2580,21 @@ func TestRemoteRotationRateLimited(t *testing.T) {
 	role := data.CanonicalSnapshotRole
 
 	// original key is the key on the repo
-	origKey, err := getRemoteKey(ts.URL, repo.gun, role, repo.roundTrip, false)
+	origKey, err := getRemoteKey(ts.URL, repo.gun, role, repo.roundTrip)
 	assert.NoError(t, err)
 	assert.Len(t, repo.tufRepo.Root.Signed.Roles[role].KeyIDs, 1)
 	assert.Equal(t, origKey.ID(), repo.tufRepo.Root.Signed.Roles[role].KeyIDs[0])
 
 	// rotate keys, and assert that the first rotation doesn't fail but doesn't rotate,
-	// because the original key has not actually been published yet.  But the
+	// because the original key has not actually been published yet.
 	assert.NoError(t, repo.RotateKey(role, true))
 
-	rotateKey1, err := getRemoteKey(ts.URL, repo.gun, role, repo.roundTrip, false)
+	rotateKey1, err := getRemoteKey(ts.URL, repo.gun, role, repo.roundTrip)
 	assert.NoError(t, err)
 	assert.Equal(t, origKey.ID(), rotateKey1.ID())
+
+	// publish
+	assert.NoError(t, repo.Publish())
 
 	// the final key is the original key, since it was not rotated
 	assert.Len(t, repo.tufRepo.Root.Signed.Roles[role].KeyIDs, 1)
