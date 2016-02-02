@@ -18,7 +18,8 @@ type MetadataStore interface {
 
 // PublicKeyStore must be implemented by a key service
 type PublicKeyStore interface {
-	GetKey(role string) ([]byte, error)
+	GetKey(role string) (data.PublicKey, error)
+	RotateKey(role string) (data.PublicKey, error)
 }
 
 // LocalStore represents a local TUF sture

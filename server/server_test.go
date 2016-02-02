@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 	"testing"
 
 	_ "github.com/docker/distribution/registry/auth/silly"
+	"github.com/docker/notary"
 	"github.com/docker/notary/server/storage"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
@@ -85,6 +87,34 @@ func TestGetKeysEndpoint(t *testing.T) {
 	for role, expectedStatus := range rolesToStatus {
 		res, err := http.Get(
 			fmt.Sprintf("%s/v2/gun/_trust/tuf/%s.key", ts.URL, role))
+		assert.NoError(t, err)
+		assert.Equal(t, expectedStatus, res.StatusCode)
+	}
+}
+
+// RotateKey supports only the timestamp and snapshot key endpoints
+func TestRotateKeyEndpoint(t *testing.T) {
+	ctx := context.WithValue(
+		context.Background(), "metaStore", storage.NewMemStorage())
+	ctx = context.WithValue(ctx, "keyAlgorithm", data.ED25519Key)
+
+	handler := RootHandler(nil, ctx, signed.NewEd25519())
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	rolesToStatus := map[string]int{
+		data.CanonicalTimestampRole: notary.HTTPStatusTooManyRequests, // not implemented yet
+		data.CanonicalSnapshotRole:  notary.HTTPStatusTooManyRequests, // not implemented yet
+		data.CanonicalTargetsRole:   http.StatusNotFound,
+		data.CanonicalRootRole:      http.StatusNotFound,
+		"somerandomrole":            http.StatusNotFound,
+	}
+
+	var buf bytes.Buffer
+	for role, expectedStatus := range rolesToStatus {
+		res, err := http.Post(
+			fmt.Sprintf("%s/v2/gun/_trust/tuf/%s.key", ts.URL, role),
+			"text/plain", &buf)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedStatus, res.StatusCode)
 	}
