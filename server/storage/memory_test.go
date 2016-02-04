@@ -1,7 +1,9 @@
 package storage
 
 import (
+	"bytes"
 	"testing"
+	"time"
 
 	"github.com/docker/notary/tuf/data"
 	"github.com/stretchr/testify/assert"
@@ -41,58 +43,174 @@ func TestDelete(t *testing.T) {
 	assert.False(t, ok, "Found gun in store, should have been deleted")
 }
 
-func TestGetTimestampKey(t *testing.T) {
+// If there are no keys, getting the latest key results in an ErrNoKey
+func TestGetNoKeys(t *testing.T) {
 	s := NewMemStorage()
+	_, err := s.GetLatestKey("gun", data.CanonicalTimestampRole)
+	assert.Error(t, err)
+	assert.IsType(t, ErrNoKey{}, err)
 
-	s.SetKey("gun", data.CanonicalTimestampRole, data.RSAKey, []byte("test"))
+	// getting a key for a different gun or different role fails too
+	k := data.NewPublicKey(data.RSAKey, []byte("test"))
+	assert.NoError(t, s.AddKey("gun", data.CanonicalTimestampRole, k, time.Now().AddDate(1, 1, 1)))
 
-	c, k, err := s.GetKey("gun", data.CanonicalTimestampRole)
-	assert.Nil(t, err, "Expected error to be nil")
-	assert.Equal(t, data.RSAKey, c, "Expected algorithm rsa, received %s", c)
-	assert.Equal(t, []byte("test"), k, "Key data was wrong")
+	_, err = s.GetLatestKey("gun", data.CanonicalSnapshotRole)
+	assert.Error(t, err)
+	assert.IsType(t, ErrNoKey{}, err)
+
+	_, err = s.GetLatestKey("othergun", data.CanonicalTimestampRole)
+	assert.Error(t, err)
+	assert.IsType(t, ErrNoKey{}, err)
 }
 
-func TestSetKey(t *testing.T) {
+// GetlatestKey returns the latest key, whether it is active or pending
+func TestGetLatest(t *testing.T) {
 	s := NewMemStorage()
-	err := s.SetKey("gun", data.CanonicalTimestampRole, data.RSAKey, []byte("test"))
+
+	k1 := data.NewPublicKey(data.RSAKey, []byte("test1"))
+	k2 := data.NewPublicKey(data.RSAKey, []byte("test2"))
+	assert.NoError(t, s.AddKey("gun", data.CanonicalTimestampRole, k1, time.Now().AddDate(1, 1, 1)))
+	assert.NoError(t, s.AddKey("gun", data.CanonicalTimestampRole, k2, time.Now().AddDate(1, 1, 1)))
+
+	key, err := s.GetLatestKey("gun", data.CanonicalTimestampRole)
 	assert.NoError(t, err)
+	assert.Equal(t, k2.ID(), key.ID())
+	assert.True(t, key.Pending)
 
-	k := s.keys["gun"][data.CanonicalTimestampRole]
-	assert.Equal(t, data.RSAKey, k.algorithm, "Expected algorithm to be rsa, received %s", k.algorithm)
-	assert.Equal(t, []byte("test"), k.public, "Public key did not match expected")
+	assert.NoError(t, s.MarkActiveKeys("gun", data.CanonicalTimestampRole, []string{k1.ID(), k2.ID()}))
 
+	key, err = s.GetLatestKey("gun", data.CanonicalTimestampRole)
+	assert.NoError(t, err)
+	assert.Equal(t, k2.ID(), key.ID())
+	assert.False(t, key.Pending)
 }
 
-func TestSetKeyMultipleRoles(t *testing.T) {
+// If a key is expired, even if it's the most recently created, GetLatestKey will ignore it.
+func TestGetLatestKeyExcludesExpired(t *testing.T) {
 	s := NewMemStorage()
-	err := s.SetKey("gun", data.CanonicalTimestampRole, data.RSAKey, []byte("test"))
+
+	k1 := data.NewPublicKey(data.RSAKey, []byte("test1"))
+	k2 := data.NewPublicKey(data.RSAKey, []byte("test2"))
+	assert.NoError(t, s.AddKey("gun", data.CanonicalTimestampRole, k1, time.Now().AddDate(1, 1, 1)))
+	assert.NoError(t, s.AddKey("gun", data.CanonicalTimestampRole, k2, time.Now().AddDate(-100, -1, -1)))
+
+	key, err := s.GetLatestKey("gun", data.CanonicalTimestampRole)
 	assert.NoError(t, err)
+	assert.Equal(t, k1.ID(), key.ID())
 
-	err = s.SetKey("gun", data.CanonicalSnapshotRole, data.RSAKey, []byte("test"))
-	assert.NoError(t, err)
-
-	k := s.keys["gun"][data.CanonicalTimestampRole]
-	assert.Equal(t, data.RSAKey, k.algorithm, "Expected algorithm to be rsa, received %s", k.algorithm)
-	assert.Equal(t, []byte("test"), k.public, "Public key did not match expected")
-
-	k = s.keys["gun"][data.CanonicalSnapshotRole]
-	assert.Equal(t, data.RSAKey, k.algorithm, "Expected algorithm to be rsa, received %s", k.algorithm)
-	assert.Equal(t, []byte("test"), k.public, "Public key did not match expected")
+	s = NewMemStorage()
+	assert.NoError(t, s.AddKey("gun", data.CanonicalTimestampRole, k1, time.Now().AddDate(-100, -1, -1)))
+	_, err = s.GetLatestKey("gun", data.CanonicalTimestampRole)
+	assert.Error(t, err)
+	assert.IsType(t, ErrNoKey{}, err)
 }
 
-func TestSetKeySameRoleGun(t *testing.T) {
+// If there are no non-expired keys which match the given key IDs, HasAnyKeys will return false.
+// Otherwise if even a single key exists, returns true
+func TestHasAnyKeys(t *testing.T) {
 	s := NewMemStorage()
-	err := s.SetKey("gun", data.CanonicalTimestampRole, data.RSAKey, []byte("test"))
+	gun := "gun"
+	role := data.CanonicalTimestampRole
+
+	k1 := data.NewPublicKey(data.RSAKey, []byte("test1"))
+	k2 := data.NewPublicKey(data.ECDSAKey, []byte("test2"))
+	assert.NoError(t, s.AddKey(gun, role, k1, time.Now().AddDate(1, 1, 1)))
+	assert.NoError(t, s.AddKey(gun, role, k2, time.Now().AddDate(-100, -1, -1)))
+
+	yesno, err := s.HasAnyKeys(gun, role, []string{"123", "abc"})
 	assert.NoError(t, err)
+	assert.False(t, yesno)
 
-	// set diff algo and bytes so we can confirm data didn't get replaced
-	err = s.SetKey("gun", data.CanonicalTimestampRole, data.ECDSAKey, []byte("test2"))
-	assert.IsType(t, &ErrKeyExists{}, err, "Expected err to be ErrKeyExists")
+	yesno, err = s.HasAnyKeys(gun, role, []string{k2.ID()})
+	assert.NoError(t, err)
+	assert.False(t, yesno)
 
-	k := s.keys["gun"][data.CanonicalTimestampRole]
-	assert.Equal(t, data.RSAKey, k.algorithm, "Expected algorithm to be rsa, received %s", k.algorithm)
-	assert.Equal(t, []byte("test"), k.public, "Public key did not match expected")
+	yesno, err = s.HasAnyKeys(gun, role, []string{k1.ID()})
+	assert.NoError(t, err)
+	assert.True(t, yesno)
+}
 
+// Adding a key means that we can get it.  We can't add the same key again, though.
+// Keys are always added as pending.
+func TestAddKeyDuplicate(t *testing.T) {
+	s := NewMemStorage()
+
+	key := data.NewPublicKey(data.RSAKey, []byte("test"))
+	assert.NoError(t, s.AddKey("gun", data.CanonicalTimestampRole, key, time.Now().AddDate(100, 0, 0)))
+
+	k, err := s.GetLatestKey("gun", data.CanonicalTimestampRole)
+	assert.NoError(t, err)
+	assert.Equal(t, key.Algorithm(), k.Algorithm(), "Expected algorithm to be rsa")
+	assert.True(t, bytes.Equal(key.Public(), k.Public()), "Public key did not match expected")
+	assert.True(t, k.Pending)
+
+	err = s.AddKey("gun", data.CanonicalTimestampRole, key, time.Now().AddDate(1, 1, 1))
+	assert.Error(t, err)
+	existsErr, ok := err.(ErrKeyExists)
+	assert.True(t, ok, "Cannot add same key a second time to the same gun and role")
+	assert.Equal(t, existsErr.Gun, "gun")
+	assert.Equal(t, existsErr.Role, data.CanonicalTimestampRole)
+	assert.Equal(t, existsErr.KeyID, key.ID())
+}
+
+// We can add multiple keys to multiple roles, and GetLatestKey will get only
+// the latest of those keys of the given role.
+func TestAddMultipleKeys(t *testing.T) {
+	s := NewMemStorage()
+
+	roles := []string{data.CanonicalTimestampRole, data.CanonicalSnapshotRole}
+	latestKeys := make(map[string]data.PublicKey)
+
+	for i, keyAlgo := range []string{data.ECDSAKey, data.RSAKey} {
+		for _, role := range roles {
+			key := data.NewPublicKey(keyAlgo, []byte(keyAlgo))
+			assert.NoError(t, s.AddKey("gun", role, key, time.Now().AddDate(1, 1, 1)))
+			if i > 0 {
+				latestKeys[role] = key
+			}
+		}
+	}
+
+	for _, role := range roles {
+		key, err := s.GetLatestKey("gun", role)
+		assert.NoError(t, err)
+		assert.Equal(t, latestKeys[role].ID(), key.ID())
+	}
+}
+
+// Marking nonexistent keys as active does not fail - it's just a no-op.
+func TestMarkActiveKeysNonexistent(t *testing.T) {
+	s := NewMemStorage()
+	assert.NoError(t, s.MarkActiveKeys("gun", data.CanonicalSnapshotRole, []string{"1234"}))
+}
+
+// The list of keys passed to MarkActiveKeys does not all have to exist.  MarkActiveKeys
+// will mark those that exist as active, and ignore the others.
+func TestMarkActiveKeys(t *testing.T) {
+	s := NewMemStorage()
+
+	key := data.NewPublicKey(data.RSAKey, []byte("test1"))
+	roles := []string{data.CanonicalTimestampRole, data.CanonicalSnapshotRole}
+
+	// both roles have the same key
+	for _, role := range roles {
+		assert.NoError(t, s.AddKey("gun", role, key, time.Now().AddDate(1, 1, 1)))
+		k, err := s.GetLatestKey("gun", role)
+		assert.NoError(t, err)
+		assert.NotNil(t, k)
+		assert.True(t, k.Pending)
+	}
+
+	// mark only the key for one role active
+	assert.NoError(t, s.MarkActiveKeys("gun", data.CanonicalSnapshotRole, []string{key.ID(), "1234"}))
+
+	// only the one marked active should be active
+	for _, role := range roles {
+		k, err := s.GetLatestKey("gun", role)
+		assert.NoError(t, err)
+		assert.NotNil(t, k)
+		assert.Equal(t, role != data.CanonicalSnapshotRole, k.Pending)
+	}
 }
 
 func TestGetChecksumNotFound(t *testing.T) {

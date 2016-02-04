@@ -2392,14 +2392,16 @@ func TestRotateKeyInvalidRole(t *testing.T) {
 	repo, _ := initializeRepo(t, data.ECDSAKey, "docker.com/notary", ts.URL, false)
 	defer os.RemoveAll(repo.baseDir)
 
-	// the equivalent of: (root, true), (root, false), (timestamp, true),
-	// (timestamp, false), (targets, true)
+	// the equivalent of: (root, true), (root, false), (timestamp, false), (targets, true)
 	for _, role := range data.BaseRoles {
-		if role == data.CanonicalSnapshotRole {
+		if role == data.CanonicalSnapshotRole { // remote or local can manage snapshot
 			continue
 		}
 		for _, serverManagesKey := range []bool{true, false} {
-			if role == data.CanonicalTargetsRole && !serverManagesKey {
+			if role == data.CanonicalTargetsRole && !serverManagesKey { // only local can manage targets
+				continue
+			}
+			if role == data.CanonicalTimestampRole && serverManagesKey { // only remote can manage timestamp
 				continue
 			}
 			err := repo.RotateKey(role, serverManagesKey)

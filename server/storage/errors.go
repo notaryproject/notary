@@ -22,21 +22,23 @@ func (err ErrNotFound) Error() string {
 
 // ErrKeyExists is returned when a key already exists
 type ErrKeyExists struct {
-	gun  string
-	role string
+	Gun   string
+	Role  string
+	KeyID string
 }
 
 // ErrKeyExists is returned when a key already exists
 func (err ErrKeyExists) Error() string {
-	return fmt.Sprintf("Error, timestamp key already exists for %s:%s", err.gun, err.role)
+	return fmt.Sprintf("Error, %s key %s already exists for %s", err.Role, err.KeyID, err.Gun)
 }
 
-// ErrNoKey is returned when no timestamp key is found
+// ErrNoKey is returned when no key is found
 type ErrNoKey struct {
-	gun string
+	Gun  string
+	Role string
 }
 
 // ErrNoKey is returned when no timestamp key is found
 func (err ErrNoKey) Error() string {
-	return fmt.Sprintf("Error, no timestamp key found for %s", err.gun)
+	return fmt.Sprintf("Error, no %s key found for %s", err.Role, err.Gun)
 }

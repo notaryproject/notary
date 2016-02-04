@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf"
@@ -31,8 +32,7 @@ func copyTimestampKey(t *testing.T, fromKeyDB *keys.KeyDB,
 	assert.NotNil(t, pubTimestampKey,
 		"Timestamp key specified by KeyDB role not in KeysDB")
 
-	err := toStore.SetKey(gun, data.CanonicalTimestampRole, pubTimestampKey.Algorithm(),
-		pubTimestampKey.Public())
+	err := toStore.AddKey(gun, data.CanonicalTimestampRole, pubTimestampKey, time.Now().AddDate(1, 1, 1))
 	assert.NoError(t, err)
 }
 
@@ -250,7 +250,7 @@ func TestValidateSnapshotGenerateNoPrev(t *testing.T) {
 	for _, id := range snapRole.KeyIDs {
 		k := kdb.GetKey(id)
 		assert.NotNil(t, k)
-		err := store.SetKey("testGUN", data.CanonicalSnapshotRole, k.Algorithm(), k.Public())
+		err := store.AddKey("testGUN", data.CanonicalSnapshotRole, k, time.Now().AddDate(1, 1, 1))
 		assert.NoError(t, err)
 	}
 
@@ -275,7 +275,7 @@ func TestValidateSnapshotGenerateWithPrev(t *testing.T) {
 	for _, id := range snapRole.KeyIDs {
 		k := kdb.GetKey(id)
 		assert.NotNil(t, k)
-		err := store.SetKey("testGUN", data.CanonicalSnapshotRole, k.Algorithm(), k.Public())
+		err := store.AddKey("testGUN", data.CanonicalSnapshotRole, k, time.Now().AddDate(1, 1, 1))
 		assert.NoError(t, err)
 	}
 
@@ -316,7 +316,7 @@ func TestValidateSnapshotGeneratePrevCorrupt(t *testing.T) {
 	for _, id := range snapRole.KeyIDs {
 		k := kdb.GetKey(id)
 		assert.NotNil(t, k)
-		err := store.SetKey("testGUN", data.CanonicalSnapshotRole, k.Algorithm(), k.Public())
+		err := store.AddKey("testGUN", data.CanonicalSnapshotRole, k, time.Now().AddDate(1, 1, 1))
 		assert.NoError(t, err)
 	}
 
@@ -347,7 +347,7 @@ func TestValidateSnapshotGenerateNoTargets(t *testing.T) {
 	for _, id := range snapRole.KeyIDs {
 		k := kdb.GetKey(id)
 		assert.NotNil(t, k)
-		err := store.SetKey("testGUN", data.CanonicalSnapshotRole, k.Algorithm(), k.Public())
+		err := store.AddKey("testGUN", data.CanonicalSnapshotRole, k, time.Now().AddDate(1, 1, 1))
 		assert.NoError(t, err)
 	}
 
@@ -372,7 +372,7 @@ func TestValidateSnapshotGenerate(t *testing.T) {
 	for _, id := range snapRole.KeyIDs {
 		k := kdb.GetKey(id)
 		assert.NotNil(t, k)
-		err := store.SetKey("testGUN", data.CanonicalSnapshotRole, k.Algorithm(), k.Public())
+		err := store.AddKey("testGUN", data.CanonicalSnapshotRole, k, time.Now().AddDate(1, 1, 1))
 		assert.NoError(t, err)
 	}
 
@@ -406,9 +406,9 @@ func TestValidateRootNoTimestampKey(t *testing.T) {
 	updates := []storage.MetaUpdate{root, targets, snapshot}
 
 	// sanity check - no timestamp keys for the GUN
-	_, _, err = store.GetKey("testGUN", data.CanonicalTimestampRole)
+	_, err = store.GetLatestKey("testGUN", data.CanonicalTimestampRole)
 	assert.Error(t, err)
-	assert.IsType(t, &storage.ErrNoKey{}, err)
+	assert.IsType(t, storage.ErrNoKey{}, err)
 
 	// do not copy the targets key to the storage, and try to update the root
 	_, err = validateUpdate(cs, "testGUN", updates, store)
@@ -417,7 +417,7 @@ func TestValidateRootNoTimestampKey(t *testing.T) {
 
 	// there should still be no timestamp keys - one should not have been
 	// created
-	_, _, err = store.GetKey("testGUN", data.CanonicalTimestampRole)
+	_, err = store.GetLatestKey("testGUN", data.CanonicalTimestampRole)
 	assert.Error(t, err)
 }
 
@@ -439,7 +439,7 @@ func TestValidateRootInvalidTimestampKey(t *testing.T) {
 
 	key, err := trustmanager.GenerateECDSAKey(rand.Reader)
 	assert.NoError(t, err)
-	err = store.SetKey("testGUN", data.CanonicalRootRole, key.Algorithm(), key.Public())
+	err = store.AddKey("testGUN", data.CanonicalRootRole, key, time.Now().AddDate(1, 1, 1))
 	assert.NoError(t, err)
 
 	_, err = validateUpdate(cs, "testGUN", updates, store)
