@@ -61,12 +61,8 @@ func PromptRetriever() Retriever {
 // aliasMap can be used to specify display names for TUF key aliases. If aliasMap
 // is nil, a sensible default will be used.
 func PromptRetrieverWithInOut(in io.Reader, out io.Writer, aliasMap map[string]string) Retriever {
-	userEnteredTargetsPass := false
-	targetsPass := ""
-	userEnteredSnapshotPass := false
-	snapshotPass := ""
-	userEnteredRootPass := false
-	rootPass := ""
+
+	passphraseCache := make(map[string]string)
 
 	return func(keyName string, alias string, createNew bool, numAttempts int) (string, bool, error) {
 		if alias == tufRootAlias && createNew && numAttempts == 0 {
@@ -89,19 +85,8 @@ func PromptRetrieverWithInOut(in io.Reader, out io.Writer, aliasMap map[string]s
 
 		// First, check if we have a password cached for this alias.
 		if numAttempts == 0 {
-			switch alias {
-			case tufTargetsAlias:
-				if userEnteredTargetsPass {
-					return targetsPass, false, nil
-				}
-			case tufSnapshotAlias:
-				if userEnteredSnapshotPass {
-					return snapshotPass, false, nil
-				}
-			case tufRootAlias:
-				if userEnteredRootPass {
-					return rootPass, false, nil
-				}
+			if pass, ok := passphraseCache[alias]; ok {
+				return pass, false, nil
 			}
 		}
 
@@ -160,17 +145,7 @@ func PromptRetrieverWithInOut(in io.Reader, out io.Writer, aliasMap map[string]s
 		retPass := strings.TrimSpace(string(passphrase))
 
 		if !createNew {
-			switch alias {
-			case tufTargetsAlias:
-				userEnteredTargetsPass = true
-				targetsPass = retPass
-			case tufSnapshotAlias:
-				userEnteredSnapshotPass = true
-				snapshotPass = retPass
-			case tufRootAlias:
-				userEnteredRootPass = true
-				rootPass = retPass
-			}
+			passphraseCache[alias] = retPass
 			return retPass, false, nil
 		}
 
@@ -192,17 +167,7 @@ func PromptRetrieverWithInOut(in io.Reader, out io.Writer, aliasMap map[string]s
 			return "", false, ErrDontMatch
 		}
 
-		switch alias {
-		case tufTargetsAlias:
-			userEnteredTargetsPass = true
-			targetsPass = retPass
-		case tufSnapshotAlias:
-			userEnteredSnapshotPass = true
-			snapshotPass = retPass
-		case tufRootAlias:
-			userEnteredRootPass = true
-			rootPass = retPass
-		}
+		passphraseCache[alias] = retPass
 
 		return retPass, false, nil
 	}

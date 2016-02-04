@@ -105,11 +105,10 @@ func TestRolePromptingAndCaching(t *testing.T) {
 	require.False(t, giveUp)
 	require.Equal(t, "delegationpass", pass)
 
-	// ask for targets/newdelegation password, which should not be cached
-	pass, giveUp, err = retriever("repo/0123456789abcdef", "targets/newdelegation", false, 0)
+	// ask for different delegation password, which should not be cached
+	_, _, err = retriever("repo/0123456789abcdef", "targets/delegation/new", false, 0)
 	require.Error(t, err)
-
 	text, err := ioutil.ReadAll(&out)
 	require.NoError(t, err)
-	require.Contains(t, string(text), "Enter passphrase for targets/newdelegation key with ID 0123456 (repo):")
+	require.Contains(t, string(text), "Enter passphrase for targets/delegation/new key with ID 0123456 (repo):")
 }
