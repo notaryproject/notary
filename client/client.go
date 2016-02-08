@@ -522,11 +522,10 @@ func (r *NotaryRepository) Publish() error {
 			initialPublish = true
 		} else {
 			// We could not update, so we cannot publish.
-			logrus.Error("Could not publish Repository: ", err.Error())
+			logrus.Error("Could not publish Repository since we could not update: ", err.Error())
 			return err
 		}
 	}
-
 	cl, err := r.GetChangelist()
 	if err != nil {
 		return err
@@ -619,7 +618,7 @@ func (r *NotaryRepository) Publish() error {
 // to load metadata for all roles.  Since server snapshots are supported,
 // if the snapshot metadata fails to load, that's ok.
 // This can also be unified with some cache reading tools from tuf/client.
-// This assumes that bootstrapRepo is only used by Publish()
+// This assumes that bootstrapRepo is only used by Publish() or RotateKey()
 func (r *NotaryRepository) bootstrapRepo() error {
 	kdb := keys.NewDB()
 	tufRepo := tuf.NewRepo(kdb, r.CryptoService)
@@ -848,7 +847,7 @@ func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool) error {
 		return ErrInvalidRemoteRole{Role: data.CanonicalTargetsRole}
 	}
 	if !serverManagesKey && role == data.CanonicalTimestampRole {
-		return ErrInvalidLocalRole{Role: data.CanonicalTargetsRole}
+		return ErrInvalidLocalRole{Role: data.CanonicalTimestampRole}
 	}
 
 	var (
@@ -857,18 +856,48 @@ func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool) error {
 		err          error
 	)
 	if serverManagesKey {
-		pubKey, err = getRemoteKey(r.baseURL, r.gun, role, r.roundTrip, true)
-		errFmtString = "server unable to rotate key: %s"
+		if err := r.bootstrapRepo(); err != nil {
+			return err
+		}
+
+		// get root keys - since we bootstrapped the repo, a valid root should always specify
+		// the root role
+		rootRole, ok := r.tufRepo.Root.Signed.Roles[data.CanonicalRootRole]
+		if !ok {
+			return fmt.Errorf("update resulted in an invalid state with an invalid root")
+		}
+		rootKeys := make([]data.PublicKey, 0, len(rootRole.KeyIDs))
+		for _, kid := range rootRole.KeyIDs {
+			k, ok := r.tufRepo.Root.Signed.Keys[kid]
+			if ok {
+				// this should always be the case, as key IDs need to correspond to keys in the
+				// key list, but just in case: skip if it's not
+				rootKeys = append(rootKeys, k)
+			}
+		}
+
+		errFmtString = "unable to rotate remote key: %s"
+		remote, err := getRemoteStore(r.baseURL, r.gun, r.roundTrip)
+		if err == nil {
+			pubKey, err = remote.RotateKey(role, r.CryptoService, rootKeys...)
+		}
 	} else {
 		pubKey, err = r.CryptoService.Create(role, data.ECDSAKey)
 		errFmtString = "unable to generate key: %s"
 	}
 
 	if err != nil {
-		return fmt.Errof(errFmtString, err)
+		return fmt.Errorf(errFmtString, err)
 	}
 
-	return r.rootFileKeyChange(role, changelist.ActionCreate, pubKey)
+	if err = r.rootFileKeyChange(role, changelist.ActionCreate, pubKey); err != nil {
+		return err
+	}
+
+	if serverManagesKey {
+		return r.Publish()
+	}
+	return nil
 }
 
 func (r *NotaryRepository) rootFileKeyChange(role, action string, key data.PublicKey) error {

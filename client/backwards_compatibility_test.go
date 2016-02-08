@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/store"
@@ -106,8 +107,13 @@ func Test0Dot1RepoFormat(t *testing.T) {
 	// one and try to create a new one from scratch, which will be the wrong version
 	require.NoError(t, repo.fileStore.RemoveMeta(data.CanonicalTimestampRole))
 
-	// rotate the timestamp key, since the server doesn't have that one
-	require.NoError(t, repo.RotateKey(data.CanonicalTimestampRole, true))
+	// rotate the timestamp key, since the server doesn't have that one (we can't just
+	// call RotateKey because the server will verify that it is signed by the root, and
+	// the server doesn't know about this one)
+	timestampPubKey, err := getRemoteKey(ts.URL, gun, data.CanonicalTimestampRole, http.DefaultTransport)
+	require.NoError(t, err)
+	require.NoError(
+		t, repo.rootFileKeyChange(data.CanonicalTimestampRole, changelist.ActionCreate, timestampPubKey))
 	require.NoError(t, repo.Publish())
 
 	targets, err = repo.ListTargets()

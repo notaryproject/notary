@@ -179,23 +179,6 @@ func TestGetKeyHandlerCreatesOnce(t *testing.T) {
 	}
 }
 
-// If we cannot rotate the key, we get an error cannot rotate key back
-func TestRotateKeyHandlerCannotRotateKey(t *testing.T) {
-	state := defaultState()
-	roles := []string{data.CanonicalTimestampRole, data.CanonicalSnapshotRole}
-
-	for _, role := range roles {
-		vars := map[string]string{"imageName": "gun", "tufRole": role}
-		var buf bytes.Buffer
-		err := rotateKeyHandler(getContext(state), &buf, vars)
-		assert.Error(t, err)
-		assert.Empty(t, len(buf.Bytes()))
-		errCode, ok := err.(errcode.Error)
-		assert.True(t, ok)
-		assert.Equal(t, errors.ErrCannotRotateKey, errCode.Code)
-	}
-}
-
 func TestGetHandlerRoot(t *testing.T) {
 	metaStore := storage.NewMemStorage()
 	_, repo, _, err := testutils.EmptyRepo("gun")

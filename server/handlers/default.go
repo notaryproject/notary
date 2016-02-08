@@ -208,11 +208,7 @@ func parseKeyParams(ctx context.Context, vars map[string]string) (*serverKeyInfo
 }
 
 func rotateKeyHandler(ctx context.Context, w io.Writer, vars map[string]string) error {
-	if _, err := parseKeyParams(ctx, vars); err != nil {
-		return err
-	}
-	// Not implemented yet.
-	return errors.ErrCannotRotateKey.WithDetail(nil)
+	return getKeyHandler(ctx, w, vars)
 }
 
 func getKeyHandler(ctx context.Context, w io.Writer, vars map[string]string) error {

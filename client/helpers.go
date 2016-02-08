@@ -251,15 +251,6 @@ func getRemoteKey(url, gun, role string, rt http.RoundTripper) (data.PublicKey, 
 	return remote.GetKey(role)
 }
 
-// Rotates a public key from a remote store, given a gun and role
-func rotateRemoteKey(url, gun, role string, rt http.RoundTripper) (data.PublicKey, error) {
-	remote, err := getRemoteStore(url, gun, rt)
-	if err != nil {
-		return nil, err
-	}
-	return remote.RotateKey(role)
-}
-
 // add a key to a KeyDB, and create a role for the key and add it.
 func addKeyForRole(kdb *keys.KeyDB, role string, key data.PublicKey) error {
 	theRole, err := data.NewRole(role, 1, []string{key.ID()}, nil, nil)

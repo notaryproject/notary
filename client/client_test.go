@@ -2570,39 +2570,6 @@ func testRotateKeySuccess(t *testing.T, serverManagesSnapshotInit bool,
 	}
 }
 
-// If remote rotate key was rate limited, just get the latest created key and
-// use that.
-func TestRemoteRotationRateLimited(t *testing.T) {
-	ts := fullTestServer(t)
-	defer ts.Close()
-
-	repo, _ := initializeRepo(t, data.ECDSAKey, "docker.com/notary", ts.URL, true)
-	defer os.RemoveAll(repo.baseDir)
-
-	role := data.CanonicalSnapshotRole
-
-	// original key is the key on the repo
-	origKey, err := getRemoteKey(ts.URL, repo.gun, role, repo.roundTrip)
-	assert.NoError(t, err)
-	assert.Len(t, repo.tufRepo.Root.Signed.Roles[role].KeyIDs, 1)
-	assert.Equal(t, origKey.ID(), repo.tufRepo.Root.Signed.Roles[role].KeyIDs[0])
-
-	// rotate keys, and assert that the first rotation doesn't fail but doesn't rotate,
-	// because the original key has not actually been published yet.
-	assert.NoError(t, repo.RotateKey(role, true))
-
-	rotateKey1, err := getRemoteKey(ts.URL, repo.gun, role, repo.roundTrip)
-	assert.NoError(t, err)
-	assert.Equal(t, origKey.ID(), rotateKey1.ID())
-
-	// publish
-	assert.NoError(t, repo.Publish())
-
-	// the final key is the original key, since it was not rotated
-	assert.Len(t, repo.tufRepo.Root.Signed.Roles[role].KeyIDs, 1)
-	assert.Equal(t, rotateKey1.ID(), repo.tufRepo.Root.Signed.Roles[role].KeyIDs[0])
-}
-
 // If remotely rotating key fails for a non-rate-limit reason, fail the rotation
 // entirely
 func TestRemoteRotationNonRateLimitError(t *testing.T) {
@@ -2614,6 +2581,26 @@ func TestRemoteRotationNonRateLimitError(t *testing.T) {
 
 	// simpleTestServer has no rotate key endpoint, so this should fail
 	assert.Error(t, repo.RotateKey(data.CanonicalTimestampRole, true))
+}
+
+// The rotator is not the owner of the repository, they cannot rotate the remote
+// key
+func TestRemoteRotationNonPermitted(t *testing.T) {
+	ts := fullTestServer(t)
+	defer ts.Close()
+
+	repo, _ := initializeRepo(t, data.ECDSAKey, "docker.com/notary", ts.URL, true)
+	defer os.RemoveAll(repo.baseDir)
+	assert.NoError(t, repo.Publish())
+
+	newRepo, _ := newRepoToTestRepo(t, repo, true)
+	defer os.RemoveAll(newRepo.baseDir)
+	_, err := newRepo.ListTargets()
+	assert.NoError(t, err)
+
+	err = newRepo.RotateKey(data.CanonicalSnapshotRole, true)
+	assert.Error(t, err)
+	assert.IsType(t, signed.ErrNoKeys{}, err)
 }
 
 // If there is no local cache, notary operations return the remote error code
