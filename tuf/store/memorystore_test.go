@@ -36,6 +36,6 @@ func TestMemoryStore(t *testing.T) {
 	_, err = s.GetKey(data.CanonicalSnapshotRole)
 	require.Error(t, err)
 
-	_, err = s.RotateKey(data.CanonicalSnapshotRole)
+	_, err = s.RotateKey(data.CanonicalSnapshotRole, nil)
 	require.Error(t, err)
 }

@@ -12,10 +12,12 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/keys"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/validation"
 	"github.com/stretchr/testify/assert"
@@ -349,7 +351,7 @@ func TestGetKeyAndRotateKeySuccess(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, key.ID(), gotten.ID())
 
-	rotated, err := store.RotateKey(role)
+	rotated, err := store.RotateKey(role, c, key)
 	assert.NoError(t, err)
 	assert.Equal(t, key.ID(), rotated.ID())
 }
@@ -357,6 +359,10 @@ func TestGetKeyAndRotateKeySuccess(t *testing.T) {
 // GetKey and RotateKey both fail if the key returned is invalid JSON
 func TestGetKeyAndRotateKeyInvalidJSON(t *testing.T) {
 	role := data.CanonicalSnapshotRole
+
+	c := signed.NewEd25519()
+	root, err := c.Create(data.CanonicalRootRole, data.ED25519Key)
+	assert.NoError(t, err)
 
 	// Set up a simple handler and server for our store
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -371,7 +377,7 @@ func TestGetKeyAndRotateKeyInvalidJSON(t *testing.T) {
 	assert.Error(t, err)
 	assert.IsType(t, &json.SyntaxError{}, err)
 
-	_, err = store.RotateKey(role)
+	_, err = store.RotateKey(role, c, root)
 	assert.Error(t, err)
 	assert.IsType(t, &json.SyntaxError{}, err)
 }
@@ -379,6 +385,10 @@ func TestGetKeyAndRotateKeyInvalidJSON(t *testing.T) {
 // GetKey and RotateKey both fail if it cannot make the request
 func TestGetKeyAndRotateKeyServerUnreachable(t *testing.T) {
 	role := data.CanonicalSnapshotRole
+
+	c := signed.NewEd25519()
+	root, err := c.Create(data.CanonicalRootRole, data.ED25519Key)
+	assert.NoError(t, err)
 
 	// nonexistent URL
 	store, err := NewHTTPStore("http://localhost:90861", "metadata", "json", "key", http.DefaultTransport)
@@ -388,7 +398,7 @@ func TestGetKeyAndRotateKeyServerUnreachable(t *testing.T) {
 	assert.Error(t, err)
 	assert.IsType(t, &net.OpError{}, err)
 
-	_, err = store.RotateKey(role)
+	_, err = store.RotateKey(role, c, root)
 	assert.Error(t, err)
 	assert.IsType(t, &net.OpError{}, err)
 }
@@ -396,6 +406,10 @@ func TestGetKeyAndRotateKeyServerUnreachable(t *testing.T) {
 // GetKey and RotateKey both fail with ErrInvalidOperation if a notary.HTTPStatusTooManyRequests is returned
 func TestGetKeyAndRotateKeyServerLimitError(t *testing.T) {
 	role := data.CanonicalSnapshotRole
+
+	c := signed.NewEd25519()
+	root, err := c.Create(data.CanonicalRootRole, data.ED25519Key)
+	assert.NoError(t, err)
 
 	// Set up a simple handler and server for our store
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -410,7 +424,76 @@ func TestGetKeyAndRotateKeyServerLimitError(t *testing.T) {
 	assert.Error(t, err)
 	assert.IsType(t, ErrInvalidOperation{}, err)
 
-	_, err = store.RotateKey(role)
+	_, err = store.RotateKey(role, c, root)
 	assert.Error(t, err)
 	assert.IsType(t, ErrInvalidOperation{}, err)
+}
+
+// RotateKey sends a signed request to the the server to rotate a key
+func TestRotateKeySendsSignedRequest(t *testing.T) {
+	role := data.CanonicalSnapshotRole
+
+	c := signed.NewEd25519()
+	root, err := c.Create(data.CanonicalRootRole, data.ED25519Key)
+	assert.NoError(t, err)
+	snapshot, err := c.Create(role, data.ED25519Key)
+	assert.NoError(t, err)
+
+	keyJSON, err := json.Marshal(snapshot)
+	assert.NoError(t, err)
+
+	kdb := keys.NewDB()
+	kdb.AddKey(root)
+	roleObj, err := data.NewRole(data.CanonicalRootRole, 1, []string{root.ID()}, nil, nil)
+	assert.NoError(t, err)
+	kdb.AddRole(roleObj)
+
+	// Set up handler that asserts information about the request
+	m := http.NewServeMux()
+	m.HandleFunc("/metadata/snapshot.key", func(w http.ResponseWriter, r *http.Request) {
+		decoder := json.NewDecoder(r.Body)
+		s := data.Signed{}
+		assert.NoError(t, decoder.Decode(&s))
+		assert.NoError(t, signed.VerifySignatures(&s, data.CanonicalRootRole, kdb))
+		common := data.SignedCommon{}
+		assert.NoError(t, json.Unmarshal(s.Signed, &common))
+		assert.Equal(t, data.CanonicalSnapshotRole, common.Type)
+		assert.True(t, common.Expires.After(time.Now()))
+		assert.False(t, common.Expires.After(time.Now().Add(5*time.Minute)))
+
+		w.Write(keyJSON)
+	})
+	server := httptest.NewServer(m)
+	defer server.Close()
+
+	store, err := NewHTTPStore(server.URL, "metadata", "json", "key", http.DefaultTransport)
+	assert.NoError(t, err)
+
+	k, err := store.RotateKey(role, c, root)
+	assert.NoError(t, err)
+	assert.Equal(t, snapshot.ID(), k.ID())
+}
+
+// RotateKey fails to even send a request if we can't sign.
+func TestRotateKeyDoesntSendRequestIfCannotSign(t *testing.T) {
+	role := data.CanonicalSnapshotRole
+
+	c := signed.NewEd25519()
+	root, err := c.Create(data.CanonicalRootRole, data.ED25519Key)
+	assert.NoError(t, err)
+
+	// Set up handler that asserts information about the request
+	m := http.NewServeMux()
+	m.HandleFunc("/metadata/snapshot.key", func(w http.ResponseWriter, r *http.Request) {
+		assert.Fail(t, "No request should ever have been made.")
+	})
+	server := httptest.NewServer(m)
+	defer server.Close()
+
+	store, err := NewHTTPStore(server.URL, "metadata", "json", "key", http.DefaultTransport)
+	assert.NoError(t, err)
+
+	_, err = store.RotateKey(role, signed.NewEd25519(), root)
+	assert.Error(t, err)
+	assert.IsType(t, signed.ErrNoKeys{}, err)
 }

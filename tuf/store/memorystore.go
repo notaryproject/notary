@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/utils"
 )
 
@@ -100,7 +101,7 @@ func (m *MemoryStore) GetKey(role string) (data.PublicKey, error) {
 }
 
 // RotateKey rotates a key for a given role
-func (m *MemoryStore) RotateKey(role string) (data.PublicKey, error) {
+func (m *MemoryStore) RotateKey(string, signed.CryptoService, ...data.PublicKey) (data.PublicKey, error) {
 	return nil, fmt.Errorf("RotateKey is not implemented for the memoryStore")
 }
 

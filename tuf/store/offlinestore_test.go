@@ -24,7 +24,7 @@ func TestOfflineStore(t *testing.T) {
 	require.Error(t, err)
 	require.IsType(t, ErrOffline{}, err)
 
-	_, err = s.RotateKey("")
+	_, err = s.RotateKey("", nil)
 	require.Error(t, err)
 	require.IsType(t, ErrOffline{}, err)
 
