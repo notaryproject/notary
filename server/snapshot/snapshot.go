@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/notary/tuf/keys"
 
 	"github.com/docker/notary/server/storage"
 	"github.com/docker/notary/tuf/data"
@@ -111,7 +112,10 @@ func createSnapshot(gun string, sn *data.SignedSnapshot, store storage.MetaStore
 	if err != nil {
 		return nil, 0, err
 	}
-	err = signed.Sign(cryptoService, out, key)
+	// we are asking to sign with all the keys we know about and have modified
+	// the snapshot so 1. any existing sigs will be invalid, and 2. there are
+	// no other valid keys so an empty KeyDB is fine.
+	err = signed.Sign(cryptoService, keys.NewDB(), out, key)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/go/canonical/json"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/keys"
 	"github.com/docker/notary/tuf/signed"
 
 	"github.com/Sirupsen/logrus"
@@ -139,7 +140,7 @@ func CreateTimestamp(gun string, prev *data.SignedTimestamp, snapshot []byte, st
 		Signatures: ts.Signatures,
 		Signed:     sgndTs,
 	}
-	err = signed.Sign(cryptoService, out, key)
+	err = signed.Sign(cryptoService, keys.NewDB(), out, key)
 	if err != nil {
 		return nil, 0, err
 	}

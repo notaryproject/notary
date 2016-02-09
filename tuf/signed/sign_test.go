@@ -6,9 +6,11 @@ import (
 	"io"
 	"testing"
 
+	"github.com/docker/go/canonical/json"
 	"github.com/docker/notary/cryptoservice"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/keys"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -160,7 +162,10 @@ func TestBasicSign(t *testing.T) {
 	assert.NoError(t, err)
 	testData := data.Signed{}
 
-	err = Sign(cs, &testData, key)
+	kdb := keys.NewDB()
+	kdb.AddKey(key)
+
+	err = Sign(cs, kdb, &testData, key)
 	assert.NoError(t, err)
 
 	if len(testData.Signatures) != 1 {
@@ -180,8 +185,11 @@ func TestReSign(t *testing.T) {
 	assert.NoError(t, err)
 	testData := data.Signed{}
 
-	Sign(cs, &testData, key)
-	Sign(cs, &testData, key)
+	kdb := keys.NewDB()
+	kdb.AddKey(key)
+
+	Sign(cs, kdb, &testData, key)
+	Sign(cs, kdb, &testData, key)
 
 	if len(testData.Signatures) != 1 {
 		t.Fatalf("Incorrect number of signatures: %d", len(testData.Signatures))
@@ -194,27 +202,36 @@ func TestReSign(t *testing.T) {
 }
 
 // Should not remove signatures for valid keys that were not resigned with
+// The root role has 2 keys but the cryptoservices on each call to sign
+// can only provide one key each. We should end up with both keys having
+// signed the file
 func TestMultiSign(t *testing.T) {
-	cs := NewEd25519()
-	testData := data.Signed{}
-
-	key1, err := cs.Create("root", data.ED25519Key)
+	cs1 := NewEd25519()
+	sn := &data.Signed{
+		Signed: json.RawMessage("null"),
+	}
+	ts, err := data.NewTimestamp(sn)
 	assert.NoError(t, err)
-	Sign(cs, &testData, key1)
-
-	// reinitializing cs means it won't know about key1. We want
-	// to attempt to sign passing both key1 and key2, while expecting
-	// that the signature for key1 is left intact and the signature
-	// for key2 is added
-	cs = NewEd25519()
-	key2, err := cs.Create("root", data.ED25519Key)
+	testData, err := ts.ToSigned()
 	assert.NoError(t, err)
-	Sign(
-		cs,
-		&testData,
-		key1,
-		key2,
-	)
+
+	key1, err := cs1.Create("timestamp", data.ED25519Key)
+	assert.NoError(t, err)
+
+	cs2 := NewEd25519()
+	key2, err := cs2.Create("timestamp", data.ED25519Key)
+	assert.NoError(t, err)
+
+	kdb := keys.NewDB()
+	kdb.AddKey(key1)
+	kdb.AddKey(key2)
+
+	Sign(cs1, kdb, testData, key1)
+
+	// cs2 doesn't know about key1. We want to attempt to sign passing
+	// both key1 and key2, while expecting that the signature for key1
+	// is left intact and the signature for key2 is added
+	Sign(cs2, kdb, testData, key1, key2)
 
 	if len(testData.Signatures) != 2 {
 		t.Fatalf("Incorrect number of signatures: %d", len(testData.Signatures))
@@ -238,7 +255,11 @@ func TestSignReturnsNoSigs(t *testing.T) {
 
 	testKey, _ := pem.Decode([]byte(testKeyPEM1))
 	key := data.NewPublicKey(data.RSAKey, testKey.Bytes)
-	err := Sign(failingCryptoService, &testData, key)
+
+	kdb := keys.NewDB()
+	kdb.AddKey(key)
+
+	err := Sign(failingCryptoService, kdb, &testData, key)
 
 	if err == nil {
 		t.Fatalf("Expected failure due to no signature being returned by the crypto service")
@@ -260,11 +281,14 @@ func TestSignWithX509(t *testing.T) {
 	tufRSAx509Key := trustmanager.CertToKey(cert)
 	assert.NoError(t, err)
 
+	kdb := keys.NewDB()
+	kdb.AddKey(tufRSAx509Key)
+
 	// test signing against a service that only recognizes a RSAKey (not
 	// RSAx509 key)
 	mockCryptoService := &StrictMockCryptoService{MockCryptoService{privKey}}
 	testData := data.Signed{}
-	err = Sign(mockCryptoService, &testData, tufRSAx509Key)
+	err = Sign(mockCryptoService, kdb, &testData, tufRSAx509Key)
 	assert.NoError(t, err)
 
 	assert.Len(t, testData.Signatures, 1)

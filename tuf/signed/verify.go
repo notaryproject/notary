@@ -122,7 +122,6 @@ func VerifySignatures(s *data.Signed, role string, db *keys.KeyDB) error {
 
 	valid := make(map[string]struct{})
 	for _, sig := range s.Signatures {
-		logrus.Debug("verifying signature for key ID: ", sig.KeyID)
 		if !roleData.ValidKey(sig.KeyID) {
 			logrus.Debugf("continuing b/c keyid was invalid: %s for roledata %s\n", sig.KeyID, roleData)
 			continue
@@ -132,26 +131,32 @@ func VerifySignatures(s *data.Signed, role string, db *keys.KeyDB) error {
 			logrus.Debugf("continuing b/c keyid lookup was nil: %s\n", sig.KeyID)
 			continue
 		}
-		// method lookup is consistent due to Unmarshal JSON doing lower case for us.
-		method := sig.Method
-		verifier, ok := Verifiers[method]
-		if !ok {
-			logrus.Debugf("continuing b/c signing method is not supported: %s\n", sig.Method)
-			continue
+		if verifySignature(key, sig, msg) {
+			valid[sig.KeyID] = struct{}{}
 		}
-
-		if err := verifier.Verify(key, sig.Signature, msg); err != nil {
-			logrus.Debugf("continuing b/c signature was invalid\n")
-			continue
-		}
-		valid[sig.KeyID] = struct{}{}
-
 	}
 	if len(valid) < roleData.Threshold {
 		return ErrRoleThreshold{}
 	}
 
 	return nil
+}
+
+func verifySignature(key data.PublicKey, sig data.Signature, msg []byte) bool {
+	logrus.Debug("verifying signature for key ID: ", sig.KeyID)
+	// method lookup is consistent due to Unmarshal JSON doing lower case for us.
+	method := sig.Method
+	verifier, ok := Verifiers[method]
+	if !ok {
+		logrus.Debugf("continuing b/c signing method is not supported: %s\n", sig.Method)
+		return false
+	}
+
+	if err := verifier.Verify(key, sig.Signature, msg); err != nil {
+		logrus.Debugf("continuing b/c signature was invalid\n")
+		return false
+	}
+	return true
 }
 
 // Unmarshal unmarshals and verifys the raw bytes for a given role's metadata

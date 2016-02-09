@@ -33,7 +33,7 @@ func TestRoleNoKeys(t *testing.T) {
 	b, err := json.MarshalCanonical(meta)
 	assert.NoError(t, err)
 	s := &data.Signed{Signed: b}
-	Sign(cs, s, k)
+	Sign(cs, db, s, k)
 	err = Verify(s, "root", 1, db)
 	assert.IsType(t, ErrRoleThreshold{}, err)
 }
@@ -60,7 +60,7 @@ func TestNotEnoughSigs(t *testing.T) {
 	b, err := json.MarshalCanonical(meta)
 	assert.NoError(t, err)
 	s := &data.Signed{Signed: b}
-	Sign(cs, s, k)
+	Sign(cs, db, s, k)
 	err = Verify(s, "root", 1, db)
 	assert.IsType(t, ErrRoleThreshold{}, err)
 }
@@ -90,8 +90,70 @@ func TestMoreThanEnoughSigs(t *testing.T) {
 	b, err := json.MarshalCanonical(meta)
 	assert.NoError(t, err)
 	s := &data.Signed{Signed: b}
-	Sign(cs, s, k1, k2)
+	Sign(cs, db, s, k1, k2)
 	assert.Equal(t, 2, len(s.Signatures))
+	err = Verify(s, "root", 1, db)
+	assert.NoError(t, err)
+}
+
+func TestOnlyUnrecognizedSigs(t *testing.T) {
+	cs := NewEd25519()
+	k1, err := cs.Create("root", data.ED25519Key)
+	assert.NoError(t, err)
+	r, err := data.NewRole(
+		"root",
+		1,
+		[]string{k1.ID()},
+		nil,
+		nil,
+	)
+	assert.NoError(t, err)
+	db := keys.NewDB()
+	assert.NoError(t, err)
+	db.AddKey(k1)
+	err = db.AddRole(r)
+	assert.NoError(t, err)
+	meta := &data.SignedCommon{Type: "Root", Version: 1, Expires: data.DefaultExpires("root")}
+
+	b, err := json.MarshalCanonical(meta)
+	assert.NoError(t, err)
+	s := &data.Signed{Signed: b}
+	Sign(cs, db, s, k1)
+	assert.Equal(t, 1, len(s.Signatures))
+	s.Signatures[0].Method = data.SigAlgorithm("unrecognized")
+	err = Verify(s, "root", 1, db)
+	assert.Error(t, err)
+	assert.IsType(t, ErrRoleThreshold{}, err)
+}
+
+func TestSomeUnrecognizedSigs(t *testing.T) {
+	cs := NewEd25519()
+	k1, err := cs.Create("root", data.ED25519Key)
+	assert.NoError(t, err)
+	k2, err := cs.Create("root", data.ED25519Key)
+	assert.NoError(t, err)
+	r, err := data.NewRole(
+		"root",
+		1,
+		[]string{k1.ID(), k2.ID()},
+		nil,
+		nil,
+	)
+	assert.NoError(t, err)
+	db := keys.NewDB()
+	assert.NoError(t, err)
+	db.AddKey(k1)
+	db.AddKey(k2)
+	err = db.AddRole(r)
+	assert.NoError(t, err)
+	meta := &data.SignedCommon{Type: "Root", Version: 1, Expires: data.DefaultExpires("root")}
+
+	b, err := json.MarshalCanonical(meta)
+	assert.NoError(t, err)
+	s := &data.Signed{Signed: b}
+	Sign(cs, db, s, k1, k2)
+	assert.Equal(t, 2, len(s.Signatures))
+	s.Signatures[0].Method = data.SigAlgorithm("unrecognized")
 	err = Verify(s, "root", 1, db)
 	assert.NoError(t, err)
 }
@@ -118,7 +180,7 @@ func TestDuplicateSigs(t *testing.T) {
 	b, err := json.MarshalCanonical(meta)
 	assert.NoError(t, err)
 	s := &data.Signed{Signed: b}
-	Sign(cs, s, k)
+	Sign(cs, db, s, k)
 	s.Signatures = append(s.Signatures, s.Signatures[0])
 	err = Verify(s, "root", 1, db)
 	assert.IsType(t, ErrRoleThreshold{}, err)
@@ -149,7 +211,7 @@ func TestUnknownKeyBelowThreshold(t *testing.T) {
 	b, err := json.MarshalCanonical(meta)
 	assert.NoError(t, err)
 	s := &data.Signed{Signed: b}
-	Sign(cs, s, k, unknown)
+	Sign(cs, db, s, k, unknown)
 	s.Signatures = append(s.Signatures)
 	err = Verify(s, "root", 1, db)
 	assert.IsType(t, ErrRoleThreshold{}, err)
@@ -235,7 +297,7 @@ func Test(t *testing.T) {
 			b, err := json.MarshalCanonical(meta)
 			assert.NoError(t, err)
 			s := &data.Signed{Signed: b}
-			Sign(cryptoService, s, k)
+			Sign(cryptoService, db, s, k)
 			run.s = s
 		}
 		if run.mut != nil {

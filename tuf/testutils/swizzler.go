@@ -10,6 +10,7 @@ import (
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/keys"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/store"
 )
@@ -67,7 +68,7 @@ func serializeMetadata(cs signed.CryptoService, s *data.Signed, role string,
 		return nil, ErrNoKeyForRole{role}
 	}
 
-	if err := signed.Sign(cs, s, pubKeys...); err != nil {
+	if err := signed.Sign(cs, keys.NewDB(), s, pubKeys...); err != nil {
 		if _, ok := err.(signed.ErrNoKeys); ok {
 			return nil, ErrNoKeyForRole{Role: role}
 		}

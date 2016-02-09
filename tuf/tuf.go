@@ -765,7 +765,7 @@ func (tr Repo) sign(signedData *data.Signed, role data.Role) (*data.Signed, erro
 	if len(ks) < 1 {
 		return nil, keys.ErrInvalidKey
 	}
-	err := signed.Sign(tr.cryptoService, signedData, ks...)
+	err := signed.Sign(tr.cryptoService, tr.keysDB, signedData, ks...)
 	if err != nil {
 		return nil, err
 	}

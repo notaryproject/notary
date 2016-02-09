@@ -14,6 +14,7 @@ import (
 	"github.com/docker/notary/cryptoservice"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/keys"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/stretchr/testify/assert"
 )
@@ -293,10 +294,14 @@ func testValidateSuccessfulRootRotation(t *testing.T, keyAlg, rootKeyType string
 	signedTestRoot, err := testRoot.ToSigned()
 	assert.NoError(t, err)
 
-	err = signed.Sign(cs, signedTestRoot, replRootKey)
+	kdb := keys.NewDB()
+	kdb.AddKey(origRootKey)
+	kdb.AddKey(replRootKey)
+
+	err = signed.Sign(cs, kdb, signedTestRoot, replRootKey)
 	assert.NoError(t, err)
 
-	err = signed.Sign(cs, signedTestRoot, origRootKey)
+	err = signed.Sign(cs, kdb, signedTestRoot, origRootKey)
 	assert.NoError(t, err)
 
 	// This call to ValidateRoot will succeed since we are using a valid PEM
@@ -352,7 +357,7 @@ func testValidateRootRotationMissingOrigSig(t *testing.T, keyAlg, rootKeyType st
 	assert.NoError(t, err)
 
 	// We only sign with the new key, and not with the original one.
-	err = signed.Sign(cryptoService, signedTestRoot, replRootKey)
+	err = signed.Sign(cryptoService, keys.NewDB(), signedTestRoot, replRootKey)
 	assert.NoError(t, err)
 
 	// This call to ValidateRoot will succeed since we are using a valid PEM
@@ -411,7 +416,7 @@ func testValidateRootRotationMissingNewSig(t *testing.T, keyAlg, rootKeyType str
 	assert.NoError(t, err)
 
 	// We only sign with the old key, and not with the new one
-	err = signed.Sign(cryptoService, signedTestRoot, origRootKey)
+	err = signed.Sign(cryptoService, keys.NewDB(), signedTestRoot, origRootKey)
 	assert.NoError(t, err)
 
 	// This call to ValidateRoot will succeed since we are using a valid PEM
