@@ -183,19 +183,19 @@ func parseKeyParams(ctx context.Context, vars map[string]string) (*serverKeyInfo
 	s := ctx.Value("metaStore")
 	store, ok := s.(storage.MetaStore)
 	if !ok || store == nil {
-		return nil, errors.ErrNoStorage.WithDetail(nil)
+		return nil, errors.ErrNoStorage.WithDetail("metadata store not configured")
 	}
 
 	c := ctx.Value("cryptoService")
 	crypto, ok := c.(signed.CryptoService)
 	if !ok || crypto == nil {
-		return nil, errors.ErrNoCryptoService.WithDetail(nil)
+		return nil, errors.ErrNoCryptoService.WithDetail("crypto service not configured")
 	}
 
 	algo := ctx.Value("keyAlgorithm")
 	keyAlgo, ok := algo.(string)
 	if !ok || keyAlgo != data.ECDSAKey && keyAlgo != data.RSAKey && keyAlgo != data.ED25519Key {
-		return nil, errors.ErrNoKeyAlgorithm.WithDetail(nil)
+		return nil, errors.ErrNoKeyAlgorithm.WithDetail("key algorithm not configured")
 	}
 
 	return &serverKeyInfo{
