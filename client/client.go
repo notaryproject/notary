@@ -843,6 +843,8 @@ func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool) error {
 		return fmt.Errorf(
 			"notary does not currently support rotating the %s key", role)
 	}
+	// We currently support locally managing targets keys, remotely managing
+	// timestamp keys, and locally or remotely managing timestamp keys.
 	if serverManagesKey && role == data.CanonicalTargetsRole {
 		return ErrInvalidRemoteRole{Role: data.CanonicalTargetsRole}
 	}
@@ -855,31 +857,32 @@ func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool) error {
 		errFmtString string
 		err          error
 	)
+	// Key rotation is an offline operation unless we are rotating a remote key, in which case we
+	// need to ensure the rotation can actually happen: the user needs to have the root key, and
+	// we want to publish right away so that the remote key doesn't expire
 	if serverManagesKey {
-		if err := r.bootstrapRepo(); err != nil {
+		if err = r.bootstrapRepo(); err != nil {
+			if _, ok := err.(store.ErrMetaNotFound); ok {
+				err = ErrRepoNotInitialized{}
+			}
+			logrus.Debug("Repository should be valid and initialized before rotating a remote key:", err)
 			return err
 		}
 
 		// get root keys - since we bootstrapped the repo, a valid root should always specify
 		// the root role
-		rootRole, ok := r.tufRepo.Root.Signed.Roles[data.CanonicalRootRole]
-		if !ok {
-			return fmt.Errorf("update resulted in an invalid state with an invalid root")
-		}
-		rootKeys := make([]data.PublicKey, 0, len(rootRole.KeyIDs))
-		for _, kid := range rootRole.KeyIDs {
-			k, ok := r.tufRepo.Root.Signed.Keys[kid]
-			if ok {
-				// this should always be the case, as key IDs need to correspond to keys in the
-				// key list, but just in case: skip if it's not
-				rootKeys = append(rootKeys, k)
-			}
+		rootKeys, err := r.tufRepo.SigningKeysForRole(data.CanonicalRootRole)
+		if err != nil {
+			logrus.Debug("The root is invalid, because it does not contain any signing keys")
+			return err
 		}
 
 		errFmtString = "unable to rotate remote key: %s"
 		remote, err := getRemoteStore(r.baseURL, r.gun, r.roundTrip)
 		if err == nil {
 			pubKey, err = remote.RotateKey(role, r.CryptoService, rootKeys...)
+		} else if _, ok := err.(signed.ErrNoKeys); ok {
+			err = fmt.Errorf("root signing key unavailable so unable to rotate key anyway")
 		}
 	} else {
 		pubKey, err = r.CryptoService.Create(role, data.ECDSAKey)

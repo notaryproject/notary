@@ -649,12 +649,11 @@ func (tr *Repo) SignRoot(expires time.Time) (*data.Signed, error) {
 	logrus.Debug("signing root...")
 	tr.Root.Signed.Expires = expires
 	tr.Root.Signed.Version++
-	root := tr.keysDB.GetRole(data.CanonicalRootRole)
 	signed, err := tr.Root.ToSigned()
 	if err != nil {
 		return nil, err
 	}
-	signed, err = tr.sign(signed, *root)
+	signed, err = tr.sign(signed, data.CanonicalRootRole)
 	if err != nil {
 		return nil, err
 	}
@@ -678,8 +677,7 @@ func (tr *Repo) SignTargets(role string, expires time.Time) (*data.Signed, error
 		logrus.Debug("errored getting targets data.Signed object")
 		return nil, err
 	}
-	targets := tr.keysDB.GetRole(role)
-	signed, err = tr.sign(signed, *targets)
+	signed, err = tr.sign(signed, role)
 	if err != nil {
 		logrus.Debug("errored signing ", role)
 		return nil, err
@@ -717,8 +715,7 @@ func (tr *Repo) SignSnapshot(expires time.Time) (*data.Signed, error) {
 	if err != nil {
 		return nil, err
 	}
-	snapshot := tr.keysDB.GetRole(data.CanonicalSnapshotRole)
-	signed, err = tr.sign(signed, *snapshot)
+	signed, err = tr.sign(signed, data.CanonicalSnapshotRole)
 	if err != nil {
 		return nil, err
 	}
@@ -743,8 +740,7 @@ func (tr *Repo) SignTimestamp(expires time.Time) (*data.Signed, error) {
 	if err != nil {
 		return nil, err
 	}
-	timestamp := tr.keysDB.GetRole(data.CanonicalTimestampRole)
-	signed, err = tr.sign(signed, *timestamp)
+	signed, err = tr.sign(signed, data.CanonicalTimestampRole)
 	if err != nil {
 		return nil, err
 	}
@@ -753,9 +749,14 @@ func (tr *Repo) SignTimestamp(expires time.Time) (*data.Signed, error) {
 	return signed, nil
 }
 
-func (tr Repo) sign(signedData *data.Signed, role data.Role) (*data.Signed, error) {
-	ks := make([]data.PublicKey, 0, len(role.KeyIDs))
-	for _, kid := range role.KeyIDs {
+// SigningKeysForRole returns the public keys necessary for signing a particular role
+func (tr *Repo) SigningKeysForRole(role string) ([]data.PublicKey, error) {
+	roleObj := tr.keysDB.GetRole(role)
+	if roleObj == nil {
+		return nil, data.ErrInvalidRole{Role: role, Reason: "does not exist"}
+	}
+	ks := make([]data.PublicKey, 0, len(roleObj.KeyIDs))
+	for _, kid := range roleObj.KeyIDs {
 		k := tr.keysDB.GetKey(kid)
 		if k == nil {
 			continue
@@ -765,8 +766,15 @@ func (tr Repo) sign(signedData *data.Signed, role data.Role) (*data.Signed, erro
 	if len(ks) < 1 {
 		return nil, keys.ErrInvalidKey
 	}
-	err := signed.Sign(tr.cryptoService, signedData, ks...)
+	return ks, nil
+}
+
+func (tr Repo) sign(signedData *data.Signed, role string) (*data.Signed, error) {
+	signingKeys, err := tr.SigningKeysForRole(role)
 	if err != nil {
+		return nil, err
+	}
+	if err := signed.Sign(tr.cryptoService, signedData, signingKeys...); err != nil {
 		return nil, err
 	}
 	return signedData, nil

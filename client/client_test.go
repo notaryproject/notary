@@ -2585,7 +2585,7 @@ func TestRemoteRotationNonRateLimitError(t *testing.T) {
 
 // The rotator is not the owner of the repository, they cannot rotate the remote
 // key
-func TestRemoteRotationNonPermitted(t *testing.T) {
+func TestRemoteRotationNoRootKey(t *testing.T) {
 	ts := fullTestServer(t)
 	defer ts.Close()
 
@@ -2601,6 +2601,19 @@ func TestRemoteRotationNonPermitted(t *testing.T) {
 	err = newRepo.RotateKey(data.CanonicalSnapshotRole, true)
 	assert.Error(t, err)
 	assert.IsType(t, signed.ErrNoKeys{}, err)
+}
+
+// The repo hasn't been initialized, so we can't rotate
+func TestRemoteRotationNonexistentRepo(t *testing.T) {
+	ts, _, _ := simpleTestServer(t)
+	defer ts.Close()
+
+	repo := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(repo.baseDir)
+
+	err := repo.RotateKey(data.CanonicalTimestampRole, true)
+	assert.Error(t, err)
+	assert.IsType(t, ErrRepoNotInitialized{}, err)
 }
 
 // If there is no local cache, notary operations return the remote error code
