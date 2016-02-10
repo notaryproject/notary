@@ -14,7 +14,7 @@ func (e ErrOffline) Error() string {
 	return "client is offline"
 }
 
-var err = ErrOffline{}
+var errOffline = ErrOffline{}
 
 // OfflineStore is to be used as a placeholder for a nil store. It simply
 // returns ErrOffline for every operation
@@ -22,40 +22,40 @@ type OfflineStore struct{}
 
 // GetMeta returns ErrOffline
 func (es OfflineStore) GetMeta(name string, size int64) ([]byte, error) {
-	return nil, err
+	return nil, errOffline
 }
 
 // SetMeta returns ErrOffline
 func (es OfflineStore) SetMeta(name string, blob []byte) error {
-	return err
+	return errOffline
 }
 
 // SetMultiMeta returns ErrOffline
 func (es OfflineStore) SetMultiMeta(map[string][]byte) error {
-	return err
+	return errOffline
 }
 
 // RemoveMeta returns ErrOffline
 func (es OfflineStore) RemoveMeta(name string) error {
-	return err
+	return errOffline
 }
 
 // GetKey returns ErrOffline
 func (es OfflineStore) GetKey(role string) (data.PublicKey, error) {
-	return nil, err
+	return nil, errOffline
 }
 
 // RotateKey returns ErrOffline
 func (es OfflineStore) RotateKey(string, signed.CryptoService, ...data.PublicKey) (data.PublicKey, error) {
-	return nil, err
+	return nil, errOffline
 }
 
 // GetTarget returns ErrOffline
 func (es OfflineStore) GetTarget(path string) (io.ReadCloser, error) {
-	return nil, err
+	return nil, errOffline
 }
 
 // RemoveAll return ErrOffline
 func (es OfflineStore) RemoveAll() error {
-	return err
+	return errOffline
 }

@@ -278,7 +278,7 @@ func (s HTTPStore) buildURL(uri string) (*url.URL, error) {
 // GetKey retrieves the most recently created (whether it is signed in yet or not)
 // public key for the given role from the remote server
 func (s HTTPStore) GetKey(role string) (data.PublicKey, error) {
-	return s.requestKey(role, nil)
+	return s.requestKey(role, "GET", fmt.Sprintf("%s key", role), nil)
 }
 
 // RotateKey rotates a key on the remote server and returns the new public key.  This requires
@@ -304,22 +304,15 @@ func (s HTTPStore) RotateKey(role string, cs signed.CryptoService, roots ...data
 		return nil, err
 	}
 
-	return s.requestKey(role, bytes.NewBuffer(requestBody))
+	return s.requestKey(role, "POST", fmt.Sprintf("%s key rotation", role), bytes.NewBuffer(requestBody))
 }
 
 // requestKey either sends a get or a post request, depending on whether there
 // is a body.
-func (s HTTPStore) requestKey(role string, body io.Reader) (data.PublicKey, error) {
+func (s HTTPStore) requestKey(role, method, resource string, body io.Reader) (data.PublicKey, error) {
 	url, err := s.buildKeyURL(role)
 	if err != nil {
 		return nil, err
-	}
-
-	method := "GET"
-	resource := role + " key"
-	if body != nil {
-		method = "POST"
-		resource = resource + " rotation"
 	}
 
 	req, err := http.NewRequest(method, url.String(), body)

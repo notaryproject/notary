@@ -82,15 +82,15 @@ var (
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 	ErrNoKeyAlgorithm = errcode.Register(errGroup, errcode.ErrorDescriptor{
-		Value:          "NO_KEYALGORITHM",
+		Value:          "NO_KEY_ALGORITHM",
 		Message:        "The server does not have a key algorithm configured.",
 		Description:    "No key algorithm has been configured for the server and it has been asked to perform an operation that requires generation.",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
-	ErrCannotRotateKey = errcode.Register(errGroup, errcode.ErrorDescriptor{
-		Value:          "CANNOT_ROTATE_KEY",
-		Message:        "Key has already been rotated recently.",
-		Description:    "The key has been rotated too recently, and cannot be rotated again at this time.",
+	ErrKeyRotationLimited = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "ROTATE_KEY_RATE_LIMITED",
+		Message:        "Cannot rotate, last key rotation too recent.",
+		Description:    "Cannot rotate key because the last key rotation was too recent",
 		HTTPStatusCode: notary.HTTPStatusTooManyRequests,
 	})
 	ErrUnknown = errcode.ErrorCodeUnknown

@@ -176,9 +176,6 @@ func parseKeyParams(ctx context.Context, vars map[string]string) (*serverKeyInfo
 	if !ok || role == "" {
 		return nil, errors.ErrUnknown.WithDetail("no role")
 	}
-	if role != data.CanonicalTimestampRole && role != data.CanonicalSnapshotRole {
-		return nil, errors.ErrInvalidRole.WithDetail(role)
-	}
 
 	s := ctx.Value("metaStore")
 	store, ok := s.(storage.MetaStore)
@@ -194,7 +191,7 @@ func parseKeyParams(ctx context.Context, vars map[string]string) (*serverKeyInfo
 
 	algo := ctx.Value("keyAlgorithm")
 	keyAlgo, ok := algo.(string)
-	if !ok || keyAlgo != data.ECDSAKey && keyAlgo != data.RSAKey && keyAlgo != data.ED25519Key {
+	if !ok || keyAlgo == "" {
 		return nil, errors.ErrNoKeyAlgorithm.WithDetail("key algorithm not configured")
 	}
 
@@ -223,6 +220,8 @@ func getKeyHandler(ctx context.Context, w io.Writer, vars map[string]string) err
 		key, err = timestamp.GetOrCreateTimestampKey(s.gun, s.store, s.crypto, s.keyAlgo)
 	case data.CanonicalSnapshotRole:
 		key, err = snapshot.GetOrCreateSnapshotKey(s.gun, s.store, s.crypto, s.keyAlgo)
+	default:
+		return errors.ErrInvalidRole.WithDetail(s.role)
 	}
 	if err != nil {
 		return errors.ErrUnknown.WithDetail(err)

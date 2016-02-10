@@ -102,7 +102,7 @@ func TestKeyHandlersInvalidConfiguration(t *testing.T) {
 	invalidStates := map[string][]handlerState{
 		"no storage":       {noStore, invalidStore},
 		"no cryptoservice": {noCrypto, invalidCrypto},
-		"no keyalgorithm":  {noKeyAlgo, invalidKeyAlgo},
+		"no key algorithm": {noKeyAlgo, invalidKeyAlgo},
 	}
 
 	vars := map[string]string{

@@ -52,7 +52,7 @@ type ErrInvalidRemoteRole struct {
 
 func (err ErrInvalidRemoteRole) Error() string {
 	return fmt.Sprintf(
-		"notary does not support the server managing the %s key", err.Role)
+		"notary does not permit the server managing the %s key", err.Role)
 }
 
 // ErrInvalidLocalRole is returned when the client wants to manage
@@ -63,7 +63,7 @@ type ErrInvalidLocalRole struct {
 
 func (err ErrInvalidLocalRole) Error() string {
 	return fmt.Sprintf(
-		"notary does not support the client managing the %s key", err.Role)
+		"notary does not permit the client managing the %s key", err.Role)
 }
 
 // ErrRepositoryNotExist is returned when an action is taken on a remote
@@ -839,16 +839,16 @@ func (r *NotaryRepository) validateRoot(rootJSON []byte) (*data.SignedRoot, erro
 // creates and adds one new key or delegates managing the key to the server.
 // These changes are staged in a changelist until publish is called.
 func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool) error {
-	if role == data.CanonicalRootRole {
+	switch {
+	case role == data.CanonicalRootRole:
 		return fmt.Errorf(
-			"notary does not currently support rotating the %s key", role)
-	}
+			"notary does not currently permit rotating the %s key", role)
+
 	// We currently support locally managing targets keys, remotely managing
-	// timestamp keys, and locally or remotely managing timestamp keys.
-	if serverManagesKey && role == data.CanonicalTargetsRole {
+	// timestamp keys, and locally or remotely managing snapshot keys.
+	case serverManagesKey && role == data.CanonicalTargetsRole:
 		return ErrInvalidRemoteRole{Role: data.CanonicalTargetsRole}
-	}
-	if !serverManagesKey && role == data.CanonicalTimestampRole {
+	case !serverManagesKey && role == data.CanonicalTimestampRole:
 		return ErrInvalidLocalRole{Role: data.CanonicalTimestampRole}
 	}
 
@@ -882,7 +882,7 @@ func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool) error {
 		if err == nil {
 			pubKey, err = remote.RotateKey(role, r.CryptoService, rootKeys...)
 		} else if _, ok := err.(signed.ErrNoKeys); ok {
-			err = fmt.Errorf("root signing key unavailable so unable to rotate key anyway")
+			err = fmt.Errorf("root signing key unavailable so unable to rotate key")
 		}
 	} else {
 		pubKey, err = r.CryptoService.Create(role, data.ECDSAKey)

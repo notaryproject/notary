@@ -248,7 +248,7 @@ func TestInitRepositoryManagedRolesIncludingRoot(t *testing.T) {
 	assert.IsType(t, ErrInvalidRemoteRole{}, err)
 	// Just testing the error message here in this one case
 	assert.Equal(t, err.Error(),
-		"notary does not support the server managing the root key")
+		"notary does not permit the server managing the root key")
 	// no key creation happened
 	rec.assertCreated(t, nil)
 }
@@ -2580,7 +2580,9 @@ func TestRemoteRotationNonRateLimitError(t *testing.T) {
 	defer os.RemoveAll(repo.baseDir)
 
 	// simpleTestServer has no rotate key endpoint, so this should fail
-	assert.Error(t, repo.RotateKey(data.CanonicalTimestampRole, true))
+	err := repo.RotateKey(data.CanonicalTimestampRole, true)
+	assert.Error(t, err)
+	assert.IsType(t, store.ErrMetaNotFound{}, err)
 }
 
 // The rotator is not the owner of the repository, they cannot rotate the remote
