@@ -52,7 +52,18 @@ type ErrInvalidRemoteRole struct {
 
 func (err ErrInvalidRemoteRole) Error() string {
 	return fmt.Sprintf(
-		"notary does not support the server managing the %s key", err.Role)
+		"notary does not permit the server managing the %s key", err.Role)
+}
+
+// ErrInvalidLocalRole is returned when the client wants to manage
+// an unsupported key type
+type ErrInvalidLocalRole struct {
+	Role string
+}
+
+func (err ErrInvalidLocalRole) Error() string {
+	return fmt.Sprintf(
+		"notary does not permit the client managing the %s key", err.Role)
 }
 
 // ErrRepositoryNotExist is returned when an action is taken on a remote
@@ -511,11 +522,10 @@ func (r *NotaryRepository) Publish() error {
 			initialPublish = true
 		} else {
 			// We could not update, so we cannot publish.
-			logrus.Error("Could not publish Repository: ", err.Error())
+			logrus.Error("Could not publish Repository since we could not update: ", err.Error())
 			return err
 		}
 	}
-
 	cl, err := r.GetChangelist()
 	if err != nil {
 		return err
@@ -608,7 +618,7 @@ func (r *NotaryRepository) Publish() error {
 // to load metadata for all roles.  Since server snapshots are supported,
 // if the snapshot metadata fails to load, that's ok.
 // This can also be unified with some cache reading tools from tuf/client.
-// This assumes that bootstrapRepo is only used by Publish()
+// This assumes that bootstrapRepo is only used by Publish() or RotateKey()
 func (r *NotaryRepository) bootstrapRepo() error {
 	kdb := keys.NewDB()
 	tufRepo := tuf.NewRepo(kdb, r.CryptoService)
@@ -829,28 +839,68 @@ func (r *NotaryRepository) validateRoot(rootJSON []byte) (*data.SignedRoot, erro
 // creates and adds one new key or delegates managing the key to the server.
 // These changes are staged in a changelist until publish is called.
 func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool) error {
-	if role == data.CanonicalRootRole || role == data.CanonicalTimestampRole {
+	switch {
+	case role == data.CanonicalRootRole:
 		return fmt.Errorf(
-			"notary does not currently support rotating the %s key", role)
-	}
-	if serverManagesKey && role == data.CanonicalTargetsRole {
+			"notary does not currently permit rotating the %s key", role)
+
+	// We currently support locally managing targets keys, remotely managing
+	// timestamp keys, and locally or remotely managing snapshot keys.
+	case serverManagesKey && role == data.CanonicalTargetsRole:
 		return ErrInvalidRemoteRole{Role: data.CanonicalTargetsRole}
+	case !serverManagesKey && role == data.CanonicalTimestampRole:
+		return ErrInvalidLocalRole{Role: data.CanonicalTimestampRole}
 	}
 
 	var (
-		pubKey data.PublicKey
-		err    error
+		pubKey       data.PublicKey
+		errFmtString string
+		err          error
 	)
+	// Key rotation is an offline operation unless we are rotating a remote key, in which case we
+	// need to ensure the rotation can actually happen: the user needs to have the root key, and
+	// we want to publish right away so that the remote key doesn't expire
 	if serverManagesKey {
-		pubKey, err = getRemoteKey(r.baseURL, r.gun, role, r.roundTrip)
+		if err = r.bootstrapRepo(); err != nil {
+			if _, ok := err.(store.ErrMetaNotFound); ok {
+				err = ErrRepoNotInitialized{}
+			}
+			logrus.Debug("Repository should be valid and initialized before rotating a remote key:", err)
+			return err
+		}
+
+		// get root keys - since we bootstrapped the repo, a valid root should always specify
+		// the root role
+		rootKeys, err := r.tufRepo.SigningKeysForRole(data.CanonicalRootRole)
+		if err != nil {
+			logrus.Debug("The root is invalid, because it does not contain any signing keys")
+			return err
+		}
+
+		errFmtString = "unable to rotate remote key: %s"
+		remote, err := getRemoteStore(r.baseURL, r.gun, r.roundTrip)
+		if err == nil {
+			pubKey, err = remote.RotateKey(role, r.CryptoService, rootKeys...)
+		} else if _, ok := err.(signed.ErrNoKeys); ok {
+			err = fmt.Errorf("root signing key unavailable so unable to rotate key")
+		}
 	} else {
 		pubKey, err = r.CryptoService.Create(role, data.ECDSAKey)
+		errFmtString = "unable to generate key: %s"
 	}
+
 	if err != nil {
+		return fmt.Errorf(errFmtString, err)
+	}
+
+	if err = r.rootFileKeyChange(role, changelist.ActionCreate, pubKey); err != nil {
 		return err
 	}
 
-	return r.rootFileKeyChange(role, changelist.ActionCreate, pubKey)
+	if serverManagesKey {
+		return r.Publish()
+	}
+	return nil
 }
 
 func (r *NotaryRepository) rootFileKeyChange(role, action string, key data.PublicKey) error {

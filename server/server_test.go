@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -85,6 +86,34 @@ func TestGetKeysEndpoint(t *testing.T) {
 	for role, expectedStatus := range rolesToStatus {
 		res, err := http.Get(
 			fmt.Sprintf("%s/v2/gun/_trust/tuf/%s.key", ts.URL, role))
+		assert.NoError(t, err)
+		assert.Equal(t, expectedStatus, res.StatusCode)
+	}
+}
+
+// RotateKey supports only the timestamp and snapshot key endpoints
+func TestRotateKeyEndpoint(t *testing.T) {
+	ctx := context.WithValue(
+		context.Background(), "metaStore", storage.NewMemStorage())
+	ctx = context.WithValue(ctx, "keyAlgorithm", data.ED25519Key)
+
+	handler := RootHandler(nil, ctx, signed.NewEd25519())
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	rolesToStatus := map[string]int{
+		data.CanonicalTimestampRole: http.StatusOK, // just returning same as GetKey endpoint right now
+		data.CanonicalSnapshotRole:  http.StatusOK, // just returning same as GetKey endpoint right now
+		data.CanonicalTargetsRole:   http.StatusNotFound,
+		data.CanonicalRootRole:      http.StatusNotFound,
+		"somerandomrole":            http.StatusNotFound,
+	}
+
+	var buf bytes.Buffer
+	for role, expectedStatus := range rolesToStatus {
+		res, err := http.Post(
+			fmt.Sprintf("%s/v2/gun/_trust/tuf/%s.key", ts.URL, role),
+			"text/plain", &buf)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedStatus, res.StatusCode)
 	}

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/docker/notary"
 )
 
 // The notary API is on version 1, but URLs start with /v2/ to be consistent
@@ -81,10 +82,16 @@ var (
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 	ErrNoKeyAlgorithm = errcode.Register(errGroup, errcode.ErrorDescriptor{
-		Value:          "NO_KEYALGORITHM",
+		Value:          "NO_KEY_ALGORITHM",
 		Message:        "The server does not have a key algorithm configured.",
-		Description:    "No key algorihtm has been configured for the server and it has been asked to perform an operation that requires generation.",
+		Description:    "No key algorithm has been configured for the server and it has been asked to perform an operation that requires generation.",
 		HTTPStatusCode: http.StatusInternalServerError,
+	})
+	ErrKeyRotationLimited = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "ROTATE_KEY_RATE_LIMITED",
+		Message:        "Cannot rotate, last key rotation too recent.",
+		Description:    "Cannot rotate key because the last key rotation was too recent",
+		HTTPStatusCode: notary.HTTPStatusTooManyRequests,
 	})
 	ErrUnknown = errcode.ErrorCodeUnknown
 )

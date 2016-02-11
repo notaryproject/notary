@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/utils"
 )
 
@@ -94,9 +95,14 @@ func (m *MemoryStore) RemoveMeta(name string) error {
 	return nil
 }
 
-// GetKey returns the public key for the given role
-func (m *MemoryStore) GetKey(role string) ([]byte, error) {
-	return nil, fmt.Errorf("GetKey is not implemented for the MemoryStore")
+// GetKey returns the latest key for a given role
+func (m *MemoryStore) GetKey(role string) (data.PublicKey, error) {
+	return nil, fmt.Errorf("GetKey is not implemented for the memoryStore")
+}
+
+// RotateKey rotates a key for a given role
+func (m *MemoryStore) RotateKey(string, signed.CryptoService, ...data.PublicKey) (data.PublicKey, error) {
+	return nil, fmt.Errorf("RotateKey is not implemented for the memoryStore")
 }
 
 // RemoveAll clears the existing memory store by setting this store as new empty one

@@ -1,5 +1,10 @@
 package store
 
+import (
+	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/signed"
+)
+
 // MetadataStore must be implemented by anything that intends to interact
 // with a store of TUF files
 type MetadataStore interface {
@@ -12,7 +17,8 @@ type MetadataStore interface {
 
 // PublicKeyStore must be implemented by a key service
 type PublicKeyStore interface {
-	GetKey(role string) ([]byte, error)
+	GetKey(role string) (data.PublicKey, error)
+	RotateKey(role string, cs signed.CryptoService, roots ...data.PublicKey) (data.PublicKey, error)
 }
 
 // LocalStore represents a local TUF sture

@@ -143,70 +143,94 @@ func DeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
+// RotateKeyHandler returns a new public key for the specified role, creating a new key-pair
+// if one has not be rotated yet within a certain time period.
+func RotateKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	defer r.Body.Close()
+	vars := mux.Vars(r)
+	return rotateKeyHandler(ctx, w, vars)
+}
+
 // GetKeyHandler returns a public key for the specified role, creating a new key-pair
 // it if it doesn't yet exist
 func GetKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	defer r.Body.Close()
 	vars := mux.Vars(r)
-	return getKeyHandler(ctx, w, r, vars)
+	return getKeyHandler(ctx, w, vars)
 }
 
-func getKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+type serverKeyInfo struct {
+	gun     string
+	role    string
+	store   storage.MetaStore
+	crypto  signed.CryptoService
+	keyAlgo string
+}
+
+func parseKeyParams(ctx context.Context, vars map[string]string) (*serverKeyInfo, error) {
 	gun, ok := vars["imageName"]
 	if !ok || gun == "" {
-		return errors.ErrUnknown.WithDetail("no gun")
+		return nil, errors.ErrUnknown.WithDetail("no gun")
 	}
 	role, ok := vars["tufRole"]
 	if !ok || role == "" {
-		return errors.ErrUnknown.WithDetail("no role")
+		return nil, errors.ErrUnknown.WithDetail("no role")
 	}
-
-	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 
 	s := ctx.Value("metaStore")
 	store, ok := s.(storage.MetaStore)
 	if !ok || store == nil {
-		logger.Error("500 GET storage not configured")
-		return errors.ErrNoStorage.WithDetail(nil)
+		return nil, errors.ErrNoStorage.WithDetail("metadata store not configured")
 	}
+
 	c := ctx.Value("cryptoService")
 	crypto, ok := c.(signed.CryptoService)
 	if !ok || crypto == nil {
-		logger.Error("500 GET crypto service not configured")
-		return errors.ErrNoCryptoService.WithDetail(nil)
+		return nil, errors.ErrNoCryptoService.WithDetail("crypto service not configured")
 	}
+
 	algo := ctx.Value("keyAlgorithm")
 	keyAlgo, ok := algo.(string)
 	if !ok || keyAlgo == "" {
-		logger.Error("500 GET key algorithm not configured")
-		return errors.ErrNoKeyAlgorithm.WithDetail(nil)
+		return nil, errors.ErrNoKeyAlgorithm.WithDetail("key algorithm not configured")
 	}
-	keyAlgorithm := keyAlgo
 
-	var (
-		key data.PublicKey
-		err error
-	)
-	switch role {
+	return &serverKeyInfo{
+		gun:     gun,
+		role:    role,
+		store:   store,
+		crypto:  crypto,
+		keyAlgo: keyAlgo,
+	}, nil
+}
+
+func rotateKeyHandler(ctx context.Context, w io.Writer, vars map[string]string) error {
+	return getKeyHandler(ctx, w, vars)
+}
+
+func getKeyHandler(ctx context.Context, w io.Writer, vars map[string]string) error {
+	s, err := parseKeyParams(ctx, vars)
+	if err != nil {
+		return err
+	}
+	var key data.PublicKey
+
+	switch s.role { // parseKeyParams ensures it's only timestamp or snapshot
 	case data.CanonicalTimestampRole:
-		key, err = timestamp.GetOrCreateTimestampKey(gun, store, crypto, keyAlgorithm)
+		key, err = timestamp.GetOrCreateTimestampKey(s.gun, s.store, s.crypto, s.keyAlgo)
 	case data.CanonicalSnapshotRole:
-		key, err = snapshot.GetOrCreateSnapshotKey(gun, store, crypto, keyAlgorithm)
+		key, err = snapshot.GetOrCreateSnapshotKey(s.gun, s.store, s.crypto, s.keyAlgo)
 	default:
-		logger.Errorf("400 GET %s key: %v", role, err)
-		return errors.ErrInvalidRole.WithDetail(role)
+		return errors.ErrInvalidRole.WithDetail(s.role)
 	}
 	if err != nil {
-		logger.Errorf("500 GET %s key: %v", role, err)
 		return errors.ErrUnknown.WithDetail(err)
 	}
 
 	out, err := json.Marshal(key)
 	if err != nil {
-		logger.Errorf("500 GET %s key", role)
 		return errors.ErrUnknown.WithDetail(err)
 	}
-	logger.Debugf("200 GET %s key", role)
 	w.Write(out)
 	return nil
 }

@@ -7,17 +7,20 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
+	"time"
 
 	"github.com/docker/go/canonical/json"
+	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/keys"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/validation"
+	"github.com/stretchr/testify/assert"
 )
 
 const testRoot = `{"signed":{"_type":"Root","consistent_snapshot":false,"expires":"2025-07-17T16:19:21.101698314-07:00","keys":{"1ca15c7f4b2b0c6efce202a545e7267152da28ab7c91590b3b60bdb4da723aad":{"keytype":"ecdsa","keyval":{"private":null,"public":"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEb0720c99Cj6ZmuDlznEZ52NA6YpeY9Sj45z51XvPnG63Bi2RSBezMJlPzbSfP39mXKXqOJyT+z9BZhi3FVWczg=="}},"b1d6813b55442ecbfb1f4b40eb1fcdb4290e53434cfc9ba2da24c26c9143873b":{"keytype":"ecdsa-x509","keyval":{"private":null,"public":"LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJVekNCKzZBREFnRUNBaEFCWDNKLzkzaW8zbHcrZUsvNFhvSHhNQW9HQ0NxR1NNNDlCQU1DTUJFeER6QU4KQmdOVkJBTVRCbVY0Y0dseVpUQWVGdzB4TlRBM01qQXlNekU1TVRkYUZ3MHlOVEEzTVRjeU16RTVNVGRhTUJFeApEekFOQmdOVkJBTVRCbVY0Y0dseVpUQlpNQk1HQnlxR1NNNDlBZ0VHQ0NxR1NNNDlBd0VIQTBJQUJFTDhOTFhQCitreUJZYzhYY0FTMXB2S2l5MXRQUDlCZHJ1dEdrWlR3Z0dEYTM1THMzSUFXaWlrUmlPbGRuWmxVVEE5cG5JekoKOFlRQThhTjQ1TDQvUlplak5UQXpNQTRHQTFVZER3RUIvd1FFQXdJQW9EQVRCZ05WSFNVRUREQUtCZ2dyQmdFRgpCUWNEQXpBTUJnTlZIUk1CQWY4RUFqQUFNQW9HQ0NxR1NNNDlCQU1DQTBjQU1FUUNJRVJ1ZUVURG5xMlRqRFBmClhGRStqUFJqMEtqdXdEOG9HSmtoVGpMUDAycjhBaUI5cUNyL2ZqSXpJZ1NQcTJVSXZqR0hlYmZOYXh1QlpZZUUKYW8xNjd6dHNYZz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K"}},"fbddae7f25a6c23ca735b017206a849d4c89304a4d8de4dcc4b3d6f3eb22ce3b":{"keytype":"ecdsa","keyval":{"private":null,"public":"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/xS5fBHK2HKmlGcvAr06vwPITvmxWP4P3CMDCgY25iSaIiM21OiXA1/Uvo3Pa3xh5G3cwCtDvi+4FpflW2iB/w=="}},"fd75751f010c3442e23b3e3e99a1442a112f2f21038603cb8609d8b17c9e912a":{"keytype":"ed25519","keyval":{"private":null,"public":"rc+glN01m+q8jmX8SolGsjTfk6NMhUQTWyj10hjmne0="}}},"roles":{"root":{"keyids":["b1d6813b55442ecbfb1f4b40eb1fcdb4290e53434cfc9ba2da24c26c9143873b"],"threshold":1},"snapshot":{"keyids":["1ca15c7f4b2b0c6efce202a545e7267152da28ab7c91590b3b60bdb4da723aad"],"threshold":1},"targets":{"keyids":["fbddae7f25a6c23ca735b017206a849d4c89304a4d8de4dcc4b3d6f3eb22ce3b"],"threshold":1},"timestamp":{"keyids":["fd75751f010c3442e23b3e3e99a1442a112f2f21038603cb8609d8b17c9e912a"],"threshold":1}},"version":2},"signatures":[{"keyid":"b1d6813b55442ecbfb1f4b40eb1fcdb4290e53434cfc9ba2da24c26c9143873b","method":"ecdsa","sig":"A2lNVwxHBnD9ViFtRre8r5oG6VvcvJnC6gdvvxv/Jyag40q/fNMjllCqyHrb+6z8XDZcrTTDsFU1R3/e+92d1A=="}]}`
@@ -323,4 +326,174 @@ func TestErrServerUnavailable(t *testing.T) {
 			assert.Contains(t, err.Error(), "unable to reach trust server")
 		}
 	}
+}
+
+// GetKey and RotateKey both succeed if valid public keys are returned from the server with a 200 status
+func TestGetKeyAndRotateKeySuccess(t *testing.T) {
+	c := signed.NewEd25519()
+	role := data.CanonicalSnapshotRole
+	key, err := c.Create(role, data.ED25519Key)
+	assert.NoError(t, err)
+
+	keyJSON, err := json.Marshal(key)
+	assert.NoError(t, err)
+
+	// Set up a simple handler and server for our store
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(keyJSON))
+	}
+	server := httptest.NewServer(http.HandlerFunc(handler))
+	defer server.Close()
+	store, err := NewHTTPStore(server.URL, "metadata", "json", "key", http.DefaultTransport)
+	assert.NoError(t, err)
+
+	gotten, err := store.GetKey(role)
+	assert.NoError(t, err)
+	assert.Equal(t, key.ID(), gotten.ID())
+
+	rotated, err := store.RotateKey(role, c, key)
+	assert.NoError(t, err)
+	assert.Equal(t, key.ID(), rotated.ID())
+}
+
+// GetKey and RotateKey both fail if the key returned is invalid JSON
+func TestGetKeyAndRotateKeyInvalidJSON(t *testing.T) {
+	role := data.CanonicalSnapshotRole
+
+	c := signed.NewEd25519()
+	root, err := c.Create(data.CanonicalRootRole, data.ED25519Key)
+	assert.NoError(t, err)
+
+	// Set up a simple handler and server for our store
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("{"))
+	}
+	server := httptest.NewServer(http.HandlerFunc(handler))
+	defer server.Close()
+	store, err := NewHTTPStore(server.URL, "metadata", "json", "key", http.DefaultTransport)
+	assert.NoError(t, err)
+
+	_, err = store.GetKey(role)
+	assert.Error(t, err)
+	assert.IsType(t, &json.SyntaxError{}, err)
+
+	_, err = store.RotateKey(role, c, root)
+	assert.Error(t, err)
+	assert.IsType(t, &json.SyntaxError{}, err)
+}
+
+// GetKey and RotateKey both fail if it cannot make the request
+func TestGetKeyAndRotateKeyServerUnreachable(t *testing.T) {
+	role := data.CanonicalSnapshotRole
+
+	c := signed.NewEd25519()
+	root, err := c.Create(data.CanonicalRootRole, data.ED25519Key)
+	assert.NoError(t, err)
+
+	// nonexistent URL
+	store, err := NewHTTPStore("http://localhost:90861", "metadata", "json", "key", http.DefaultTransport)
+	assert.NoError(t, err)
+
+	_, err = store.GetKey(role)
+	assert.Error(t, err)
+	assert.IsType(t, &net.OpError{}, err)
+
+	_, err = store.RotateKey(role, c, root)
+	assert.Error(t, err)
+	assert.IsType(t, &net.OpError{}, err)
+}
+
+// GetKey and RotateKey both fail with ErrInvalidOperation if a notary.HTTPStatusTooManyRequests is returned
+func TestGetKeyAndRotateKeyServerLimitError(t *testing.T) {
+	role := data.CanonicalSnapshotRole
+
+	c := signed.NewEd25519()
+	root, err := c.Create(data.CanonicalRootRole, data.ED25519Key)
+	assert.NoError(t, err)
+
+	// Set up a simple handler and server for our store
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(notary.HTTPStatusTooManyRequests)
+	}
+	server := httptest.NewServer(http.HandlerFunc(handler))
+	defer server.Close()
+	store, err := NewHTTPStore(server.URL, "metadata", "json", "key", http.DefaultTransport)
+	assert.NoError(t, err)
+
+	_, err = store.GetKey(role)
+	assert.Error(t, err)
+	assert.IsType(t, ErrInvalidOperation{}, err)
+
+	_, err = store.RotateKey(role, c, root)
+	assert.Error(t, err)
+	assert.IsType(t, ErrInvalidOperation{}, err)
+}
+
+// RotateKey sends a signed request to the the server to rotate a key
+func TestRotateKeySendsSignedRequest(t *testing.T) {
+	role := data.CanonicalSnapshotRole
+
+	c := signed.NewEd25519()
+	root, err := c.Create(data.CanonicalRootRole, data.ED25519Key)
+	assert.NoError(t, err)
+	snapshot, err := c.Create(role, data.ED25519Key)
+	assert.NoError(t, err)
+
+	keyJSON, err := json.Marshal(snapshot)
+	assert.NoError(t, err)
+
+	kdb := keys.NewDB()
+	kdb.AddKey(root)
+	roleObj, err := data.NewRole(data.CanonicalRootRole, 1, []string{root.ID()}, nil, nil)
+	assert.NoError(t, err)
+	kdb.AddRole(roleObj)
+
+	// Set up handler that asserts information about the request
+	m := http.NewServeMux()
+	m.HandleFunc("/metadata/snapshot.key", func(w http.ResponseWriter, r *http.Request) {
+		decoder := json.NewDecoder(r.Body)
+		s := data.Signed{}
+		assert.NoError(t, decoder.Decode(&s))
+		assert.NoError(t, signed.VerifySignatures(&s, data.CanonicalRootRole, kdb))
+		common := data.SignedCommon{}
+		assert.NoError(t, json.Unmarshal(s.Signed, &common))
+		assert.Equal(t, data.CanonicalSnapshotRole, common.Type)
+		assert.True(t, common.Expires.After(time.Now()))
+		assert.False(t, common.Expires.After(time.Now().Add(5*time.Minute)))
+
+		w.Write(keyJSON)
+	})
+	server := httptest.NewServer(m)
+	defer server.Close()
+
+	store, err := NewHTTPStore(server.URL, "metadata", "json", "key", http.DefaultTransport)
+	assert.NoError(t, err)
+
+	k, err := store.RotateKey(role, c, root)
+	assert.NoError(t, err)
+	assert.Equal(t, snapshot.ID(), k.ID())
+}
+
+// RotateKey fails to even send a request if we can't sign.
+func TestRotateKeyDoesntSendRequestIfCannotSign(t *testing.T) {
+	role := data.CanonicalSnapshotRole
+
+	c := signed.NewEd25519()
+	root, err := c.Create(data.CanonicalRootRole, data.ED25519Key)
+	assert.NoError(t, err)
+
+	// Set up handler that asserts information about the request
+	m := http.NewServeMux()
+	m.HandleFunc("/metadata/snapshot.key", func(w http.ResponseWriter, r *http.Request) {
+		assert.Fail(t, "No request should ever have been made.")
+	})
+	server := httptest.NewServer(m)
+	defer server.Close()
+
+	store, err := NewHTTPStore(server.URL, "metadata", "json", "key", http.DefaultTransport)
+	assert.NoError(t, err)
+
+	_, err = store.RotateKey(role, signed.NewEd25519(), root)
+	assert.Error(t, err)
+	assert.IsType(t, signed.ErrNoKeys{}, err)
 }

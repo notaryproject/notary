@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -19,10 +20,10 @@ import (
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/store"
 	"github.com/docker/notary/tuf/validation"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/docker/notary/tuf/testutils"
 	"github.com/docker/notary/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 type handlerState struct {
@@ -75,9 +76,11 @@ func TestMainHandlerNotGet(t *testing.T) {
 	}
 }
 
-// GetKeyHandler needs to have access to a metadata store and cryptoservice,
-// a key algorithm
-func TestGetKeyHandlerInvalidConfiguration(t *testing.T) {
+type simplerHandler func(context.Context, io.Writer, map[string]string) error
+
+// GetKeyHandler and RotateKeyHandler needs to have access to a metadata store
+// and cryptoservice, a key algorithm
+func TestKeyHandlersInvalidConfiguration(t *testing.T) {
 	noStore := defaultState()
 	noStore.store = nil
 
@@ -99,75 +102,80 @@ func TestGetKeyHandlerInvalidConfiguration(t *testing.T) {
 	invalidStates := map[string][]handlerState{
 		"no storage":       {noStore, invalidStore},
 		"no cryptoservice": {noCrypto, invalidCrypto},
-		"no keyalgorithm":  {noKeyAlgo, invalidKeyAlgo},
+		"no key algorithm": {noKeyAlgo, invalidKeyAlgo},
 	}
 
 	vars := map[string]string{
 		"imageName": "gun",
 		"tufRole":   data.CanonicalTimestampRole,
 	}
-	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
-	for errString, states := range invalidStates {
-		for _, s := range states {
-			err := getKeyHandler(getContext(s), httptest.NewRecorder(), req, vars)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), errString)
+	var buf bytes.Buffer
+	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
+		for errString, states := range invalidStates {
+			for _, s := range states {
+				err := keyHandler(getContext(s), &buf, vars)
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), errString)
+			}
 		}
 	}
 }
 
-// GetKeyHandler needs to be set up such that an imageName and tufRole are both
-// provided and non-empty.
-func TestGetKeyHandlerNoRoleOrRepo(t *testing.T) {
+// GetKeyHandler and RotateKeyHandler needs to be set up such that an imageName
+// and tufRole are both provided and non-empty.
+func TestKeyHandlersNoRoleOrRepo(t *testing.T) {
 	state := defaultState()
-	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 
-	for _, key := range []string{"imageName", "tufRole"} {
-		vars := map[string]string{
-			"imageName": "gun",
-			"tufRole":   data.CanonicalTimestampRole,
+	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
+		for _, key := range []string{"imageName", "tufRole"} {
+			vars := map[string]string{
+				"imageName": "gun",
+				"tufRole":   data.CanonicalTimestampRole,
+			}
+			var buf bytes.Buffer
+
+			// not provided
+			delete(vars, key)
+			err := keyHandler(getContext(state), &buf, vars)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "unknown")
+
+			// empty
+			vars[key] = ""
+			err = keyHandler(getContext(state), &buf, vars)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "unknown")
 		}
-
-		// not provided
-		delete(vars, key)
-		err := getKeyHandler(getContext(state), httptest.NewRecorder(), req, vars)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "unknown")
-
-		// empty
-		vars[key] = ""
-		err = getKeyHandler(getContext(state), httptest.NewRecorder(), req, vars)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "unknown")
 	}
 }
 
-// Getting a key for a non-supported role results in a 400.
-func TestGetKeyHandlerInvalidRole(t *testing.T) {
+// Getting or rotating a key for a non-supported role results in a 400.
+func TestKeyHandlersInvalidRole(t *testing.T) {
 	state := defaultState()
 	vars := map[string]string{
 		"imageName": "gun",
 		"tufRole":   data.CanonicalRootRole,
 	}
-	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
+	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
+		var buf bytes.Buffer
 
-	err := getKeyHandler(getContext(state), httptest.NewRecorder(), req, vars)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid role")
+		err := keyHandler(getContext(state), &buf, vars)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid role")
+	}
 }
 
 // Getting the key for a valid role and gun succeeds
 func TestGetKeyHandlerCreatesOnce(t *testing.T) {
 	state := defaultState()
 	roles := []string{data.CanonicalTimestampRole, data.CanonicalSnapshotRole}
-	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 
 	for _, role := range roles {
 		vars := map[string]string{"imageName": "gun", "tufRole": role}
-		recorder := httptest.NewRecorder()
-		err := getKeyHandler(getContext(state), recorder, req, vars)
+		var buf bytes.Buffer
+		err := getKeyHandler(getContext(state), &buf, vars)
 		assert.NoError(t, err)
-		assert.True(t, len(recorder.Body.String()) > 0)
+		assert.NotEmpty(t, buf.Bytes())
 	}
 }
 

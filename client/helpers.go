@@ -248,17 +248,7 @@ func getRemoteKey(url, gun, role string, rt http.RoundTripper) (data.PublicKey, 
 	if err != nil {
 		return nil, err
 	}
-	rawPubKey, err := remote.GetKey(role)
-	if err != nil {
-		return nil, err
-	}
-
-	pubKey, err := data.UnmarshalPublicKey(rawPubKey)
-	if err != nil {
-		return nil, err
-	}
-
-	return pubKey, nil
+	return remote.GetKey(role)
 }
 
 // add a key to a KeyDB, and create a role for the key and add it.

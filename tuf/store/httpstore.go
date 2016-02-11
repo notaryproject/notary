@@ -21,9 +21,12 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
+	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/validation"
 )
 
@@ -131,6 +134,8 @@ func translateStatusToError(resp *http.Response, resource string) error {
 		return ErrMetaNotFound{Resource: resource}
 	case http.StatusBadRequest:
 		return tryUnmarshalError(resp, ErrInvalidOperation{})
+	case notary.HTTPStatusTooManyRequests:
+		return ErrInvalidOperation{fmt.Sprintf("%s rate limited", resource)}
 	default:
 		return ErrServerUnavailable{code: resp.StatusCode}
 	}
@@ -270,13 +275,47 @@ func (s HTTPStore) buildURL(uri string) (*url.URL, error) {
 	return s.baseURL.ResolveReference(sub), nil
 }
 
-// GetKey retrieves a public key from the remote server
-func (s HTTPStore) GetKey(role string) ([]byte, error) {
+// GetKey retrieves the most recently created (whether it is signed in yet or not)
+// public key for the given role from the remote server
+func (s HTTPStore) GetKey(role string) (data.PublicKey, error) {
+	return s.requestKey(role, "GET", fmt.Sprintf("%s key", role), nil)
+}
+
+// RotateKey rotates a key on the remote server and returns the new public key.  This requires
+// a request with a short expiry time (to limit replay), signed by at least one root key.
+// Signing with the root key proves that the client making the request has the capability of
+// actually rotating the key, and is not just making a spurious rotation request.
+func (s HTTPStore) RotateKey(role string, cs signed.CryptoService, roots ...data.PublicKey) (data.PublicKey, error) {
+	req := &data.SignedCommon{
+		Type:    role,
+		Expires: time.Now().Add(5 * time.Minute),
+	}
+	reqJSON, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+	signedReq := &data.Signed{Signed: reqJSON}
+	if err := signed.Sign(cs, signedReq, roots...); err != nil {
+		return nil, err
+	}
+
+	requestBody, err := json.Marshal(signedReq)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.requestKey(role, "POST", fmt.Sprintf("%s key rotation", role), bytes.NewBuffer(requestBody))
+}
+
+// requestKey either sends a get or a post request, depending on whether there
+// is a body.
+func (s HTTPStore) requestKey(role, method, resource string, body io.Reader) (data.PublicKey, error) {
 	url, err := s.buildKeyURL(role)
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest("GET", url.String(), nil)
+
+	req, err := http.NewRequest(method, url.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -285,12 +324,18 @@ func (s HTTPStore) GetKey(role string) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if err := translateStatusToError(resp, role+" key"); err != nil {
+	if err := translateStatusToError(resp, resource); err != nil {
 		return nil, err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	return body, nil
+
+	pubKey, err := data.UnmarshalPublicKey(respBody)
+	if err != nil {
+		return nil, err
+	}
+
+	return pubKey, nil
 }
