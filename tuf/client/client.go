@@ -45,44 +45,78 @@ func (c *Client) Update() error {
 	// 3. Check if root correct against snapshot
 	//   a. If incorrect, download new root and return to 1.
 	// 4. Iteratively download and search targets and delegations to find target meta
-	logrus.Debug("updating TUF client")
-	err := c.update()
-	if err != nil {
-		logrus.Debug("Error occurred. Root will be downloaded and another update attempted")
-		if err := c.downloadRoot(); err != nil {
-			logrus.Debug("Client Update (Root):", err)
-			return err
-		}
-		// If we error again, we now have the latest root and just want to fail
-		// out as there's no expectation the problem can be resolved automatically
-		logrus.Debug("retrying TUF client update")
-		return c.update()
-	}
-	return nil
-}
 
-func (c *Client) update() error {
-	err := c.downloadTimestamp()
-	if err != nil {
-		logrus.Debugf("Client Update (Timestamp): %s", err.Error())
-		return err
+	type TufUpdateState int
+
+	const (
+		StateDownloadTimestamps TufUpdateState = iota
+		StateDownloadSnapshots
+		StateDownloadTargets
+		StateCheckRoot
+		StateDownloadRoot
+		StateUpdateComplete
+		StateUpdateFailed
+	)
+
+	var err error
+	downloadedRoot := false
+	downloadState := StateDownloadTimestamps
+	logrus.Debug("updating TUF client")
+
+	for downloadState != StateUpdateComplete && downloadState != StateUpdateFailed {
+		switch downloadState {
+		case StateDownloadTimestamps:
+			err = c.downloadTimestamp()
+			if err != nil {
+				logrus.Debugf("Client Update (Timestamp): %s", err.Error())
+				downloadState = StateDownloadRoot
+				break
+			}
+			downloadState = StateDownloadSnapshots
+		case StateDownloadSnapshots:
+			err = c.downloadSnapshot()
+			if err != nil {
+				logrus.Debugf("Client Update (Snapshot): %s", err.Error())
+				downloadState = StateDownloadRoot
+				break
+			}
+			downloadState = StateCheckRoot
+		case StateCheckRoot:
+			err = c.checkRoot()
+			if err != nil {
+				// In this instance the root has not expired based on time, but is
+				// expired based on the snapshot dictating a new root has been produced.
+				logrus.Debugf("Client Update (Checkroot):", err.Error())
+				downloadState = StateDownloadRoot
+				break
+			}
+			downloadState = StateDownloadTargets
+		case StateDownloadTargets:
+			// will always need top level targets at a minimum
+			err = c.downloadTargets(data.CanonicalTargetsRole)
+			if err != nil {
+				logrus.Debugf("Client Update (Targets): %s", err.Error())
+				downloadState = StateDownloadRoot
+				break
+			}
+			downloadState = StateUpdateComplete
+		case StateDownloadRoot:
+			if downloadedRoot {
+				downloadState = StateUpdateFailed
+				break
+			}
+			downloadedRoot = true
+			logrus.Debug("Will download Root and attempt to update again.")
+			if err = c.downloadRoot(); err != nil {
+				logrus.Debugf("Client Update (Root):", err.Error())
+				downloadState = StateUpdateFailed
+				break
+			}
+			downloadState = StateDownloadTimestamps
+		}
 	}
-	err = c.downloadSnapshot()
-	if err != nil {
-		logrus.Debugf("Client Update (Snapshot): %s", err.Error())
-		return err
-	}
-	err = c.checkRoot()
-	if err != nil {
-		// In this instance the root has not expired base on time, but is
-		// expired based on the snapshot dictating a new root has been produced.
-		logrus.Debug(err)
-		return err
-	}
-	// will always need top level targets at a minimum
-	err = c.downloadTargets("targets")
-	if err != nil {
-		logrus.Debugf("Client Update (Targets): %s", err.Error())
+	if downloadState == StateUpdateFailed {
+		logrus.Debugf("Error occurred, aborting client update:", err.Error())
 		return err
 	}
 	return nil
