@@ -717,16 +717,22 @@ func TestTargetMeta(t *testing.T) {
 	}
 
 	// returns the right level
-	fileMeta, role := client.TargetMeta("targets", "1")
+	fileMeta, role := client.TargetMeta(&data.Role{
+		Name:  "targets",
+		Paths: []string{""}}, "1")
 	assert.Equal(t, &f, fileMeta)
 	assert.Equal(t, "targets/level1/a", role)
 
 	// looks only in subtree
-	fileMeta, role = client.TargetMeta("targets/level1/a", "0")
+	fileMeta, role = client.TargetMeta(&data.Role{
+		Name:  "targets/level1/a",
+		Paths: []string{""}}, "0")
 	assert.Nil(t, fileMeta)
 	assert.Equal(t, "", role)
 
-	fileMeta, role = client.TargetMeta("targets/level1/a", "2")
+	fileMeta, role = client.TargetMeta(&data.Role{
+		Name:  "targets/level1/a",
+		Paths: []string{""}}, "2")
 	assert.Equal(t, &f, fileMeta)
 	assert.Equal(t, "targets/level1/a/i", role)
 }
