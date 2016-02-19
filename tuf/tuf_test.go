@@ -951,3 +951,22 @@ func TestGetAllRoles(t *testing.T) {
 	roles = repo.GetAllLoadedRoles()
 	assert.Len(t, roles, 0)
 }
+
+func TestSetTargetsIgnoresInvalidRoles(t *testing.T) {
+	ed25519 := signed.NewEd25519()
+	keyDB := keys.NewDB()
+	repo := initRepo(t, ed25519, keyDB)
+
+	origRootRole := keyDB.GetRole(data.CanonicalRootRole)
+	curTargetsRole := keyDB.GetRole(data.CanonicalTargetsRole)
+
+	level1 := data.NewTargets()
+	delgRole, err := data.NewRole(data.CanonicalRootRole, 1, curTargetsRole.KeyIDs, nil, nil)
+	assert.NoError(t, err)
+	level1.Signed.Delegations.Roles = []*data.Role{delgRole}
+
+	assert.NoError(t, repo.SetTargets("targets/level1", level1))
+
+	newRootRole := keyDB.GetRole(data.CanonicalRootRole)
+	assert.Equal(t, origRootRole, newRootRole)
+}
