@@ -11,14 +11,14 @@ weight=1
 
 # Content
 
-- [Prologue](#prologue)
+- [Who should read this?](#who_should_read_this)
 - [Installing Notary](#installing_notary)
 - [A Note on Naming](#a_note_on_naming)
 - [Inspecting a Docker Hub Repository](#inspecting_a_docker_hub_repository)
 - [Deleting a Tag](#deleting_a_tag)
 - [Configuring the Client](#configuring_the_client)
 
-# <a name="prologue">Prologue</a>
+# <a name="who_should_read_this">Who should read this?</a>
 
 This document describes basic use of notary as a tool supporting Docker Content Trust. For more advanced use cases you will need to [run your own server](running_a_server.md) and should read the [Advanced Usage](advanced_usage.md) documentation.
 
