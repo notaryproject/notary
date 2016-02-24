@@ -52,7 +52,7 @@ $ notary -s https://notary.docker.io -d ~/.docker/trust list docker.io/library/a
   latest   24a36bbc059b1345b7e8be0df20f1b23caa3602e85d42fff7ecd9d0bd255de56   1377           targets
 ```
 
-The output shows us the names of the tags available, the hex encoded sha256 digest of the image manifest associated with that tag, the size of the manifest, and the notary role that signed this tag into the repository. The "targets" role is the most common role in a simple repository. When a repository has (or expects) to have collaborators, you may see other "delegated" roles listed as signers, based on the choice of the adminstrator as to how they organize their collaborators.
+The output shows us the names of the tags available, the hex encoded sha256 digest of the image manifest associated with that tag, the size of the manifest, and the notary role that signed this tag into the repository. The "targets" role is the most common role in a simple repository. When a repository has (or expects) to have collaborators, you may see other "delegated" roles listed as signers, based on the choice of the administrator as to how they organize their collaborators.
 
 > When you run a `docker pull` command, docker is using an integrated notary library, the same one the notary CLI uses, to request the mapping of tag to sha256 digest for the one tag you are interested in (or if you passed the `--all` flag it will use the list operation to efficiently retrieve all the mappings). Having validated the signatures on the trust data, the client will then instruct the engine to do a "pull by digest" in which the docker engine uses the sha256 checksum as a content address to request and validate the image manifest from the docker registry.
 
