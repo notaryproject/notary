@@ -93,6 +93,7 @@ In case of potential compromise, notary provides a CLI command for rotating keys
 ## <a name="using_a_yubikey">Using a Yubikey</a>
 Notary can be used with [Yubikey 4](https://www.yubico.com/products/yubikey-hardware/yubikey4/) keys, via the PKCS11 interface with CCID-enabled PIV.
 The Yubikey will be prioritized to store root keys, and will require user touch-input for signing.
+
    - Please note that Yubikey support for signing docker images is only supported in the experimental branch.
 
 # <a name="working_with_delegations">Working with Delegations</a>
@@ -117,7 +118,7 @@ Let's break down the example above:
    - We're requesting to add the delegation `targets/user` to the GUN `example.com/collection`
       - The delegation name must be prefixed by `targets/` in order to be valid, since all delegations are restricted versions of the target role
    - We're adding the public key contained in the x509 cert `cert.pem` to the `targets/user` delegation.  In order for the `targets/user` delegation role to sign content, the delegation user must possess the private key corresponding to this public key.
-   - We're restricting this delegation to only publish content under filepaths prefixed by `"delegation/path"`.  We can add more paths in a comma separated list under `--paths`, or pass the `--all-paths` flag to allow this delegation to publish content under any filepath.
+   - We're restricting this delegation to only publish content under filepaths prefixed by `delegation/path`.  We can add more paths in a comma separated list under `--paths`, or pass the `--all-paths` flag to allow this delegation to publish content under any filepath.
 
 - After publishing, we can view delegations using a list command:
 ```
@@ -161,6 +162,11 @@ Addition of target "delegation/path/target" to repository "example/collections" 
 - In this example, we add the file `delegation_file.txt` as a target `delegation/path/target` using our delegation role `targets/users`
     - This target's path is valid because it is prefixed by the delegation role's valid path
     - `notary list` and `notary remove` can also take the `--roles` flag to specify roles to list or remove targets from.  By default, we will operate over the base `targets` role
+
+To remove this target from our delegation, we can use `notary remove` with the same flag:
+```
+$ notary remove example/collections delegation/path/target --roles=targets/users
+```
 
 # <a name="files_on_disk">Files on Disk</a>
 Notary stores state in its `trust_dir` directory, which is `~/.notary` by default or usually `~/.docker/trust` when enabling  Docker Content Trust.
