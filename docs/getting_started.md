@@ -58,7 +58,7 @@ The output shows us the names of the tags available, the hex encoded sha256 dige
 
 # <a name="deleting_a_tag">Deleting a Tag</a>
 
-Notary generates and stores signing keys on the host it's running on. This means that the Docker Hub cannot delete tags from the trust data, they must be deleted using the notary client. This can be done with the `notary remove` command. Again, we must direct it to speak to the correct notary server (N.B. neither you nor the author has permissions to delete tags from the official alpine repository, the below output is for demonstration only):
+Notary generates and stores signing keys on the host it's running on. This means that the Docker Hub cannot delete tags from the trust data, they must be deleted using the notary client. This can be done with the `notary remove` command. Again, we must direct it to speak to the correct notary server (N.B. neither you nor the author has permissions to delete tags from the official alpine repository, the output below is for demonstration only):
 
 ```
 $ notary -s https://notary.docker.io -d ~/.docker/trust remove docker.io/library/alpine 2.6
@@ -79,7 +79,7 @@ $ notary -s https://notary.docker.io publish docker.io/library/alpine
 
 # <a name="configuring_the_client">Configuring the Client</a>
 
-It is verbose and irritating to always have to provide the `-s` and `-d` flags manually to most commands. A simple way to create preconfigured versions of the notary command is via aliases. Add the following to your `.bashrc` or equivalent:
+It is verbose and tedious to always have to provide the `-s` and `-d` flags manually to most commands. A simple way to create preconfigured versions of the notary command is via aliases. Add the following to your `.bashrc` or equivalent:
 
 ```
 alias dockernotary="notary -s https://notary.docker.io -d ~/.docker/trust"

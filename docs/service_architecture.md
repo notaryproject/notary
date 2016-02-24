@@ -12,15 +12,15 @@ weight=3
 <a name="top"></a>
 
 - [Overview of Notary Service](#overview)
-- [Excample of a successful Client-Server-Signer interaction](#information-flow)
+- [Example of a successful Client-Server-Signer interaction](#information-flow)
 - [Threat model](#threat-model)
 
 This document assumes a prior understanding of
-[the Update Framework](https://theupdateframework.github.io/).
+[The Update Framework](https://theupdateframework.github.io/).
 
 ### Overview of Notary Service <a name="overview"></a>
 
-A Notary service consist of a Notary Server, which stores and updates the signed
+A Notary service consists of a Notary Server, which stores and updates the signed
 [TUF metadata files](
 https://github.com/theupdateframework/tuf/blob/develop/docs/tuf-spec.txt#L348)
 for multiple repositories in an associated database, and a Notary Signer, which
@@ -30,7 +30,7 @@ Root, targets, and (sometimes) snapshot metadata are generated and signed by
 clients, who upload the metadata to the Notary Server.  The Server is
 responsible for:
 
-- validating that any uploaded metadata is valid, signed, and self-consistent
+- ensuring that any uploaded metadata is valid, signed, and self-consistent
 - generating the timestamp (and sometimes snapshot) metadata
 - storing and serving to clients the latest valid metadata for any repository
 
@@ -48,7 +48,7 @@ Notary Server database
 
 [[back to top](#top)]
 
-### Example client-server-signer interaction <a name="information-flow"></a>
+### Example Client-Server-Signer interaction <a name="information-flow"></a>
 
 ![Notary Server Sequence Diagram](metadata-sequence.svg)
 
@@ -74,7 +74,7 @@ Notary Server database
    and validity of the uploaded metadata.
 
 4. Once all the uploaded metadata has been validated, Notary Server
-   generates the timestamp (and maybe snaphot) metadata.  It sends this
+   generates the timestamp (and maybe snapshot) metadata.  It sends this
    generated metadata to the Notary Signer to be signed.
 
 5. Notary Signer gets the requisite encrypted private keys from its database if
@@ -128,7 +128,7 @@ Notary Server database
       detect that the content is malicious and would not trust any root, targets,
       or (maybe) snapshot metadata for these repositories.
 
-   - **Rollback, Mix and Match ** - The attacker can request that
+   - **Rollback, Mix and Match** - The attacker can request that
       the Notary Signer sign whatever timestamp (and maybe snapshot) metadata
       they want.  They can create valid timestamp and snapshot metadata that
       certifies that the latest version of the repository contains
@@ -156,6 +156,6 @@ Notary Server database
 
    - **Key Compromise** - If the Notary Signer uses a database as its backend,
       an attacker can exfiltrate all the private keys.  This will let them set
-      up a malicous mirror to perform rollback and mix and match attacks,
+      up a malicious mirror to perform rollback and mix and match attacks,
       for instance.
 
