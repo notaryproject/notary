@@ -9,4 +9,4 @@ weight=4
 +++
 <![end-metadata]-->
 
-
+![Notary Server Deployment Diagram](server-deployment.svg)
