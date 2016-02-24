@@ -101,7 +101,7 @@ An example (full) server configuration file.
 			<td valign="top">The path to the client certificate to use for mutual TLS with
 				the Notary Server.  Must be provided along with <code>tls_client_key</code>
 				or not provided at all.  The path is relative to the directory of the
-				configuration file.  </td>
+				configuration file.</td>
 		</tr>
 		<tr>
 			<td valign="top"><code>tls_client_key</code></td>
@@ -329,9 +329,9 @@ An example (full) server configuration file.
 			<td valign="top"><code>tls_ca_file</code></td>
 			<td valign="top">no</td>
 			<td valign="top">The path to the root CA that signed the TLS
-				certificate of the remote service. This parameter if said root
-				CA is not in the system's default trust roots. The path is
-				relative to the directory of the configuration file.</td>
+				certificate of the remote service. This parameter must be
+				provided if said root CA is not in the system's default trust
+				roots. The path is relative to the directory of the configuration file.</td>
 		</tr>
 		<tr>
 			<td valign="top"><code>tls_client_key</code></td>
@@ -598,7 +598,7 @@ An example (full) server configuration file.
 
 - #### `storage` section (required) <a name="notary-signer-storage"></a>
 
-	This is used to store encrypted priate keys.  We only support MySQL or an
+	This is used to store encrypted private keys.  We only support MySQL or an
 	in-memory store, currently.
 
 	Example:
