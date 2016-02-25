@@ -11,15 +11,27 @@ weight=5
 
 # Configuration files <a name="top"></a>
 
-- [Notary Client](#notary-client-configuration-file)
-- [Notary Server](#notary-server-configuration-file)
-- [Notary Signer](#notary-signer-configuration-file)
+- [Who should read this?](#who_should_read_this)
+- [Notary Client Configuration File](#notary-client-configuration-file)
+- [Notary Server Configuration File](#notary-server-configuration-file)
+- [Notary Signer Configuration File](#notary-signer-configuration-file)
+
+
+# Who should read this?
+
+This document is for power users of the [notary client](advanced_usage.md), or
+for those who are [running their own service](running_a_service.md) who want
+to facilitate CLI interaction or specify custom options.
 
 ---
 
 # Notary Client Configuration File <a name="notary-client-configuration-file"></a>
 
-The configuration file for Notary Client consists of the following sections:
+The configuration file for Notary Client normally resides at `~/.notary/config.json`,
+but the path to a different configuration file can be specified using the
+`-c` or `--configFile` command line flag.
+
+A configuration file consists of the following sections:
 
 <table>
 	<tr>
@@ -61,6 +73,8 @@ An example (full) server configuration file.
 	This is normally defaults to `~/.notary`, but specifying `~/.docker/trust`
 	facilitates interoperability with Docker Content Trust.
 
+	Note that this option can be overridden with the command line flag `--trustDir`.
+
 	[[Notary Client configuration overview](#notary-client-configuration-file)]
 
 - #### `remote_server` section (optional) <a name="notary-client-remote"></a>
@@ -88,30 +102,41 @@ An example (full) server configuration file.
 		<tr>
 			<td valign="top"><code>url</code></td>
 			<td valign="top">no</td>
-			<td valign="top">URL of the Notary Server: defaults to https://notary.docker.io</td>
+			<td valign="top">URL of the Notary Server: defaults to https://notary.docker.io
+				This configuration option can be overridden with the command line flag
+				`-s` or `--server`.</td>
 		</tr>
 		<tr>
 			<td valign="top"><code>root-ca</code></td>
 			<td valign="top">no</td>
-			<td valign="top">The path to the file containing the root CA with which to verify
+			<td valign="top"><p>The path to the file containing the root CA with which to verify
 				the TLS certificate of the Notary Server, for example if it is self-signed.
-				The path is relative to the directory of the configuration file.</td>
+				The path is relative to the directory of the configuration file.</p>
+				<p>This configuration option can overridden with the command line flag
+				`--tlscacert`, which would specify a path relative to the current working
+				directory where the Notary Client is invoked.</p></td>
 		</tr>
 		<tr>
 			<td valign="top"><code>tls_client_cert</code></td>
 			<td valign="top">no</td>
-			<td valign="top">The path to the client certificate to use for mutual TLS with
+			<td valign="top"><p>The path to the client certificate to use for mutual TLS with
 				the Notary Server.  Must be provided along with <code>tls_client_key</code>
 				or not provided at all.  The path is relative to the directory of the
-				configuration file.</td>
+				configuration file.</p>
+				<p>This configuration option can overridden with the command line flag
+				`--tlscert`, which would specify a path relative to the current working
+				directory where the Notary Client is invoked.</p></td>
 		</tr>
 		<tr>
 			<td valign="top"><code>tls_client_key</code></td>
 			<td valign="top">no</td>
-			<td valign="top">The path to the client key to use for mutual TLS with
+			<td valign="top"><p>The path to the client key to use for mutual TLS with
 				the Notary Server. Must be provided along with <code>tls_client_cert</code>
 				or not provided at all.  The path is relative to the directory of the
-				configuration file.</td>
+				configuration file.</p>
+				<p>This configuration option can overridden with the command line flag
+				`--tlskey`, which would specify a path relative to the current working
+				directory where the Notary Client is invoked.</p></td>
 		</tr>
 	</table>
 
@@ -120,9 +145,10 @@ An example (full) server configuration file.
 - #### Environment variables (optional) <a name="notary-client-envvars"></a>
 
 	The following environment variables containing signing key passphrases can
-	be used to facilitate Notary Client CLI interaction.  If provided, these
-	passwords will be used initially to sign TUF metadata.  If the passphrase
-	is incorrect, you will be prompted to enter the correct passphrase.
+	be used to facilitate [Notary Client CLI interaction](advanced_usage.md).
+	If provided, these passwords will be used initially to sign TUF metadata.
+	If the passphrase is incorrect, you will be prompted to enter the correct
+	passphrase.
 
 
 	| Environment Variable        | Description                             |
@@ -138,7 +164,11 @@ An example (full) server configuration file.
 
 # Notary Server Configuration File
 
-The configuration file for Notary Server consists of the following sections:
+A configuration file is required by Notary Server, and the path to the
+configuration file must be specified using the `-config` option on the command
+line.
+
+The configuration file consists of the following sections:
 
 <table>
 	<tr>
@@ -453,8 +483,12 @@ An example (full) server configuration file.
 # Notary Signer Configuration File
 
 Notary signer [requires environment variables](#notary-signer-envvars) in order to
-encrypt private keys at rest.  It also takes a configuration file, which
-consists of the following sections:
+encrypt private keys at rest.
+
+It also requires a configuration file, the path to which is specified on the
+command line using the `-config` flag.
+
+A Notary Signer configuration file consists of the following sections:
 
 <table>
 	<tr>

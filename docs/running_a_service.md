@@ -15,9 +15,18 @@ This document assumes a familiarity with using
 [Docker](https://docs.docker.com/engine/userguide/) and
 [Docker Compose](https://docs.docker.com/compose/overview/).
 
+- [Who should read this?](#who_should_read_this)
 - [Running a service for testing or development](#notary-service-temp)
 - [Advanced configuration options](#notary-service-configuration)
 - [Recommendations for deploying in production](#notary-service-prod)
+
+---
+
+# Who should read this?
+
+This document is for anyone who wants to
+[run their own Notary service](running_a_service.md) (such as those who want
+to use Notary with a private Docker registry).
 
 ---
 
@@ -207,13 +216,13 @@ that must be made to ensure security and scalability.
 ## Certificates<a name="certificates"></a>
 
 The Notary repository includes sample certificates in the fixtures directory.
-When you initialize a development service using the provided docker-compose.yml 
-file, these sample certificates are used to create a more production like 
+When you initialize a development service using the provided docker-compose.yml
+file, these sample certificates are used to create a more production like
 environment.
 
 YOU MUST ACQUIRE YOUR OWN CERTIFICATES TO USE IN A PRODUCTION DEPLOYMENT.
 
-The private key files in the Notary repository are obviously public knowledge 
+The private key files in the Notary repository are obviously public knowledge
 and using them in a production deployment is highly insecure.
 
 ## Databases<a name="databases"></a>
@@ -229,7 +238,7 @@ only their own databases:
 ## High Availability<a name="high_availability"></a>
 
 Most production users will want to increase availability by running multiple instances
-of both the server and signer applications. These can be scaled arbitrarily and 
+of both the server and signer applications. These can be scaled arbitrarily and
 independently. The database may also be scaled independently but this is left as
 and exercise for experienced DBAs and Operations teams. A typical deployment will
 look like the below diagram:
@@ -239,9 +248,9 @@ look like the below diagram:
 In the diagram, a load balancer routes external traffic to a cluster of Notary Server
 instances. These may make requests to Notary Signer instaces if either a) signing
 is required, or b) key generation is required. The requests from a Notary Server
-to a Notary Signer cluster are router via an internal load balancer. 
+to a Notary Signer cluster are router via an internal load balancer.
 
-Notary can be used with a CDN or other caching system. All GET requests for JSON 
+Notary can be used with a CDN or other caching system. All GET requests for JSON
 files may be cached indefinitely __except__ URLs matching:
 
 - `*/root.json`

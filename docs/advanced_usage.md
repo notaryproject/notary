@@ -29,7 +29,7 @@ This document is for power users of the notary client or those interested in the
 
 # <a name="important_note">Important Note</a>
 
-Commands in this document will omit the `-s` and `-d` flags. If you do not know what these do, please read the [Getting Started](getting_started.md) docs before continuing. Once you understand what these flags do, you are expected to provide your own values for them while following this document.
+Commands in this document will omit the `-s` and `-d` flags. If you do not know what these do, please read the [Getting Started](getting_started.md) docs or run `notary --help` before continuing. Once you understand what these flags do, you are expected to provide your own values for them while following this document (alternately, please see [advanced configuration options](configuration.md)).
 
 # <a name="initializing_a_repository">Initializing a Repository</a>
 
@@ -64,7 +64,9 @@ It's simple to add targets to a repository with notary CLI:
 $ notary add example.com/collection v1 my_file.txt
 ```
 
-The above command adds the local file `my_file.txt` (this file must exist relative to the current working directory) under the target name `v1` to the `example.com/collection` repository we set up.
+The above command adds the local file `my_file.txt` (this file must exist relative to the current working directory) under the target name `v1` to the `example.com/collection` repository we set up. The contents of the local file are not actually added to the repository - a "target" consists of the
+file path and one or more checksums of the contents.
+
 Note that this is an offline command, and we must run a `notary publish example.com/collection` for the add to take effect.
 
 To remove targets, we use the `notary remove` command, specifying the GUN and target name.
@@ -97,77 +99,80 @@ The Yubikey will be prioritized to store root keys, and will require user touch-
 
    - Please note that Yubikey support for signing docker images is only supported in the experimental branch.
 
+Yubikey support requires [Yubico PIV libraries (which are bundled with the PIV tools)](https://www.yubico.com/support/downloads) to be available in standard library locations.
+
 # <a name="working_with_delegations">Working with Delegations</a>
 Delegation roles simplify collaborator workflows in notary repositories, and also allow for fine-grained permissions within a repository's contents across delegations.
 In essence, delegation roles are restricted versions of the targets role that are only allowed to sign targets within certain filepaths.
-A delegation role is given its own keys, such that each collaborator can keep his own private key without the repository administrator having to share the targets key of the entire repository.
+A delegation role is given its own keys, such that each collaborator can keep his own private key without the repository administrator having to share the targets key or allow a collaborator write access to all targets of the repository.
 
 - Before adding any delegations, one should rotate the snapshot key to the server.
 This is such that delegation roles will not require the snapshot key to publish their own targets to the repository, since the server can publish the valid snapshot with the delegation targets:
-```
-$ notary key rotate example.com/collection -r --key-type=snapshot
-```
+  ```
+  $ notary key rotate example.com/collection -r --key-type=snapshot
+  ```
 
 - Now, when adding a delegation, we must acquire a x509 certificate with the public key of the user we wish to delegate to.
 The user who will assume this delegation role must hold the private key to sign content with notary.
 
 - Once we've acquired the delegate's x509 certificate, we can add a delegation for this user:
-```
-$ notary delegation add example.com/collection targets/releases cert.pem --paths="delegation/path"
-```
-Let's break down the example above:
+  ```
+  $ notary delegation add example.com/collection targets/releases cert.pem --paths="delegation/path"
+  ```
+
+  Let's break down the example above:
    - We're requesting to add the delegation `targets/releases` to the GUN `example.com/collection`
       - The delegation name must be prefixed by `targets/` in order to be valid, since all delegations are restricted versions of the target role
    - We're adding the public key contained in the x509 cert `cert.pem` to the `targets/releases` delegation.  In order for the `targets/releases` delegation role to sign content, the delegation user must possess the private key corresponding to this public key.
    - We're restricting this delegation to only publish content under filepaths prefixed by `delegation/path`.  We can add more paths in a comma separated list under `--paths`, or pass the `--all-paths` flag to allow this delegation to publish content under any filepath.
 
 - After publishing, we can view delegations using a list command:
-```
-$ notary delegation list example.com/collection
+  ```
+  $ notary delegation list example.com/collection
 
-      ROLE               PATHS                                   KEY IDS                                THRESHOLD
----------------------------------------------------------------------------------------------------------------
-  targets/releases   delegation/path   729c7094a8210fd1e780e7b17b7bb55c9a28a48b871b07f65d97baf93898523a   1
-```
+        ROLE               PATHS                                   KEY IDS                                THRESHOLD
+  ---------------------------------------------------------------------------------------------------------------
+    targets/releases   delegation/path   729c7094a8210fd1e780e7b17b7bb55c9a28a48b871b07f65d97baf93898523a   1
+  ```
 
-We can see our `targets/releases` with its paths and key IDs.  If we wish to modify these fields we can do so with additional `notary delegation add` or `notary delegation remove` commands on this role.
+  We can see our `targets/releases` with its paths and key IDs.  If we wish to modify these fields we can do so with additional `notary delegation add` or `notary delegation remove` commands on this role.
 
 - The threshold of `1` indicates that only one of the keys specified in `KEY IDS` is required to publish to this delegation
 
 - To remove a delegation role entirely, or just individual keys and/or paths, we can use the `notary delegation remove` command:
 
-```
-$ notary delegation remove example.com/user targets/releases
+  ```
+  $ notary delegation remove example.com/user targets/releases
 
-Are you sure you want to remove all data for this delegation? (yes/no)
-yes
+  Are you sure you want to remove all data for this delegation? (yes/no)
+  yes
 
-Forced removal (including all keys and paths) of delegation role targets/releases to repository "example.com/user" staged for next publish.
-```
+  Forced removal (including all keys and paths) of delegation role targets/releases to repository "example.com/user" staged for next publish.
+  ```
 
-   - We can remove individual keys and/or paths by passing keys as arguments, and/or paths under the `--paths` flag
-      - `--all-paths` will clear all paths for this role
-      - if we specify all key IDs currently in the delegation role, we will delete the role entirely
+  We can remove individual keys and/or paths by passing keys as arguments, and/or paths under the `--paths` flag
+    - `--all-paths` will clear all paths for this role
+    - if we specify all key IDs currently in the delegation role, we will delete the role entirely
 
 
-To add targets to a specified delegation role, we can use the `notary add` command with the `--roles` flag.
+- To add targets to a specified delegation role, we can use the `notary add` command with the `--roles` flag.
 
-Note that we must have imported an appropriate delegation key for this role.  To do so, we can run `notary key import <KEY_FILE> --role user` with the private key PEM file, or drop the private key PEM in `private/tuf_keys` as `<KEY_ID>.key` with the `role` PEM header set to `user`.
+  Note that we must have imported an appropriate delegation key for this role.  To do so, we can run `notary key import <KEY_FILE> --role user` with the private key PEM file, or drop the private key PEM in `private/tuf_keys` as `<KEY_ID>.key` with the `role` PEM header set to `user`.
 
-```
-$ notary add example/collections delegation/path/target delegation_file.txt --roles=targets/releases
+  ```
+  $ notary add example/collections delegation/path/target delegation_file.txt --roles=targets/releases
 
-Addition of target "delegation/path/target" to repository "example/collections" staged for next publish.
-```
+  Addition of target "delegation/path/target" to repository "example/collections" staged for next publish.
+  ```
 
-- In this example, we add the file `delegation_file.txt` as a target `delegation/path/target` using our delegation role `targets/releases`
+  In this example, we add the file `delegation_file.txt` as a target `delegation/path/target` using our delegation role `targets/releases`
     - This target's path is valid because it is prefixed by the delegation role's valid path
     - `notary list` and `notary remove` can also take the `--roles` flag to specify roles to list or remove targets from.  By default, we will operate over the base `targets` role
 
-To remove this target from our delegation, we can use `notary remove` with the same flag:
-```
-$ notary remove example/collections delegation/path/target --roles=targets/releases
-```
+- To remove this target from our delegation, we can use `notary remove` with the same flag:
+  ```
+  $ notary remove example/collections delegation/path/target --roles=targets/releases
+  ```
 
 ## <a name="delegations_in_docker">Using Delegations with Docker Content Trust</a>
 Docker 1.10 supports the usage of the `targets/releases` delegation, other delegation roles will be supported in a future release.

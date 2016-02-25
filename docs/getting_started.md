@@ -85,4 +85,4 @@ It is verbose and tedious to always have to provide the `-s` and `-d` flags manu
 alias dockernotary="notary -s https://notary.docker.io -d ~/.docker/trust"
 ```
 
-More advanced methods of configuration, and additional options, can be found in the [configuration doc](configuration.md)
+More advanced methods of configuration, and additional options, can be found in the [configuration doc](configuration.md) and by running `notary --help`.
