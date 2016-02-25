@@ -385,7 +385,7 @@ An example (full) server configuration file.
 			<td valign="top">yes if not <code>memory</code></td>
 			<td valign="top">The <a href="https://github.com/go-sql-driver/mysql">
 				the Data Source Name used to access the DB.</a>
-				(note: please include "parseTime=true" as part of the the DSN)</td>
+				(note: please include <code>parseTime=true</code> as part of the the DSN)</td>
 		</tr>
 	</table>
 
@@ -429,7 +429,7 @@ An example (full) server configuration file.
 		<tr>
 			<td valign="top"><code>type</code></td>
 			<td valign="top">yes</td>
-			<td valign="top">Must be `"token"`; all other values will result in no
+			<td valign="top">Must be <code>"token"</code>; all other values will result in no
 				authentication (and the rest of the parameters will be ignored)</td>
 		</tr>
 		<tr>
@@ -629,7 +629,7 @@ An example (full) server configuration file.
 			<td valign="top">yes if not <code>memory</code></td>
 			<td valign="top">The <a href="https://github.com/go-sql-driver/mysql">
 				the Data Source Name used to access the DB.</a>
-				(note: please include "parseTime=true" as part of the the DSN)</td>
+				(note: please include <code>parseTime=true</code> as part of the the DSN)</td>
 		</tr>
 		<tr>
 			<td valign="top"><code>default_alias</code></td>
@@ -661,8 +661,8 @@ An example (full) server configuration file.
 	`export NOTARY_SIGNER_PASSWORDALIAS1=mypassword`
 
 	so that that Notary Signer knows to encrypt all keys with the passphrase
-	"mypassword", and to decrypt any private key stored with password alias
-	"passwordalias1" with the passphrase "mypassword".
+	`mypassword`, and to decrypt any private key stored with password alias
+	`passwordalias1` with the passphrase `mypassword`.
 
 	Older passwords may also be provided as environment variables.  For instance,
 	let's say that you wanted to change the password that is used to create new
@@ -687,8 +687,8 @@ An example (full) server configuration file.
 	```
 
 	That way, all new keys will be encrypted and decrypted using the passphrase
-	"mynewfancypassword", but old keys that were encrypted using the passphrase
-	"mypassword" can still be decrypted.
+	`mynewfancypassword`, but old keys that were encrypted using the passphrase
+	`mypassword` can still be decrypted.
 
 	The environment variables for the older passwords are optional, but Notary
 	Signer will not be able to decrypt older keys if they are not provided, and
@@ -776,7 +776,7 @@ Notary Signer have the same keys and format:
 		<tr>
 			<td valign="top"><code>release_stage</code></td>
 			<td valign="top">yes</td>
-			<td>The current release stage, such as "production".  You can
+			<td>The current release stage, such as <code>"production"</code>.  You can
 				use this value to filter errors in the Bugsnag dashboard.</td>
 		</tr>
 	</table>
