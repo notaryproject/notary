@@ -20,6 +20,8 @@ This document assumes a prior understanding of
 
 ### Overview of Notary Service <a name="overview"></a>
 
+![Notary Service Architecture Diagram](service-architecture.svg)
+
 A Notary service consists of a Notary Server, which stores and updates the signed
 [TUF metadata files](
 https://github.com/theupdateframework/tuf/blob/develop/docs/tuf-spec.txt#L348)
@@ -50,7 +52,7 @@ Notary Server database
 
 ### Example Client-Server-Signer interaction <a name="information-flow"></a>
 
-![Notary Server Sequence Diagram](metadata-sequence.svg)
+![Notary Service Sequence Diagram](metadata-sequence.svg)
 
 1. Notary Server optionally supports authentication from clients using
    [JWT](http://jwt.io/) tokens.  This requires an authorization server that
@@ -159,3 +161,4 @@ Notary Server database
       up a malicious mirror to perform rollback and mix and match attacks,
       for instance.
 
+[[back to top](#top)]

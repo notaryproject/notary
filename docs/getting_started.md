@@ -20,7 +20,7 @@ weight=1
 
 # <a name="who_should_read_this">Who should read this?</a>
 
-This document describes basic use of notary as a tool supporting Docker Content Trust. For more advanced use cases you will need to [run your own server](running_a_server.md) and should read the [Advanced Usage](advanced_usage.md) documentation.
+This document describes basic use of notary as a tool supporting Docker Content Trust. For more advanced use cases you will need to [run your own service](running_a_service.md) and should read the [Advanced Usage](advanced_usage.md) documentation.
 
 # <a name="installing_notary">Installing Notary</a>
 
@@ -31,7 +31,7 @@ A precompiled notary binary for 64 bit Linux or Mac OS X can be downloaded from 
 Notary uses Globally Unique Names (GUNs) to identify trust repositories. To enable notary to run in a multi-tenant fashion, it requires that all docker image names are provided in their Globally Unique Name format, which is defined as:
 
 - For official images (identifiable by the "Official Repository" moniker), the image name as displayed on Docker Hub, prefixed with `docker.io/library/`. i.e. if you would normally type `docker pull ubuntu` you must enter `notary <cmd> docker.io/library/ubuntu`.
-- For all other images, the image name as displayed on hub, prefixed by `docker.io`. 
+- For all other images, the image name as displayed on hub, prefixed by `docker.io`.
 
 The docker client takes care of these name expansions for you under the hood so do not change the names you use with docker. This is a requirement only when interacting with the same Docker Hub repositories through the notary client.
 
@@ -41,14 +41,14 @@ The most basic operation is listing the available signed tags in a repository. T
 
 ```
 $ notary -s https://notary.docker.io -d ~/.docker/trust list docker.io/library/alpine
-   NAME                                 DIGEST                                SIZE (BYTES)    ROLE    
+   NAME                                 DIGEST                                SIZE (BYTES)    ROLE
 ------------------------------------------------------------------------------------------------------
-  2.6      e9cec9aec697d8b9d450edd32860ecd363f2f3174c8338beb5f809422d182c63   1374           targets  
-  2.7      9f08005dff552038f0ad2f46b8e65ff3d25641747d3912e3ea8da6785046561a   1374           targets  
-  3.1      e876b57b2444813cd474523b9c74aacacc238230b288a22bccece9caf2862197   1374           targets  
-  3.2      4a8c62881c6237b4c1434125661cddf09434d37c6ef26bf26bfaef0b8c5e2f05   1374           targets  
-  3.3      2d4f890b7eddb390285e3afea9be98a078c2acd2fb311da8c9048e3d1e4864d3   1374           targets  
-  edge     878c1b1d668830f01c2b1622ebf1656e32ce830850775d26a387b2f11f541239   1374           targets  
+  2.6      e9cec9aec697d8b9d450edd32860ecd363f2f3174c8338beb5f809422d182c63   1374           targets
+  2.7      9f08005dff552038f0ad2f46b8e65ff3d25641747d3912e3ea8da6785046561a   1374           targets
+  3.1      e876b57b2444813cd474523b9c74aacacc238230b288a22bccece9caf2862197   1374           targets
+  3.2      4a8c62881c6237b4c1434125661cddf09434d37c6ef26bf26bfaef0b8c5e2f05   1374           targets
+  3.3      2d4f890b7eddb390285e3afea9be98a078c2acd2fb311da8c9048e3d1e4864d3   1374           targets
+  edge     878c1b1d668830f01c2b1622ebf1656e32ce830850775d26a387b2f11f541239   1374           targets
   latest   24a36bbc059b1345b7e8be0df20f1b23caa3602e85d42fff7ecd9d0bd255de56   1377           targets
 ```
 

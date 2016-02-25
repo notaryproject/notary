@@ -15,6 +15,6 @@ weight=4
 * [Getting Started](getting_started.md)
 * [Advanced Usage](advanced_usage.md)
 * [Service Architecture](service_architecture.md)
-* [Running a Server](running_a_server.md)
+* [Running a Service](running_a_service.md)
 * [Configuration](configuration.md)
 * [Changelog](changelog.md)
