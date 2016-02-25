@@ -41,7 +41,7 @@ https://github.com/dvsekhvalnov/jose2go).
 
 The passphrase used to encrypt the keys is passed as an environment variable,
 the name of which [is specified by the confguration file](
-notary-signer-config.md#storage-section-required).
+notary-signer-config.md).
 
 ### How to configure and run Notary Signer
 
