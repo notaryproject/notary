@@ -20,6 +20,7 @@ weight=2
   - [Rotating Keys](#rotating_keys)
   - [Using a Yubikey](#using_a_yubikey)
 - [Working with Delegations](#working_with_delegations)
+  - [Using Delegations with Docker Content Trust](#delegations_in_docker)
 - [Files on Disk](#files_on_disk)
 
 # <a name="who_should_read_this">Who should read this?</a>
@@ -112,36 +113,36 @@ The user who will assume this delegation role must hold the private key to sign 
 
 - Once we've acquired the delegate's x509 certificate, we can add a delegation for this user:
 ```
-$ notary delegation add example.com/collection targets/user cert.pem --paths="delegation/path"
+$ notary delegation add example.com/collection targets/releases cert.pem --paths="delegation/path"
 ```
 Let's break down the example above:
-   - We're requesting to add the delegation `targets/user` to the GUN `example.com/collection`
+   - We're requesting to add the delegation `targets/releases` to the GUN `example.com/collection`
       - The delegation name must be prefixed by `targets/` in order to be valid, since all delegations are restricted versions of the target role
-   - We're adding the public key contained in the x509 cert `cert.pem` to the `targets/user` delegation.  In order for the `targets/user` delegation role to sign content, the delegation user must possess the private key corresponding to this public key.
+   - We're adding the public key contained in the x509 cert `cert.pem` to the `targets/releases` delegation.  In order for the `targets/releases` delegation role to sign content, the delegation user must possess the private key corresponding to this public key.
    - We're restricting this delegation to only publish content under filepaths prefixed by `delegation/path`.  We can add more paths in a comma separated list under `--paths`, or pass the `--all-paths` flag to allow this delegation to publish content under any filepath.
 
 - After publishing, we can view delegations using a list command:
 ```
 $ notary delegation list example.com/collection
 
-      ROLE           PATHS                                   KEY IDS                                THRESHOLD
+      ROLE               PATHS                                   KEY IDS                                THRESHOLD
 ---------------------------------------------------------------------------------------------------------------
-  targets/user   delegation/path   729c7094a8210fd1e780e7b17b7bb55c9a28a48b871b07f65d97baf93898523a   1
+  targets/releases   delegation/path   729c7094a8210fd1e780e7b17b7bb55c9a28a48b871b07f65d97baf93898523a   1
 ```
 
-We can see our `targets/user` with its paths and key IDs.  If we wish to modify these fields we can do so with additional `notary delegation add` or `notary delegation remove` commands on this role.
+We can see our `targets/releases` with its paths and key IDs.  If we wish to modify these fields we can do so with additional `notary delegation add` or `notary delegation remove` commands on this role.
 
 - The threshold of `1` indicates that only one of the keys specified in `KEY IDS` is required to publish to this delegation
 
 - To remove a delegation role entirely, or just individual keys and/or paths, we can use the `notary delegation remove` command:
 
 ```
-$ notary delegation remove example.com/user targets/user
+$ notary delegation remove example.com/user targets/releases
 
 Are you sure you want to remove all data for this delegation? (yes/no)
 yes
 
-Forced removal (including all keys and paths) of delegation role targets/user to repository "example.com/user" staged for next publish.
+Forced removal (including all keys and paths) of delegation role targets/releases to repository "example.com/user" staged for next publish.
 ```
 
    - We can remove individual keys and/or paths by passing keys as arguments, and/or paths under the `--paths` flag
@@ -154,19 +155,27 @@ To add targets to a specified delegation role, we can use the `notary add` comma
 Note that we must have imported an appropriate delegation key for this role.  To do so, we can run `notary key import <KEY_FILE> --role user` with the private key PEM file, or drop the private key PEM in `private/tuf_keys` as `<KEY_ID>.key` with the `role` PEM header set to `user`.
 
 ```
-$ notary add example/collections delegation/path/target delegation_file.txt --roles=targets/users
+$ notary add example/collections delegation/path/target delegation_file.txt --roles=targets/releases
 
 Addition of target "delegation/path/target" to repository "example/collections" staged for next publish.
 ```
 
-- In this example, we add the file `delegation_file.txt` as a target `delegation/path/target` using our delegation role `targets/users`
+- In this example, we add the file `delegation_file.txt` as a target `delegation/path/target` using our delegation role `targets/releases`
     - This target's path is valid because it is prefixed by the delegation role's valid path
     - `notary list` and `notary remove` can also take the `--roles` flag to specify roles to list or remove targets from.  By default, we will operate over the base `targets` role
 
 To remove this target from our delegation, we can use `notary remove` with the same flag:
 ```
-$ notary remove example/collections delegation/path/target --roles=targets/users
+$ notary remove example/collections delegation/path/target --roles=targets/releases
 ```
+
+## <a name="delegations_in_docker">Using Delegations with Docker Content Trust</a>
+Docker 1.10 supports the usage of the `targets/releases` delegation, other delegation roles will be supported in a future release.
+By default, Docker 1.10 with Docker Content Trust enabled will attempt to retrieve images signed by the `targets/releases` role if it exists; if it does not exist, Docker will fall back to retrieving images signed by the default `targets` role.
+
+- To use the `targets/releases` role for pushing and pulling images with Docker Content Trust, follow the steps above to add and publish the delegation role with notary.
+    - When adding the delegation, the path should be restricted to the tag of the image.
+    - In order to push images with the `targets/releases` role, use the `notary add <TAG> --roles=targets/releases` command as described above.
 
 # <a name="files_on_disk">Files on Disk</a>
 Notary stores state in its `trust_dir` directory, which is `~/.notary` by default or usually `~/.docker/trust` when enabling  Docker Content Trust.

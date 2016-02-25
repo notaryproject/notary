@@ -35,7 +35,7 @@ $ docker-compose up
 
 This will build the development Notary Server and Notary Signer images, and
 start up a containers for the Notary Server, Notary Signer, and the MySQL
-database that both of them share.  The MySQL data is stored in a
+database that both of them share.  The MySQL data is stored in a volume.
 
 Notary Server and Notary Signer communicate over mutually authenticated TLS
 (using the self-signed testing certs in the repository), and Notary Server
@@ -228,7 +228,7 @@ only their own databases:
 
 ## High Availability<a name="high_availability"></a>
 
-Most production users will want to increase availablity by running multiple instances
+Most production users will want to increase availability by running multiple instances
 of both the server and signer applications. These can be scaled arbitrarily and 
 independently. The database may also be scaled independently but this is left as
 and exercise for experienced DBAs and Operations teams. A typical deployment will
