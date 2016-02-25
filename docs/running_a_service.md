@@ -17,8 +17,7 @@ This document assumes a familiarity with using
 
 - [Running a service for testing or development](#notary-service-temp)
 - [Advanced configuration options](#notary-service-configuration)
-- [Recommendations for deploying a production service](#notary-service-prod)
-- [Recommendations for a high availability](#notary-service-prod)
+- [Recommendations for deploying in production](#notary-service-prod)
 
 ---
 
@@ -200,7 +199,55 @@ containers in the compose file.
 
 [[back to top](#top)]
 
-# Recommendations for deploying a production service <a name="notary-service-prod"></a>
-# Recommendations for a high availability <a name="notary-service-ha"></a>
+# Recommendations for deploying in production<a name="notary-service-prod"></a>
+
+When moving from development to production there are a number of considerations
+that must be made to ensure security and scalability.
+
+## Certificates<a name="certificates"></a>
+
+The Notary repository includes sample certificates in the fixtures directory.
+When you initialize a development service using the provided docker-compose.yml 
+file, these sample certificates are used to create a more production like 
+environment.
+
+YOU MUST ACQUIRE YOUR OWN CERTIFICATES TO USE IN A PRODUCTION DEPLOYMENT.
+
+The private key files in the Notary repository are obviously public knowledge 
+and using them in a production deployment is highly insecure.
+
+## Databases<a name="databases"></a>
+
+The server and signer each require a database. These should be separate databases
+with different users. The users should be limited in their permissions. We recommend
+giving the following MySQL (or equivalent) permissions to the users restricted to
+only their own databases:
+
+- Notary Server database user: `SELECT, INSERT, UPDATE, DELETE`
+- Notary Signer database user: `SELECT, INSERT, DELETE`
+
+## High Availability<a name="high_availability"></a>
+
+Most production users will want to increase availablity by running multiple instances
+of both the server and signer applications. These can be scaled arbitrarily and 
+independently. The database may also be scaled independently but this is left as
+and exercise for experienced DBAs and Operations teams. A typical deployment will
+look like the below diagram:
 
 ![Notary Server Deployment Diagram](service-deployment.svg)
+
+In the diagram, a load balancer routes external traffic to a cluster of Notary Server
+instances. These may make requests to Notary Signer instaces if either a) signing
+is required, or b) key generation is required. The requests from a Notary Server
+to a Notary Signer cluster are router via an internal load balancer. 
+
+Notary can be used with a CDN or other caching system. All GET requests for JSON 
+files may be cached indefinitely __except__ URLs matching:
+
+- `*/root.json`
+- `*/timestamp.json`
+
+All other requests for JSON files include sha256 checksums of the file being requested
+and are therefore immutable. Requests for JSON files make up the vast majority of
+all notary requests. Requests for anything other than a GET of a JSON file should
+not be cached.
