@@ -9,18 +9,20 @@ weight=4
 +++
 <![end-metadata]-->
 
+# Content <a name="top"></a>
+
 This document assumes a familiarity with using
 [Docker](https://docs.docker.com/engine/userguide/) and
 [Docker Compose](https://docs.docker.com/compose/overview/).
-
-<a name="top"></a>
 
 - [Running a service for testing or development](#notary-service-temp)
 - [Advanced configuration options](#notary-service-configuration)
 - [Recommendations for deploying a production service](#notary-service-prod)
 - [Recommendations for a high availability](#notary-service-prod)
 
-### Running a service for testing or development <a name="notary-service-temp"></a>
+---
+
+# Running a service for testing or development <a name="notary-service-temp"></a>
 
 The quickest way to spin up a full Notary service for testing and development
 purposes is to use the Docker compose file in the
@@ -61,7 +63,7 @@ the IP address of your Docker host.
 
 [[back to top](#top)]
 
-### Advanced configuration options <a name="notary-service-configuration"></a>
+# Advanced configuration options <a name="notary-service-configuration"></a>
 
 Both the Notary Server and the Notary Signer take
 [JSON configuration files](configuration.md). Pre-built images, such as
@@ -198,7 +200,7 @@ containers in the compose file.
 
 [[back to top](#top)]
 
-### Recommendations for deploying a production service <a name="notary-service-prod"></a>
-### Recommendations for a high availability <a name="notary-service-ha"></a>
+# Recommendations for deploying a production service <a name="notary-service-prod"></a>
+# Recommendations for a high availability <a name="notary-service-ha"></a>
 
 ![Notary Server Deployment Diagram](service-deployment.svg)

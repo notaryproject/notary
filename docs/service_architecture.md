@@ -9,7 +9,8 @@ weight=3
 +++
 <![end-metadata]-->
 
-<a name="top"></a>
+
+# Contents <a name="top"></a>
 
 - [Overview of Notary Service](#overview)
 - [Example of a successful Client-Server-Signer interaction](#information-flow)
@@ -18,7 +19,7 @@ weight=3
 This document assumes a prior understanding of
 [The Update Framework](https://theupdateframework.github.io/).
 
-### Overview of Notary Service <a name="overview"></a>
+# Overview of Notary Service <a name="overview"></a>
 
 ![Notary Service Architecture Diagram](service-architecture.svg)
 
@@ -50,7 +51,7 @@ Notary Server database
 
 [[back to top](#top)]
 
-### Example Client-Server-Signer interaction <a name="information-flow"></a>
+# Example Client-Server-Signer interaction <a name="information-flow"></a>
 
 ![Notary Service Sequence Diagram](metadata-sequence.svg)
 
@@ -104,7 +105,7 @@ Notary Server database
 
 [[back to top](#top)]
 
-### Threat model <a name="threat-model"></a>
+# Threat model <a name="threat-model"></a>
 
 - **Notary Server compromise**
 

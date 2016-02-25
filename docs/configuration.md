@@ -15,7 +15,9 @@ weight=5
 - [Notary Server](#notary-server-configuration-file)
 - [Notary Signer](#notary-signer-configuration-file)
 
-## Notary Client Configuration File
+---
+
+# Notary Client Configuration File <a name="notary-client-configuration-file"></a>
 
 The configuration file for Notary Client consists of the following sections:
 
@@ -134,7 +136,7 @@ An example (full) server configuration file.
 
 [[back to top](#top)]
 
-## Notary Server Configuration File
+# Notary Server Configuration File
 
 The configuration file for Notary Server consists of the following sections:
 
@@ -448,7 +450,7 @@ An example (full) server configuration file.
 [[back to top](#top)]
 
 
-## Notary Signer Configuration File
+# Notary Signer Configuration File
 
 Notary signer [requires environment variables](#notary-signer-envvars) in order to
 encrypt private keys at rest.  It also takes a configuration file, which
