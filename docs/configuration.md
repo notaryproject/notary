@@ -356,7 +356,7 @@ An example (full) server configuration file.
 - #### `storage` section (required) <a name="notary-server-storage"></a>
 
 	The storage section specifies which storage backend the server should use to
-	store TUF metadata.  Currently, we only support MySQL or an in-memory store.
+	store TUF metadata.  Only MySQL or an in-memory store is supported.
 
 	DB storage example:
 
@@ -664,8 +664,9 @@ An example (full) server configuration file.
 	`mypassword`, and to decrypt any private key stored with password alias
 	`passwordalias1` with the passphrase `mypassword`.
 
-	Older passwords may also be provided as environment variables.  For instance,
-	let's say that you wanted to change the password that is used to create new
+	Older passwords may also be provided as environment variables.
+
+	Let's say that you wanted to change the password that is used to create new
 	keys (rotating the passphrase and re-encrypting all the private keys is not
 	supported yet).
 
@@ -756,9 +757,9 @@ Notary Signer have the same keys and format:
 	}
 	```
 
-	Note that this entire section is optional.  However, if you would like to
-	report errors to Bugsnag, then you need to include a `bugsnag` subsection,
-	along with the required parameters below, to configure it.
+	Note that this entire section is optional.  If you want to report errors to
+	Bugsnag, then you need to include a `bugsnag` subsection, along with the
+	required parameters below, to configure it.
 
 	**Bugsnag reporting:**
 
