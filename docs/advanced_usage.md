@@ -180,7 +180,7 @@ By default, Docker 1.10 with Docker Content Trust enabled will attempt to retrie
 
 - To use the `targets/releases` role for pushing and pulling images with Docker Content Trust, follow the steps above to add and publish the delegation role with notary.
     - When adding the delegation, the path should be restricted to the tag of the image.
-    - In order to push images with the `targets/releases` role, use the `notary add <TAG> --roles=targets/releases` command as described above.
+    - By default, pushing with Docker Content Trust will attempt to add to the `targets/releases` role and will fallback to `targets` if the delegation does not exist.
 
 # <a name="files_on_disk">Files on Disk</a>
 Notary stores state in its `trust_dir` directory, which is `~/.notary` by default or usually `~/.docker/trust` when enabling  Docker Content Trust.
