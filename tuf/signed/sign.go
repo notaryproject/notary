@@ -22,16 +22,16 @@ import (
 
 // Sign takes a data.Signed and a key, calculated and adds the signature
 // to the data.Signed
-func Sign(service CryptoService, s *data.Signed, keys ...data.PublicKey) error {
-	logrus.Debugf("sign called with %d keys", len(keys))
+func Sign(service CryptoService, s *data.Signed, role data.BaseRole) error {
+	logrus.Debugf("sign called with %d keys", len(role.Keys))
 	signatures := make([]data.Signature, 0, len(s.Signatures)+1)
 	signingKeyIDs := make(map[string]struct{})
-	ids := make([]string, 0, len(keys))
+	ids := make([]string, 0, len(role.Keys))
 
 	privKeys := make(map[string]data.PrivateKey)
 
 	// Get all the private key objects related to the public keys
-	for _, key := range keys {
+	for _, key := range role.Keys {
 		canonicalID, err := utils.CanonicalKeyID(key)
 		ids = append(ids, canonicalID)
 		if err != nil {
@@ -78,6 +78,20 @@ func Sign(service CryptoService, s *data.Signed, keys ...data.PublicKey) error {
 			// key is in the set of key IDs for which a signature has been created
 			continue
 		}
+		var (
+			k  data.PublicKey
+			ok bool
+		)
+		if k, ok = role.Keys[sig.KeyID]; !ok {
+			// key is no longer a valid signing key
+			continue
+		}
+		if err := VerifySignature(s.Signed, sig, k); err != nil {
+			// signature is no longer valid
+			continue
+		}
+		// keep any signatures that still represent valid keys and are
+		// themselves valid
 		signatures = append(signatures, sig)
 	}
 	s.Signatures = signatures

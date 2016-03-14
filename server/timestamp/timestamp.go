@@ -2,6 +2,7 @@ package timestamp
 
 import (
 	"github.com/docker/go/canonical/json"
+	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 
@@ -133,7 +134,12 @@ func CreateTimestamp(gun string, prev *data.SignedTimestamp, snapshot []byte, st
 		Signatures: ts.Signatures,
 		Signed:     sgndTs,
 	}
-	err = signed.Sign(cryptoService, out, key)
+	tsBaseRole := data.NewBaseRole(
+		data.CanonicalTimestampRole,
+		notary.MinThreshold,
+		key,
+	)
+	err = signed.Sign(cryptoService, out, tsBaseRole)
 	if err != nil {
 		return nil, 0, err
 	}

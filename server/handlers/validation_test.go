@@ -183,7 +183,13 @@ func TestValidateRootRotation(t *testing.T) {
 
 	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
 	assert.NoError(t, err)
-	err = signed.Sign(crypto, r, rootKey, oldRootKey)
+	baseRole := data.NewBaseRole(
+		data.CanonicalRootRole,
+		1,
+		rootKey,
+		oldRootKey,
+	)
+	err = signed.Sign(crypto, r, baseRole)
 	assert.NoError(t, err)
 
 	rt, err := data.RootFromSigned(r)

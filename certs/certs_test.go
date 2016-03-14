@@ -297,10 +297,17 @@ func testValidateSuccessfulRootRotation(t *testing.T, keyAlg, rootKeyType string
 	signedTestRoot, err := testRoot.ToSigned()
 	assert.NoError(t, err)
 
-	err = signed.Sign(cs, signedTestRoot, replRootKey)
+	baseRootRole := data.NewBaseRole(
+		data.CanonicalRootRole,
+		1,
+		replRootKey,
+		origRootKey,
+	)
+
+	err = signed.Sign(cs, signedTestRoot, baseRootRole)
 	assert.NoError(t, err)
 
-	err = signed.Sign(cs, signedTestRoot, origRootKey)
+	err = signed.Sign(cs, signedTestRoot, baseRootRole)
 	assert.NoError(t, err)
 
 	// This call to ValidateRoot will succeed since we are using a valid PEM
@@ -355,8 +362,13 @@ func testValidateRootRotationMissingOrigSig(t *testing.T, keyAlg, rootKeyType st
 	signedTestRoot, err := testRoot.ToSigned()
 	assert.NoError(t, err)
 
+	baseRootRole := data.NewBaseRole(
+		data.CanonicalRootRole,
+		1,
+		replRootKey,
+	)
 	// We only sign with the new key, and not with the original one.
-	err = signed.Sign(cryptoService, signedTestRoot, replRootKey)
+	err = signed.Sign(cryptoService, signedTestRoot, baseRootRole)
 	assert.NoError(t, err)
 
 	// This call to ValidateRoot will succeed since we are using a valid PEM
@@ -414,8 +426,14 @@ func testValidateRootRotationMissingNewSig(t *testing.T, keyAlg, rootKeyType str
 	signedTestRoot, err := testRoot.ToSigned()
 	assert.NoError(t, err)
 
+	baseRootRole := data.NewBaseRole(
+		data.CanonicalRootRole,
+		1,
+		origRootKey,
+	)
+
 	// We only sign with the old key, and not with the new one
-	err = signed.Sign(cryptoService, signedTestRoot, origRootKey)
+	err = signed.Sign(cryptoService, signedTestRoot, baseRootRole)
 	assert.NoError(t, err)
 
 	// This call to ValidateRoot will succeed since we are using a valid PEM
