@@ -23,7 +23,16 @@ func TestRoleNoKeys(t *testing.T) {
 	b, err := json.MarshalCanonical(meta)
 	assert.NoError(t, err)
 	s := &data.Signed{Signed: b}
-	Sign(cs, s, k)
+
+	// need to define role again so we can sign. Only verify should
+	// have no keys on the role
+	baseRole := data.NewBaseRole(
+		data.CanonicalRootRole,
+		1,
+		k,
+	)
+	Sign(cs, s, baseRole)
+
 	err = Verify(s, roleWithKeys, 1)
 	assert.IsType(t, ErrRoleThreshold{}, err)
 }
@@ -40,7 +49,14 @@ func TestNotEnoughSigs(t *testing.T) {
 	b, err := json.MarshalCanonical(meta)
 	assert.NoError(t, err)
 	s := &data.Signed{Signed: b}
-	Sign(cs, s, k)
+
+	baseRole := data.NewBaseRole(
+		data.CanonicalRootRole,
+		1,
+		k,
+	)
+	Sign(cs, s, baseRole)
+
 	err = Verify(s, roleWithKeys, 1)
 	assert.IsType(t, ErrRoleThreshold{}, err)
 }
@@ -58,7 +74,13 @@ func TestMoreThanEnoughSigs(t *testing.T) {
 	b, err := json.MarshalCanonical(meta)
 	assert.NoError(t, err)
 	s := &data.Signed{Signed: b}
-	Sign(cs, s, k1, k2)
+	baseRole := data.NewBaseRole(
+		data.CanonicalRootRole,
+		1,
+		k1,
+		k2,
+	)
+	Sign(cs, s, baseRole)
 	assert.Equal(t, 2, len(s.Signatures))
 	err = Verify(s, roleWithKeys, 1)
 	assert.NoError(t, err)
@@ -75,7 +97,12 @@ func TestDuplicateSigs(t *testing.T) {
 	b, err := json.MarshalCanonical(meta)
 	assert.NoError(t, err)
 	s := &data.Signed{Signed: b}
-	Sign(cs, s, k)
+	baseRole := data.NewBaseRole(
+		data.CanonicalRootRole,
+		1,
+		k,
+	)
+	Sign(cs, s, baseRole)
 	s.Signatures = append(s.Signatures, s.Signatures[0])
 	err = Verify(s, roleWithKeys, 1)
 	assert.IsType(t, ErrRoleThreshold{}, err)
@@ -94,7 +121,13 @@ func TestUnknownKeyBelowThreshold(t *testing.T) {
 	b, err := json.MarshalCanonical(meta)
 	assert.NoError(t, err)
 	s := &data.Signed{Signed: b}
-	Sign(cs, s, k, unknown)
+	baseRole := data.NewBaseRole(
+		data.CanonicalRootRole,
+		1,
+		k,
+		unknown,
+	)
+	Sign(cs, s, baseRole)
 	s.Signatures = append(s.Signatures)
 	err = Verify(s, roleWithKeys, 1)
 	assert.IsType(t, ErrRoleThreshold{}, err)
@@ -169,7 +202,12 @@ func Test(t *testing.T) {
 			b, err := json.MarshalCanonical(meta)
 			assert.NoError(t, err)
 			s := &data.Signed{Signed: b}
-			Sign(cryptoService, s, k)
+			baseRole := data.NewBaseRole(
+				"", // Sign doesn't inspect role
+				1,
+				k,
+			)
+			Sign(cryptoService, s, baseRole)
 			run.s = s
 		}
 		if run.mut != nil {

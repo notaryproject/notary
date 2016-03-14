@@ -5,6 +5,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"github.com/docker/notary"
 	"github.com/docker/notary/server/storage"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
@@ -110,7 +111,12 @@ func createSnapshot(gun string, sn *data.SignedSnapshot, store storage.MetaStore
 	if err != nil {
 		return nil, 0, err
 	}
-	err = signed.Sign(cryptoService, out, key)
+	baseSnapshotRole := data.NewBaseRole(
+		data.CanonicalSnapshotRole,
+		notary.MinThreshold,
+		key,
+	)
+	err = signed.Sign(cryptoService, out, baseSnapshotRole)
 	if err != nil {
 		return nil, 0, err
 	}
