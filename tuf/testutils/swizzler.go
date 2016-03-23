@@ -64,16 +64,12 @@ func getPubKeys(cs signed.CryptoService, s *data.Signed, role string) ([]data.Pu
 // signs the new metadata, replacing whatever signature was there
 func serializeMetadata(cs signed.CryptoService, s *data.Signed, role string,
 	pubKeys ...data.PublicKey) ([]byte, error) {
-
-	// delete the existing signatures
-	s.Signatures = []data.Signature{}
-
 	if len(pubKeys) < 1 {
 		return nil, ErrNoKeyForRole{role}
 	}
 
-	if err := signed.Sign(cs, s, pubKeys...); err != nil {
-		if _, ok := err.(signed.ErrNoKeys); ok {
+	if err := signed.Sign(cs, s, pubKeys, 1, nil); err != nil {
+		if _, ok := err.(signed.ErrInsufficientSignatures); ok {
 			return nil, ErrNoKeyForRole{Role: role}
 		}
 		return nil, err

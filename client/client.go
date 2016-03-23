@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -160,7 +161,10 @@ func NewTarget(targetName string, targetPath string) (*Target, error) {
 }
 
 // Initialize creates a new repository by using rootKey as the root Key for the
-// TUF repository.
+// TUF repository. The server must be reachable (and is asked to generate a
+// timestamp key and possibly other serverManagedRoles), but the created repository
+// result is only stored on local disk, not published to the server. To do that,
+// use r.Publish() eventually.
 func (r *NotaryRepository) Initialize(rootKeyID string, serverManagedRoles ...string) error {
 	privKey, _, err := r.CryptoService.GetPrivateKey(rootKeyID)
 	if err != nil {
@@ -631,7 +635,7 @@ func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 	if err == nil {
 		// Only update the snapshot if we've successfully signed it.
 		updatedFiles[data.CanonicalSnapshotRole] = snapshotJSON
-	} else if _, ok := err.(signed.ErrNoKeys); ok {
+	} else if signErr, ok := err.(signed.ErrInsufficientSignatures); ok && signErr.FoundKeys == 0 {
 		// If signing fails due to us not having the snapshot key, then
 		// assume the server is going to sign, and do not include any snapshot
 		// data.
@@ -650,9 +654,10 @@ func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 	return remote.SetMultiMeta(updatedFiles)
 }
 
-// bootstrapRepo loads the repository from the local file system.  This attempts
-// to load metadata for all roles.  Since server snapshots are supported,
-// if the snapshot metadata fails to load, that's ok.
+// bootstrapRepo loads the repository from the local file system (i.e.
+// a not yet published repo or a possibly obsolete local copy) into
+// r.tufRepo.  This attempts to load metadata for all roles.  Since server
+// snapshots are supported, if the snapshot metadata fails to load, that's ok.
 // This can also be unified with some cache reading tools from tuf/client.
 // This assumes that bootstrapRepo is only used by Publish() or RotateKey()
 func (r *NotaryRepository) bootstrapRepo() error {
@@ -700,6 +705,8 @@ func (r *NotaryRepository) bootstrapRepo() error {
 	return nil
 }
 
+// saveMetadata saves contents of r.tufRepo onto the local disk, creating
+// signatures as necessary, possibly prompting for passphrases.
 func (r *NotaryRepository) saveMetadata(ignoreSnapshot bool) error {
 	logrus.Debugf("Saving changes to Trusted Collection.")
 
@@ -782,6 +789,20 @@ func (r *NotaryRepository) Update(forWrite bool) (*tufclient.Client, error) {
 // we should always attempt to contact the server to determine if the repository
 // is initialized or not. If set to true, we will always attempt to download
 // and return an error if the remote repository errors.
+//
+// Partially populates r.tufRepo with this root metadata (only; use
+// tufclient.Client.Update to load the rest).
+//
+// As another side effect, r.CertManager's list of trusted certificates
+// is updated with data from the loaded root.json.
+//
+// Fails if the remote server is reachable and does not know the repo
+// (i.e. before the first r.Publish()), in which case the error is
+// store.ErrMetaNotFound, or if the root metadata (from whichever source is used)
+// is not trusted.
+//
+// Returns a tufclient.Client for the remote server, which may not be actually
+// operational (if the URL is invalid but a root.json is cached).
 func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*tufclient.Client, error) {
 	var (
 		rootJSON   []byte
@@ -922,8 +943,8 @@ func (r *NotaryRepository) rootFileKeyChange(cl changelist.Changelist, role, act
 	kl := make(data.KeyList, 0, 1)
 	kl = append(kl, key)
 	meta := changelist.TufRootData{
-		RoleName: role,
-		Keys:     kl,
+		RoleName:    role,
+		ReplaceKeys: kl,
 	}
 	metaJSON, err := json.Marshal(meta)
 	if err != nil {
@@ -962,4 +983,94 @@ func (r *NotaryRepository) DeleteTrustData() error {
 		}
 	}
 	return nil
+}
+
+// ListRootCerts returns current trusted root certificates.
+// (In particular, not old certificates which we have already
+// rotated from but are still using for signing to allow rollover,
+// even if they are still trusted locally.)
+func (r *NotaryRepository) ListRootCerts() ([]*x509.Certificate, error) {
+	_, err := r.Update(false)
+	if err != nil {
+		return nil, err
+	}
+
+	keyIDs := r.tufRepo.Root.Signed.Roles[data.CanonicalRootRole].KeyIDs
+	certs := make([]*x509.Certificate, 0, len(keyIDs))
+	for _, keyID := range keyIDs {
+		// r.tufRepo contains all data from root.json, which may include irrelevant
+		// certificates.  This is handled by certs.ValidateRoot, which adds
+		// only the real trusted certificates into the store.  So, this lookup by ID is not
+		// just a dumb way to not parse the certificate, the handling of ErrNoCertificatesFound
+		// ensures we only get the intersection of (certificates in current root.json) with
+		// (locally trusted certificates). The rotation code in certs.ValidateRoot ensures
+		// that we locally store a copy of all relevant certificates.
+		cert, err := r.CertStore.GetCertificateByCertID(keyID)
+		if err == nil {
+			certs = append(certs, cert)
+		} else if _, ok := err.(*trustmanager.ErrNoCertificatesFound); !ok {
+			return nil, err
+		}
+	}
+	return certs, nil
+}
+
+// RotateRootCert generates a new certificate to replace oldCert and adds
+// a changelist entry to update the root role with this certificate replacement
+// shen r.Publish() is called.
+func (r *NotaryRepository) RotateRootCert(oldCert *x509.Certificate) error {
+	oldCertX509PublicKey := trustmanager.CertToKey(oldCert)
+	if oldCertX509PublicKey == nil {
+		return fmt.Errorf("invalid format for root key: %s", oldCert.PublicKeyAlgorithm)
+	}
+	rootKeyID, err := trustmanager.X509PublicKeyID(oldCertX509PublicKey)
+	if err != nil {
+		return err
+	}
+
+	privKey, _, err := r.CryptoService.GetPrivateKey(rootKeyID)
+	if err != nil {
+		return err
+	}
+
+	// Hard-coded policy: the generated certificate expires in 10 years.
+	startTime := time.Now()
+	newCert, err := cryptoservice.GenerateCertificate(privKey, r.gun, startTime, startTime.AddDate(10, 0, 0))
+	if err != nil {
+		return err
+	}
+	newCertX509PublicKey := trustmanager.CertToKey(newCert)
+	if newCertX509PublicKey == nil {
+		return fmt.Errorf("cannot use regenerated certificate?! format %s", newCert.PublicKeyAlgorithm)
+	}
+
+	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
+	if err != nil {
+		return err
+	}
+	defer cl.Close()
+
+	// Not changelist.ActionCreate/ReplaceKeys, which would drop other certificates.
+	meta := changelist.TufRootData{
+		RoleName:   data.CanonicalRootRole,
+		AddKeys:    []data.PublicKey{newCertX509PublicKey},
+		RemoveKeys: []string{oldCertX509PublicKey.ID()},
+	}
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		return err
+	}
+	c := changelist.NewTufChange(
+		changelist.ActionUpdate,
+		changelist.ScopeRoot,
+		changelist.TypeRootRole,
+		data.CanonicalRootRole,
+		metaJSON,
+	)
+	return cl.Add(c)
+
+	// Note that we don't need to worry about updating r.CertStore (and synchronizing
+	// this with the r.Publish() call; after we push the new root.json to the server,
+	// calls to r.Update() will cause this client to rotate certificates in r.CertStore
+	// just as other clients do.
 }

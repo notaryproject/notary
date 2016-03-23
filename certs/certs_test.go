@@ -55,7 +55,8 @@ func TestCertsToRemove(t *testing.T) {
 	oldCerts := []*x509.Certificate{cert1}
 	newCerts := []*x509.Certificate{cert2}
 
-	certificates := certsToRemove(oldCerts, newCerts)
+	certificates, err := certsToRemove(oldCerts, newCerts)
+	assert.NoError(t, err)
 	assert.Len(t, certificates, 1)
 	_, ok := certificates[cert1KeyID]
 	assert.True(t, ok)
@@ -64,7 +65,8 @@ func TestCertsToRemove(t *testing.T) {
 	oldCerts = []*x509.Certificate{cert1, cert2}
 	newCerts = []*x509.Certificate{cert3}
 
-	certificates = certsToRemove(oldCerts, newCerts)
+	certificates, err = certsToRemove(oldCerts, newCerts)
+	assert.NoError(t, err)
 	assert.Len(t, certificates, 2)
 	_, ok = certificates[cert1KeyID]
 	assert.True(t, ok)
@@ -77,7 +79,8 @@ func TestCertsToRemove(t *testing.T) {
 	oldCerts = []*x509.Certificate{cert3}
 	newCerts = []*x509.Certificate{cert2, cert1}
 
-	certificates = certsToRemove(oldCerts, newCerts)
+	certificates, err = certsToRemove(oldCerts, newCerts)
+	assert.NoError(t, err)
 	assert.Len(t, certificates, 1)
 	_, ok = certificates[cert3KeyID]
 	assert.True(t, ok)
@@ -90,20 +93,15 @@ func TestCertsToRemove(t *testing.T) {
 	oldCerts = []*x509.Certificate{cert1, cert2, cert3}
 	newCerts = []*x509.Certificate{}
 
-	certificates = certsToRemove(oldCerts, newCerts)
-	assert.Len(t, certificates, 0)
-	_, ok = certificates[cert1KeyID]
-	assert.False(t, ok)
-	_, ok = certificates[cert2KeyID]
-	assert.False(t, ok)
-	_, ok = certificates[cert3KeyID]
-	assert.False(t, ok)
+	certificates, err = certsToRemove(oldCerts, newCerts)
+	assert.Error(t, err)
 
 	// Call CertsToRemove with three new certificates and no old
 	oldCerts = []*x509.Certificate{}
 	newCerts = []*x509.Certificate{cert1, cert2, cert3}
 
-	certificates = certsToRemove(oldCerts, newCerts)
+	certificates, err = certsToRemove(oldCerts, newCerts)
+	assert.NoError(t, err)
 	assert.Len(t, certificates, 0)
 	_, ok = certificates[cert1KeyID]
 	assert.False(t, ok)
@@ -297,7 +295,7 @@ func testValidateSuccessfulRootRotation(t *testing.T, keyAlg, rootKeyType string
 	signedTestRoot, err := testRoot.ToSigned()
 	assert.NoError(t, err)
 
-	err = signed.Sign(cs, signedTestRoot, replRootKey, origRootKey)
+	err = signed.Sign(cs, signedTestRoot, []data.PublicKey{replRootKey, origRootKey}, 2, nil)
 	assert.NoError(t, err)
 
 	// This call to ValidateRoot will succeed since we are using a valid PEM
@@ -353,7 +351,7 @@ func testValidateRootRotationMissingOrigSig(t *testing.T, keyAlg, rootKeyType st
 	assert.NoError(t, err)
 
 	// We only sign with the new key, and not with the original one.
-	err = signed.Sign(cryptoService, signedTestRoot, replRootKey)
+	err = signed.Sign(cryptoService, signedTestRoot, []data.PublicKey{replRootKey}, 1, nil)
 	assert.NoError(t, err)
 
 	// This call to ValidateRoot will succeed since we are using a valid PEM
@@ -412,7 +410,7 @@ func testValidateRootRotationMissingNewSig(t *testing.T, keyAlg, rootKeyType str
 	assert.NoError(t, err)
 
 	// We only sign with the old key, and not with the new one
-	err = signed.Sign(cryptoService, signedTestRoot, origRootKey)
+	err = signed.Sign(cryptoService, signedTestRoot, []data.PublicKey{origRootKey}, 1, nil)
 	assert.NoError(t, err)
 
 	// This call to ValidateRoot will succeed since we are using a valid PEM

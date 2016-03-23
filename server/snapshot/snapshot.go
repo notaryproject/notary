@@ -114,7 +114,7 @@ func createSnapshot(gun string, sn *data.SignedSnapshot, store storage.MetaStore
 	if err != nil {
 		return nil, 0, err
 	}
-	err = signed.Sign(cryptoService, out, key)
+	err = signed.Sign(cryptoService, out, []data.PublicKey{key}, 1, nil)
 	if err != nil {
 		return nil, 0, err
 	}
