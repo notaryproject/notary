@@ -556,7 +556,7 @@ func CertsToKeys(certs []*x509.Certificate) map[string]data.PublicKey {
 }
 
 // NewCertificate returns an X509 Certificate following a template, given a GUN and validity interval.
-func NewCertificate(gun string, startTime, endTime time.Time) (*x509.Certificate, error) {
+func NewCertificate(subject string, startTime, endTime time.Time) (*x509.Certificate, error) {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
@@ -567,7 +567,7 @@ func NewCertificate(gun string, startTime, endTime time.Time) (*x509.Certificate
 	return &x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
-			CommonName: gun,
+			CommonName: subject,
 		},
 		NotBefore: startTime,
 		NotAfter:  endTime,

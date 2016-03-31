@@ -5,14 +5,12 @@ package yubikey
 import (
 	"crypto"
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
-	"math/big"
 	"os"
 	"time"
 
@@ -25,6 +23,7 @@ import (
 )
 
 const (
+	// defaults we'll attempt to use
 	USER_PIN    = "123456"
 	SO_USER_PIN = "010203040506070801020304050607080102030405060708"
 	numSlots    = 4 // number of slots in the yubikey
@@ -85,12 +84,13 @@ var pkcs11Lib string
 func init() {
 	for _, loc := range possiblePkcs11Libs {
 		_, err := os.Stat(loc)
-		if err == nil {
-			p := pkcs11.New(loc)
-			if p != nil {
-				pkcs11Lib = loc
-				return
-			}
+		if err != nil {
+			continue
+		}
+		p := pkcs11.New(loc)
+		if p != nil {
+			pkcs11Lib = loc
+			return
 		}
 	}
 }
@@ -217,7 +217,25 @@ func addECDSAKey(
 	}
 
 	ecdsaPrivKeyD := ensurePrivateKeySize(ecdsaPrivKey.D.Bytes())
+	return createLoadCert(ctx,
+		session,
+		pkcs11KeyID,
+		role,
+		ecdsaPrivKeyD,
+		ecdsaPrivKey.Public(),
+		ecdsaPrivKey,
+	)
+}
 
+func createLoadCert(
+	ctx IPKCS11Ctx,
+	session pkcs11.SessionHandle,
+	pkcs11KeyID []byte,
+	role string,
+	privBytes []byte,
+	pubKey crypto.PublicKey,
+	privKey crypto.PrivateKey,
+) error {
 	// Hard-coded policy: the generated certificate expires in 10 years.
 	startTime := time.Now()
 	template, err := trustmanager.NewCertificate(role, startTime, startTime.AddDate(10, 0, 0))
@@ -225,7 +243,7 @@ func addECDSAKey(
 		return fmt.Errorf("failed to create the certificate template: %v", err)
 	}
 
-	certBytes, err := x509.CreateCertificate(rand.Reader, template, template, ecdsaPrivKey.Public(), ecdsaPrivKey)
+	certBytes, err := x509.CreateCertificate(rand.Reader, template, template, pubKey, privKey)
 	if err != nil {
 		return fmt.Errorf("failed to create the certificate: %v", err)
 	}
@@ -241,7 +259,7 @@ func addECDSAKey(
 		pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, pkcs11.CKK_ECDSA),
 		pkcs11.NewAttribute(pkcs11.CKA_ID, pkcs11KeyID),
 		pkcs11.NewAttribute(pkcs11.CKA_EC_PARAMS, []byte{0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07}),
-		pkcs11.NewAttribute(pkcs11.CKA_VALUE, ecdsaPrivKeyD),
+		pkcs11.NewAttribute(pkcs11.CKA_VALUE, privBytes),
 		pkcs11.NewAttribute(pkcs11.CKA_VENDOR_DEFINED, yubikeyKeymode),
 	}
 
@@ -262,13 +280,11 @@ func getECDSAKey(ctx IPKCS11Ctx, session pkcs11.SessionHandle, pkcs11KeyID []byt
 	findTemplate := []*pkcs11.Attribute{
 		pkcs11.NewAttribute(pkcs11.CKA_TOKEN, true),
 		pkcs11.NewAttribute(pkcs11.CKA_ID, pkcs11KeyID),
-		pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PUBLIC_KEY),
+		pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_CERTIFICATE),
 	}
 
 	attrTemplate := []*pkcs11.Attribute{
-		pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, []byte{0}),
-		pkcs11.NewAttribute(pkcs11.CKA_EC_POINT, []byte{0}),
-		pkcs11.NewAttribute(pkcs11.CKA_EC_PARAMS, []byte{0}),
+		pkcs11.NewAttribute(pkcs11.CKA_VALUE, []byte{0}),
 	}
 
 	if err := ctx.FindObjectsInit(session, findTemplate); err != nil {
@@ -297,22 +313,38 @@ func getECDSAKey(ctx IPKCS11Ctx, session pkcs11.SessionHandle, pkcs11KeyID []byt
 	}
 
 	// Iterate through all the attributes of this key and saves CKA_PUBLIC_EXPONENT and CKA_MODULUS. Removes ordering specific issues.
-	var rawPubKey []byte
+	var rawCert []byte
 	for _, a := range attr {
-		if a.Type == pkcs11.CKA_EC_POINT {
-			rawPubKey = a.Value
+		if a.Type == pkcs11.CKA_VALUE {
+			rawCert = a.Value
 		}
-
 	}
-
-	ecdsaPubKey := ecdsa.PublicKey{Curve: elliptic.P256(), X: new(big.Int).SetBytes(rawPubKey[3:35]), Y: new(big.Int).SetBytes(rawPubKey[35:])}
-	pubBytes, err := x509.MarshalPKIXPublicKey(&ecdsaPubKey)
+	if len(rawCert) == 0 {
+		logrus.Debugf("failed to retrieve certificate")
+		return nil, "", err
+	}
+	cert, err := x509.ParseCertificate(rawCert)
 	if err != nil {
-		logrus.Debugf("Failed to Marshal public key")
+		logrus.Debugf("failed to parse certificate")
 		return nil, "", err
 	}
 
-	return data.NewECDSAPublicKey(pubBytes), data.CanonicalRootRole, nil
+	var (
+		ecdsaPubKey *ecdsa.PublicKey
+		ok          bool
+	)
+	ecdsaPubKey, ok = cert.PublicKey.(*ecdsa.PublicKey)
+	if !ok {
+		logrus.Debugf("could not read public key from certificate")
+		return nil, "", err
+	}
+	pubBytes, err := x509.MarshalPKIXPublicKey(ecdsaPubKey)
+	if err != nil {
+		logrus.Debugf("failed to Marshal public key: %s", err.Error())
+		return nil, "", err
+	}
+
+	return data.NewECDSAPublicKey(pubBytes), cert.Subject.CommonName, nil
 }
 
 // Sign returns a signature for a given signature request
@@ -420,7 +452,6 @@ func yubiListKeys(ctx IPKCS11Ctx, session pkcs11.SessionHandle) (keys map[string
 	keys = make(map[string]yubiSlot)
 	findTemplate := []*pkcs11.Attribute{
 		pkcs11.NewAttribute(pkcs11.CKA_TOKEN, true),
-		//pkcs11.NewAttribute(pkcs11.CKA_ID, pkcs11KeyID),
 		pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_CERTIFICATE),
 	}
 
@@ -659,12 +690,6 @@ func (s *YubiKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.Private
 func (s *YubiKeyStore) addKey(keyID, role string, privKey data.PrivateKey) (
 	bool, error) {
 
-	// We only allow adding root keys for now
-	if role != data.CanonicalRootRole {
-		return false, fmt.Errorf(
-			"yubikey only supports storing root keys, got %s for key: %s", role, keyID)
-	}
-
 	ctx, session, err := SetupHSMEnv(pkcs11Lib, s.libLoader)
 	if err != nil {
 		logrus.Debugf("Failed to initialize PKCS11 environment: %s", err.Error())
@@ -686,18 +711,32 @@ func (s *YubiKeyStore) addKey(keyID, role string, privKey data.PrivateKey) (
 	}
 	logrus.Debugf("Attempting to store key using yubikey slot %v", slot)
 
-	err = addECDSAKey(
-		ctx, session, privKey, slot, s.passRetriever, role)
-	if err == nil {
-		s.keys[privKey.ID()] = yubiSlot{
-			role:   role,
-			slotID: slot,
-		}
-		return true, nil
+	switch privKey.(type) {
+	case *data.ECDSAPrivateKey:
+		err = addECDSAKey(
+			ctx,
+			session,
+			privKey,
+			slot,
+			s.passRetriever,
+			role,
+		)
+	case *data.RSAPrivateKey:
+		return false, fmt.Errorf("RSA keys not currently supported in hardware")
+	default:
+		return false, fmt.Errorf("key type not recognized")
 	}
-	logrus.Debugf("Failed to add key to yubikey: %v", err)
+	if err != nil {
+		logrus.Debugf("Failed to add key to yubikey: %v", err)
+		return false, err
+	}
 
-	return false, err
+	// everything succeeded, cache keyID: (role, slot) for lookup
+	s.keys[privKey.ID()] = yubiSlot{
+		role:   role,
+		slotID: slot,
+	}
+	return true, nil
 }
 
 // GetKey retrieves a key from the Yubikey only (it does not look inside the
