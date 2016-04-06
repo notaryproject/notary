@@ -23,6 +23,9 @@ The quickest way to spin up a full Notary service for testing and development
 purposes is to use the Docker compose file in the
 <a href="https://github.com/docker/notary" target="_blank">Notary project</a>.
 
+The compose file is [version 2](https://docs.docker.com/compose/compose-file/#version-2),
+so this requires Engine 1.10.0+ and Compose 1.6+.
+
 ```plain
 $ git clone https://github.com/docker/notary.git
 $ cd notary

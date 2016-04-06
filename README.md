@@ -51,7 +51,7 @@ For more advanced usage, please see the
 
 To use the CLI against a local Notary server rather than against Docker Hub:
 
-1. Please ensure that you have [docker and docker-compose](http://docs.docker.com/compose/install/) installed.
+1. Please ensure that you have [docker 1.10.0+ and docker-compose 1.6+](http://docs.docker.com/compose/install/) installed.
 1. `git clone https://github.com/docker/notary.git` and from the cloned repository path,
     start up a local Notary server and signer and copy the config file and testing certs to your
     local notary config directory:
