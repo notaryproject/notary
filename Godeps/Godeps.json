@@ -1,6 +1,7 @@
 {
 	"ImportPath": "github.com/docker/notary",
-	"GoVersion": "go1.6.1",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v62",
 	"Packages": [
 		"./..."
 	],
@@ -547,7 +548,7 @@
 		},
 		{
 			"ImportPath": "github.com/spf13/cast",
-			"Rev": "4d07383ffe94b5e5a6fa3af9211374a4507a0184"
+			"Rev": "27b586b42e29bec072fe7379259cc719e1289da6"
 		},
 		{
 			"ImportPath": "github.com/spf13/cobra",
@@ -575,11 +576,11 @@
 		},
 		{
 			"ImportPath": "github.com/spf13/viper",
-			"Rev": "be5ff3e4840cf692388bde7a057595a474ef379e"
+			"Rev": "f904a1790545169368e8d37badd19d1895d94f29"
 		},
 		{
 			"ImportPath": "github.com/spf13/viper/remote",
-			"Rev": "be5ff3e4840cf692388bde7a057595a474ef379e"
+			"Rev": "f904a1790545169368e8d37badd19d1895d94f29"
 		},
 		{
 			"ImportPath": "github.com/stevvooe/resumable",
