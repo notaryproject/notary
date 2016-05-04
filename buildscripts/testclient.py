@@ -309,6 +309,12 @@ def run():
 
     Tester(repo_name, Client(server)).run()
 
+    try:
+        with open("/test_output/SUCCESS", 'wb') as successFile:
+            successFile.write("OK")
+        os.chmod("/test_output/SUCCESS", 0o777)
+    except IOError:
+        pass
 
 if __name__ == "__main__":
     run()
