@@ -7,12 +7,14 @@ Run basic notary client tests against a server
 from __future__ import print_function
 
 import argparse
+from getpass import getpass
 import inspect
 import json
 import os
 from shutil import rmtree
 from subprocess import CalledProcessError, PIPE, Popen, call
 from tempfile import mkdtemp, mkstemp
+from textwrap import dedent
 from time import sleep, time
 from uuid import uuid4
 
@@ -28,16 +30,37 @@ def parse_args(args=None):
     """
     Parses the command line args for this command
     """
-    parser = argparse.ArgumentParser(description='Tests the notary client against a host')
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=dedent("""
+            Tests the notary client against a host.
+
+            To test against a testing host without auth, just run without any arguments
+            except maybe for the server; a random repo name will be generated.
+
+
+            When running against Docker Hub, suggest usage like:
+
+                python buildscripts/testclient.py \\
+                    -s https://notary.docker.io \\
+                    -r docker.io/username/reponame \\
+                    -u username
+
+            Note that especially for Docker Hub, the repo has to have been already
+            created, else auth won't succeed.
+            """))
     parser.add_argument(
         '-r', '--reponame', dest="reponame", type=str,
         help="The name of the repo - will be randomly generated if not provided")
     parser.add_argument(
         '-s', '--server', dest="server", type=str,
         help="Notary Server to connect to - defaults to https://notary-server:4443")
+    parser.add_argument(
+        '-u', '--username', dest="username", type=str,
+        help="Username to use to log into the Notary Server (you will be asked for the password")
     parsed = parser.parse_args(args)
 
-    return parsed.reponame, parsed.server
+    return parsed.reponame, parsed.server, parsed.username
 
 def cleanup(*paths):
     """
@@ -60,8 +83,9 @@ class Client(object):
     """
     Object that will run the notary client with the proper command lines
     """
-    def __init__(self, notary_server):
+    def __init__(self, notary_server, username_passwd=()):
         self.notary_server = notary_server
+        self.username_passwd = username_passwd
 
         binary = os.path.join(reporoot(), "bin", "notary")
         self.env = os.environ.copy()
@@ -77,27 +101,44 @@ class Client(object):
         else:
             self.client = [binary, "-s", notary_server]
 
-    def run(self, args, trust_dir, stdinput=None):
+    def run(self, args, trust_dir, stdinput=None, username_passwd=None):
         """
         Runs the notary client in a subprocess, and returns the output
         """
         command = self.client + ["-d", trust_dir] + list(args)
         print("$ " + " ".join(command))
 
-        process = Popen(command, env=self.env, stdout=PIPE, stdin=PIPE)
-        try:
-            output, _ = process.communicate(stdinput)
-        except Exception as ex:
-            process.kill()
+        # username password require newlines - EOF doesn't seem to do it.
+        communicate_input = (tuple((x + "\n" for x in self.username_passwd))
+                             if username_passwd is None else username_passwd)
+
+        # Input comes before the username/password, and if there is a username
+        # and password, we need a newline after the input.  Otherwise, just use
+        # EOF (for instance if we're piping text to verify)
+        if stdinput is not None:
+            if communicate_input:
+                communicate_input = (stdinput + "\n",) + communicate_input
+            else:
+                communicate_input = (stdinput,)
+
+        _, filename = mkstemp()
+        with open(filename, 'wb') as tempfile:
+            process = Popen(command, env=self.env, stdout=tempfile, stdin=PIPE,
+                            universal_newlines=True)
+            for inp in communicate_input:
+                process.stdin.write(inp)
+            process.stdin.close()
             process.wait()
-            print("process failed: {0}".format(ex))
-            raise
+
+        with open(filename) as tempfile:
+            output = tempfile.read()
+
         retcode = process.poll()
+        cleanup(filename)
         print(output)
         if retcode:
             raise CalledProcessError(retcode, command, output=output)
         return output
-
 
 class Tester(object):
     """
@@ -121,13 +162,15 @@ class Tester(object):
         targets1 = self.client.run(["list", self.repo_name], self.dir)
         targets2 = self.client.run(["list", self.repo_name], tempdir)
 
-        assert targets1 == targets2
-        assert "basic_repo_test" in targets1
+        assert targets1 == targets2, "targets lists not equal: \n{0}\n{1}".format(
+            targets1, targets2)
+        assert "basic_repo_test" in targets1, "missing expected basic_repo_test: {0}".format(
+            targets1)
 
-        with open(tempfile) as target_file:
-            text = target_file.read()
-
-        self.client.run(["verify", self.repo_name, "basic_repo_test"], self.dir, stdinput=text)
+        self.client.run(
+            ["verify", self.repo_name, "basic_repo_test", "-i", tempfile, "-q"], self.dir,
+            # skip username/password since this is an offline operation
+            username_passwd=())
 
     def add_delegation_test(self, tempfile, tempdir):
         """
@@ -145,8 +188,9 @@ class Tester(object):
         delegations1 = self.client.run(["delegation", "list", self.repo_name], self.dir)
         delegations2 = self.client.run(["delegation", "list", self.repo_name], tempdir)
 
-        assert delegations1 == delegations2
-        assert "targets/releases" in delegations1
+        assert delegations1 == delegations2, "delegation lists not equal: \n{0}\n{1}".format(
+            delegations1, delegations2)
+        assert "targets/releases" in delegations1, "targets/releases delegation not added"
 
         # add key to tempdir, publish target
         print("---- Publishing a target using a delegation ----\n")
@@ -163,11 +207,12 @@ class Tester(object):
         targets1 = self.client.run(["list", self.repo_name], self.dir)
         targets2 = self.client.run(["list", self.repo_name], tempdir)
 
-        assert targets1 == targets2
+        assert targets1 == targets2, "targets lists not equal: \n{0}\n{1}".format(
+            targets1, targets2)
         expected_target = [line for line in targets1.split("\n")
                            if line.strip().startswith("add_delegation_test") and
                            line.strip().endswith("targets/releases")]
-        assert len(expected_target) == 1
+        assert len(expected_target) == 1, "could not find target added to targets/releases"
 
     def root_rotation_test(self, tempfile, tempdir):
         """
@@ -203,10 +248,15 @@ class Tester(object):
         self.client.run(["list", self.repo_name], tempdir)
         with open(os.path.join(tempdir, "tuf", self.repo_name, "metadata", "root.json")) as root:
             root_json = json.load(root)
-            assert len(root_json["signed"]["keys"]) == old_root_num_keys + 1
+            assert len(root_json["signed"]["keys"]) == old_root_num_keys + 1, (
+                "expected {0} base keys, but got {1}".format(
+                    old_root_num_keys + 1, len(root_json["signed"]["keys"])))
+
             root_certs = root_json["signed"]["roles"]["root"]["keyids"]
-            assert len(root_certs) == 1
-            assert root_certs != old_root_certs
+
+            assert len(root_certs) == 1, "expected 1 valid root key, got {0}".format(
+                len(root_certs))
+            assert root_certs != old_root_certs, "root key has not been rotated"
 
         print("---- Ensuring we can still publish  ----\n")
         # make sure we can still publish from both repos
@@ -226,7 +276,9 @@ class Tester(object):
         targets1 = self.client.run(["list", self.repo_name], self.dir)
         targets2 = self.client.run(["list", self.repo_name], tempdir)
 
-        assert targets1 == targets2
+        assert targets1 == targets2, "targets lists not equal: \n{0}\n{1}".format(
+            targets1, targets2)
+
         lines = [line.strip() for line in targets1.split("\n")]
         expected_targets = [
             line for line in lines
@@ -271,7 +323,6 @@ def wait_for_server(server, timeout_in_seconds):
         proc = Popen(command, stderr=PIPE, stdin=PIPE)
         proc.communicate()
         if proc.poll():
-            print("Waiting for {0} to be available.".format(server))
             sleep(1)
             continue
         else:
@@ -286,7 +337,7 @@ def run():
     """
     Run the client tests
     """
-    repo_name, server = parse_args()
+    repo_name, server, username = parse_args()
     if not repo_name:
         repo_name = uuid4().hex
     if server is not None:
@@ -307,7 +358,7 @@ def run():
 
     wait_for_server(server, 30)
 
-    Tester(repo_name, Client(server)).run()
+    Tester(repo_name, Client(server, username_passwd)).run()
 
     try:
         with open("/test_output/SUCCESS", 'wb') as successFile:

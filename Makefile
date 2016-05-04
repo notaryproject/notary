@@ -126,7 +126,7 @@ test:
 	go test -tags "${NOTARY_BUILDTAGS}" $(TESTOPTS) $(PKGS)
 
 integration: TESTDB = mysql
-integration:
+integration: clean
 	buildscripts/integrationtest.sh $(TESTDB)
 
 testdb: TESTDB = mysql

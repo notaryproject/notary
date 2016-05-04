@@ -719,6 +719,8 @@ func (ps passwordStore) Basic(u *url.URL) (string, string) {
 
 	username := strings.TrimSpace(string(userIn))
 
+	// If typing on the terminal, we do not want the terminal to echo the
+	// password that is typed (so it doesn't display)
 	if term.IsTerminal(0) {
 		state, err := term.SaveState(0)
 		if err != nil {
