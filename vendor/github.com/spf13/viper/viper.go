@@ -24,12 +24,14 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/kr/pretty"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cast"
@@ -61,7 +63,7 @@ func (str UnsupportedConfigError) Error() string {
 }
 
 // Denotes encountering an unsupported remote
-// provider. Currently only Etcd and Consul are
+// provider. Currently only etcd and Consul are
 // supported.
 type UnsupportedRemoteProviderError string
 
@@ -77,6 +79,16 @@ type RemoteConfigError string
 // Returns the formatted remote provider error
 func (rce RemoteConfigError) Error() string {
 	return fmt.Sprintf("Remote Configurations Error: %s", string(rce))
+}
+
+// Denotes failing to find configuration file.
+type ConfigFileNotFoundError struct {
+	name, locations string
+}
+
+// Returns the formatted configuration error.
+func (fnfe ConfigFileNotFoundError) Error() string {
+	return fmt.Sprintf("Config File %q Not Found in %q", fnfe.name, fnfe.locations)
 }
 
 // Viper is a prioritized configuration registry. It
@@ -96,11 +108,11 @@ func (rce RemoteConfigError) Error() string {
 //  Defaults : {
 //  	"secret": "",
 //  	"user": "default",
-// 	    "endpoint": "https://localhost"
+// 	"endpoint": "https://localhost"
 //  }
 //  Config : {
 //  	"user": "root"
-//	    "secret": "defaultsecret"
+//	"secret": "defaultsecret"
 //  }
 //  Env : {
 //  	"secret": "somesecretkey"
@@ -133,13 +145,16 @@ type Viper struct {
 	automaticEnvApplied bool
 	envKeyReplacer      *strings.Replacer
 
-	config   map[string]interface{}
-	override map[string]interface{}
-	defaults map[string]interface{}
-	kvstore  map[string]interface{}
-	pflags   map[string]*pflag.Flag
-	env      map[string]string
-	aliases  map[string]string
+	config         map[string]interface{}
+	override       map[string]interface{}
+	defaults       map[string]interface{}
+	kvstore        map[string]interface{}
+	pflags         map[string]FlagValue
+	env            map[string]string
+	aliases        map[string]string
+	typeByDefValue bool
+
+	onConfigChange func(fsnotify.Event)
 }
 
 // Returns an initialized Viper instance.
@@ -151,9 +166,10 @@ func New() *Viper {
 	v.override = make(map[string]interface{})
 	v.defaults = make(map[string]interface{})
 	v.kvstore = make(map[string]interface{})
-	v.pflags = make(map[string]*pflag.Flag)
+	v.pflags = make(map[string]FlagValue)
 	v.env = make(map[string]string)
 	v.aliases = make(map[string]string)
+	v.typeByDefValue = false
 
 	return v
 }
@@ -163,7 +179,7 @@ func New() *Viper {
 // can use it in their testing as well.
 func Reset() {
 	v = New()
-	SupportedExts = []string{"json", "toml", "yaml", "yml"}
+	SupportedExts = []string{"json", "toml", "yaml", "yml", "hcl"}
 	SupportedRemoteProviders = []string{"etcd", "consul"}
 }
 
@@ -202,10 +218,54 @@ type RemoteProvider interface {
 }
 
 // Universally supported extensions.
-var SupportedExts []string = []string{"json", "toml", "yaml", "yml", "properties", "props", "prop"}
+var SupportedExts []string = []string{"json", "toml", "yaml", "yml", "properties", "props", "prop", "hcl"}
 
 // Universally supported remote providers.
 var SupportedRemoteProviders []string = []string{"etcd", "consul"}
+
+func OnConfigChange(run func(in fsnotify.Event)) { v.OnConfigChange(run) }
+func (v *Viper) OnConfigChange(run func(in fsnotify.Event)) {
+	v.onConfigChange = run
+}
+
+func WatchConfig() { v.WatchConfig() }
+func (v *Viper) WatchConfig() {
+	go func() {
+		watcher, err := fsnotify.NewWatcher()
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer watcher.Close()
+
+		// we have to watch the entire directory to pick up renames/atomic saves in a cross-platform way
+		configFile := filepath.Clean(v.getConfigFile())
+		configDir, _ := filepath.Split(configFile)
+
+		done := make(chan bool)
+		go func() {
+			for {
+				select {
+				case event := <-watcher.Events:
+					// we only care about the config file
+					if filepath.Clean(event.Name) == configFile {
+						if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {
+							err := v.ReadInConfig()
+							if err != nil {
+								log.Println("error:", err)
+							}
+							v.onConfigChange(event)
+						}
+					}
+				case err := <-watcher.Errors:
+					log.Println("error:", err)
+				}
+			}
+		}()
+
+		watcher.Add(configDir)
+		<-done
+	}()
+}
 
 // Explicitly define the path, name and extension of the config file
 // Viper will use this and not check any of the config paths
@@ -315,9 +375,10 @@ func (v *Viper) AddSecureRemoteProvider(provider, endpoint, path, secretkeyring 
 	if provider != "" && endpoint != "" {
 		jww.INFO.Printf("adding %s:%s to remote provider list", provider, endpoint)
 		rp := &defaultRemoteProvider{
-			endpoint: endpoint,
-			provider: provider,
-			path:     path,
+			endpoint:      endpoint,
+			provider:      provider,
+			path:          path,
+			secretKeyring: secretkeyring,
 		}
 		if !v.providerPathExists(rp) {
 			v.remoteProviders = append(v.remoteProviders, rp)
@@ -341,8 +402,20 @@ func (v *Viper) searchMap(source map[string]interface{}, path []string) interfac
 		return source
 	}
 
-	if next, ok := source[path[0]]; ok {
+	var ok bool
+	var next interface{}
+	for k, v := range source {
+		if strings.ToLower(k) == strings.ToLower(path[0]) {
+			ok = true
+			next = v
+			break
+		}
+	}
+
+	if ok {
 		switch next.(type) {
+		case map[interface{}]interface{}:
+			return v.searchMap(cast.ToStringMap(next), path[1:])
 		case map[string]interface{}:
 			// Type assertion is safe here since it is only reached
 			// if the type of `next` is the same as the type being asserted
@@ -353,6 +426,25 @@ func (v *Viper) searchMap(source map[string]interface{}, path []string) interfac
 	} else {
 		return nil
 	}
+}
+
+// SetTypeByDefaultValue enables or disables the inference of a key value's
+// type when the Get function is used based upon a key's default value as
+// opposed to the value returned based on the normal fetch logic.
+//
+// For example, if a key has a default value of []string{} and the same key
+// is set via an environment variable to "a b c", a call to the Get function
+// would return a string slice for the key if the key's type is inferred by
+// the default value and the Get function would return:
+//
+//   []string {"a", "b", "c"}
+//
+// Otherwise the Get function would return:
+//
+//   "a b c"
+func SetTypeByDefaultValue(enable bool) { v.SetTypeByDefaultValue(enable) }
+func (v *Viper) SetTypeByDefaultValue(enable bool) {
+	v.typeByDefValue = enable
 }
 
 // Viper is essentially repository for configurations
@@ -366,20 +458,51 @@ func Get(key string) interface{} { return v.Get(key) }
 func (v *Viper) Get(key string) interface{} {
 	path := strings.Split(key, v.keyDelim)
 
-	val := v.find(strings.ToLower(key))
+	lcaseKey := strings.ToLower(key)
+	val := v.find(lcaseKey)
 
 	if val == nil {
-		source := v.find(path[0])
-		if source == nil {
-			return nil
-		}
-
-		if reflect.TypeOf(source).Kind() == reflect.Map {
-			val = v.searchMap(cast.ToStringMap(source), path[1:])
+		source := v.find(strings.ToLower(path[0]))
+		if source != nil {
+			if reflect.TypeOf(source).Kind() == reflect.Map {
+				val = v.searchMap(cast.ToStringMap(source), path[1:])
+			}
 		}
 	}
 
-	switch val.(type) {
+	// if no other value is returned and a flag does exist for the value,
+	// get the flag's value even if the flag's value has not changed
+	if val == nil {
+		if flag, exists := v.pflags[lcaseKey]; exists {
+			jww.TRACE.Println(key, "get pflag default", val)
+			switch flag.ValueType() {
+			case "int", "int8", "int16", "int32", "int64":
+				val = cast.ToInt(flag.ValueString())
+			case "bool":
+				val = cast.ToBool(flag.ValueString())
+			default:
+				val = flag.ValueString()
+			}
+		}
+	}
+
+	if val == nil {
+		return nil
+	}
+
+	var valType interface{}
+	if !v.typeByDefValue {
+		valType = val
+	} else {
+		defVal, defExists := v.defaults[lcaseKey]
+		if defExists {
+			valType = defVal
+		} else {
+			valType = val
+		}
+	}
+
+	switch valType.(type) {
 	case bool:
 		return cast.ToBool(val)
 	case string:
@@ -393,9 +516,22 @@ func (v *Viper) Get(key string) interface{} {
 	case time.Duration:
 		return cast.ToDuration(val)
 	case []string:
-		return val
+		return cast.ToStringSlice(val)
 	}
 	return val
+}
+
+// Returns new Viper instance representing a sub tree of this instance
+func Sub(key string) *Viper { return v.Sub(key) }
+func (v *Viper) Sub(key string) *Viper {
+	subv := New()
+	data := v.Get(key)
+	if reflect.TypeOf(data).Kind() == reflect.Map {
+		subv.config = cast.ToStringMap(data)
+		return subv
+	} else {
+		return nil
+	}
 }
 
 // Returns the value associated with the key as a string
@@ -404,7 +540,7 @@ func (v *Viper) GetString(key string) string {
 	return cast.ToString(v.Get(key))
 }
 
-// Returns the value associated with the key asa boolean
+// Returns the value associated with the key as a boolean
 func GetBool(key string) bool { return v.GetBool(key) }
 func (v *Viper) GetBool(key string) bool {
 	return cast.ToBool(v.Get(key))
@@ -452,6 +588,12 @@ func (v *Viper) GetStringMapString(key string) map[string]string {
 	return cast.ToStringMapString(v.Get(key))
 }
 
+// Returns the value associated with the key as a map to a slice of strings.
+func GetStringMapStringSlice(key string) map[string][]string { return v.GetStringMapStringSlice(key) }
+func (v *Viper) GetStringMapStringSlice(key string) map[string][]string {
+	return cast.ToStringMapStringSlice(v.Get(key))
+}
+
 // Returns the size of the value associated with the given key
 // in bytes.
 func GetSizeInBytes(key string) uint { return v.GetSizeInBytes(key) }
@@ -460,17 +602,48 @@ func (v *Viper) GetSizeInBytes(key string) uint {
 	return parseSizeInBytes(sizeStr)
 }
 
-// Takes a single key and marshals it into a Struct
-func MarshalKey(key string, rawVal interface{}) error { return v.MarshalKey(key, rawVal) }
-func (v *Viper) MarshalKey(key string, rawVal interface{}) error {
+// Takes a single key and unmarshals it into a Struct
+func UnmarshalKey(key string, rawVal interface{}) error { return v.UnmarshalKey(key, rawVal) }
+func (v *Viper) UnmarshalKey(key string, rawVal interface{}) error {
 	return mapstructure.Decode(v.Get(key), rawVal)
 }
 
-// Marshals the config into a Struct. Make sure that the tags
+// Unmarshals the config into a Struct. Make sure that the tags
 // on the fields of the structure are properly set.
-func Marshal(rawVal interface{}) error { return v.Marshal(rawVal) }
-func (v *Viper) Marshal(rawVal interface{}) error {
+func Unmarshal(rawVal interface{}) error { return v.Unmarshal(rawVal) }
+func (v *Viper) Unmarshal(rawVal interface{}) error {
 	err := mapstructure.WeakDecode(v.AllSettings(), rawVal)
+
+	if err != nil {
+		return err
+	}
+
+	v.insensitiviseMaps()
+
+	return nil
+}
+
+// A wrapper around mapstructure.Decode that mimics the WeakDecode functionality
+// while erroring on non existing vals in the destination struct
+func weakDecodeExact(input, output interface{}) error {
+	config := &mapstructure.DecoderConfig{
+		ErrorUnused:      true,
+		Metadata:         nil,
+		Result:           output,
+		WeaklyTypedInput: true,
+	}
+
+	decoder, err := mapstructure.NewDecoder(config)
+	if err != nil {
+		return err
+	}
+	return decoder.Decode(input)
+}
+
+// Unmarshals the config into a Struct, erroring if a field is non-existant
+// in the destination struct
+func (v *Viper) UnmarshalExact(rawVal interface{}) error {
+	err := weakDecodeExact(v.AllSettings(), rawVal)
 
 	if err != nil {
 		return err
@@ -485,26 +658,10 @@ func (v *Viper) Marshal(rawVal interface{}) error {
 // name as the config key.
 func BindPFlags(flags *pflag.FlagSet) (err error) { return v.BindPFlags(flags) }
 func (v *Viper) BindPFlags(flags *pflag.FlagSet) (err error) {
-	flags.VisitAll(func(flag *pflag.Flag) {
-		if err != nil {
-			// an error has been encountered in one of the previous flags
-			return
-		}
-
-		err = v.BindPFlag(flag.Name, flag)
-		switch flag.Value.Type() {
-		case "int", "int8", "int16", "int32", "int64":
-			v.SetDefault(flag.Name, cast.ToInt(flag.Value.String()))
-		case "bool":
-			v.SetDefault(flag.Name, cast.ToBool(flag.Value.String()))
-		default:
-			v.SetDefault(flag.Name, flag.Value.String())
-		}
-	})
-	return
+	return v.BindFlagValues(pflagValueSet{flags})
 }
 
-// Bind a specific key to a flag (as used by cobra)
+// Bind a specific key to a pflag (as used by cobra)
 // Example(where serverCmd is a Cobra instance):
 //
 //	 serverCmd.Flags().Int("port", 1138, "Port to run Application server on")
@@ -512,19 +669,33 @@ func (v *Viper) BindPFlags(flags *pflag.FlagSet) (err error) {
 //
 func BindPFlag(key string, flag *pflag.Flag) (err error) { return v.BindPFlag(key, flag) }
 func (v *Viper) BindPFlag(key string, flag *pflag.Flag) (err error) {
+	return v.BindFlagValue(key, pflagValue{flag})
+}
+
+// Bind a full FlagValue set to the configuration, using each flag's long
+// name as the config key.
+func BindFlagValues(flags FlagValueSet) (err error) { return v.BindFlagValues(flags) }
+func (v *Viper) BindFlagValues(flags FlagValueSet) (err error) {
+	flags.VisitAll(func(flag FlagValue) {
+		if err = v.BindFlagValue(flag.Name(), flag); err != nil {
+			return
+		}
+	})
+	return nil
+}
+
+// Bind a specific key to a FlagValue.
+// Example(where serverCmd is a Cobra instance):
+//
+//	 serverCmd.Flags().Int("port", 1138, "Port to run Application server on")
+//	 Viper.BindFlagValue("port", serverCmd.Flags().Lookup("port"))
+//
+func BindFlagValue(key string, flag FlagValue) (err error) { return v.BindFlagValue(key, flag) }
+func (v *Viper) BindFlagValue(key string, flag FlagValue) (err error) {
 	if flag == nil {
 		return fmt.Errorf("flag for %q is nil", key)
 	}
 	v.pflags[strings.ToLower(key)] = flag
-
-	switch flag.Value.Type() {
-	case "int", "int8", "int16", "int32", "int64":
-		SetDefault(key, cast.ToInt(flag.Value.String()))
-	case "bool":
-		SetDefault(key, cast.ToBool(flag.Value.String()))
-	default:
-		SetDefault(key, flag.Value.String())
-	}
 	return nil
 }
 
@@ -565,10 +736,15 @@ func (v *Viper) find(key string) interface{} {
 
 	// PFlag Override first
 	flag, exists := v.pflags[key]
-	if exists {
-		if flag.Changed {
-			jww.TRACE.Println(key, "found in override (via pflag):", val)
-			return flag.Value.String()
+	if exists && flag.HasChanged() {
+		jww.TRACE.Println(key, "found in override (via pflag):", flag.ValueString())
+		switch flag.ValueType() {
+		case "int", "int8", "int16", "int32", "int64":
+			return cast.ToInt(flag.ValueString())
+		case "bool":
+			return cast.ToBool(flag.ValueString())
+		default:
+			return flag.ValueString()
 		}
 	}
 
@@ -604,6 +780,20 @@ func (v *Viper) find(key string) interface{} {
 		return val
 	}
 
+	// Test for nested config parameter
+	if strings.Contains(key, v.keyDelim) {
+		path := strings.Split(key, v.keyDelim)
+
+		source := v.find(path[0])
+		if source != nil {
+			if reflect.TypeOf(source).Kind() == reflect.Map {
+				val := v.searchMap(cast.ToStringMap(source), path[1:])
+				jww.TRACE.Println(key, "found in nested config:", val)
+				return val
+			}
+		}
+	}
+
 	val, exists = v.kvstore[key]
 	if exists {
 		jww.TRACE.Println(key, "found in key/value store:", val)
@@ -622,8 +812,21 @@ func (v *Viper) find(key string) interface{} {
 // Check to see if the key has been set in any of the data locations
 func IsSet(key string) bool { return v.IsSet(key) }
 func (v *Viper) IsSet(key string) bool {
-	t := v.Get(key)
-	return t != nil
+	path := strings.Split(key, v.keyDelim)
+
+	lcaseKey := strings.ToLower(key)
+	val := v.find(lcaseKey)
+
+	if val == nil {
+		source := v.find(strings.ToLower(path[0]))
+		if source != nil {
+			if reflect.TypeOf(source).Kind() == reflect.Map {
+				val = v.searchMap(cast.ToStringMap(source), path[1:])
+			}
+		}
+	}
+
+	return val != nil
 }
 
 // Have Viper check ENV variables for all
@@ -735,22 +938,131 @@ func (v *Viper) ReadInConfig() error {
 
 	v.config = make(map[string]interface{})
 
-	v.marshalReader(bytes.NewReader(file), v.config)
-	return nil
+	return v.unmarshalReader(bytes.NewReader(file), v.config)
 }
 
+// MergeInConfig merges a new configuration with an existing config.
+func MergeInConfig() error { return v.MergeInConfig() }
+func (v *Viper) MergeInConfig() error {
+	jww.INFO.Println("Attempting to merge in config file")
+	if !stringInSlice(v.getConfigType(), SupportedExts) {
+		return UnsupportedConfigError(v.getConfigType())
+	}
+
+	file, err := ioutil.ReadFile(v.getConfigFile())
+	if err != nil {
+		return err
+	}
+
+	return v.MergeConfig(bytes.NewReader(file))
+}
+
+// Viper will read a configuration file, setting existing keys to nil if the
+// key does not exist in the file.
 func ReadConfig(in io.Reader) error { return v.ReadConfig(in) }
 func (v *Viper) ReadConfig(in io.Reader) error {
 	v.config = make(map[string]interface{})
-	v.marshalReader(in, v.config)
+	return v.unmarshalReader(in, v.config)
+}
+
+// MergeConfig merges a new configuration with an existing config.
+func MergeConfig(in io.Reader) error { return v.MergeConfig(in) }
+func (v *Viper) MergeConfig(in io.Reader) error {
+	if v.config == nil {
+		v.config = make(map[string]interface{})
+	}
+	cfg := make(map[string]interface{})
+	if err := v.unmarshalReader(in, cfg); err != nil {
+		return err
+	}
+	mergeMaps(cfg, v.config, nil)
 	return nil
+}
+
+func keyExists(k string, m map[string]interface{}) string {
+	lk := strings.ToLower(k)
+	for mk := range m {
+		lmk := strings.ToLower(mk)
+		if lmk == lk {
+			return mk
+		}
+	}
+	return ""
+}
+
+func castToMapStringInterface(
+	src map[interface{}]interface{}) map[string]interface{} {
+	tgt := map[string]interface{}{}
+	for k, v := range src {
+		tgt[fmt.Sprintf("%v", k)] = v
+	}
+	return tgt
+}
+
+// mergeMaps merges two maps. The `itgt` parameter is for handling go-yaml's
+// insistence on parsing nested structures as `map[interface{}]interface{}`
+// instead of using a `string` as the key for nest structures beyond one level
+// deep. Both map types are supported as there is a go-yaml fork that uses
+// `map[string]interface{}` instead.
+func mergeMaps(
+	src, tgt map[string]interface{}, itgt map[interface{}]interface{}) {
+	for sk, sv := range src {
+		tk := keyExists(sk, tgt)
+		if tk == "" {
+			jww.TRACE.Printf("tk=\"\", tgt[%s]=%v", sk, sv)
+			tgt[sk] = sv
+			if itgt != nil {
+				itgt[sk] = sv
+			}
+			continue
+		}
+
+		tv, ok := tgt[tk]
+		if !ok {
+			jww.TRACE.Printf("tgt[%s] != ok, tgt[%s]=%v", tk, sk, sv)
+			tgt[sk] = sv
+			if itgt != nil {
+				itgt[sk] = sv
+			}
+			continue
+		}
+
+		svType := reflect.TypeOf(sv)
+		tvType := reflect.TypeOf(tv)
+		if svType != tvType {
+			jww.ERROR.Printf(
+				"svType != tvType; key=%s, st=%v, tt=%v, sv=%v, tv=%v",
+				sk, svType, tvType, sv, tv)
+			continue
+		}
+
+		jww.TRACE.Printf("processing key=%s, st=%v, tt=%v, sv=%v, tv=%v",
+			sk, svType, tvType, sv, tv)
+
+		switch ttv := tv.(type) {
+		case map[interface{}]interface{}:
+			jww.TRACE.Printf("merging maps (must convert)")
+			tsv := sv.(map[interface{}]interface{})
+			ssv := castToMapStringInterface(tsv)
+			stv := castToMapStringInterface(ttv)
+			mergeMaps(ssv, stv, ttv)
+		case map[string]interface{}:
+			jww.TRACE.Printf("merging maps")
+			mergeMaps(sv.(map[string]interface{}), ttv, nil)
+		default:
+			jww.TRACE.Printf("setting value")
+			tgt[tk] = sv
+			if itgt != nil {
+				itgt[tk] = sv
+			}
+		}
+	}
 }
 
 // func ReadBufConfig(buf *bytes.Buffer) error { return v.ReadBufConfig(buf) }
 // func (v *Viper) ReadBufConfig(buf *bytes.Buffer) error {
 // 	v.config = make(map[string]interface{})
-// 	v.marshalReader(buf, v.config)
-// 	return nil
+// 	return v.unmarshalReader(buf, v.config)
 // }
 
 // Attempts to get configuration from a remote source
@@ -773,11 +1085,14 @@ func (v *Viper) WatchRemoteConfig() error {
 	return nil
 }
 
-// Marshall a Reader into a map
+// Unmarshall a Reader into a map
 // Should probably be an unexported function
-func marshalReader(in io.Reader, c map[string]interface{}) { v.marshalReader(in, c) }
-func (v *Viper) marshalReader(in io.Reader, c map[string]interface{}) {
-	marshallConfigReader(in, c, v.getConfigType())
+func unmarshalReader(in io.Reader, c map[string]interface{}) error {
+	return v.unmarshalReader(in, c)
+}
+
+func (v *Viper) unmarshalReader(in io.Reader, c map[string]interface{}) error {
+	return unmarshallConfigReader(in, c, v.getConfigType())
 }
 
 func (v *Viper) insensitiviseMaps() {
@@ -810,7 +1125,7 @@ func (v *Viper) getRemoteConfig(provider *defaultRemoteProvider) (map[string]int
 	if err != nil {
 		return nil, err
 	}
-	v.marshalReader(reader, v.kvstore)
+	err = v.unmarshalReader(reader, v.kvstore)
 	return v.kvstore, err
 }
 
@@ -832,7 +1147,7 @@ func (v *Viper) watchRemoteConfig(provider *defaultRemoteProvider) (map[string]i
 	if err != nil {
 		return nil, err
 	}
-	v.marshalReader(reader, v.kvstore)
+	err = v.unmarshalReader(reader, v.kvstore)
 	return v.kvstore, err
 }
 
@@ -842,19 +1157,31 @@ func (v *Viper) AllKeys() []string {
 	m := map[string]struct{}{}
 
 	for key, _ := range v.defaults {
-		m[key] = struct{}{}
+		m[strings.ToLower(key)] = struct{}{}
+	}
+
+	for key, _ := range v.pflags {
+		m[strings.ToLower(key)] = struct{}{}
+	}
+
+	for key, _ := range v.env {
+		m[strings.ToLower(key)] = struct{}{}
 	}
 
 	for key, _ := range v.config {
-		m[key] = struct{}{}
+		m[strings.ToLower(key)] = struct{}{}
 	}
 
 	for key, _ := range v.kvstore {
-		m[key] = struct{}{}
+		m[strings.ToLower(key)] = struct{}{}
 	}
 
 	for key, _ := range v.override {
-		m[key] = struct{}{}
+		m[strings.ToLower(key)] = struct{}{}
+	}
+
+	for key, _ := range v.aliases {
+		m[strings.ToLower(key)] = struct{}{}
 	}
 
 	a := []string{}
@@ -940,6 +1267,7 @@ func (v *Viper) searchInPath(in string) (filename string) {
 // search all configPaths for any config file.
 // Returns the first path that exists (and is a config file)
 func (v *Viper) findConfigFile() (string, error) {
+
 	jww.INFO.Println("Searching for config in ", v.configPaths)
 
 	for _, cp := range v.configPaths {
@@ -948,14 +1276,7 @@ func (v *Viper) findConfigFile() (string, error) {
 			return file, nil
 		}
 	}
-
-	// try the current working directory
-	wd, _ := os.Getwd()
-	file := v.searchInPath(wd)
-	if file != "" {
-		return file, nil
-	}
-	return "", fmt.Errorf("config file not found in: %s", v.configPaths)
+	return "", ConfigFileNotFoundError{v.configName, fmt.Sprintf("%s", v.configPaths)}
 }
 
 // Prints all configuration registries for debugging
