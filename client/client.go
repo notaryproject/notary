@@ -463,7 +463,8 @@ func (r *NotaryRepository) GetTargetByName(name string, roles ...string) (*Targe
 }
 
 // CheckTargetByName returns true if all passed-in roles have signed the specified target.
-// If no roles are passed, it uses the targets role.  Note that child roles are not checked.
+// If no roles are passed, it uses the targets role.  Note that child roles are considered if
+// we can't find the target in the specified role.
 func (r *NotaryRepository) CheckTargetByName(name string, roles ...string) (bool, error) {
 	if err := r.Update(false); err != nil {
 		return false, err
@@ -476,13 +477,14 @@ func (r *NotaryRepository) CheckTargetByName(name string, roles ...string) (bool
 	for _, role := range roles {
 		// Define a visitor function to find the specified target only at the specified role
 		checkTargetVisitorFunc := func(tgt *data.SignedTargets, validRole data.DelegationRole) interface{} {
-			// we never continue once we've found the role we're interested in
 			if tgt == nil {
 				return tuf.StopWalk{}
 			}
-			// We might have found the target, so check against the target name and signal up the closure
-			_, foundTarget = tgt.Signed.Targets[name]
-			return tuf.StopWalk{}
+			if _, foundTarget = tgt.Signed.Targets[name]; foundTarget {
+				return tuf.StopWalk{}
+			}
+			// Continue the walk if we didn't find it
+			return nil
 		}
 		// Check that we didn't error, and that we found the target for our role
 		if err := r.tufRepo.WalkTargets(name, role, checkTargetVisitorFunc); err != nil || !foundTarget {

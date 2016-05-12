@@ -1561,10 +1561,10 @@ func TestCheckTarget(t *testing.T) {
 	ok, err = repo.CheckTargetByName("nonexistent")
 	require.False(t, ok)
 	require.Error(t, err)
-	// even though a child role has signed level2, the targets role itself has not
+	// even though a child role has signed level2, the targets role itself is a parent and so this succeeds
 	ok, err = repo.CheckTargetByName("level2")
-	require.False(t, ok)
-	require.Error(t, err)
+	require.True(t, ok)
+	require.NoError(t, err)
 
 	// now also check delegation roles for positive cases
 	// level2 is signed by: targets/level2 and targets/level1/level2
@@ -1585,12 +1585,16 @@ func TestCheckTarget(t *testing.T) {
 	require.NoError(t, err)
 
 	// now also check delegation roles for negative cases
-	// targets/level1 never signed level2
-	ok, err = repo.CheckTargetByName("level2", "targets/level2", "targets/level1/level2", "targets/level1")
+	// targets/level1/level2 never signed current
+	ok, err = repo.CheckTargetByName("current", "targets/level1/level2")
 	require.False(t, ok)
 	require.Error(t, err)
-	// targets didn't sign level2, and we don't check child roles
-	ok, err = repo.CheckTargetByName("level2")
+	// targets/level1/level2 and targets/level2 never signed other
+	ok, err = repo.CheckTargetByName("other", "targets/level1/level2", "targets/level2")
+	require.False(t, ok)
+	require.Error(t, err)
+	// targets/level1/level2/level3/level4 doesn't even exist
+	ok, err = repo.CheckTargetByName("other", "targets/level1/level2/level3/level4")
 	require.False(t, ok)
 	require.Error(t, err)
 }
