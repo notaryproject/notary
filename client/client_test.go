@@ -1488,7 +1488,7 @@ func TestCheckTarget(t *testing.T) {
 
 	// add latest and current to targets role
 	addTarget(t, repo, "latest", "../fixtures/intermediate-ca.crt")
-	addTarget(t, repo, "current", "../fixtures/intermediate-ca.crt")
+	addTarget(t, repo, "current", "../fixtures/root-ca.crt")
 
 	// setup delegated targets/level1 role with targets current and other
 	k, err := repo.CryptoService.Create("targets/level1", repo.gun, rootType)
@@ -1497,7 +1497,7 @@ func TestCheckTarget(t *testing.T) {
 	require.NoError(t, err)
 	err = repo.tufRepo.UpdateDelegationPaths("targets/level1", []string{""}, []string{}, false)
 	require.NoError(t, err)
-	addTarget(t, repo, "current", "../fixtures/root-ca.crt", "targets/level1")
+	addTarget(t, repo, "current", "../fixtures/intermediate-ca.crt", "targets/level1")
 	addTarget(t, repo, "other", "../fixtures/root-ca.crt", "targets/level1")
 
 	// setup delegated targets/level2 role with targets current and level2
@@ -1507,7 +1507,7 @@ func TestCheckTarget(t *testing.T) {
 	require.NoError(t, err)
 	err = repo.tufRepo.UpdateDelegationPaths("targets/level2", []string{""}, []string{}, false)
 	require.NoError(t, err)
-	addTarget(t, repo, "current", "../fixtures/notary-server.crt", "targets/level2")
+	addTarget(t, repo, "current", "../fixtures/intermediate-ca.crt", "targets/level2")
 	addTarget(t, repo, "level2", "../fixtures/notary-server.crt", "targets/level2")
 
 	// Apply the changelist. Normally, this would be done by Publish
@@ -1537,7 +1537,7 @@ func TestCheckTarget(t *testing.T) {
 	require.NoError(t, err)
 	err = repo.tufRepo.UpdateDelegationPaths("targets/level1/level2", []string{"level2"}, []string{}, false)
 	require.NoError(t, err)
-	addTarget(t, repo, "level2", "../fixtures/notary-signer.crt", "targets/level1/level2")
+	addTarget(t, repo, "level2", "../fixtures/notary-server.crt", "targets/level1/level2")
 	// load the changelist for this repo
 	cl, err = changelist.NewFileChangelist(
 		filepath.Join(repo.baseDir, "tuf", filepath.FromSlash(repo.gun), "changelist"))
@@ -1571,10 +1571,6 @@ func TestCheckTarget(t *testing.T) {
 	ok, err = repo.CheckTargetByName("level2", "targets/level2", "targets/level1/level2")
 	require.True(t, ok)
 	require.NoError(t, err)
-	// current is signed by: targets and targets/level1 and targets/level2
-	ok, err = repo.CheckTargetByName("current", data.CanonicalTargetsRole, "targets/level1", "targets/level2")
-	require.True(t, ok)
-	require.NoError(t, err)
 	// a subset still works
 	ok, err = repo.CheckTargetByName("current", "targets/level1", "targets/level2")
 	require.True(t, ok)
@@ -1587,6 +1583,10 @@ func TestCheckTarget(t *testing.T) {
 	// now also check delegation roles for negative cases
 	// targets/level1/level2 never signed current
 	ok, err = repo.CheckTargetByName("current", "targets/level1/level2")
+	require.False(t, ok)
+	require.Error(t, err)
+	// current is signed by: targets and targets/level1 and targets/level2, both the hashes mismatch
+	ok, err = repo.CheckTargetByName("current", data.CanonicalTargetsRole, "targets/level1", "targets/level2")
 	require.False(t, ok)
 	require.Error(t, err)
 	// targets/level1/level2 and targets/level2 never signed other
