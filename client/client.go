@@ -462,6 +462,46 @@ func (r *NotaryRepository) GetTargetByName(name string, roles ...string) (*Targe
 
 }
 
+// CheckTargetByName returns true if all passed-in roles have signed the specified target with the same hash.
+// If no roles are passed, it uses the targets role.  Note that child roles are considered if
+// we can't find the target in the specified role.
+func (r *NotaryRepository) CheckTargetByName(name string, roles ...string) (bool, error) {
+	if err := r.Update(false); err != nil {
+		return false, err
+	}
+
+	if len(roles) == 0 {
+		roles = append(roles, data.CanonicalTargetsRole)
+	}
+	var foundTarget bool
+	var lastHashes data.Hashes
+	var currTarget data.FileMeta
+	for _, role := range roles {
+		// Define a visitor function to find the specified target only at the specified role
+		checkTargetVisitorFunc := func(tgt *data.SignedTargets, validRole data.DelegationRole) interface{} {
+			if tgt == nil {
+				return tuf.StopWalk{}
+			}
+			if currTarget, foundTarget = tgt.Signed.Targets[name]; foundTarget {
+				return tuf.StopWalk{}
+			}
+			// Continue the walk if we didn't find it
+			return nil
+		}
+		// Check that we didn't error, and that we found the target for our role
+		if err := r.tufRepo.WalkTargets(name, role, checkTargetVisitorFunc); err != nil || !foundTarget {
+			return false, fmt.Errorf("could not find target for role %s: additional error output %v", role, err)
+		}
+		if lastHashes != nil {
+			if err := data.CompareMultiHashes(lastHashes, currTarget.Hashes); err != nil {
+				return false, fmt.Errorf("target for role %s mismatched hash of other roles' targets: %v", role, err)
+			}
+		}
+		lastHashes = currTarget.Hashes
+	}
+	return true, nil
+}
+
 // GetChangelist returns the list of the repository's unpublished changes
 func (r *NotaryRepository) GetChangelist() (changelist.Changelist, error) {
 	changelistDir := filepath.Join(r.tufRepoPath, "changelist")

@@ -1473,6 +1473,132 @@ func TestListTargetRestrictsDelegationPaths(t *testing.T) {
 	require.Nil(t, tgt)
 }
 
+func TestCheckTarget(t *testing.T) {
+	ts, mux, keys := simpleTestServer(t)
+	defer ts.Close()
+
+	rootType := data.ECDSAKey
+
+	repo, _ := initializeRepo(t, rootType, "docker.com/notary", ts.URL, false)
+	defer os.RemoveAll(repo.baseDir)
+
+	// tests need to manually bootstrap timestamp as client doesn't generate it
+	err := repo.tufRepo.InitTimestamp()
+	require.NoError(t, err, "error creating repository: %s", err)
+
+	// add latest and current to targets role
+	addTarget(t, repo, "latest", "../fixtures/intermediate-ca.crt")
+	addTarget(t, repo, "current", "../fixtures/root-ca.crt")
+
+	// setup delegated targets/level1 role with targets current and other
+	k, err := repo.CryptoService.Create("targets/level1", repo.gun, rootType)
+	require.NoError(t, err)
+	err = repo.tufRepo.UpdateDelegationKeys("targets/level1", []data.PublicKey{k}, []string{}, 1)
+	require.NoError(t, err)
+	err = repo.tufRepo.UpdateDelegationPaths("targets/level1", []string{""}, []string{}, false)
+	require.NoError(t, err)
+	addTarget(t, repo, "current", "../fixtures/intermediate-ca.crt", "targets/level1")
+	addTarget(t, repo, "other", "../fixtures/root-ca.crt", "targets/level1")
+
+	// setup delegated targets/level2 role with targets current and level2
+	k, err = repo.CryptoService.Create("targets/level2", repo.gun, rootType)
+	require.NoError(t, err)
+	err = repo.tufRepo.UpdateDelegationKeys("targets/level2", []data.PublicKey{k}, []string{}, 1)
+	require.NoError(t, err)
+	err = repo.tufRepo.UpdateDelegationPaths("targets/level2", []string{""}, []string{}, false)
+	require.NoError(t, err)
+	addTarget(t, repo, "current", "../fixtures/intermediate-ca.crt", "targets/level2")
+	addTarget(t, repo, "level2", "../fixtures/notary-server.crt", "targets/level2")
+
+	// Apply the changelist. Normally, this would be done by Publish
+
+	// load the changelist for this repo
+	cl, err := changelist.NewFileChangelist(
+		filepath.Join(repo.baseDir, "tuf", filepath.FromSlash(repo.gun), "changelist"))
+	require.NoError(t, err, "could not open changelist")
+
+	// apply the changelist to the repo, then clear it
+	err = applyChangelist(repo.tufRepo, cl)
+	require.NoError(t, err, "could not apply changelist")
+	require.NoError(t, cl.Clear(""))
+
+	_, ok := repo.tufRepo.Targets["targets/level1"].Signed.Targets["current"]
+	require.True(t, ok)
+	_, ok = repo.tufRepo.Targets["targets/level1"].Signed.Targets["other"]
+	require.True(t, ok)
+	_, ok = repo.tufRepo.Targets["targets/level2"].Signed.Targets["level2"]
+	require.True(t, ok)
+
+	// setup delegated targets/level1/level2 role separately, which can only modify paths prefixed with "level2"
+	// add level2 to targets/level1/level2
+	k, err = repo.CryptoService.Create("targets/level1/level2", repo.gun, rootType)
+	require.NoError(t, err)
+	err = repo.tufRepo.UpdateDelegationKeys("targets/level1/level2", []data.PublicKey{k}, []string{}, 1)
+	require.NoError(t, err)
+	err = repo.tufRepo.UpdateDelegationPaths("targets/level1/level2", []string{"level2"}, []string{}, false)
+	require.NoError(t, err)
+	addTarget(t, repo, "level2", "../fixtures/notary-server.crt", "targets/level1/level2")
+	// load the changelist for this repo
+	cl, err = changelist.NewFileChangelist(
+		filepath.Join(repo.baseDir, "tuf", filepath.FromSlash(repo.gun), "changelist"))
+	require.NoError(t, err, "could not open changelist")
+	// apply the changelist to the repo
+	err = applyChangelist(repo.tufRepo, cl)
+	require.NoError(t, err, "could not apply changelist")
+	// check the changelist was applied
+	_, ok = repo.tufRepo.Targets["targets/level1/level2"].Signed.Targets["level2"]
+	require.True(t, ok)
+
+	fakeServerData(t, repo, mux, keys)
+
+	// test default checking, which checks the targets role only
+	ok, err = repo.CheckTargetByName("latest")
+	require.True(t, ok)
+	require.NoError(t, err)
+	ok, err = repo.CheckTargetByName("current")
+	require.True(t, ok)
+	require.NoError(t, err)
+	ok, err = repo.CheckTargetByName("nonexistent")
+	require.False(t, ok)
+	require.Error(t, err)
+	// even though a child role has signed level2, the targets role itself is a parent and so this succeeds
+	ok, err = repo.CheckTargetByName("level2")
+	require.True(t, ok)
+	require.NoError(t, err)
+
+	// now also check delegation roles for positive cases
+	// level2 is signed by: targets/level2 and targets/level1/level2
+	ok, err = repo.CheckTargetByName("level2", "targets/level2", "targets/level1/level2")
+	require.True(t, ok)
+	require.NoError(t, err)
+	// a subset still works
+	ok, err = repo.CheckTargetByName("current", "targets/level1", "targets/level2")
+	require.True(t, ok)
+	require.NoError(t, err)
+	// other is signed by: targets/level1
+	ok, err = repo.CheckTargetByName("other", "targets/level1")
+	require.True(t, ok)
+	require.NoError(t, err)
+
+	// now also check delegation roles for negative cases
+	// targets/level1/level2 never signed current
+	ok, err = repo.CheckTargetByName("current", "targets/level1/level2")
+	require.False(t, ok)
+	require.Error(t, err)
+	// current is signed by: targets and targets/level1 and targets/level2, both the hashes mismatch
+	ok, err = repo.CheckTargetByName("current", data.CanonicalTargetsRole, "targets/level1", "targets/level2")
+	require.False(t, ok)
+	require.Error(t, err)
+	// targets/level1/level2 and targets/level2 never signed other
+	ok, err = repo.CheckTargetByName("other", "targets/level1/level2", "targets/level2")
+	require.False(t, ok)
+	require.Error(t, err)
+	// targets/level1/level2/level3/level4 doesn't even exist
+	ok, err = repo.CheckTargetByName("other", "targets/level1/level2/level3/level4")
+	require.False(t, ok)
+	require.Error(t, err)
+}
+
 // TestValidateRootKey verifies that the public data in root.json for the root
 // key is a valid x509 certificate.
 func TestValidateRootKey(t *testing.T) {

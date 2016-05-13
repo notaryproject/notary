@@ -188,6 +188,43 @@ func CheckValidHashStructures(hashes Hashes) error {
 	return nil
 }
 
+// CompareMultiHashes verifies that the two Hashes passed in can represent the same data.
+// This means that both maps must have at least one key defined for which they map, and no conflicts.
+func CompareMultiHashes(hashes1, hashes2 Hashes) error {
+	// First check if the two hash structures are valid
+	if err := CheckValidHashStructures(hashes1); err != nil {
+		return err
+	}
+	if err := CheckValidHashStructures(hashes2); err != nil {
+		return err
+	}
+	// Check if they have at least one matching hash, and no conflicts
+	cnt := 0
+	for _, hashAlg := range []string{notary.SHA256, notary.SHA512} {
+		hash1, ok := hashes1[hashAlg]
+		if !ok {
+			continue
+		}
+
+		hash2, ok := hashes2[hashAlg]
+		if !ok {
+			continue
+		}
+
+		if subtle.ConstantTimeCompare(hash1[:], hash2[:]) == 0 {
+			return fmt.Errorf("mismatched %s checksum", hashAlg)
+		}
+		// If we reached here, we had a match
+		cnt++
+	}
+
+	if cnt == 0 {
+		return fmt.Errorf("at least one supported and matching hash needed")
+	}
+
+	return nil
+}
+
 // NewFileMeta generates a FileMeta object from the reader, using the
 // hash algorithms provided
 func NewFileMeta(r io.Reader, hashAlgorithms ...string) (FileMeta, error) {
