@@ -13,6 +13,7 @@ services:
         - signer
       environment:
         - SERVICE_NAME=notary_server
+        - GODEBUG=netdns=cgo
       ports:
         - "8080"
         - "4443:4443"
@@ -34,6 +35,7 @@ services:
         - rdb-proxy:rdb-proxy.rdb
       environment:
         - SERVICE_NAME=notary_signer
+        - GODEBUG=netdns=cgo
       entrypoint: /usr/bin/env sh
       command: -c "sh migrations/rethink_migrate.sh && notary-signer -config=fixtures/signer-config.rethink.json"
       depends_on:
