@@ -7,6 +7,8 @@ services:
     networks:
       - rdb
       - sig
+    environment:
+      - GODEBUG=netdns=cgo
     ports:
       - "8080"
       - "4443:4443"
@@ -24,6 +26,8 @@ services:
       sig:
         aliases:
           - notarysigner
+    environment:
+      - GODEBUG=netdns=cgo
     entrypoint: /usr/bin/env sh
     command: -c "./migrations/migrate.sh && notary-signer -config=fixtures/signer-config.json"
     depends_on:
