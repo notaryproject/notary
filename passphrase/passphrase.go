@@ -61,10 +61,8 @@ func PromptRetriever() Retriever {
 // aliasMap can be used to specify display names for TUF key aliases. If aliasMap
 // is nil, a sensible default will be used.
 func PromptRetrieverWithInOut(in io.Reader, out io.Writer, aliasMap map[string]string) Retriever {
-	userEnteredTargetsSnapshotsPass := false
-	targetsSnapshotsPass := ""
-	userEnteredRootsPass := false
-	rootsPass := ""
+
+	passphraseCache := make(map[string]string)
 
 	return func(keyName string, alias string, createNew bool, numAttempts int) (string, bool, error) {
 		if alias == tufRootAlias && createNew && numAttempts == 0 {
@@ -87,11 +85,8 @@ func PromptRetrieverWithInOut(in io.Reader, out io.Writer, aliasMap map[string]s
 
 		// First, check if we have a password cached for this alias.
 		if numAttempts == 0 {
-			if userEnteredTargetsSnapshotsPass && (alias == tufSnapshotAlias || alias == tufTargetsAlias) {
-				return targetsSnapshotsPass, false, nil
-			}
-			if userEnteredRootsPass && (alias == "root") {
-				return rootsPass, false, nil
+			if pass, ok := passphraseCache[alias]; ok {
+				return pass, false, nil
 			}
 		}
 
@@ -150,14 +145,7 @@ func PromptRetrieverWithInOut(in io.Reader, out io.Writer, aliasMap map[string]s
 		retPass := strings.TrimSpace(string(passphrase))
 
 		if !createNew {
-			if alias == tufSnapshotAlias || alias == tufTargetsAlias {
-				userEnteredTargetsSnapshotsPass = true
-				targetsSnapshotsPass = retPass
-			}
-			if alias == tufRootAlias {
-				userEnteredRootsPass = true
-				rootsPass = retPass
-			}
+			passphraseCache[alias] = retPass
 			return retPass, false, nil
 		}
 
@@ -179,14 +167,7 @@ func PromptRetrieverWithInOut(in io.Reader, out io.Writer, aliasMap map[string]s
 			return "", false, ErrDontMatch
 		}
 
-		if alias == tufSnapshotAlias || alias == tufTargetsAlias {
-			userEnteredTargetsSnapshotsPass = true
-			targetsSnapshotsPass = retPass
-		}
-		if alias == tufRootAlias {
-			userEnteredRootsPass = true
-			rootsPass = retPass
-		}
+		passphraseCache[alias] = retPass
 
 		return retPass, false, nil
 	}
