@@ -13,9 +13,9 @@ var session *gorethink.Session
 // Timing can be embedded into other gorethink models to
 // add time tracking fields
 type Timing struct {
-	CreatedAt time.Time `gorethink:"created_at"`
-	UpdatedAt time.Time `gorethink:"updated_at"`
-	DeletedAt time.Time `gorethink:"deleted_at"`
+	CreatedAt time.Time `json:"created_at",gorethink:"created_at"`
+	UpdatedAt time.Time `json:"updated_at",gorethink:"updated_at"`
+	DeletedAt time.Time `json:"deleted_at",gorethink:"deleted_at"`
 }
 
 // AdminConnection sets up an admin RethinkDB connection to the host (`host:port` format)
