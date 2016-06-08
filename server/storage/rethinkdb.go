@@ -3,6 +3,7 @@ package storage
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"time"
@@ -16,12 +17,39 @@ import (
 type RDBTUFFile struct {
 	rethinkdb.Timing
 	GunRoleVersion []interface{} `gorethink:"gun_role_version"`
-	Gun            string        `gorethink:"gun"`
-	Role           string        `gorethink:"role"`
-	Version        int           `gorethink:"version"`
-	Sha256         string        `gorethink:"sha256"`
-	Data           []byte        `gorethink:"data"`
-	TSchecksum     string        `gorethink:"timestamp_checksum"`
+	Gun            string        `json:"gun",gorethink:"gun"`
+	Role           string        `json:"role",gorethink:"role"`
+	Version        int           `json:"version",gorethink:"version"`
+	Sha256         string        `json:"sha256",gorethink:"sha256"`
+	Data           []byte        `json:"data",gorethink:"data"`
+	TSchecksum     string        `json:"timestamp_checksum",gorethink:"timestamp_checksum"`
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface - RDBTUFFile requires
+// custom unmarshalling because we want to enforce that GunRoleVersion is consistent
+// with the actual gun/role/version.
+func (r *RDBTUFFile) UnmarshalJSON(data []byte) error {
+	a := &struct {
+		rethinkdb.Timing
+		Gun        string
+		Role       string
+		Version    int
+		Sha256     string
+		Data       []byte
+		TSchecksum string `json:"timestamp_checksum"`
+	}{}
+	if err := json.Unmarshal(data, a); err != nil {
+		return err
+	}
+	r.Timing = a.Timing
+	r.Gun = a.Gun
+	r.Role = a.Role
+	r.Version = a.Version
+	r.Sha256 = a.Sha256
+	r.Data = a.Data
+	r.TSchecksum = a.TSchecksum
+	r.GunRoleVersion = []interface{}{r.Gun, r.Role, r.Version}
+	return nil
 }
 
 // TableName returns the table name for the record type
@@ -32,10 +60,10 @@ func (r RDBTUFFile) TableName() string {
 // RDBKey is the public key record
 type RDBKey struct {
 	rethinkdb.Timing
-	Gun    string `gorethink:"gun"`
-	Role   string `gorethink:"role"`
-	Cipher string `gorethink:"cipher"`
-	Public []byte `gorethink:"public"`
+	Gun    string `json:"gun",gorethink:"gun"`
+	Role   string `json:"role",gorethink:"role"`
+	Cipher string `json:"cipher",gorethink:"cipher"`
+	Public []byte `json:"public",gorethink:"public"`
 }
 
 // TableName returns the table name for the record type

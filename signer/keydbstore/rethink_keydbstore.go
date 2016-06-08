@@ -30,13 +30,13 @@ type RethinkDBKeyStore struct {
 // RDBPrivateKey represents a PrivateKey in the rethink database
 type RDBPrivateKey struct {
 	rethinkdb.Timing
-	KeyID           string `gorethink:"key_id"`
-	EncryptionAlg   string `gorethink:"encryption_alg"`
-	KeywrapAlg      string `gorethink:"keywrap_alg"`
-	Algorithm       string `gorethink:"algorithm"`
-	PassphraseAlias string `gorethink:"passphrase_alias"`
-	Public          string `gorethink:"public"`
-	Private         string `gorethink:"private"`
+	KeyID           string `json:"key_id",gorethink:"key_id"`
+	EncryptionAlg   string `json:"encryption_algo",gorethink:"encryption_alg"`
+	KeywrapAlg      string `json:"keywrap_alg",gorethink:"keywrap_alg"`
+	Algorithm       string `json:"algorithm",gorethink:"algorithm"`
+	PassphraseAlias string `json:"passphrase_alias",gorethink:"passphrase_alias"`
+	Public          string `json:"public",gorethink:"public"`
+	Private         string `json:"private",gorethink:"private"`
 }
 
 // PrivateKeysRethinkTable is the table definition for notary signer's key information
