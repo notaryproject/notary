@@ -9,8 +9,13 @@ machine:
     - docker
 
 dependencies:
+  cache_directories:
+    - "~/docker"
+
   override:
+    - if [[ -e ~/docker/client.tar ]]; then docker load -i ~/docker/client.tar; fi
     - docker build -t notary_client .
+    - mkdir -p ~/docker; docker save notary_client > ~/docker/client.tar
 
 test:
   override:
