@@ -14,8 +14,10 @@ dependencies:
 
   override:
     - if [[ -e ~/docker/client.tar ]]; then docker load -i ~/docker/client.tar; fi
+    - if [[ -e ~/docker/distrbution ]]; then cp -vR ~/docker/distribution /var/lib/docker/image/btrfs/distribution; fi
     - docker build -t notary_client .
     - mkdir -p ~/docker; docker save notary_client > ~/docker/client.tar
+    - mkdir -p ~/docker/distribution; cp -vR /var/lib/docker/image/btrfs/distribution ~/docker/distribution
 
 test:
   override:
