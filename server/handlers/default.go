@@ -61,6 +61,7 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 
 	reader, err := r.MultipartReader()
 	if err != nil {
+		logger.Info("400 POST unable to parse TUF data")
 		return errors.ErrMalformedUpload.WithDetail(nil)
 	}
 	var updates []storage.MetaUpdate
@@ -71,8 +72,10 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 		}
 		role := strings.TrimSuffix(part.FileName(), ".json")
 		if role == "" {
+			logger.Info("400 POST empty role")
 			return errors.ErrNoFilename.WithDetail(nil)
 		} else if !data.ValidRole(role) {
+			logger.Infof("400 POST invalid role: %s", role)
 			return errors.ErrInvalidRole.WithDetail(role)
 		}
 		meta := &data.SignedMeta{}
@@ -81,6 +84,7 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 		dec := json.NewDecoder(io.TeeReader(part, inBuf))
 		err = dec.Decode(meta)
 		if err != nil {
+			logger.Info("400 POST malformed update JSON")
 			return errors.ErrMalformedJSON.WithDetail(nil)
 		}
 		version := meta.Signed.Version
@@ -94,6 +98,7 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 	if err != nil {
 		serializable, serializableError := validation.NewSerializableError(err)
 		if serializableError != nil {
+			logger.Info("400 POST error validating update")
 			return errors.ErrInvalidUpdate.WithDetail(nil)
 		}
 		return errors.ErrInvalidUpdate.WithDetail(serializable)
@@ -102,6 +107,7 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 	if err != nil {
 		// If we have an old version error, surface to user with error code
 		if _, ok := err.(storage.ErrOldVersion); ok {
+			logger.Info("400 POST old version error")
 			return errors.ErrOldVersion.WithDetail(err)
 		}
 		// More generic storage update error, possibly due to attempted rollback
@@ -124,13 +130,17 @@ func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, var
 	tufRole := vars["tufRole"]
 	s := ctx.Value("metaStore")
 
+	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
+
 	store, ok := s.(storage.MetaStore)
 	if !ok {
+		logger.Error("500 GET: no storage exists")
 		return errors.ErrNoStorage.WithDetail(nil)
 	}
 
 	lastModified, output, err := getRole(ctx, store, gun, tufRole, checksum)
 	if err != nil {
+		logger.Infof("404 GET %s role", tufRole)
 		return err
 	}
 	if lastModified != nil {
@@ -152,6 +162,7 @@ func DeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 	s := ctx.Value("metaStore")
 	store, ok := s.(storage.MetaStore)
 	if !ok {
+		logrus.Error("500 DELETE repository: no storage exists")
 		return errors.ErrNoStorage.WithDetail(nil)
 	}
 	vars := mux.Vars(r)
@@ -176,14 +187,17 @@ func GetKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 func getKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	gun, ok := vars["imageName"]
 	if !ok || gun == "" {
+		logrus.Info("400 GET no gun in request")
 		return errors.ErrUnknown.WithDetail("no gun")
-	}
-	role, ok := vars["tufRole"]
-	if !ok || role == "" {
-		return errors.ErrUnknown.WithDetail("no role")
 	}
 
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
+
+	role, ok := vars["tufRole"]
+	if !ok || role == "" {
+		logger.Info("400 GET no role in request")
+		return errors.ErrUnknown.WithDetail("no role")
+	}
 
 	s := ctx.Value("metaStore")
 	store, ok := s.(storage.MetaStore)
@@ -215,7 +229,7 @@ func getKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 	case data.CanonicalSnapshotRole:
 		key, err = snapshot.GetOrCreateSnapshotKey(gun, store, crypto, keyAlgorithm)
 	default:
-		logger.Errorf("400 GET %s key: %v", role, err)
+		logger.Infof("400 GET %s key: %v", role, err)
 		return errors.ErrInvalidRole.WithDetail(role)
 	}
 	if err != nil {
