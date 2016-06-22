@@ -14,7 +14,18 @@ func TestTokenAuth(t *testing.T) {
 		baseTransport = &http.Transport{}
 		gun           = "test"
 	)
-	auth, err := tokenAuth("https://localhost:9999", baseTransport, gun, readOnly)
+	auth, err := tokenAuth("https://localhost:9999", baseTransport, gun, readOnly, false)
+	require.NoError(t, err)
+	require.Nil(t, auth)
+}
+
+func TestAdminTokenAuth(t *testing.T) {
+	var (
+		readOnly      bool
+		baseTransport = &http.Transport{}
+		gun           = "test"
+	)
+	auth, err := tokenAuth("https://localhost:9999", baseTransport, gun, readOnly, true)
 	require.NoError(t, err)
 	require.Nil(t, auth)
 }
@@ -33,7 +44,21 @@ func TestTokenAuth200Status(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(NotAuthorizedTestHandler))
 	defer s.Close()
 
-	auth, err := tokenAuth(s.URL, baseTransport, gun, readOnly)
+	auth, err := tokenAuth(s.URL, baseTransport, gun, readOnly, false)
+	require.NoError(t, err)
+	require.NotNil(t, auth)
+}
+
+func TestAdminTokenAuth200Status(t *testing.T) {
+	var (
+		readOnly      bool
+		baseTransport = &http.Transport{}
+		gun           = "test"
+	)
+	s := httptest.NewServer(http.HandlerFunc(NotAuthorizedTestHandler))
+	defer s.Close()
+
+	auth, err := tokenAuth(s.URL, baseTransport, gun, readOnly, true)
 	require.NoError(t, err)
 	require.NotNil(t, auth)
 }
@@ -51,7 +76,21 @@ func TestTokenAuth401Status(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(NotAuthorizedTestHandler))
 	defer s.Close()
 
-	auth, err := tokenAuth(s.URL, baseTransport, gun, readOnly)
+	auth, err := tokenAuth(s.URL, baseTransport, gun, readOnly, false)
+	require.NoError(t, err)
+	require.NotNil(t, auth)
+}
+
+func TestAdminTokenAuth401Status(t *testing.T) {
+	var (
+		readOnly      bool
+		baseTransport = &http.Transport{}
+		gun           = "test"
+	)
+	s := httptest.NewServer(http.HandlerFunc(NotAuthorizedTestHandler))
+	defer s.Close()
+
+	auth, err := tokenAuth(s.URL, baseTransport, gun, readOnly, true)
 	require.NoError(t, err)
 	require.NotNil(t, auth)
 }
@@ -69,7 +108,21 @@ func TestTokenAuthNon200Non401Status(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(NotFoundTestHandler))
 	defer s.Close()
 
-	auth, err := tokenAuth(s.URL, baseTransport, gun, readOnly)
+	auth, err := tokenAuth(s.URL, baseTransport, gun, readOnly, false)
+	require.NoError(t, err)
+	require.Nil(t, auth)
+}
+
+func TestAdminTokenAuthNon200Non401Status(t *testing.T) {
+	var (
+		readOnly      bool
+		baseTransport = &http.Transport{}
+		gun           = "test"
+	)
+	s := httptest.NewServer(http.HandlerFunc(NotFoundTestHandler))
+	defer s.Close()
+
+	auth, err := tokenAuth(s.URL, baseTransport, gun, readOnly, true)
 	require.NoError(t, err)
 	require.Nil(t, auth)
 }

@@ -568,14 +568,37 @@ func (ps passwordStore) Basic(u *url.URL) (string, string) {
 	return username, password
 }
 
-// getTransport returns an http.RoundTripper to be used for all http requests.
+// getTransport returns a non-admin http.RoundTripper to be used for all http requests.
 // It correctly handles the auth challenge/credentials required to interact
 // with a notary server over both HTTP Basic Auth and the JWT auth implemented
 // in the notary-server
 // The readOnly flag indicates if the operation should be performed as an
 // anonymous read only operation. If the command entered requires write
 // permissions on the server, readOnly must be false
+// This RoundTripper cannot perform admin requests, such as deleting repos
 func getTransport(config *viper.Viper, gun string, readOnly bool) (http.RoundTripper, error) {
+	trustServerURL := getRemoteTrustServer(config)
+	base, err := getBaseTransport(config)
+	if err != nil {
+		return nil, err
+	}
+	return tokenAuth(trustServerURL, base, gun, readOnly, false)
+}
+
+// getAdminTransport returns an admin http.RoundTripper to be used for all http requests,
+// and can be used for deleting repos
+func getAdminTransport(config *viper.Viper, gun string) (http.RoundTripper, error) {
+	trustServerURL := getRemoteTrustServer(config)
+	base, err := getBaseTransport(config)
+	if err != nil {
+		return nil, err
+	}
+	return tokenAuth(trustServerURL, base, gun, false, true)
+}
+
+// getBaseTransport parses the config for TLS and server options to be used and bundles them in a
+// http.Transport.  This does not include logic for handling auth credentials
+func getBaseTransport(config *viper.Viper) (*http.Transport, error) {
 	// Attempt to get a root CA from the config file. Nil is the host defaults.
 	rootCAFile := utils.GetPathRelativeToConfig(config, "remote_server.root_ca")
 	clientCert := utils.GetPathRelativeToConfig(config, "remote_server.tls_client_cert")
@@ -611,12 +634,11 @@ func getTransport(config *viper.Viper, gun string, readOnly bool) (http.RoundTri
 		TLSClientConfig:     tlsConfig,
 		DisableKeepAlives:   true,
 	}
-	trustServerURL := getRemoteTrustServer(config)
-	return tokenAuth(trustServerURL, base, gun, readOnly)
+	return base, nil
 }
 
 func tokenAuth(trustServerURL string, baseTransport *http.Transport, gun string,
-	readOnly bool) (http.RoundTripper, error) {
+	readOnly, adminAccess bool) (http.RoundTripper, error) {
 
 	// TODO(dmcgowan): add notary specific headers
 	authTransport := transport.NewTransport(baseTransport)
@@ -666,7 +688,9 @@ func tokenAuth(trustServerURL string, baseTransport *http.Transport, gun string,
 	ps := passwordStore{anonymous: readOnly}
 
 	var actions []string
-	if readOnly {
+	if adminAccess {
+		actions = []string{"*"}
+	} else if readOnly {
 		actions = []string{"pull"}
 	} else {
 		actions = []string{"push", "pull"}
@@ -676,7 +700,7 @@ func tokenAuth(trustServerURL string, baseTransport *http.Transport, gun string,
 
 	modifier := auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler)
 
-	if !readOnly {
+	if adminAccess || !readOnly {
 		return newAuthRoundTripper(transport.NewTransport(baseTransport, modifier)), nil
 	}
 

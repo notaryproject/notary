@@ -177,7 +177,7 @@ func RootHandler(ac auth.AccessController, ctx context.Context, trust signed.Cry
 		OperationName:       "DeleteTUF",
 		ErrorIfGUNInvalid:   notFoundError,
 		ServerHandler:       handlers.DeleteHandler,
-		PermissionsRequired: []string{"push", "pull"},
+		PermissionsRequired: []string{"*"},
 	}))
 
 	r.Methods("GET").Path("/_notary_server/health").HandlerFunc(health.StatusHandler)
