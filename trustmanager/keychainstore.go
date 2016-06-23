@@ -4,6 +4,7 @@ import (
 	"github.com/docker/docker-credential-helpers/credentials"
 	"github.com/docker/docker-credential-helpers/client"
 	"encoding/base64"
+	"errors"
 )
 
 // KeyChainStore is an implementation of Storage that keeps
@@ -13,35 +14,25 @@ type KeyChainStore struct {
 }
 
 // NewKeyChainStore creates a KeyChainStore
-func NewKeyChainStore(machineCredsStore string) *KeyChainStore {
-	name := "docker-credential-" + machineCredsStore
+func NewKeyChainStore(machineCredsStore string) (*KeyChainStore, error) {
+	var name string
+	var e error
+	e=nil
+	switch machineCredsStore {
+	case "osxkeychain":
+		name = "docker-credential-osxkeychain"
+	case "wincred":
+		name = "docker-credential-wincred"
+	case "secretservice":
+		name = "docker-credential-secretservice"
+	default:
+		e=errors.New("Error, the machine cred store you specified does not exist")
+	}
 	x:=client.NewShellProgramFunc(name)
-return &KeyChainStore{
-	newProgFunc:x,
+	return &KeyChainStore{
+		newProgFunc:x,
+	}, e
 }
-}
-//
-//func ARGTest() {
-//	machineCredsStore:="osxkeychain"
-//	myKeyChainStore:=NewKeyChainStore(machineCredsStore)
-//	fmt.Println(myKeyChainStore)
-//	privKey, err := GenerateECDSAKey(rand.Reader)
-//	fmt.Println(privKey.Private())
-//	fmt.Println(err)
-//	for _, genStore := range []Storage{myKeyChainStore} {
-//		fmt.Println("adding")
-//		genStore.Add(privKey.ID(), privKey.Private())
-//		fmt.Println("getting")
-//		servename := "https://notary.docker.io/" + privKey.ID()
-//		gotCreds, err := genStore.Get(servename)
-//		fmt.Println(gotCreds)
-//		if err != nil {
-//			fmt.Println(err)
-//		}
-//		fmt.Println("removing")
-//		genStore.Remove(privKey.ID())
-//	}
-//}
 
 //Add writes data new KeyChain in the keychain access store
 func (k *KeyChainStore) Add(fileName string, data []byte) error {
@@ -66,19 +57,18 @@ func (k *KeyChainStore) Remove(fileName string) error {
 //// Get returns the credentials from the keychain access store given a server name
 func (k *KeyChainStore) Get(serverName string) ([]byte, error) {
 	gotCredentials,err:=client.Get(k.newProgFunc,serverName)
+	if err!=nil {
+		return nil,errors.New("There is no keychain associated with the server string")
+	}
 	gotSecret:=gotCredentials.Secret
 	gotSecretByte,err:=base64.StdEncoding.DecodeString(gotSecret)
 	return gotSecretByte, err
 }
 
-//// ListFiles lists all the files inside of a store
-//func (f *MemoryFileStore) ListFiles() []string {
-//var list []string
-//
-//for name := range f.files {
-//list = append(list, name)
-//}
-//
-//return list
-//}
+// ListFiles lists all the files inside of a store
+// Just a placeholder for now, need to find a way to do this
+func (f *KeyChainStore) ListFiles() []string {
+	list:=[]string{"a","b"}
+	return list
+}
 
