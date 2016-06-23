@@ -336,7 +336,7 @@ func setUpRepo(t *testing.T, tempBaseDir, gun string, ret notary.PassRetriever) 
 	rootPubKey, err := repo.CryptoService.Create("root", "", data.ECDSAKey)
 	require.NoError(t, err, "error generating root key: %s", err)
 
-	err = repo.Initialize(rootPubKey.ID())
+	err = repo.Initialize([]string{rootPubKey.ID()})
 	require.NoError(t, err)
 
 	return ts, repo.CryptoService.ListAllKeys()

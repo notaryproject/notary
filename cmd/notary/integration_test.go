@@ -81,6 +81,97 @@ func setupServer() *httptest.Server {
 	return httptest.NewServer(setupServerHandler(storage.NewMemStorage()))
 }
 
+// Initializes a repo with existing key
+func TestInitWithRootKey(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	tempFile, err := ioutil.TempFile("", "targetfile")
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	// -- tests --
+
+	// create encrypted root key
+	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+	encryptedPEMPrivKey, err := trustmanager.EncryptPrivateKey(privKey, data.CanonicalRootRole, testPassphrase)
+	require.NoError(t, err)
+	encryptedPEMKeyFilename := filepath.Join(tempDir, "encrypted_key.key")
+	err = ioutil.WriteFile(encryptedPEMKeyFilename, encryptedPEMPrivKey, 0644)
+	require.NoError(t, err)
+
+	// init repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun", "--rootkey", encryptedPEMKeyFilename)
+	require.NoError(t, err)
+
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// check that the root key used for init is the one listed as root key
+	output, err := runCommand(t, tempDir, "key", "list")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(output, data.PublicKeyFromPrivate(privKey).ID()))
+
+	// check error if file doesn't exist
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun2", "--rootkey", "bad_file")
+	require.Error(t, err, "Init with nonexistent key file should error")
+
+	// check error if file is invalid format
+	badKeyFilename := filepath.Join(tempDir, "bad_key.key")
+	nonPEMKey := []byte("thisisnotapemkey")
+	err = ioutil.WriteFile(badKeyFilename, nonPEMKey, 0644)
+	require.NoError(t, err)
+
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun2", "--rootkey", badKeyFilename)
+	require.Error(t, err, "Init with non-PEM key should error")
+
+	// check error if unencrypted PEM used
+	unencryptedPrivKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+	unencryptedPEMPrivKey, err := trustmanager.KeyToPEM(unencryptedPrivKey, data.CanonicalRootRole)
+	require.NoError(t, err)
+	unencryptedPEMKeyFilename := filepath.Join(tempDir, "unencrypted_key.key")
+	err = ioutil.WriteFile(unencryptedPEMKeyFilename, unencryptedPEMPrivKey, 0644)
+	require.NoError(t, err)
+
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun2", "--rootkey", unencryptedPEMKeyFilename)
+	require.Error(t, err, "Init with unencrypted PEM key should error")
+
+	// check error if invalid password used
+	// instead of using a new retriever, we create a new key with a different pass
+	badPassPrivKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+	badPassPEMPrivKey, err := trustmanager.EncryptPrivateKey(badPassPrivKey, data.CanonicalRootRole, "bad_pass")
+	require.NoError(t, err)
+	badPassPEMKeyFilename := filepath.Join(tempDir, "badpass_key.key")
+	err = ioutil.WriteFile(badPassPEMKeyFilename, badPassPEMPrivKey, 0644)
+	require.NoError(t, err)
+
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun2", "--rootkey", badPassPEMKeyFilename)
+	require.Error(t, err, "Init with wrong password should error")
+
+	// check error if wrong role specified
+	snapshotPrivKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+	snapshotPEMPrivKey, err := trustmanager.KeyToPEM(snapshotPrivKey, data.CanonicalSnapshotRole)
+	require.NoError(t, err)
+	snapshotPEMKeyFilename := filepath.Join(tempDir, "snapshot_key.key")
+	err = ioutil.WriteFile(snapshotPEMKeyFilename, snapshotPEMPrivKey, 0644)
+	require.NoError(t, err)
+
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun2", "--rootkey", snapshotPEMKeyFilename)
+	require.Error(t, err, "Init with wrong role should error")
+}
+
 // Initializes a repo, adds a target, publishes the target, lists the target,
 // verifies the target, and then removes the target.
 func TestClientTUFInteraction(t *testing.T) {
