@@ -795,6 +795,200 @@ func testValidateRootRotationMissingNewSig(t *testing.T, keyAlg, rootKeyType str
 	require.Error(t, err, "insufficient signatures on root")
 }
 
+// TestValidateRootRotationTrustPinning runs a full root certificate rotation but ensures that
+// the specified trust pinning is respected with the new root for the Certs and TOFUs settings
+func TestValidateRootRotationTrustPinning(t *testing.T) {
+	// The gun to test
+	gun := "docker.com/notary"
+
+	memKeyStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
+	cs := cryptoservice.NewCryptoService(memKeyStore)
+
+	// TUF key with PEM-encoded x509 certificate
+	origRootKey, err := testutils.CreateKey(cs, gun, data.CanonicalRootRole, data.RSAKey)
+	require.NoError(t, err)
+
+	origRootRole, err := data.NewRole(data.CanonicalRootRole, 1, []string{origRootKey.ID()}, nil)
+	require.NoError(t, err)
+
+	origTestRoot, err := data.NewRoot(
+		map[string]data.PublicKey{origRootKey.ID(): origRootKey},
+		map[string]*data.RootRole{
+			data.CanonicalRootRole:      &origRootRole.RootRole,
+			data.CanonicalTargetsRole:   &origRootRole.RootRole,
+			data.CanonicalSnapshotRole:  &origRootRole.RootRole,
+			data.CanonicalTimestampRole: &origRootRole.RootRole,
+		},
+		false,
+	)
+	origTestRoot.Signed.Version = 1
+	require.NoError(t, err, "Failed to create new root")
+
+	signedOrigTestRoot, err := origTestRoot.ToSigned()
+	require.NoError(t, err)
+
+	err = signed.Sign(cs, signedOrigTestRoot, []data.PublicKey{origRootKey}, 1, nil)
+	require.NoError(t, err)
+	prevRoot, err := data.RootFromSigned(signedOrigTestRoot)
+	require.NoError(t, err)
+
+	// TUF key with PEM-encoded x509 certificate
+	replRootKey, err := testutils.CreateKey(cs, gun, data.CanonicalRootRole, data.RSAKey)
+	require.NoError(t, err)
+
+	rootRole, err := data.NewRole(data.CanonicalRootRole, 1, []string{replRootKey.ID()}, nil)
+	require.NoError(t, err)
+
+	testRoot, err := data.NewRoot(
+		map[string]data.PublicKey{replRootKey.ID(): replRootKey},
+		map[string]*data.RootRole{
+			data.CanonicalRootRole:      &rootRole.RootRole,
+			data.CanonicalTimestampRole: &rootRole.RootRole,
+			data.CanonicalTargetsRole:   &rootRole.RootRole,
+			data.CanonicalSnapshotRole:  &rootRole.RootRole},
+		false,
+	)
+	testRoot.Signed.Version = 1
+	require.NoError(t, err, "Failed to create new root")
+
+	signedTestRoot, err := testRoot.ToSigned()
+	require.NoError(t, err)
+
+	err = signed.Sign(cs, signedTestRoot, []data.PublicKey{replRootKey, origRootKey}, 2, nil)
+	require.NoError(t, err)
+
+	typedSignedRoot, err := data.RootFromSigned(signedTestRoot)
+	require.NoError(t, err)
+
+	// This call to trustpinning.ValidateRoot will fail due to the trust pinning mismatch in certs
+	invalidCertConfig := trustpinning.TrustPinConfig{
+		Certs: map[string][]string{
+			gun: {origRootKey.ID()},
+		},
+		DisableTOFU: true,
+	}
+	_, err = trustpinning.ValidateRoot(prevRoot, signedTestRoot, gun, invalidCertConfig)
+	require.Error(t, err)
+
+	// This call will succeed since we include the new root cert ID (and the old one)
+	validCertConfig := trustpinning.TrustPinConfig{
+		Certs: map[string][]string{
+			gun: {origRootKey.ID(), replRootKey.ID()},
+		},
+		DisableTOFU: true,
+	}
+	validatedRoot, err := trustpinning.ValidateRoot(prevRoot, signedTestRoot, gun, validCertConfig)
+	require.NoError(t, err)
+	generateRootKeyIDs(typedSignedRoot)
+	require.Equal(t, typedSignedRoot, validatedRoot)
+
+	// This call will also succeed since we only need the new replacement root ID to be pinned
+	validCertConfig = trustpinning.TrustPinConfig{
+		Certs: map[string][]string{
+			gun: {replRootKey.ID()},
+		},
+		DisableTOFU: true,
+	}
+	validatedRoot, err = trustpinning.ValidateRoot(prevRoot, signedTestRoot, gun, validCertConfig)
+	require.NoError(t, err)
+	generateRootKeyIDs(typedSignedRoot)
+	require.Equal(t, typedSignedRoot, validatedRoot)
+
+	// Even if we disable TOFU in the trustpinning, since we have a previously trusted root we should honor a valid rotation
+	validatedRoot, err = trustpinning.ValidateRoot(prevRoot, signedTestRoot, gun, trustpinning.TrustPinConfig{DisableTOFU: true})
+	require.NoError(t, err)
+	generateRootKeyIDs(typedSignedRoot)
+	require.Equal(t, typedSignedRoot, validatedRoot)
+}
+
+// TestValidateRootRotationTrustPinningInvalidCA runs a full root certificate rotation but ensures that
+// the specified trust pinning rejectas the new root for not being signed by the specified CA
+func TestValidateRootRotationTrustPinningInvalidCA(t *testing.T) {
+	gun := "notary-signer"
+	keyAlg := data.RSAKey
+	// Temporary directory where test files will be created
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+	defer os.RemoveAll(tempBaseDir)
+	require.NoError(t, err, "failed to create a temporary directory: %s", err)
+
+	leafCert, err := trustmanager.LoadCertFromFile("../fixtures/notary-signer.crt")
+	require.NoError(t, err)
+
+	intermediateCert, err := trustmanager.LoadCertFromFile("../fixtures/intermediate-ca.crt")
+	require.NoError(t, err)
+
+	pemChainBytes, err := trustmanager.CertChainToPEM([]*x509.Certificate{leafCert, intermediateCert})
+	require.NoError(t, err)
+
+	origRootKey := data.NewPublicKey(data.RSAx509Key, pemChainBytes)
+
+	rootRole, err := data.NewRole(data.CanonicalRootRole, 1, []string{origRootKey.ID()}, nil)
+	require.NoError(t, err)
+
+	testRoot, err := data.NewRoot(
+		map[string]data.PublicKey{origRootKey.ID(): origRootKey},
+		map[string]*data.RootRole{
+			data.CanonicalRootRole:      &rootRole.RootRole,
+			data.CanonicalTimestampRole: &rootRole.RootRole,
+			data.CanonicalTargetsRole:   &rootRole.RootRole,
+			data.CanonicalSnapshotRole:  &rootRole.RootRole},
+		false,
+	)
+	testRoot.Signed.Version = 1
+	require.NoError(t, err, "Failed to create new root")
+
+	keyReader, err := os.Open("../fixtures/notary-signer.key")
+	require.NoError(t, err, "could not open key file")
+	pemBytes, err := ioutil.ReadAll(keyReader)
+	require.NoError(t, err, "could not read key file")
+	privKey, err := trustmanager.ParsePEMPrivateKey(pemBytes, "")
+	require.NoError(t, err)
+
+	store, err := trustmanager.NewKeyFileStore(tempBaseDir, passphraseRetriever)
+	require.NoError(t, err)
+	cs := cryptoservice.NewCryptoService(store)
+
+	err = store.AddKey(trustmanager.KeyInfo{Role: data.CanonicalRootRole, Gun: gun}, privKey)
+	require.NoError(t, err)
+
+	origSignedTestRoot, err := testRoot.ToSigned()
+	require.NoError(t, err)
+
+	err = signed.Sign(cs, origSignedTestRoot, []data.PublicKey{origRootKey}, 1, nil)
+	require.NoError(t, err)
+	prevRoot, err := data.RootFromSigned(origSignedTestRoot)
+	require.NoError(t, err)
+
+	// generate a new TUF key with PEM-encoded x509 certificate, not signed by our pinned CA
+	replRootKey, err := testutils.CreateKey(cs, gun, data.CanonicalRootRole, keyAlg)
+	require.NoError(t, err)
+
+	_, err = data.NewRole(data.CanonicalRootRole, 1, []string{replRootKey.ID()}, nil)
+	require.NoError(t, err)
+	newRoot, err := data.NewRoot(
+		map[string]data.PublicKey{replRootKey.ID(): replRootKey},
+		map[string]*data.RootRole{
+			data.CanonicalRootRole:      &rootRole.RootRole,
+			data.CanonicalTimestampRole: &rootRole.RootRole,
+			data.CanonicalTargetsRole:   &rootRole.RootRole,
+			data.CanonicalSnapshotRole:  &rootRole.RootRole},
+		false,
+	)
+	newRoot.Signed.Version = 1
+	require.NoError(t, err, "Failed to create new root")
+
+	newSignedTestRoot, err := newRoot.ToSigned()
+	require.NoError(t, err)
+
+	err = signed.Sign(cs, newSignedTestRoot, []data.PublicKey{replRootKey, origRootKey}, 2, nil)
+	require.NoError(t, err)
+
+	// Check that we respect the trust pinning on rotation
+	validCAFilepath := "../fixtures/root-ca.crt"
+	_, err = trustpinning.ValidateRoot(prevRoot, newSignedTestRoot, gun, trustpinning.TrustPinConfig{CA: map[string]string{gun: validCAFilepath}, DisableTOFU: true})
+	require.Error(t, err)
+}
+
 func generateTestingCertificate(rootKey data.PrivateKey, gun string, timeToExpire time.Duration) (*x509.Certificate, error) {
 	startTime := time.Now()
 	return cryptoservice.GenerateCertificate(rootKey, gun, startTime, startTime.Add(timeToExpire))

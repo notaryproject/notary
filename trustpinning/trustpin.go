@@ -27,7 +27,7 @@ type trustPinChecker struct {
 type CertChecker func(leafCert *x509.Certificate, intCerts []*x509.Certificate) bool
 
 // NewTrustPinChecker returns a new certChecker function from a TrustPinConfig for a GUN
-func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string) (CertChecker, error) {
+func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string, firstBootstrap bool) (CertChecker, error) {
 	t := trustPinChecker{gun: gun, config: trustPinConfig}
 	// Determine the mode, and if it's even valid
 	if pinnedCerts, ok := trustPinConfig.Certs[gun]; ok {
@@ -66,7 +66,15 @@ func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string) (CertChecker,
 		logrus.Debugf("trust-pinning: using TOFU")
 		return t.tofusCheck, nil
 	}
-	return nil, fmt.Errorf("invalid trust-pinning specified")
+
+	// If we already have previous trusted root data for this GUN, disabling TOFUs should not change trust
+	// At this point, we assume that we have already trusted previous root data and so will not perform any
+	// additional trust pinning checks on this new certificate
+	if !firstBootstrap {
+		logrus.Debug("TOFU is disabled but previous root data exists, skipping disable TOFU restriction")
+		return t.tofusCheck, nil
+	}
+	return nil, fmt.Errorf("invalid trust pinning specified")
 }
 
 func (t trustPinChecker) certsCheck(leafCert *x509.Certificate, intCerts []*x509.Certificate) bool {
