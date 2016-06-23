@@ -81,6 +81,46 @@ func setupServer() *httptest.Server {
 	return httptest.NewServer(setupServerHandler(storage.NewMemStorage()))
 }
 
+// Initializes a repo with multiple existing keys
+func TestInitWithMultipleRootKeys(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	tempFile, err := ioutil.TempFile("", "targetfile")
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	// -- tests --
+
+	// generate root key produces a single root key and no other keys
+	_, err = runCommand(t, tempDir, "key", "generate", data.ECDSAKey)
+	require.NoError(t, err)
+	assertNumKeys(t, tempDir, 1, 0, true)
+	_, err = runCommand(t, tempDir, "key", "generate", data.ECDSAKey)
+	require.NoError(t, err)
+	rootIDs, _ := assertNumKeys(t, tempDir, 2, 0, true)
+	var rootFiles []string
+	for _, rID := range rootIDs {
+		rootFiles = append(rootFiles, filepath.Join(
+			tempDir, "private", "root_keys", rID+".key"))
+	}
+
+	// init repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun", "--rootkeys", strings.Join(rootFiles, ","))
+	require.NoError(t, err)
+
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+}
+
 // Initializes a repo, adds a target, publishes the target, lists the target,
 // verifies the target, and then removes the target.
 func TestClientTUFInteraction(t *testing.T) {
