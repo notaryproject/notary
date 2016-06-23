@@ -173,10 +173,14 @@ func rootCertKey(gun string, privKey data.PrivateKey) (data.PublicKey, error) {
 // timestamp key and possibly other serverManagedRoles), but the created repository
 // result is only stored on local disk, not published to the server. To do that,
 // use r.Publish() eventually.
-func (r *NotaryRepository) Initialize(rootKeyID string, serverManagedRoles ...string) error {
-	privKey, _, err := r.CryptoService.GetPrivateKey(rootKeyID)
-	if err != nil {
-		return err
+func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ...string) error {
+	privKeys := []data.PrivateKey{}
+	for _, keyID := range rootKeyIDs {
+		privKey, _, err := r.CryptoService.GetPrivateKey(keyID)
+		if err != nil {
+			return err
+		}
+		privKeys = append(privKeys, privKey)
 	}
 
 	// currently we only support server managing timestamps and snapshots, and
@@ -206,16 +210,20 @@ func (r *NotaryRepository) Initialize(rootKeyID string, serverManagedRoles ...st
 		}
 	}
 
-	rootKey, err := rootCertKey(r.gun, privKey)
-	if err != nil {
-		return err
+	rootKeys := []data.PublicKey{}
+	for _, privKey := range privKeys {
+		rootKey, err := rootCertKey(r.gun, privKey)
+		if err != nil {
+			return err
+		}
+		rootKeys = append(rootKeys, rootKey)
 	}
 
 	var (
 		rootRole = data.NewBaseRole(
 			data.CanonicalRootRole,
 			notary.MinThreshold,
-			rootKey,
+			rootKeys...,
 		)
 		timestampRole data.BaseRole
 		snapshotRole  data.BaseRole
@@ -271,7 +279,7 @@ func (r *NotaryRepository) Initialize(rootKeyID string, serverManagedRoles ...st
 
 	r.tufRepo = tuf.NewRepo(r.CryptoService)
 
-	err = r.tufRepo.InitRoot(
+	err := r.tufRepo.InitRoot(
 		rootRole,
 		timestampRole,
 		snapshotRole,
