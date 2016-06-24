@@ -20,23 +20,14 @@ type KeyNativeStore struct {
 
 // NewKeyChainStore creates a KeyChainStore
 func NewKeyNativeStore(machineCredsStore string) (*KeyNativeStore, error) {
-	var name string
-	var e error
-	e = nil
-	switch machineCredsStore {
-	case "osxkeychain":
-		name = "docker-credential-osxkeychain"
-	case "wincred":
-		name = "docker-credential-wincred"
-	case "secretservice":
-		name = "docker-credential-secretservice"
-	default:
-		e = errors.New("Error, the machine cred store you specified does not exist")
+	if defaultCredentialsStore == "" {
+		return nil, errors.New("Native storage on your operating system is not yet supported")
 	}
-	x := client.NewShellProgramFunc(name)
+	credCommand := "docker-credential-" + defaultCredentialsStore
+	x := client.NewShellProgramFunc(credCommand)
 	return &KeyNativeStore{
 		newProgFunc: x,
-	}, e
+	}, nil
 }
 
 //Add writes data new KeyChain in the keychain access store
