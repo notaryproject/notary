@@ -89,10 +89,12 @@ type tufCommander struct {
 	retriever    notary.PassRetriever
 
 	// these are for command line parsing - no need to set
-	roles    []string
-	sha256   string
-	sha512   string
-	rootKeys []string
+	roles  []string
+	sha256 string
+	sha512 string
+
+	rootCert string
+	rootKey  string
 
 	input  string
 	output string
@@ -101,7 +103,8 @@ type tufCommander struct {
 
 func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmdTUFInit := cmdTUFInitTemplate.ToCommand(t.tufInit)
-	cmdTUFInit.Flags().StringSliceVar(&t.rootKeys, "rootkeys", nil, "Root keys to initialize the repository with.")
+	cmdTUFInit.Flags().StringVar(&t.rootCert, "rootcert", "", "Root cert to initialize the repository with.  Must correspond to the private key specified in --rootkey")
+	cmdTUFInit.Flags().StringVar(&t.rootKey, "rootkey", "", "Root key to initialize the repository with.")
 	cmd.AddCommand(cmdTUFInit)
 
 	cmd.AddCommand(cmdTUFStatusTemplate.ToCommand(t.tufStatus))
@@ -253,6 +256,10 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Must specify a GUN")
 	}
 
+	if t.rootCert != "" && t.rootKey == "" {
+		return fmt.Errorf("--rootcert specified without --rootkey being specified")
+	}
+
 	config, err := t.configGetter()
 	if err != nil {
 		return err
@@ -275,38 +282,58 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if len(t.rootKeys) > 0 {
-		for _, keyFilename := range t.rootKeys {
-			keyFile, err := os.Open(keyFilename)
-			if err != nil {
-				return fmt.Errorf("Opening file for import: %v", err)
-			}
-			defer keyFile.Close()
+	// Handle a root key passed in the command-line
+	if t.rootKey != "" {
+		keyFile, err := os.Open(t.rootKey)
+		if err != nil {
+			return fmt.Errorf("Opening file for import: %v", err)
+		}
+		defer keyFile.Close()
 
-			pemBytes, err := ioutil.ReadAll(keyFile)
+		pemBytes, err := ioutil.ReadAll(keyFile)
+		if err != nil {
+			return fmt.Errorf("Error reading input file: %v", err)
+		}
+		if err = cryptoservice.CheckRootKeyIsEncrypted(pemBytes); err != nil {
+			return err
+		}
+
+		privKey, err := trustmanager.ParsePEMPrivateKey(pemBytes, "")
+		if err != nil {
+			privKey, _, err = trustmanager.GetPasswdDecryptBytes(t.retriever, pemBytes, "", "imported root")
 			if err != nil {
-				return fmt.Errorf("Error reading input file: %v", err)
-			}
-			if err = cryptoservice.CheckRootKeyIsEncrypted(pemBytes); err != nil {
 				return err
 			}
-
-			privKey, err := trustmanager.ParsePEMPrivateKey(pemBytes, "")
-			if err != nil {
-				privKey, _, err = trustmanager.GetPasswdDecryptBytes(t.retriever, pemBytes, "", "imported root")
-				if err != nil {
-					return err
-				}
-			}
-			err = nRepo.CryptoService.AddKey(data.CanonicalRootRole, "", privKey)
-			if err != nil {
-				return fmt.Errorf("Error importing key: %v", err)
-			}
 		}
-		// if keys were explicitly passed in, we assume all of them should be added
-		// to the root role
-		if err = nRepo.Initialize(nRepo.CryptoService.ListKeys(data.CanonicalRootRole)); err != nil {
-			return err
+		err = nRepo.CryptoService.AddKey(data.CanonicalRootRole, "", privKey)
+		if err != nil {
+			return fmt.Errorf("Error importing key: %v", err)
+		}
+
+		if t.rootCert == "" {
+			// A root key was specified on the command-line, but no root cert
+			// We therefore ask the repo to generate a root cert
+			if err = nRepo.Initialize(privKey.ID()); err != nil {
+				return err
+			}
+		} else {
+			// A root keypair (private key + cert) was specified on the
+			// command-line.
+			// Read the user-specified root cert from the filesystem
+			pubKeyBytes, err := ioutil.ReadFile(t.rootCert)
+			if err != nil {
+				return fmt.Errorf("unable to read public key from file: %s", t.rootCert)
+			}
+
+			// Parse PEM bytes into type PublicKey
+			pubKey, err := trustmanager.ParsePEMPublicKey(pubKeyBytes)
+			if err != nil {
+				return fmt.Errorf("unable to parse valid public key certificate from PEM file %s: %v", t.rootCert, err)
+			}
+
+			if err = nRepo.InitializeWithPubKey(privKey.ID(), pubKey); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
@@ -328,7 +355,7 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Root key found, using: %s\n", rootKeyID)
 	}
 
-	if err = nRepo.Initialize([]string{rootKeyID}); err != nil {
+	if err = nRepo.Initialize(rootKeyID); err != nil {
 		return err
 	}
 	return nil
