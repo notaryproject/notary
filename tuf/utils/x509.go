@@ -267,7 +267,11 @@ func ValidateCertificate(c *x509.Certificate) error {
 	tomorrow := now.AddDate(0, 0, 1)
 	// Give one day leeway on creation "before" time, check "after" against today
 	if (tomorrow).Before(c.NotBefore) || now.After(c.NotAfter) {
-		return fmt.Errorf("certificate is expired")
+		return fmt.Errorf("certificate with CN %s is expired", c.Subject.CommonName)
+	}
+	// If this certificate is expiring within 6 months, put out a warning
+	if (c.NotAfter).Before(time.Now().AddDate(0, 6, 0)) {
+		logrus.Warn("certificate with CN %s is near expiry", c.Subject.CommonName)
 	}
 	// If we have an RSA key, make sure it's long enough
 	if c.PublicKeyAlgorithm == x509.RSA {
