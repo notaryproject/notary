@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -168,19 +169,53 @@ func rootCertKey(gun string, privKey data.PrivateKey) (data.PublicKey, error) {
 	return x509PublicKey, nil
 }
 
-// Initialize creates a new repository by using rootKey as the root Key for the
+// Initialize creates a new repository by using rootKeyID to identify the root Key for the
 // TUF repository. The server must be reachable (and is asked to generate a
 // timestamp key and possibly other serverManagedRoles), but the created repository
 // result is only stored on local disk, not published to the server. To do that,
 // use r.Publish() eventually.
-func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ...string) error {
-	privKeys := []data.PrivateKey{}
-	for _, keyID := range rootKeyIDs {
-		privKey, _, err := r.CryptoService.GetPrivateKey(keyID)
-		if err != nil {
-			return err
-		}
-		privKeys = append(privKeys, privKey)
+func (r *NotaryRepository) Initialize(rootKeyID string, serverManagedRoles ...string) error {
+	return r.InitializeWithCert(rootKeyID, (data.PublicKey)(nil), serverManagedRoles...)
+}
+
+func verifyPublicKeyMatchesPrivateKey(privKey data.PrivateKey, pubKey data.PublicKey) error {
+	// generate a random message
+	msgLength := 64
+	msg := make([]byte, msgLength)
+	_, err := rand.Read(msg)
+	if err != nil {
+		return fmt.Errorf("failed to generate random test message: %s", err)
+	}
+
+	// sign the message with the private key
+	signatureBytes, err := privKey.Sign(rand.Reader, msg, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to sign test message:", err)
+	}
+
+	signature := data.Signature{
+		KeyID:     privKey.ID(),
+		Method:    privKey.SignatureAlgorithm(),
+		Signature: signatureBytes,
+	}
+
+	// verify the signature with the public key
+	if err := signed.VerifySignature(msg, signature, pubKey); err != nil {
+		return fmt.Errorf("Private Key did not match Public Key: %s", err)
+	}
+	return nil
+}
+
+// InitializeWithCert creates a new repository by using rootKeyID to identify the root Key for the
+// TUF repository.  If rootPublicKey is non-nil, it must match the private key identified by rootKeyID or an error is thrown
+// The server must be reachable (and is asked to generate a
+// timestamp key and possibly other serverManagedRoles), but the created repository
+// result is only stored on local disk, not published to the server. To do that,
+// use r.Publish() eventually.
+func (r *NotaryRepository) InitializeWithCert(rootKeyID string, rootPublicKey data.PublicKey, serverManagedRoles ...string) error {
+	privKey, _, err := r.CryptoService.GetPrivateKey(rootKeyID)
+	if err != nil {
+		return err
 	}
 
 	// currently we only support server managing timestamps and snapshots, and
@@ -210,20 +245,24 @@ func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ..
 		}
 	}
 
-	rootKeys := []data.PublicKey{}
-	for _, privKey := range privKeys {
-		rootKey, err := rootCertKey(r.gun, privKey)
+	var rootKey data.PublicKey
+	if rootPublicKey == nil {
+		rootKey, err = rootCertKey(r.gun, privKey)
 		if err != nil {
 			return err
 		}
-		rootKeys = append(rootKeys, rootKey)
+	} else {
+		if err := verifyPublicKeyMatchesPrivateKey(privKey, rootPublicKey); err != nil {
+			return err
+		}
+		rootKey = rootPublicKey
 	}
 
 	var (
 		rootRole = data.NewBaseRole(
 			data.CanonicalRootRole,
 			notary.MinThreshold,
-			rootKeys...,
+			rootKey,
 		)
 		timestampRole data.BaseRole
 		snapshotRole  data.BaseRole
@@ -279,7 +318,7 @@ func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ..
 
 	r.tufRepo = tuf.NewRepo(r.CryptoService)
 
-	err := r.tufRepo.InitRoot(
+	err = r.tufRepo.InitRoot(
 		rootRole,
 		timestampRole,
 		snapshotRole,
