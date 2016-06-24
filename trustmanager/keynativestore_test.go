@@ -20,7 +20,7 @@ func TestAddGetKeyInNativeStore(t *testing.T) {
 	}
 	err = genStore.AddKey(myKeyInfo, privKey)
 	require.NoError(t, err)
-	//defer genStore.RemoveKey(privKey.ID())
+	defer genStore.RemoveKey(privKey.ID())
 	gotCreds, role, err := genStore.GetKey(privKey.ID())
 	require.NoError(t, err)
 	require.Equal(t, myKeyInfo.Role, role, "unexpected role")

@@ -88,7 +88,7 @@ func (k *KeyNativeStore) RemoveKey(keyID string) error {
 }
 
 func (k *KeyNativeStore) ExportKey(keyID string) ([]byte, error) {
-	//What passphrase should we encrypt it before exporting the key?
+	//What passphrase should we encrypt it with before exporting the key?
 	//Just a place-holder for now
 	return []byte{}, nil
 }
