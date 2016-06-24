@@ -167,7 +167,7 @@ func initializeRepo(t *testing.T, rootType, gun, url string,
 
 	repo, rec, rootPubKeyID := createRepoAndKey(t, rootType, tempBaseDir, gun, url)
 
-	err = repo.Initialize([]string{rootPubKeyID}, serverManagedRoles...)
+	err = repo.Initialize(rootPubKeyID, serverManagedRoles...)
 	if err != nil {
 		os.RemoveAll(tempBaseDir)
 	}
@@ -241,7 +241,7 @@ func TestInitRepositoryManagedRolesIncludingRoot(t *testing.T) {
 
 	repo, rec, rootPubKeyID := createRepoAndKey(
 		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", "http://localhost")
-	err = repo.Initialize([]string{rootPubKeyID}, data.CanonicalRootRole)
+	err = repo.Initialize(rootPubKeyID, data.CanonicalRootRole)
 	require.Error(t, err)
 	require.IsType(t, ErrInvalidRemoteRole{}, err)
 	// Just testing the error message here in this one case
@@ -261,7 +261,7 @@ func TestInitRepositoryManagedRolesInvalidRole(t *testing.T) {
 
 	repo, rec, rootPubKeyID := createRepoAndKey(
 		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", "http://localhost")
-	err = repo.Initialize([]string{rootPubKeyID}, "randomrole")
+	err = repo.Initialize(rootPubKeyID, "randomrole")
 	require.Error(t, err)
 	require.IsType(t, ErrInvalidRemoteRole{}, err)
 	// no key creation happened
@@ -278,7 +278,7 @@ func TestInitRepositoryManagedRolesIncludingTargets(t *testing.T) {
 
 	repo, rec, rootPubKeyID := createRepoAndKey(
 		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", "http://localhost")
-	err = repo.Initialize([]string{rootPubKeyID}, data.CanonicalTargetsRole)
+	err = repo.Initialize(rootPubKeyID, data.CanonicalTargetsRole)
 	require.Error(t, err)
 	require.IsType(t, ErrInvalidRemoteRole{}, err)
 	// no key creation happened
@@ -298,27 +298,7 @@ func TestInitRepositoryManagedRolesIncludingTimestamp(t *testing.T) {
 
 	repo, rec, rootPubKeyID := createRepoAndKey(
 		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
-	err = repo.Initialize([]string{rootPubKeyID}, data.CanonicalTimestampRole)
-	require.NoError(t, err)
-	// generates the target role, the snapshot role
-	rec.requireCreated(t, []string{data.CanonicalTargetsRole, data.CanonicalSnapshotRole})
-}
-
-func TestInitRepositoryMultipleRootKeys(t *testing.T) {
-	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
-	require.NoError(t, err, "failed to create a temporary directory")
-	defer os.RemoveAll(tempBaseDir)
-
-	ts, _, _ := simpleTestServer(t)
-	defer ts.Close()
-
-	repo, rec, rootPubKeyID := createRepoAndKey(
-		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
-	rootPubKey2, err := repo.CryptoService.Create("root", repo.gun, data.ECDSAKey)
-	require.NoError(t, err, "error generating second root key: %s", err)
-
-	err = repo.Initialize([]string{rootPubKeyID, rootPubKey2.ID()}, data.CanonicalTimestampRole)
+	err = repo.Initialize(rootPubKeyID, data.CanonicalTimestampRole)
 	require.NoError(t, err)
 	// generates the target role, the snapshot role
 	rec.requireCreated(t, []string{data.CanonicalTargetsRole, data.CanonicalSnapshotRole})
@@ -337,7 +317,7 @@ func TestInitRepositoryNeedsRemoteTimestampKey(t *testing.T) {
 
 	repo, rec, rootPubKeyID := createRepoAndKey(
 		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
-	err = repo.Initialize([]string{rootPubKeyID}, data.CanonicalTimestampRole)
+	err = repo.Initialize(rootPubKeyID, data.CanonicalTimestampRole)
 	require.Error(t, err)
 	require.IsType(t, store.ErrMetaNotFound{}, err)
 
@@ -359,7 +339,7 @@ func TestInitRepositoryNeedsRemoteSnapshotKey(t *testing.T) {
 
 	repo, rec, rootPubKeyID := createRepoAndKey(
 		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
-	err = repo.Initialize([]string{rootPubKeyID}, data.CanonicalSnapshotRole)
+	err = repo.Initialize(rootPubKeyID, data.CanonicalSnapshotRole)
 	require.Error(t, err)
 	require.IsType(t, store.ErrMetaNotFound{}, err)
 
@@ -536,9 +516,9 @@ func testInitRepoSigningKeys(t *testing.T, rootType string, serverManagesSnapsho
 	repo, rec := newRepoToTestRepo(t, repo, false)
 
 	if serverManagesSnapshot {
-		err = repo.Initialize([]string{rootPubKeyID}, data.CanonicalSnapshotRole)
+		err = repo.Initialize(rootPubKeyID, data.CanonicalSnapshotRole)
 	} else {
-		err = repo.Initialize([]string{rootPubKeyID})
+		err = repo.Initialize(rootPubKeyID)
 	}
 
 	require.NoError(t, err, "error initializing repository")
@@ -583,7 +563,7 @@ func testInitRepoAttemptsExceeded(t *testing.T, rootType string) {
 	// private key unlocking we need a new repo instance.
 	repo, err = NewNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
-	err = repo.Initialize([]string{rootPubKey.ID()})
+	err = repo.Initialize(rootPubKey.ID())
 	require.EqualError(t, err, trustmanager.ErrAttemptsExceeded{}.Error())
 }
 
@@ -620,7 +600,7 @@ func testInitRepoPasswordInvalid(t *testing.T, rootType string) {
 	// private key unlocking we need a new repo instance.
 	repo, err = NewNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, giveUpPassphraseRetriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
-	err = repo.Initialize([]string{rootPubKey.ID()})
+	err = repo.Initialize(rootPubKey.ID())
 	require.EqualError(t, err, trustmanager.ErrPasswordInvalid{}.Error())
 }
 
@@ -1670,7 +1650,7 @@ func TestPublishUninitializedRepo(t *testing.T) {
 	rootPubKey, err := repo.CryptoService.Create("root", repo.gun, data.ECDSAKey)
 	require.NoError(t, err, "error generating root key: %s", err)
 
-	require.NoError(t, repo.Initialize([]string{rootPubKey.ID()}))
+	require.NoError(t, repo.Initialize(rootPubKey.ID()))
 
 	// now metadata is created
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalRootRole, true)
@@ -2031,10 +2011,53 @@ func TestPublishSnapshotLocalKeysCreatedFirst(t *testing.T) {
 
 	repo.CryptoService = cannotCreateKeys{CryptoService: cs}
 
-	err = repo.Initialize([]string{rootPubKey.ID()}, data.CanonicalSnapshotRole)
+	err = repo.Initialize(rootPubKey.ID(), data.CanonicalSnapshotRole)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Oh no I cannot create keys")
 	require.False(t, requestMade)
+}
+
+// If there is an error creating the local keys, no call is made to get a
+// remote key.
+func TestInitializeWithPublicKeyVerifiesKeypairAndFailsIfKeysDontMatch(t *testing.T) {
+	// Temporary directory where test files will be created
+	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	require.NoError(t, err, "failed to create a temporary directory")
+	defer os.RemoveAll(tempBaseDir)
+
+	repo, rec, privKeyID := createRepoAndKey(
+		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", "http://localhost")
+	require.NotNil(t, rec, "Fuck off")
+	rootPubKey := repo.CryptoService.GetKey(privKeyID)
+	require.NotNil(t, rootPubKey, "Couldn't get the root public key")
+
+	keyPairVerifierFail := func(privKey data.PrivateKey, pubKey data.PublicKey) error {
+		return fmt.Errorf("Private key %s does not match public key %s", privKey.ID(), pubKey.ID())
+	}
+	err = repo.InitializeWithPubKeyAndVerifier(privKeyID, rootPubKey, keyPairVerifierFail, data.CanonicalSnapshotRole)
+	require.Error(t, err)
+	require.Equal(t, err.Error(), fmt.Sprintf("Private key %s does not match public key %s", privKeyID, rootPubKey.ID()))
+}
+
+func TestInitializeWithPublicKeyVerifiesKeypairAndSucceedsIfKeysMatch(t *testing.T) {
+	// Temporary directory where test files will be created
+	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	require.NoError(t, err, "failed to create a temporary directory")
+	defer os.RemoveAll(tempBaseDir)
+
+	ts, _, _ := simpleTestServer(t)
+	defer ts.Close()
+
+	repo, rec, privKeyID := createRepoAndKey(
+		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
+	require.NotNil(t, rec, "Fuck off")
+	rootPubKey := repo.CryptoService.GetKey(privKeyID)
+	require.NotNil(t, rootPubKey, "Couldn't get the root public key")
+
+	keyPairVerifierSucceed := func(privKey data.PrivateKey, pubKey data.PublicKey) error { return nil }
+	err = repo.InitializeWithPubKeyAndVerifier(privKeyID, rootPubKey, keyPairVerifierSucceed, data.CanonicalSnapshotRole)
+	require.NoError(t, err)
+	require.Equal(t, rootPubKey.Public(), repo.tufRepo.Root.Signed.Keys[rootPubKey.ID()].Public())
 }
 
 func createKey(t *testing.T, repo *NotaryRepository, role string, x509 bool) data.PublicKey {

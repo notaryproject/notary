@@ -1,11 +1,13 @@
 package signed
 
 import (
+	"crypto/rand"
 	"testing"
 	"time"
 
 	"github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
+	"github.com/docker/notary/trustmanager"
 	"github.com/stretchr/testify/require"
 
 	"github.com/docker/notary/tuf/data"
@@ -172,4 +174,21 @@ func TestVerifyExpiry(t *testing.T) {
 		&data.SignedCommon{Type: tufType, Version: 1, Expires: expired}, data.CanonicalRootRole)
 	require.Error(t, err)
 	require.IsType(t, ErrExpired{}, err)
+}
+
+func TestVerifyPublicKeyMatchesPrivateKeyHappyCase(t *testing.T) {
+	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+	pubKey := data.PublicKeyFromPrivate(privKey)
+	err = VerifyPublicKeyMatchesPrivateKey(privKey, pubKey)
+	require.NoError(t, err)
+}
+
+func TestVerifyPublicKeyMatchesPrivateKeyFails(t *testing.T) {
+	goodPrivKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	badPrivKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+	badPubKey := data.PublicKeyFromPrivate(badPrivKey)
+	err = VerifyPublicKeyMatchesPrivateKey(goodPrivKey, badPubKey)
+	require.Error(t, err)
 }
