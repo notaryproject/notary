@@ -12,13 +12,13 @@ import (
 	"github.com/docker/notary/tuf/utils"
 )
 
-// KeyChainStore is an implementation of Storage that keeps
+// KeyNativeStore is an implementation of Storage that keeps
 // the contents in the keychain access.
 type KeyNativeStore struct {
 	newProgFunc client.ProgramFunc
 }
 
-// NewKeyChainStore creates a KeyChainStore
+// NewKeyNativeStore creates a KeyNativeStore
 func NewKeyNativeStore(machineCredsStore string) (*KeyNativeStore, error) {
 	if defaultCredentialsStore == "" {
 		return nil, errors.New("Native storage on your operating system is not yet supported")
@@ -30,7 +30,7 @@ func NewKeyNativeStore(machineCredsStore string) (*KeyNativeStore, error) {
 	}, nil
 }
 
-//Add writes data new KeyChain in the keychain access store
+//AddKey writes data new KeyChain in the native keychain store
 func (k *KeyNativeStore) AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error {
 	pemPrivKey, err := utils.KeyToPEM(privKey, keyInfo.Role, keyInfo.Gun)
 	if err != nil {
@@ -46,7 +46,7 @@ func (k *KeyNativeStore) AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error 
 	return err
 }
 
-// Get returns the credentials from the keychain access store given a server name
+// GetKey returns the credentials from the native keychain store given a server name
 func (k *KeyNativeStore) GetKey(keyID string) (data.PrivateKey, string, error) {
 	serverName := keyID
 	gotCredentials, err := client.Get(k.newProgFunc, serverName)
@@ -75,18 +75,19 @@ func (k *KeyNativeStore) GetKeyInfo(keyID string) (KeyInfo, error) {
 	}, err
 }
 
-// ListFiles lists all the Keys inside of a native store
+// ListKeys lists all the Keys inside of a native store
 // Just a placeholder for now- returns an empty slice
 func (k *KeyNativeStore) ListKeys() map[string]KeyInfo {
 	return nil
 }
 
-//Remove removes a KeyChain (identified by server name- a string) from the keychain access store
+//RemoveKey removes a KeyChain (identified by server name- a string) from the keychain access store
 func (k *KeyNativeStore) RemoveKey(keyID string) error {
 	err := client.Erase(k.newProgFunc, keyID)
 	return err
 }
 
+//ExportKey removes a KeyChain from the keychain access store as an encrypted byte string
 func (k *KeyNativeStore) ExportKey(keyID string) ([]byte, error) {
 	//What passphrase should we encrypt it with before exporting the key?
 	//Just a place-holder for now
