@@ -4,6 +4,9 @@ import (
 	"crypto/rand"
 	"fmt"
 
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
@@ -11,6 +14,16 @@ import (
 
 const (
 	rsaKeySize = 2048 // Used for snapshots and targets keys
+)
+
+var (
+	// ErrNoValidPrivateKey is returned if a key being imported doesn't
+	// look like a private key
+	ErrNoValidPrivateKey = errors.New("no valid private key found")
+
+	// ErrRootKeyNotEncrypted is returned if a root key being imported is
+	// unencrypted
+	ErrRootKeyNotEncrypted = errors.New("only encrypted root keys may be imported")
 )
 
 // CryptoService implements Sign and Create, holding a specific GUN and keystore to
@@ -152,4 +165,19 @@ func (cs *CryptoService) ListAllKeys() map[string]string {
 		}
 	}
 	return res
+}
+
+// CheckRootKeyIsEncrypted makes sure the root key is encrypted. We have
+// internal assumptions that depend on this.
+func CheckRootKeyIsEncrypted(pemBytes []byte) error {
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		return ErrNoValidPrivateKey
+	}
+
+	if !x509.IsEncryptedPEMBlock(block) {
+		return ErrRootKeyNotEncrypted
+	}
+
+	return nil
 }
