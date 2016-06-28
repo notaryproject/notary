@@ -101,7 +101,7 @@ func TestGetImporters(t *testing.T) {
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
-	importers, err := getImporters(tempBaseDir, passphrase.ConstantRetriever("pass"))
+	importers, err := getImporters(tempBaseDir, passphrase.ConstantRetriever("pass"), false)
 	require.NoError(t, err)
 	require.Len(t, importers, 2)
 }

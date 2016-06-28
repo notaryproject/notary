@@ -20,6 +20,7 @@ import (
 const (
 	configDir        = ".notary/"
 	defaultServerURL = "https://notary-server:4443"
+	dontusenative	 = "false"
 )
 
 type usageTemplate struct {
@@ -99,7 +100,7 @@ func (n *notaryCommander) parseConfig() (*viper.Viper, error) {
 	// Setup the configuration details into viper
 	config.SetDefault("trust_dir", defaultTrustDir)
 	config.SetDefault("remote_server", map[string]string{"url": defaultServerURL})
-
+	config.SetDefault("useNative", dontusenative)
 	// Find and read the config file
 	if err := config.ReadInConfig(); err != nil {
 		logrus.Debugf("Configuration file not found, using defaults")

@@ -2,12 +2,14 @@ package trustmanager
 
 import (
 	"encoding/base64"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/docker/docker-credential-helpers/client"
 	"github.com/docker/docker-credential-helpers/credentials"
+	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
 )
@@ -15,18 +17,20 @@ import (
 // KeyNativeStore is an implementation of Storage that keeps
 // the contents in the keychain access.
 type KeyNativeStore struct {
+	notary.PassRetriever
 	newProgFunc client.ProgramFunc
 }
 
 // NewKeyNativeStore creates a KeyNativeStore
-func NewKeyNativeStore(machineCredsStore string) (*KeyNativeStore, error) {
+func NewKeyNativeStore(passphraseRetriever notary.PassRetriever) (*KeyNativeStore, error) {
 	if defaultCredentialsStore == "" {
 		return nil, errors.New("Native storage on your operating system is not yet supported")
 	}
 	credCommand := "docker-credential-" + defaultCredentialsStore
 	x := client.NewShellProgramFunc(credCommand)
 	return &KeyNativeStore{
-		newProgFunc: x,
+		PassRetriever: passphraseRetriever,
+		newProgFunc:   x,
 	}, nil
 }
 
@@ -42,8 +46,7 @@ func (k *KeyNativeStore) AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error 
 		Username:  keyInfo.Gun + "<notary_key>" + keyInfo.Role,
 		Secret:    secretByte,
 	}
-	err = client.Store(k.newProgFunc, &(keyCredentials))
-	return err
+	return client.Store(k.newProgFunc, &(keyCredentials))
 }
 
 // GetKey returns the credentials from the native keychain store given a server name
@@ -67,17 +70,27 @@ func (k *KeyNativeStore) GetKeyInfo(keyID string) (KeyInfo, error) {
 	if err != nil {
 		return KeyInfo{}, err
 	}
-	keyinfo := strings.SplitAfter(gotCredentials.Username, "<notary_key>")
-	gun := keyinfo[0][:(len(keyinfo[0]) - 12)]
-	return KeyInfo{
-		Gun:  gun,
-		Role: keyinfo[1],
-	}, err
+	if strings.Contains(gotCredentials.Username, "<notary_key>") {
+		keyinfo := strings.SplitAfter(gotCredentials.Username, "<notary_key>")
+		gun := keyinfo[0][:(len(keyinfo[0]) - 12)]
+		return KeyInfo{
+			Gun:  gun,
+			Role: keyinfo[1],
+		}, err
+	}
+	return KeyInfo{}, fmt.Errorf("The keyID doesn't belong to a Notary key")
 }
 
 // ListKeys lists all the Keys inside of a native store
 // Just a placeholder for now- returns an empty slice
 func (k *KeyNativeStore) ListKeys() map[string]KeyInfo {
+	//if defaultCredentialsStore=="osxkeychain" {
+	//	out, _ := exec.Command("security","dump").Output()
+	//	output:=string(out)
+	//	re := regexp.MustCompile(".*<notary_key>.*")
+	//	keys:=re.FindAllString(output,-1)
+	//	fmt.Println(keys)
+	//}
 	return nil
 }
 
@@ -87,15 +100,70 @@ func (k *KeyNativeStore) RemoveKey(keyID string) error {
 	return err
 }
 
-//ExportKey removes a KeyChain from the keychain access store as an encrypted byte string
-func (k *KeyNativeStore) ExportKey(keyID string) ([]byte, error) {
-	//What passphrase should we encrypt it with before exporting the key?
-	//Just a place-holder for now
-	return []byte{}, nil
-}
-
 // Name returns a user friendly name for the location this store
 // keeps its data, here it is the name of the native store on this operating system
 func (k *KeyNativeStore) Name() string {
 	return fmt.Sprintf("Native keychain store: %s", defaultCredentialsStore)
+}
+
+// These functions satisfy the Importer/Exporter interfaces
+
+// Get extracts a Key from the keychain access store as an encrypted byte string
+func (k *KeyNativeStore) Get(keyID string) ([]byte, error) {
+	serverName := keyID
+	gotKey, role, err := k.GetKey(serverName)
+	if err != nil {
+		return nil, err
+	}
+	// take in a passphrase with the given retriever
+	var (
+		chosenPassphrase string
+		giveup           bool
+	)
+
+	for attempts := 0; ; attempts++ {
+		chosenPassphrase, giveup, err = k.PassRetriever(keyID, role, true, attempts)
+		if giveup {
+			return nil, errors.New("Given up")
+		}
+		if attempts > 3 {
+			return nil, errors.New("Exceeded attempts, please select a secure passphrase and type it with care")
+		}
+		if err != nil {
+			continue
+		}
+		break
+	}
+	// encrypt the byte string
+	encSecret, err := utils.EncryptPrivateKey(gotKey, role, "", chosenPassphrase)
+	return encSecret, err
+}
+
+// Set accepts a key in PEM format at adds it to the native store
+func (k *KeyNativeStore) Set(name string, pemBytes []byte) error {
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		return errors.New("invalid PEM data, could not parse")
+	}
+	role, ok := block.Headers["role"]
+	if !ok {
+		return errors.New("no role found for key")
+	}
+	ki := KeyInfo{
+		Gun:  block.Headers["gun"],
+		Role: role,
+	}
+	privKey, err := utils.ParsePEMPrivateKey(pemBytes, "")
+	if err != nil {
+		privKey, _, err = GetPasswdDecryptBytes(
+			k.PassRetriever,
+			pemBytes,
+			name,
+			ki.Role,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return k.AddKey(ki, privKey)
 }

@@ -199,7 +199,7 @@ func (t *tufCommander) tufWitness(cmd *cobra.Command, args []string) error {
 	// no online operations are performed by add so the transport argument
 	// should be nil
 	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin, getUseNative(config))
 	if err != nil {
 		return err
 	}
@@ -272,7 +272,7 @@ func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 	// no online operations are performed by add so the transport argument
 	// should be nil
 	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin, false)
 	if err != nil {
 		return err
 	}
@@ -323,7 +323,7 @@ func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 	// no online operations are performed by add so the transport argument
 	// should be nil
 	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin, getUseNative(config))
 	if err != nil {
 		return err
 	}
@@ -371,7 +371,7 @@ func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
 	}
 
 	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin, false)
 
 	if err != nil {
 		return err
@@ -409,7 +409,7 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 	}
 
 	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin, getUseNative(config))
 	if err != nil {
 		return err
 	}
@@ -498,7 +498,7 @@ func (t *tufCommander) tufList(cmd *cobra.Command, args []string) error {
 	}
 
 	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin, getUseNative(config))
 	if err != nil {
 		return err
 	}
@@ -538,7 +538,7 @@ func (t *tufCommander) tufLookup(cmd *cobra.Command, args []string) error {
 	}
 
 	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin, getUseNative(config))
 	if err != nil {
 		return err
 	}
@@ -570,7 +570,7 @@ func (t *tufCommander) tufStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin, getUseNative(config))
 	if err != nil {
 		return err
 	}
@@ -627,7 +627,7 @@ func (t *tufCommander) tufReset(cmd *cobra.Command, args []string) error {
 	}
 
 	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin, false)
 	if err != nil {
 		return err
 	}
@@ -674,7 +674,7 @@ func (t *tufCommander) tufPublish(cmd *cobra.Command, args []string) error {
 	}
 
 	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin, getUseNative(config))
 	if err != nil {
 		return err
 	}
@@ -702,7 +702,7 @@ func (t *tufCommander) tufRemove(cmd *cobra.Command, args []string) error {
 	// no online operation are performed by remove so the transport argument
 	// should be nil.
 	repo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin, getUseNative(config))
 	if err != nil {
 		return err
 	}
@@ -746,7 +746,7 @@ func (t *tufCommander) tufVerify(cmd *cobra.Command, args []string) error {
 	}
 
 	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin, getUseNative(config))
 	if err != nil {
 		return err
 	}
@@ -942,6 +942,15 @@ func getRemoteTrustServer(config *viper.Viper) string {
 	return defaultServerURL
 }
 
+func getUseNative(config *viper.Viper) bool {
+	conf := config.Get("useNative")
+	if conf == "true" {
+		return true
+	}
+	logrus.Info("The configuration you entered for useNative is invalid. Defaulted to not using a native store")
+	return false
+}
+
 func getTrustPinning(config *viper.Viper) (trustpinning.TrustPinConfig, error) {
 	var ok bool
 	// Need to parse out Certs section from config
@@ -1018,7 +1027,7 @@ func maybeAutoPublish(cmd *cobra.Command, doPublish bool, gun string, config *vi
 	}
 
 	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, passRetriever, trustPin)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, passRetriever, trustPin, false)
 	if err != nil {
 		return err
 	}
