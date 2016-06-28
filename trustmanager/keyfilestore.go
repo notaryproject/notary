@@ -191,18 +191,6 @@ func (s *KeyFileStore) RemoveKey(keyID string) error {
 	return nil
 }
 
-// ExportKey exports the encrypted bytes from the keystore
-func (s *KeyFileStore) ExportKey(keyID string) ([]byte, error) {
-	if keyInfo, ok := s.keyInfoMap[keyID]; ok {
-		keyID = filepath.Join(keyInfo.Gun, keyID)
-	}
-	keyBytes, _, err := getRawKey(s, keyID)
-	if err != nil {
-		return nil, err
-	}
-	return keyBytes, nil
-}
-
 // NewKeyMemoryStore returns a new KeyMemoryStore which holds keys in memory
 func NewKeyMemoryStore(passphraseRetriever notary.PassRetriever) *KeyMemoryStore {
 	memStore := NewMemoryFileStore()
@@ -283,15 +271,6 @@ func (s *KeyMemoryStore) RemoveKey(keyID string) error {
 	// Remove this key from our keyInfo map if we removed from our filesystem
 	delete(s.keyInfoMap, filepath.Base(keyID))
 	return nil
-}
-
-// ExportKey exports the encrypted bytes from the keystore
-func (s *KeyMemoryStore) ExportKey(keyID string) ([]byte, error) {
-	keyBytes, _, err := getRawKey(s, keyID)
-	if err != nil {
-		return nil, err
-	}
-	return keyBytes, nil
 }
 
 // KeyInfoFromPEM attempts to get a keyID and KeyInfo from the filename and PEM bytes of a key

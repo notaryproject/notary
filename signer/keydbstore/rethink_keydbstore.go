@@ -2,7 +2,6 @@ package keydbstore
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -271,11 +270,6 @@ func (rdb RethinkDBKeyStore) RotateKeyPassphrase(name, newPassphraseAlias string
 	}
 
 	return nil
-}
-
-// ExportKey is currently unimplemented and will always return an error
-func (rdb RethinkDBKeyStore) ExportKey(keyID string) ([]byte, error) {
-	return nil, errors.New("Exporting from a RethinkDBKeyStore is not supported.")
 }
 
 // Bootstrap sets up the database and tables, also creating the notary signer user with appropriate db permission

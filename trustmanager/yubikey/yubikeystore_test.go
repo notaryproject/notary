@@ -358,29 +358,6 @@ func TestYubiRemoveKey(t *testing.T) {
 	}
 }
 
-// One cannot export from hardware - it will not export from the backup
-func TestYubiExportKeyFails(t *testing.T) {
-	if !IsAccessible() {
-		t.Skip("Must have Yubikey access.")
-	}
-	clearAllKeys(t)
-
-	SetYubikeyKeyMode(KeymodeNone)
-	defer func() {
-		SetYubikeyKeyMode(KeymodeTouch | KeymodePinOnce)
-	}()
-
-	store, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
-	require.NoError(t, err)
-
-	key, err := testAddKey(t, store)
-	require.NoError(t, err)
-
-	_, err = store.ExportKey(key.ID())
-	require.Error(t, err)
-	require.Equal(t, "Keys cannot be exported from a Yubikey.", err.Error())
-}
-
 // If there are keys in the backup store but no keys in the Yubikey,
 // listing and getting cannot access the keys in the backup store
 func TestYubiListAndGetKeysIgnoresBackup(t *testing.T) {
@@ -681,8 +658,6 @@ func TestYubiListKeyCleansUpOnError(t *testing.T) {
 			"GetAttributeValue",
 		), false)
 }
-
-// export key fails anyway, don't bother testing
 
 func TestYubiSignCleansUpOnError(t *testing.T) {
 	if !IsAccessible() {
