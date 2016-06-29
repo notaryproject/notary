@@ -947,7 +947,7 @@ func getUseNative(config *viper.Viper) bool {
 	if conf == "true" {
 		return true
 	}
-	logrus.Info("The configuration you entered for useNative is invalid. Defaulted to not using a native store")
+	logrus.Info("The configuration you entered for useNative is invalid, use 'true' or 'false'. Defaulted to not using a native store")
 	return false
 }
 
