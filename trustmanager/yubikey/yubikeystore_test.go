@@ -12,6 +12,7 @@ import (
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/miekg/pkcs11"
 	"github.com/stretchr/testify/require"
 )
@@ -57,7 +58,7 @@ func TestEnsurePrivateKeySizePadsLessThanRequiredSizeArrays(t *testing.T) {
 }
 
 func testAddKey(t *testing.T, store trustmanager.KeyStore) (data.PrivateKey, error) {
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
 	err = store.AddKey(trustmanager.KeyInfo{Role: data.CanonicalRootRole, Gun: ""}, privKey)
@@ -250,7 +251,7 @@ func TestYubiAddKeyCanAddToMiddleSlot(t *testing.T) {
 }
 
 type nonworkingBackup struct {
-	trustmanager.KeyMemoryStore
+	trustmanager.GenericKeyStore
 }
 
 // AddKey stores the contents of a PEM-encoded private key as a PEM block
@@ -273,7 +274,7 @@ func TestYubiAddKeyRollsBackIfCannotBackup(t *testing.T) {
 	}()
 
 	backup := &nonworkingBackup{
-		KeyMemoryStore: *trustmanager.NewKeyMemoryStore(ret),
+		GenericKeyStore: *trustmanager.NewKeyMemoryStore(ret),
 	}
 	store, err := NewYubiStore(backup, ret)
 	require.NoError(t, err)

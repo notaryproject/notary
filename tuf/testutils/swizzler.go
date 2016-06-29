@@ -8,11 +8,11 @@ import (
 	"github.com/docker/go/canonical/json"
 	"github.com/docker/notary/cryptoservice"
 	"github.com/docker/notary/passphrase"
+	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/store"
 )
 
 // ErrNoKeyForRole returns an error when the cryptoservice provided to
@@ -89,7 +89,7 @@ func serializeMetadata(cs signed.CryptoService, s *data.Signed, role string,
 
 // gets a Signed from the metadata store
 func signedFromStore(cache store.MetadataStore, role string) (*data.Signed, error) {
-	b, err := cache.GetMeta(role, store.NoSizeLimit)
+	b, err := cache.GetSized(role, store.NoSizeLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -122,23 +122,23 @@ func NewMetadataSwizzler(gun string, initialMetadata map[string][]byte,
 
 // SetInvalidJSON corrupts metadata into something that is no longer valid JSON
 func (m *MetadataSwizzler) SetInvalidJSON(role string) error {
-	metaBytes, err := m.MetadataCache.GetMeta(role, store.NoSizeLimit)
+	metaBytes, err := m.MetadataCache.GetSized(role, store.NoSizeLimit)
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(role, metaBytes[5:])
+	return m.MetadataCache.Set(role, metaBytes[5:])
 }
 
 // AddExtraSpace adds an extra space to the beginning and end of the serialized
 // JSON bytes, which should not affect serialization, but will change the checksum
 // of the file.
 func (m *MetadataSwizzler) AddExtraSpace(role string) error {
-	metaBytes, err := m.MetadataCache.GetMeta(role, store.NoSizeLimit)
+	metaBytes, err := m.MetadataCache.GetSized(role, store.NoSizeLimit)
 	if err != nil {
 		return err
 	}
 	newBytes := append(append([]byte{' '}, metaBytes...), ' ')
-	return m.MetadataCache.SetMeta(role, newBytes)
+	return m.MetadataCache.Set(role, newBytes)
 }
 
 // SetInvalidSigned corrupts the metadata into something that is valid JSON,
@@ -155,7 +155,7 @@ func (m *MetadataSwizzler) SetInvalidSigned(role string) error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(role, metaBytes)
+	return m.MetadataCache.Set(role, metaBytes)
 }
 
 // SetInvalidSignedMeta corrupts the metadata into something that is unmarshallable
@@ -190,7 +190,7 @@ func (m *MetadataSwizzler) SetInvalidSignedMeta(role string) error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(role, metaBytes)
+	return m.MetadataCache.Set(role, metaBytes)
 }
 
 // TODO: corrupt metadata in such a way that it can be unmarshalled as a
@@ -225,7 +225,7 @@ func (m *MetadataSwizzler) SetInvalidMetadataType(role string) error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(role, metaBytes)
+	return m.MetadataCache.Set(role, metaBytes)
 }
 
 // InvalidateMetadataSignatures signs with the right key(s) but wrong hash
@@ -248,7 +248,7 @@ func (m *MetadataSwizzler) InvalidateMetadataSignatures(role string) error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(role, metaBytes)
+	return m.MetadataCache.Set(role, metaBytes)
 }
 
 // TODO: AddExtraSignedInfo - add an extra field to Signed that doesn't get
@@ -257,7 +257,7 @@ func (m *MetadataSwizzler) InvalidateMetadataSignatures(role string) error {
 
 // RemoveMetadata deletes the metadata entirely
 func (m *MetadataSwizzler) RemoveMetadata(role string) error {
-	return m.MetadataCache.RemoveMeta(role)
+	return m.MetadataCache.Remove(role)
 }
 
 // SignMetadataWithInvalidKey signs the metadata with the wrong key
@@ -278,7 +278,7 @@ func (m *MetadataSwizzler) SignMetadataWithInvalidKey(role string) error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(role, metaBytes)
+	return m.MetadataCache.Set(role, metaBytes)
 }
 
 // OffsetMetadataVersion updates the metadata version
@@ -313,7 +313,7 @@ func (m *MetadataSwizzler) OffsetMetadataVersion(role string, offset int) error 
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(role, metaBytes)
+	return m.MetadataCache.Set(role, metaBytes)
 }
 
 // ExpireMetadata expires the metadata, which would make it invalid - don't do anything if
@@ -345,7 +345,7 @@ func (m *MetadataSwizzler) ExpireMetadata(role string) error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(role, metaBytes)
+	return m.MetadataCache.Set(role, metaBytes)
 }
 
 // SetThreshold sets a threshold for a metadata role - can invalidate metadata for which
@@ -357,7 +357,7 @@ func (m *MetadataSwizzler) SetThreshold(role string, newThreshold int) error {
 		roleSpecifier = path.Dir(role)
 	}
 
-	b, err := m.MetadataCache.GetMeta(roleSpecifier, store.NoSizeLimit)
+	b, err := m.MetadataCache.GetSized(roleSpecifier, store.NoSizeLimit)
 	if err != nil {
 		return err
 	}
@@ -401,7 +401,7 @@ func (m *MetadataSwizzler) SetThreshold(role string, newThreshold int) error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(roleSpecifier, metaBytes)
+	return m.MetadataCache.Set(roleSpecifier, metaBytes)
 }
 
 // RotateKey rotates the key for a role - this can invalidate that role's metadata
@@ -413,7 +413,7 @@ func (m *MetadataSwizzler) RotateKey(role string, key data.PublicKey) error {
 		roleSpecifier = path.Dir(role)
 	}
 
-	b, err := m.MetadataCache.GetMeta(roleSpecifier, store.NoSizeLimit)
+	b, err := m.MetadataCache.GetSized(roleSpecifier, store.NoSizeLimit)
 	if err != nil {
 		return err
 	}
@@ -460,7 +460,7 @@ func (m *MetadataSwizzler) RotateKey(role string, key data.PublicKey) error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(roleSpecifier, metaBytes)
+	return m.MetadataCache.Set(roleSpecifier, metaBytes)
 }
 
 // ChangeRootKey swaps out the root key with a new key, and re-signs the metadata
@@ -471,7 +471,7 @@ func (m *MetadataSwizzler) ChangeRootKey() error {
 		return err
 	}
 
-	b, err := m.MetadataCache.GetMeta(data.CanonicalRootRole, store.NoSizeLimit)
+	b, err := m.MetadataCache.GetSized(data.CanonicalRootRole, store.NoSizeLimit)
 	if err != nil {
 		return err
 	}
@@ -498,7 +498,7 @@ func (m *MetadataSwizzler) ChangeRootKey() error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(data.CanonicalRootRole, metaBytes)
+	return m.MetadataCache.Set(data.CanonicalRootRole, metaBytes)
 }
 
 // UpdateSnapshotHashes updates the snapshot to reflect the latest hash changes, to
@@ -509,7 +509,7 @@ func (m *MetadataSwizzler) UpdateSnapshotHashes(roles ...string) error {
 		snapshotSigned *data.Signed
 		err            error
 	)
-	if metaBytes, err = m.MetadataCache.GetMeta(data.CanonicalSnapshotRole, store.NoSizeLimit); err != nil {
+	if metaBytes, err = m.MetadataCache.GetSized(data.CanonicalSnapshotRole, store.NoSizeLimit); err != nil {
 		return err
 	}
 
@@ -525,7 +525,7 @@ func (m *MetadataSwizzler) UpdateSnapshotHashes(roles ...string) error {
 
 	for _, role := range roles {
 		if role != data.CanonicalSnapshotRole && role != data.CanonicalTimestampRole {
-			if metaBytes, err = m.MetadataCache.GetMeta(role, store.NoSizeLimit); err != nil {
+			if metaBytes, err = m.MetadataCache.GetSized(role, store.NoSizeLimit); err != nil {
 				return err
 			}
 
@@ -549,7 +549,7 @@ func (m *MetadataSwizzler) UpdateSnapshotHashes(roles ...string) error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(data.CanonicalSnapshotRole, metaBytes)
+	return m.MetadataCache.Set(data.CanonicalSnapshotRole, metaBytes)
 }
 
 // UpdateTimestampHash updates the timestamp to reflect the latest snapshot changes, to
@@ -561,7 +561,7 @@ func (m *MetadataSwizzler) UpdateTimestampHash() error {
 		timestampSigned *data.Signed
 		err             error
 	)
-	if metaBytes, err = m.MetadataCache.GetMeta(data.CanonicalTimestampRole, store.NoSizeLimit); err != nil {
+	if metaBytes, err = m.MetadataCache.GetSized(data.CanonicalTimestampRole, store.NoSizeLimit); err != nil {
 		return err
 	}
 	// we can't just create a new timestamp, because then the expiry would be
@@ -570,7 +570,7 @@ func (m *MetadataSwizzler) UpdateTimestampHash() error {
 		return err
 	}
 
-	if metaBytes, err = m.MetadataCache.GetMeta(data.CanonicalSnapshotRole, store.NoSizeLimit); err != nil {
+	if metaBytes, err = m.MetadataCache.GetSized(data.CanonicalSnapshotRole, store.NoSizeLimit); err != nil {
 		return err
 	}
 
@@ -593,7 +593,7 @@ func (m *MetadataSwizzler) UpdateTimestampHash() error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(data.CanonicalTimestampRole, metaBytes)
+	return m.MetadataCache.Set(data.CanonicalTimestampRole, metaBytes)
 }
 
 // MutateRoot takes a function that mutates the root metadata - once done, it
@@ -632,7 +632,7 @@ func (m *MetadataSwizzler) MutateRoot(mutate func(*data.Root)) error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(data.CanonicalRootRole, metaBytes)
+	return m.MetadataCache.Set(data.CanonicalRootRole, metaBytes)
 }
 
 // MutateTimestamp takes a function that mutates the timestamp metadata - once done, it
@@ -665,7 +665,7 @@ func (m *MetadataSwizzler) MutateTimestamp(mutate func(*data.Timestamp)) error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(data.CanonicalTimestampRole, metaBytes)
+	return m.MetadataCache.Set(data.CanonicalTimestampRole, metaBytes)
 }
 
 // MutateSnapshot takes a function that mutates the snapshot metadata - once done, it
@@ -698,7 +698,7 @@ func (m *MetadataSwizzler) MutateSnapshot(mutate func(*data.Snapshot)) error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(data.CanonicalSnapshotRole, metaBytes)
+	return m.MetadataCache.Set(data.CanonicalSnapshotRole, metaBytes)
 }
 
 // MutateTargets takes a function that mutates the targets metadata - once done, it
@@ -731,5 +731,5 @@ func (m *MetadataSwizzler) MutateTargets(mutate func(*data.Targets)) error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.SetMeta(data.CanonicalTargetsRole, metaBytes)
+	return m.MetadataCache.Set(data.CanonicalTargetsRole, metaBytes)
 }

@@ -5,9 +5,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
-	tuf "github.com/docker/notary/tuf"
+	store "github.com/docker/notary/storage"
+	"github.com/docker/notary/tuf"
 	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/store"
 )
 
 // Client is a usability wrapper around a raw TUF repo
@@ -88,7 +88,7 @@ func (c *Client) downloadRoot() error {
 		logrus.Debugf("Loading root with no expected checksum")
 
 		// get the cached root, if it exists, just for version checking
-		cachedRoot, _ := c.cache.GetMeta(role, -1)
+		cachedRoot, _ := c.cache.GetSized(role, -1)
 		// prefer to download a new root
 		_, remoteErr := c.tryLoadRemote(consistentInfo, cachedRoot)
 		return remoteErr
@@ -107,7 +107,7 @@ func (c *Client) downloadTimestamp() error {
 	consistentInfo := c.newBuilder.GetConsistentInfo(role)
 
 	// get the cached timestamp, if it exists
-	cachedTS, cachedErr := c.cache.GetMeta(role, notary.MaxTimestampSize)
+	cachedTS, cachedErr := c.cache.GetSized(role, notary.MaxTimestampSize)
 	// always get the remote timestamp, since it supercedes the local one
 	_, remoteErr := c.tryLoadRemote(consistentInfo, cachedTS)
 
@@ -188,7 +188,7 @@ func (c Client) getTargetsFile(role data.DelegationRole, ci tuf.ConsistentInfo) 
 }
 
 func (c *Client) tryLoadCacheThenRemote(consistentInfo tuf.ConsistentInfo) ([]byte, error) {
-	cachedTS, err := c.cache.GetMeta(consistentInfo.RoleName, consistentInfo.Length())
+	cachedTS, err := c.cache.GetSized(consistentInfo.RoleName, consistentInfo.Length())
 	if err != nil {
 		logrus.Debugf("no %s in cache, must download", consistentInfo.RoleName)
 		return c.tryLoadRemote(consistentInfo, nil)
@@ -205,7 +205,7 @@ func (c *Client) tryLoadCacheThenRemote(consistentInfo tuf.ConsistentInfo) ([]by
 
 func (c *Client) tryLoadRemote(consistentInfo tuf.ConsistentInfo, old []byte) ([]byte, error) {
 	consistentName := consistentInfo.ConsistentName()
-	raw, err := c.remote.GetMeta(consistentName, consistentInfo.Length())
+	raw, err := c.remote.GetSized(consistentName, consistentInfo.Length())
 	if err != nil {
 		logrus.Debugf("error downloading %s: %s", consistentName, err)
 		return old, err
@@ -222,7 +222,7 @@ func (c *Client) tryLoadRemote(consistentInfo tuf.ConsistentInfo, old []byte) ([
 		return raw, err
 	}
 	logrus.Debugf("successfully verified downloaded %s", consistentName)
-	if err := c.cache.SetMeta(consistentInfo.RoleName, raw); err != nil {
+	if err := c.cache.Set(consistentInfo.RoleName, raw); err != nil {
 		logrus.Debugf("Unable to write %s to cache: %s", consistentInfo.RoleName, err)
 	}
 	return raw, nil

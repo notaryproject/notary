@@ -12,6 +12,7 @@ import (
 	"github.com/docker/notary/cryptoservice"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -208,14 +209,14 @@ func TestSignReturnsNoSigs(t *testing.T) {
 
 func TestSignWithX509(t *testing.T) {
 	// generate a key becase we need a cert
-	privKey, err := trustmanager.GenerateRSAKey(rand.Reader, 1024)
+	privKey, err := utils.GenerateRSAKey(rand.Reader, 1024)
 	require.NoError(t, err)
 
 	// make a RSA x509 key
 	cert, err := cryptoservice.GenerateCertificate(privKey, "test", time.Now(), time.Now().AddDate(10, 0, 0))
 	require.NoError(t, err)
 
-	tufRSAx509Key := trustmanager.CertToKey(cert)
+	tufRSAx509Key := utils.CertToKey(cert)
 	require.NoError(t, err)
 
 	// test signing against a service that only recognizes a RSAKey (not
@@ -335,7 +336,7 @@ func TestSignMinSignatures(t *testing.T) {
 }
 
 func TestSignFailingKeys(t *testing.T) {
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 	cs := &MockCryptoService{FailingPrivateKey{privKey}}
 

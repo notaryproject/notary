@@ -24,6 +24,7 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/testutils"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -444,13 +445,13 @@ func TestValidateRootWithPinnedCA(t *testing.T) {
 	require.Error(t, err)
 
 	// Now construct a new root with a valid cert chain, such that signatures are correct over the 'notary-signer' GUN.  Pin the root-ca and validate
-	leafCert, err := trustmanager.LoadCertFromFile("../fixtures/notary-signer.crt")
+	leafCert, err := utils.LoadCertFromFile("../fixtures/notary-signer.crt")
 	require.NoError(t, err)
 
-	intermediateCert, err := trustmanager.LoadCertFromFile("../fixtures/intermediate-ca.crt")
+	intermediateCert, err := utils.LoadCertFromFile("../fixtures/intermediate-ca.crt")
 	require.NoError(t, err)
 
-	pemChainBytes, err := trustmanager.CertChainToPEM([]*x509.Certificate{leafCert, intermediateCert})
+	pemChainBytes, err := utils.CertChainToPEM([]*x509.Certificate{leafCert, intermediateCert})
 	require.NoError(t, err)
 
 	newRootKey := data.NewPublicKey(data.RSAx509Key, pemChainBytes)
@@ -474,7 +475,7 @@ func TestValidateRootWithPinnedCA(t *testing.T) {
 	require.NoError(t, err, "could not open key file")
 	pemBytes, err := ioutil.ReadAll(keyReader)
 	require.NoError(t, err, "could not read key file")
-	privKey, err := trustmanager.ParsePEMPrivateKey(pemBytes, "")
+	privKey, err := utils.ParsePEMPrivateKey(pemBytes, "")
 	require.NoError(t, err)
 
 	store, err := trustmanager.NewKeyFileStore(tempBaseDir, passphraseRetriever)
@@ -500,7 +501,7 @@ func TestValidateRootWithPinnedCA(t *testing.T) {
 	require.Equal(t, newTypedSignedRoot, validatedRoot)
 
 	// Add an expired CA for the same gun to our previous pinned bundle, ensure that we still validate correctly
-	goodRootCABundle, err := trustmanager.LoadCertBundleFromFile(validCAFilepath)
+	goodRootCABundle, err := utils.LoadCertBundleFromFile(validCAFilepath)
 	require.NoError(t, err)
 	memKeyStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cryptoService := cryptoservice.NewCryptoService(memKeyStore)
@@ -510,7 +511,7 @@ func TestValidateRootWithPinnedCA(t *testing.T) {
 	require.NoError(t, err)
 	expiredCert, err := generateExpiredTestingCertificate(testPrivKey, "notary-signer")
 	require.NoError(t, err)
-	bundleWithExpiredCert, err := trustmanager.CertChainToPEM(append(goodRootCABundle, expiredCert))
+	bundleWithExpiredCert, err := utils.CertChainToPEM(append(goodRootCABundle, expiredCert))
 	require.NoError(t, err)
 	bundleWithExpiredCertPath := filepath.Join(tempBaseDir, "bundle_with_expired_cert.pem")
 	require.NoError(t, ioutil.WriteFile(bundleWithExpiredCertPath, bundleWithExpiredCert, 0644))
@@ -526,7 +527,7 @@ func TestValidateRootWithPinnedCA(t *testing.T) {
 	require.NoError(t, err)
 	expiredCert2, err := generateExpiredTestingCertificate(testPrivKey2, "notary-signer")
 	require.NoError(t, err)
-	allExpiredCertBundle, err := trustmanager.CertChainToPEM([]*x509.Certificate{expiredCert, expiredCert2})
+	allExpiredCertBundle, err := utils.CertChainToPEM([]*x509.Certificate{expiredCert, expiredCert2})
 	require.NoError(t, err)
 	allExpiredCertPath := filepath.Join(tempBaseDir, "all_expired_cert.pem")
 	require.NoError(t, ioutil.WriteFile(allExpiredCertPath, allExpiredCertBundle, 0644))
@@ -541,7 +542,7 @@ func TestValidateRootWithPinnedCA(t *testing.T) {
 	require.NoError(t, err)
 	validCert, err := cryptoservice.GenerateCertificate(testPrivKey3, "notary-signer", time.Now(), time.Now().AddDate(1, 0, 0))
 	require.NoError(t, err)
-	bundleWithWrongCert, err := trustmanager.CertChainToPEM([]*x509.Certificate{validCert})
+	bundleWithWrongCert, err := utils.CertChainToPEM([]*x509.Certificate{validCert})
 	require.NoError(t, err)
 	bundleWithWrongCertPath := filepath.Join(tempBaseDir, "bundle_with_expired_cert.pem")
 	require.NoError(t, ioutil.WriteFile(bundleWithWrongCertPath, bundleWithWrongCert, 0644))

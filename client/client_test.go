@@ -29,11 +29,11 @@ import (
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/server"
 	"github.com/docker/notary/server/storage"
+	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/store"
 	"github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/tuf/validation"
 )
@@ -102,7 +102,7 @@ func simpleTestServer(t *testing.T, roles ...string) (
 	mux := http.NewServeMux()
 
 	for _, role := range roles {
-		key, err := trustmanager.GenerateECDSAKey(rand.Reader)
+		key, err := utils.GenerateECDSAKey(rand.Reader)
 		require.NoError(t, err)
 
 		keys[role] = key
@@ -1539,7 +1539,7 @@ func testValidateRootKey(t *testing.T, rootType string) {
 	for _, keyid := range keyids {
 		key, ok := decodedRoot.Keys[keyid]
 		require.True(t, ok, "key id not found in keys")
-		_, err := trustmanager.LoadCertFromPEM(key.Public())
+		_, err := utils.LoadCertFromPEM(key.Public())
 		require.NoError(t, err, "key is not a valid cert")
 	}
 }
@@ -1957,7 +1957,7 @@ func testPublishBadMetadata(t *testing.T, roleName string, repo *NotaryRepositor
 	addTarget(t, repo, "v1", "../fixtures/intermediate-ca.crt")
 
 	// readable, but corrupt file
-	repo.fileStore.SetMeta(roleName, []byte("this isn't JSON"))
+	repo.fileStore.Set(roleName, []byte("this isn't JSON"))
 	err := repo.Publish()
 	if succeeds {
 		require.NoError(t, err)
@@ -2054,7 +2054,7 @@ func createKey(t *testing.T, repo *NotaryRepository, role string, x509 bool) dat
 			privKey, role, start, start.AddDate(1, 0, 0),
 		)
 		require.NoError(t, err)
-		return data.NewECDSAx509PublicKey(trustmanager.CertToPEM(cert))
+		return data.NewECDSAx509PublicKey(utils.CertToPEM(cert))
 	}
 	return key
 }
@@ -2170,7 +2170,7 @@ func testPublishTargetsDelegationScopeFailIfNoKeys(t *testing.T, clearCache bool
 
 	// generate a key that isn't in the cryptoservice, so we can't sign this
 	// one
-	aPrivKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	aPrivKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, "error generating key that is not in our cryptoservice")
 	aPubKey := data.PublicKeyFromPrivate(aPrivKey)
 

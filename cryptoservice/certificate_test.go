@@ -8,11 +8,12 @@ import (
 
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateCertificate(t *testing.T) {
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, "could not generate key")
 
 	keyStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)

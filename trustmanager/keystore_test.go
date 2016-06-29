@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,7 +46,7 @@ func testAddKeyWithRole(t *testing.T, role, expectedSubdir string) {
 	store, err := NewKeyFileStore(tempBaseDir, passphraseRetriever)
 	require.NoError(t, err, "failed to create new key filestore")
 
-	privKey, err := GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, "could not generate private key")
 
 	// Since we're generating this manually we need to add the extension '.'
@@ -85,11 +86,11 @@ func TestKeyStoreInternalState(t *testing.T) {
 	roleToID := make(map[string]string)
 	for _, role := range roles {
 		// generate a key for the role
-		privKey, err := GenerateECDSAKey(rand.Reader)
+		privKey, err := utils.GenerateECDSAKey(rand.Reader)
 		require.NoError(t, err, "could not generate private key")
 
 		// generate the correct PEM role header
-		privKeyPEM, err := KeyToPEM(privKey, role)
+		privKeyPEM, err := utils.KeyToPEM(privKey, role)
 		require.NoError(t, err, "could not generate PEM")
 
 		// write the key file to the correct location
@@ -149,7 +150,7 @@ func TestKeyStoreInternalState(t *testing.T) {
 	require.False(t, ok)
 
 	// Generate a new targets key and add it with its gun, check that the map gets updated back
-	privKey, err := GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, "could not generate private key")
 	require.NoError(t, store.AddKey(KeyInfo{Role: data.CanonicalTargetsRole, Gun: gun}, privKey))
 	require.Equal(t, gun, store.keyInfoMap[privKey.ID()].Gun)
@@ -245,7 +246,7 @@ EMl3eFOJXjIch/wIesRSN+2dGOsl7neercjMh1i9RvpCwHDx/E0=
 	if success {
 		require.NoError(t, err, "failed to get %s key from store (it's in %s)", role, expectedSubdir)
 
-		pemPrivKey, err := KeyToPEM(privKey, role)
+		pemPrivKey, err := utils.KeyToPEM(privKey, role)
 		require.NoError(t, err, "failed to convert key to PEM")
 		require.Equal(t, testData, pemPrivKey)
 
@@ -336,7 +337,7 @@ func TestListKeys(t *testing.T) {
 
 	for i, role := range roles {
 		// Make a new key for each role
-		privKey, err := GenerateECDSAKey(rand.Reader)
+		privKey, err := utils.GenerateECDSAKey(rand.Reader)
 		require.NoError(t, err, "could not generate private key")
 
 		// Call the AddKey function
@@ -379,7 +380,7 @@ func TestAddGetKeyMemStore(t *testing.T) {
 	// Create our store
 	store := NewKeyMemoryStore(passphraseRetriever)
 
-	privKey, err := GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, "could not generate private key")
 
 	// Call the AddKey function
@@ -401,7 +402,7 @@ func TestAddGetKeyInfoMemStore(t *testing.T) {
 	// Create our store
 	store := NewKeyMemoryStore(passphraseRetriever)
 
-	rootKey, err := GenerateECDSAKey(rand.Reader)
+	rootKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, "could not generate private key")
 
 	// Call the AddKey function
@@ -414,7 +415,7 @@ func TestAddGetKeyInfoMemStore(t *testing.T) {
 	require.Equal(t, data.CanonicalRootRole, rootInfo.Role)
 	require.Equal(t, "", rootInfo.Gun)
 
-	targetsKey, err := GenerateECDSAKey(rand.Reader)
+	targetsKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, "could not generate private key")
 
 	// Call the AddKey function
@@ -427,7 +428,7 @@ func TestAddGetKeyInfoMemStore(t *testing.T) {
 	require.Equal(t, data.CanonicalTargetsRole, targetsInfo.Role)
 	require.Equal(t, gun, targetsInfo.Gun)
 
-	delgKey, err := GenerateECDSAKey(rand.Reader)
+	delgKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, "could not generate private key")
 
 	// Call the AddKey function
@@ -455,7 +456,7 @@ func TestGetDecryptedWithTamperedCipherText(t *testing.T) {
 	require.NoError(t, err, "failed to create new key filestore")
 
 	// Generate a new Private Key
-	privKey, err := GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, "could not generate private key")
 
 	// Call the AddEncryptedKey function
@@ -546,7 +547,7 @@ func testGetDecryptedWithInvalidPassphrase(t *testing.T, store KeyStore, newStor
 	testAlias := data.CanonicalRootRole
 
 	// Generate a new random RSA Key
-	privKey, err := GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, "could not generate private key")
 
 	// Call the AddKey function
@@ -581,7 +582,7 @@ func testRemoveKeyWithRole(t *testing.T, role, expectedSubdir string) {
 	store, err := NewKeyFileStore(tempBaseDir, passphraseRetriever)
 	require.NoError(t, err, "failed to create new key filestore")
 
-	privKey, err := GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, "could not generate private key")
 
 	// Since we're generating this manually we need to add the extension '.'
@@ -624,7 +625,7 @@ func TestKeysAreCached(t *testing.T) {
 	store, err := NewKeyFileStore(tempBaseDir, countingPassphraseRetriever)
 	require.NoError(t, err, "failed to create new key filestore")
 
-	privKey, err := GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, "could not generate private key")
 
 	// Call the AddKey function
