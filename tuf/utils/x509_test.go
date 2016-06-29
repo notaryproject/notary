@@ -1,4 +1,4 @@
-package trustmanager
+package utils
 
 import (
 	"crypto/ecdsa"
@@ -16,15 +16,15 @@ import (
 
 func TestCertsToKeys(t *testing.T) {
 	// Get root certificate
-	rootCA, err := LoadCertFromFile("../fixtures/root-ca.crt")
+	rootCA, err := LoadCertFromFile("../../fixtures/root-ca.crt")
 	require.NoError(t, err)
 
 	// Get intermediate certificate
-	intermediateCA, err := LoadCertFromFile("../fixtures/intermediate-ca.crt")
+	intermediateCA, err := LoadCertFromFile("../../fixtures/intermediate-ca.crt")
 	require.NoError(t, err)
 
 	// Get leaf certificate
-	leafCert, err := LoadCertFromFile("../fixtures/secure.example.com.crt")
+	leafCert, err := LoadCertFromFile("../../fixtures/secure.example.com.crt")
 	require.NoError(t, err)
 
 	// Get our certList with Leaf Cert and Intermediate
@@ -170,14 +170,14 @@ func TestKeyOperations(t *testing.T) {
 // X509PublickeyID returns the public key ID of a RSA X509 key rather than the
 // cert ID
 func TestRSAX509PublickeyID(t *testing.T) {
-	fileBytes, err := ioutil.ReadFile("../fixtures/notary-server.key")
+	fileBytes, err := ioutil.ReadFile("../../fixtures/notary-server.key")
 	require.NoError(t, err)
 
 	privKey, err := ParsePEMPrivateKey(fileBytes, "")
 	require.NoError(t, err)
 	expectedTUFID := privKey.ID()
 
-	cert, err := LoadCertFromFile("../fixtures/notary-server.crt")
+	cert, err := LoadCertFromFile("../../fixtures/notary-server.crt")
 	require.NoError(t, err)
 
 	rsaKeyBytes, err := x509.MarshalPKIXPublicKey(cert.PublicKey)

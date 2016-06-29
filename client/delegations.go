@@ -8,8 +8,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
 	"github.com/docker/notary/client/changelist"
+	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/store"
 	"github.com/docker/notary/tuf/utils"
 )
 

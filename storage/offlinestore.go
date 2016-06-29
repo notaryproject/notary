@@ -1,8 +1,4 @@
-package store
-
-import (
-	"io"
-)
+package storage
 
 // ErrOffline is used to indicate we are operating offline
 type ErrOffline struct{}
@@ -17,23 +13,23 @@ var err = ErrOffline{}
 // returns ErrOffline for every operation
 type OfflineStore struct{}
 
-// GetMeta returns ErrOffline
-func (es OfflineStore) GetMeta(name string, size int64) ([]byte, error) {
+// GetSized returns ErrOffline
+func (es OfflineStore) GetSized(name string, size int64) ([]byte, error) {
 	return nil, err
 }
 
-// SetMeta returns ErrOffline
-func (es OfflineStore) SetMeta(name string, blob []byte) error {
+// Set returns ErrOffline
+func (es OfflineStore) Set(name string, blob []byte) error {
 	return err
 }
 
-// SetMultiMeta returns ErrOffline
-func (es OfflineStore) SetMultiMeta(map[string][]byte) error {
+// SetMulti returns ErrOffline
+func (es OfflineStore) SetMulti(map[string][]byte) error {
 	return err
 }
 
-// RemoveMeta returns ErrOffline
-func (es OfflineStore) RemoveMeta(name string) error {
+// Remove returns ErrOffline
+func (es OfflineStore) Remove(name string) error {
 	return err
 }
 
@@ -42,12 +38,12 @@ func (es OfflineStore) GetKey(role string) ([]byte, error) {
 	return nil, err
 }
 
-// GetTarget returns ErrOffline
-func (es OfflineStore) GetTarget(path string) (io.ReadCloser, error) {
-	return nil, err
-}
-
 // RemoveAll return ErrOffline
 func (es OfflineStore) RemoveAll() error {
 	return err
+}
+
+// Location returns a human readable name for the storage location
+func (es OfflineStore) Location() string {
+	return "offline"
 }

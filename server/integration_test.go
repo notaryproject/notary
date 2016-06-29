@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/docker/notary/server/storage"
+	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/store"
 	"github.com/docker/notary/tuf/testutils"
 	"github.com/docker/notary/tuf/validation"
 	"github.com/stretchr/testify/require"
@@ -45,7 +45,7 @@ func TestValidationErrorFormat(t *testing.T) {
 
 	// No snapshot is passed, and the server doesn't have the snapshot key,
 	// so ErrBadHierarchy
-	err = client.SetMultiMeta(map[string][]byte{
+	err = client.SetMulti(map[string][]byte{
 		data.CanonicalRootRole:    rs,
 		data.CanonicalTargetsRole: rt,
 	})
