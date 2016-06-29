@@ -56,7 +56,7 @@ func TestKeyInfoSorter(t *testing.T) {
 }
 
 type otherMemoryStore struct {
-	trustmanager.KeyMemoryStore
+	trustmanager.GenericKeyStore
 }
 
 func (l *otherMemoryStore) Name() string {
@@ -85,7 +85,7 @@ func TestPrettyPrintRootAndSigningKeys(t *testing.T) {
 	ret := passphrase.ConstantRetriever("pass")
 	keyStores := []trustmanager.KeyStore{
 		trustmanager.NewKeyMemoryStore(ret),
-		&otherMemoryStore{KeyMemoryStore: *trustmanager.NewKeyMemoryStore(ret)},
+		&otherMemoryStore{GenericKeyStore: *trustmanager.NewKeyMemoryStore(ret)},
 	}
 
 	longNameShortened := "..." + strings.Repeat("z", 37)

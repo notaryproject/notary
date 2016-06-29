@@ -139,6 +139,11 @@ func (f *SimpleFileStore) BaseDir() string {
 	return f.baseDir
 }
 
+// Location returns a human readable string indicating where the key is stored
+func (f *SimpleFileStore) Location() string {
+	return f.BaseDir()
+}
+
 // createDirectory receives a string of the path to a directory.
 // It does not support passing files, so the caller has to remove
 // the filename by doing filepath.Dir(full_path_to_file)

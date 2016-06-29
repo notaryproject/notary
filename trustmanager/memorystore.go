@@ -52,3 +52,8 @@ func (f *MemoryFileStore) ListFiles() []string {
 
 	return list
 }
+
+// Location returns a human readable indication of where the key is stored
+func (f *MemoryFileStore) Location() string {
+	return "memory"
+}

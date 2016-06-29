@@ -250,7 +250,7 @@ func TestYubiAddKeyCanAddToMiddleSlot(t *testing.T) {
 }
 
 type nonworkingBackup struct {
-	trustmanager.KeyMemoryStore
+	trustmanager.GenericKeyStore
 }
 
 // AddKey stores the contents of a PEM-encoded private key as a PEM block
@@ -273,7 +273,7 @@ func TestYubiAddKeyRollsBackIfCannotBackup(t *testing.T) {
 	}()
 
 	backup := &nonworkingBackup{
-		KeyMemoryStore: *trustmanager.NewKeyMemoryStore(ret),
+		GenericKeyStore: *trustmanager.NewKeyMemoryStore(ret),
 	}
 	store, err := NewYubiStore(backup, ret)
 	require.NoError(t, err)

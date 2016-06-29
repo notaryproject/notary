@@ -39,4 +39,8 @@ type Storage interface {
 	// filestore. Any of these paths must be retrievable via the
 	// Storage.Get method.
 	ListFiles() []string
+
+	// Location returns a human readable name indicating where the implementer
+	// is storing keys
+	Location() string
 }
