@@ -100,9 +100,9 @@ func TestInitWithRootKey(t *testing.T) {
 	// -- tests --
 
 	// create encrypted root key
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	encryptedPEMPrivKey, err := trustmanager.EncryptPrivateKey(privKey, data.CanonicalRootRole, testPassphrase)
+	encryptedPEMPrivKey, err := utils.EncryptPrivateKey(privKey, data.CanonicalRootRole, testPassphrase)
 	require.NoError(t, err)
 	encryptedPEMKeyFilename := filepath.Join(tempDir, "encrypted_key.key")
 	err = ioutil.WriteFile(encryptedPEMKeyFilename, encryptedPEMPrivKey, 0644)
@@ -135,9 +135,9 @@ func TestInitWithRootKey(t *testing.T) {
 	require.Error(t, err, "Init with non-PEM key should error")
 
 	// check error if unencrypted PEM used
-	unencryptedPrivKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	unencryptedPrivKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	unencryptedPEMPrivKey, err := trustmanager.KeyToPEM(unencryptedPrivKey, data.CanonicalRootRole)
+	unencryptedPEMPrivKey, err := utils.KeyToPEM(unencryptedPrivKey, data.CanonicalRootRole)
 	require.NoError(t, err)
 	unencryptedPEMKeyFilename := filepath.Join(tempDir, "unencrypted_key.key")
 	err = ioutil.WriteFile(unencryptedPEMKeyFilename, unencryptedPEMPrivKey, 0644)
@@ -148,9 +148,9 @@ func TestInitWithRootKey(t *testing.T) {
 
 	// check error if invalid password used
 	// instead of using a new retriever, we create a new key with a different pass
-	badPassPrivKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	badPassPrivKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	badPassPEMPrivKey, err := trustmanager.EncryptPrivateKey(badPassPrivKey, data.CanonicalRootRole, "bad_pass")
+	badPassPEMPrivKey, err := utils.EncryptPrivateKey(badPassPrivKey, data.CanonicalRootRole, "bad_pass")
 	require.NoError(t, err)
 	badPassPEMKeyFilename := filepath.Join(tempDir, "badpass_key.key")
 	err = ioutil.WriteFile(badPassPEMKeyFilename, badPassPEMPrivKey, 0644)
@@ -160,9 +160,9 @@ func TestInitWithRootKey(t *testing.T) {
 	require.Error(t, err, "Init with wrong password should error")
 
 	// check error if wrong role specified
-	snapshotPrivKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	snapshotPrivKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	snapshotPEMPrivKey, err := trustmanager.KeyToPEM(snapshotPrivKey, data.CanonicalSnapshotRole)
+	snapshotPEMPrivKey, err := utils.KeyToPEM(snapshotPrivKey, data.CanonicalSnapshotRole)
 	require.NoError(t, err)
 	snapshotPEMKeyFilename := filepath.Join(tempDir, "snapshot_key.key")
 	err = ioutil.WriteFile(snapshotPEMKeyFilename, snapshotPEMPrivKey, 0644)
@@ -406,19 +406,19 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
 
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	startTime := time.Now()
 	endTime := startTime.AddDate(10, 0, 0)
 	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
 	require.NoError(t, err)
 
-	_, err = tempFile.Write(trustmanager.CertToPEM(cert))
+	_, err = tempFile.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
 
 	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
-	parsedPubKey, _ := trustmanager.ParsePEMPublicKey(rawPubBytes)
+	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
 	keyID, err := utils.CanonicalKeyID(parsedPubKey)
 	require.NoError(t, err)
 
@@ -494,20 +494,20 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	tempFile2, err := ioutil.TempFile("", "pemfile2")
 	require.NoError(t, err)
 
-	privKey, err = trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err = utils.GenerateECDSAKey(rand.Reader)
 	startTime = time.Now()
 	endTime = startTime.AddDate(10, 0, 0)
 	cert, err = cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
 	require.NoError(t, err)
 
-	_, err = tempFile2.Write(trustmanager.CertToPEM(cert))
+	_, err = tempFile2.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	require.NoError(t, err)
 	tempFile2.Close()
 	defer os.Remove(tempFile2.Name())
 
 	rawPubBytes2, _ := ioutil.ReadFile(tempFile2.Name())
-	parsedPubKey2, _ := trustmanager.ParsePEMPublicKey(rawPubBytes2)
+	parsedPubKey2, _ := utils.ParsePEMPublicKey(rawPubBytes2)
 	keyID2, err := utils.CanonicalKeyID(parsedPubKey2)
 	require.NoError(t, err)
 
@@ -777,24 +777,24 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
 
-	privKey, err := trustmanager.GenerateRSAKey(rand.Reader, 2048)
+	privKey, err := utils.GenerateRSAKey(rand.Reader, 2048)
 	require.NoError(t, err)
-	privKeyBytesNoRole, err := trustmanager.KeyToPEM(privKey, "")
+	privKeyBytesNoRole, err := utils.KeyToPEM(privKey, "")
 	require.NoError(t, err)
-	privKeyBytesWithRole, err := trustmanager.KeyToPEM(privKey, "user")
+	privKeyBytesWithRole, err := utils.KeyToPEM(privKey, "user")
 	require.NoError(t, err)
 	startTime := time.Now()
 	endTime := startTime.AddDate(10, 0, 0)
 	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
 	require.NoError(t, err)
 
-	_, err = tempFile.Write(trustmanager.CertToPEM(cert))
+	_, err = tempFile.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
 
 	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
-	parsedPubKey, _ := trustmanager.ParsePEMPublicKey(rawPubBytes)
+	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
 	canonicalKeyID, err := utils.CanonicalKeyID(parsedPubKey)
 	require.NoError(t, err)
 

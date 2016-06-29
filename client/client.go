@@ -16,13 +16,13 @@ import (
 	"github.com/docker/notary"
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/cryptoservice"
+	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf"
 	tufclient "github.com/docker/notary/tuf/client"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/store"
 	"github.com/docker/notary/tuf/utils"
 )
 
@@ -159,7 +159,7 @@ func rootCertKey(gun string, privKey data.PrivateKey) (data.PublicKey, error) {
 		return nil, err
 	}
 
-	x509PublicKey := trustmanager.CertToKey(cert)
+	x509PublicKey := utils.CertToKey(cert)
 	if x509PublicKey == nil {
 		return nil, fmt.Errorf(
 			"cannot use regenerated certificate: format %s", cert.PublicKeyAlgorithm)
@@ -676,7 +676,7 @@ func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 		return err
 	}
 
-	return remote.SetMultiMeta(updatedFiles)
+	return remote.SetMulti(updatedFiles)
 }
 
 // bootstrapRepo loads the repository from the local file system (i.e.
@@ -690,7 +690,7 @@ func (r *NotaryRepository) bootstrapRepo() error {
 	logrus.Debugf("Loading trusted collection.")
 
 	for _, role := range data.BaseRoles {
-		jsonBytes, err := r.fileStore.GetMeta(role, store.NoSizeLimit)
+		jsonBytes, err := r.fileStore.GetSized(role, store.NoSizeLimit)
 		if err != nil {
 			if _, ok := err.(store.ErrMetaNotFound); ok &&
 				// server snapshots are supported, and server timestamp management
@@ -722,7 +722,7 @@ func (r *NotaryRepository) saveMetadata(ignoreSnapshot bool) error {
 	if err != nil {
 		return err
 	}
-	err = r.fileStore.SetMeta(data.CanonicalRootRole, rootJSON)
+	err = r.fileStore.Set(data.CanonicalRootRole, rootJSON)
 	if err != nil {
 		return err
 	}
@@ -743,7 +743,7 @@ func (r *NotaryRepository) saveMetadata(ignoreSnapshot bool) error {
 	for role, blob := range targetsToSave {
 		parentDir := filepath.Dir(role)
 		os.MkdirAll(parentDir, 0755)
-		r.fileStore.SetMeta(role, blob)
+		r.fileStore.Set(role, blob)
 	}
 
 	if ignoreSnapshot {
@@ -755,7 +755,7 @@ func (r *NotaryRepository) saveMetadata(ignoreSnapshot bool) error {
 		return err
 	}
 
-	return r.fileStore.SetMeta(data.CanonicalSnapshotRole, snapshotJSON)
+	return r.fileStore.Set(data.CanonicalSnapshotRole, snapshotJSON)
 }
 
 // returns a properly constructed ErrRepositoryNotExist error based on this
@@ -825,7 +825,7 @@ func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*tufclient.Cl
 	// during update which will cause us to download a new root and perform a rotation.
 	// If we have an old root, and it's valid, then we overwrite the newBuilder to be one
 	// preloaded with the old root or one which uses the old root for trust bootstrapping.
-	if rootJSON, err := r.fileStore.GetMeta(data.CanonicalRootRole, store.NoSizeLimit); err == nil {
+	if rootJSON, err := r.fileStore.GetSized(data.CanonicalRootRole, store.NoSizeLimit); err == nil {
 		// if we can't load the cached root, fail hard because that is how we pin trust
 		if err := oldBuilder.Load(data.CanonicalRootRole, rootJSON, minVersion, true); err != nil {
 			return nil, err
@@ -852,7 +852,7 @@ func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*tufclient.Cl
 
 		// if remote store successfully set up, try and get root from remote
 		// We don't have any local data to determine the size of root, so try the maximum (though it is restricted at 100MB)
-		tmpJSON, err := remote.GetMeta(data.CanonicalRootRole, store.NoSizeLimit)
+		tmpJSON, err := remote.GetSized(data.CanonicalRootRole, store.NoSizeLimit)
 		if err != nil {
 			// we didn't have a root in cache and were unable to load one from
 			// the server. Nothing we can do but error.
@@ -865,7 +865,7 @@ func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*tufclient.Cl
 				return nil, err
 			}
 
-			err = r.fileStore.SetMeta(data.CanonicalRootRole, tmpJSON)
+			err = r.fileStore.Set(data.CanonicalRootRole, tmpJSON)
 			if err != nil {
 				// if we can't write cache we should still continue, just log error
 				logrus.Errorf("could not save root to cache: %s", err.Error())

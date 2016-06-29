@@ -12,6 +12,7 @@ import (
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
 
 	tuf "github.com/docker/notary/tuf"
@@ -40,9 +41,9 @@ func CreateKey(cs signed.CryptoService, gun, role, keyAlgorithm string) (data.Pu
 		// Keep the x509 key type consistent with the key's algorithm
 		switch keyAlgorithm {
 		case data.RSAKey:
-			key = data.NewRSAx509PublicKey(trustmanager.CertToPEM(cert))
+			key = data.NewRSAx509PublicKey(utils.CertToPEM(cert))
 		case data.ECDSAKey:
-			key = data.NewECDSAx509PublicKey(trustmanager.CertToPEM(cert))
+			key = data.NewECDSAx509PublicKey(utils.CertToPEM(cert))
 		default:
 			// This should be impossible because of the Create() call above, but just in case
 			return nil, fmt.Errorf("invalid key algorithm type")

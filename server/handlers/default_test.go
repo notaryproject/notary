@@ -16,9 +16,9 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/notary/server/errors"
 	"github.com/docker/notary/server/storage"
+	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/store"
 	"github.com/docker/notary/tuf/validation"
 
 	"github.com/docker/notary/tuf/testutils"
