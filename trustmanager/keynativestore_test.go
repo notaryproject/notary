@@ -63,12 +63,18 @@ func TestRemoveWorksInNativeStore(t *testing.T) {
 }
 
 //Testing that remove behaves gracefully on a key that doesn't exist
+//The inconsistent behavior of RemoveKey across operating systems is accounted for here
 func TestRemoveFromNativeStoreNoPanic(t *testing.T) {
 	myKeyNativeStore, err := NewKeyNativeStore(passphrase.ConstantRetriever(testingPassphrase))
 	require.NoError(t, err)
 	genStore := []KeyStore{myKeyNativeStore}[0]
 	err = genStore.RemoveKey("randomkeythatshouldnotexistinnativestore(i hope)")
-	require.Error(t, err)
+	if defaultCredentialsStore == "secretservice" {
+		require.NoError(t, err)
+	}
+	if defaultCredentialsStore == "osxkeychain" {
+		require.Error(t, err)
+	}
 }
 
 //Testing that Get exports correctly encrypted information given a certain passphrase

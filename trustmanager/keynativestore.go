@@ -84,17 +84,26 @@ func (k *KeyNativeStore) GetKeyInfo(keyID string) (KeyInfo, error) {
 // ListKeys lists all the Keys inside of a native store
 // Just a placeholder for now- returns an empty slice
 func (k *KeyNativeStore) ListKeys() map[string]KeyInfo {
+	m := make(map[string]KeyInfo)
+	//working list functionality on osxkeychain. if uncommenting, also uncomment the imports at the file start
 	//if defaultCredentialsStore=="osxkeychain" {
 	//	out, _ := exec.Command("security","dump").Output()
 	//	output:=string(out)
-	//	re := regexp.MustCompile(".*<notary_key>.*")
+	//	re := regexp.MustCompile("path\"<blob>=\"(\\d|[a-z]){64}\"")
 	//	keys:=re.FindAllString(output,-1)
-	//	fmt.Println(keys)
+	//	for _,key := range keys {
+	//		keyId:=key[13:(len(key)-1)]
+	//		keyInfo, _:=k.GetKeyInfo(keyId)
+	//		m[keyId]=keyInfo
+	//	}
 	//}
-	return nil
+	return m
 }
 
 //RemoveKey removes a KeyChain (identified by server name- a string) from the keychain access store
+//Currently when we try to remove a key that doesn't exist: in osx, RemoveKey throws an error. in linux, RemoveKey doesn't throw an error
+//This is due to inconsistent behaviour from the credentials-helper which can be corrected if necessary
+//The inconsistency can be seen clearly if we read through TestRemoveFromNativeStoreNoPanic in keynativestore_test.go
 func (k *KeyNativeStore) RemoveKey(keyID string) error {
 	err := client.Erase(k.newProgFunc, keyID)
 	return err
