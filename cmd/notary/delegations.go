@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/docker/notary"
 	notaryclient "github.com/docker/notary/client"
@@ -198,7 +199,10 @@ func (d *delegationCommander) delegationRemove(cmd *cobra.Command, args []string
 			removingItems = removingItems + "with all paths, "
 		}
 		if d.paths != nil {
-			removingItems = removingItems + fmt.Sprintf("with paths [%s], ", prettyPrintPaths(d.paths))
+			removingItems = removingItems + fmt.Sprintf(
+				"with paths [%s], ",
+				strings.Join(prettyPaths(d.paths), "\n"),
+			)
 		}
 		cmd.Printf("Removal of delegation role %s %sto repository \"%s\" staged for next publish.\n", role, removingItems, gun)
 	}
@@ -289,7 +293,10 @@ func (d *delegationCommander) delegationAdd(cmd *cobra.Command, args []string) e
 		addingItems = addingItems + fmt.Sprintf("with keys %s, ", pubKeyIDs)
 	}
 	if d.paths != nil || d.allPaths {
-		addingItems = addingItems + fmt.Sprintf("with paths [%s], ", prettyPrintPaths(d.paths))
+		addingItems = addingItems + fmt.Sprintf(
+			"with paths [%s], ",
+			strings.Join(prettyPaths(d.paths), "\n"),
+		)
 	}
 	cmd.Printf(
 		"Addition of delegation role %s %sto repository \"%s\" staged for next publish.\n",
