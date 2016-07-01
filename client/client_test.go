@@ -2422,6 +2422,7 @@ func TestPublishRemoveDelegationKeyFromDelegationRole(t *testing.T) {
 	require.NoError(t, err)
 
 	cl, err := changelist.NewFileChangelist(filepath.Join(ownerRepo.tufRepoPath, "changelist"))
+	require.NoError(t, err)
 	require.NoError(t, cl.Add(changelist.NewTUFChange(
 		changelist.ActionUpdate,
 		"targets/a",
@@ -3055,6 +3056,7 @@ func TestFullAddDelegationChangefileApplicable(t *testing.T) {
 	})
 	change := newCreateDelegationChange(delegationName, tdJSON)
 	cl, err := changelist.NewFileChangelist(filepath.Join(repo.tufRepoPath, "changelist"))
+	require.NoError(t, err)
 	addChange(cl, change, delegationName)
 
 	changes := getChanges(t, repo)
@@ -3104,6 +3106,7 @@ func TestFullRemoveDelegationChangefileApplicable(t *testing.T) {
 	})
 	change := newUpdateDelegationChange(delegationName, tdJSON)
 	cl, err := changelist.NewFileChangelist(filepath.Join(repo.tufRepoPath, "changelist"))
+	require.NoError(t, err)
 	addChange(cl, change, delegationName)
 
 	changes = getChanges(t, repo)

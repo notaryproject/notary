@@ -226,7 +226,7 @@ func TestValidateGetCurrentTimestampBroken(t *testing.T) {
 	}
 
 	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
-	updates, err = validateUpdate(serverCrypto, gun, updates, store)
+	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, data.ErrNoSuchRole{}, err)
 }
@@ -624,7 +624,7 @@ func TestRootRotationNotSignedWithOldKeysForOldRole(t *testing.T) {
 
 	sn, err = repo.SignSnapshot(data.DefaultExpires(data.CanonicalSnapshotRole))
 	require.NoError(t, err)
-	root, targets, snapshot, timestamp, err = getUpdates(r, tg, sn, ts)
+	root, _, snapshot, _, err = getUpdates(r, tg, sn, ts)
 	require.NoError(t, err)
 
 	_, err = validateUpdate(serverCrypto, gun, []storage.MetaUpdate{root, snapshot}, store)
@@ -730,6 +730,7 @@ func TestValidateSnapshotGenerateWithPrev(t *testing.T) {
 		if u.Role == data.CanonicalSnapshotRole {
 			curr := &data.SignedSnapshot{}
 			err = json.Unmarshal(u.Data, curr)
+			require.NoError(t, err)
 			require.Equal(t, prev.Signed.Version+1, curr.Signed.Version)
 			require.Equal(t, u.Version, curr.Signed.Version)
 		}
@@ -763,7 +764,7 @@ func TestValidateSnapshotGeneratePrevCorrupt(t *testing.T) {
 	store.UpdateCurrent(gun, snapshot)
 
 	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
-	updates, err = validateUpdate(serverCrypto, gun, updates, store)
+	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, &json.SyntaxError{}, err)
 }
@@ -819,7 +820,7 @@ func TestValidateSnapshotGenerateNoTargets(t *testing.T) {
 	updates := []storage.MetaUpdate{root}
 
 	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
-	updates, err = validateUpdate(serverCrypto, gun, updates, store)
+	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 }
 
@@ -846,7 +847,7 @@ func TestValidateSnapshotGenerate(t *testing.T) {
 	store.UpdateCurrent(gun, root)
 
 	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
-	updates, err = validateUpdate(serverCrypto, gun, updates, store)
+	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.NoError(t, err)
 }
 

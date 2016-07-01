@@ -49,141 +49,157 @@ func PromptRetriever() notary.PassRetriever {
 	return PromptRetrieverWithInOut(os.Stdin, os.Stdout, nil)
 }
 
+type boundRetriever struct {
+	in                             io.Reader
+	out                            io.Writer
+	aliasMap                       map[string]string
+	userEnteredTargetsSnapshotPass bool
+	targetsSnapshotPass            string
+	userEnteredRootPass            bool
+	rootPass                       string
+}
+
+func (br *boundRetriever) getPassphrase(keyName, alias string, createNew bool, numAttempts int) (string, bool, error) {
+	if numAttempts == 0 {
+		if alias == tufRootAlias && createNew {
+			fmt.Fprintln(br.out, tufRootKeyGenerationWarning)
+		}
+
+		if br.userEnteredTargetsSnapshotPass && (alias == tufSnapshotAlias || alias == tufTargetsAlias) {
+			return br.targetsSnapshotPass, false, nil
+		}
+		if br.userEnteredRootPass && (alias == "root") {
+			return br.rootPass, false, nil
+		}
+	} else if !createNew { // per `if`, numAttempts > 0 if we're at this `else`
+		if numAttempts > 3 {
+			return "", true, ErrTooManyAttempts
+		}
+		fmt.Fprintln(br.out, "Passphrase incorrect. Please retry.")
+	}
+
+	// passphrase not cached and we're not aborting, get passphrase from user!
+	return br.requestPassphrase(keyName, alias, createNew, numAttempts)
+}
+
+func (br *boundRetriever) requestPassphrase(keyName, alias string, createNew bool, numAttempts int) (string, bool, error) {
+	// Figure out if we should display a different string for this alias
+	displayAlias := alias
+	if val, ok := br.aliasMap[alias]; ok {
+		displayAlias = val
+	}
+
+	// If typing on the terminal, we do not want the terminal to echo the
+	// password that is typed (so it doesn't display)
+	if term.IsTerminal(0) {
+		state, err := term.SaveState(0)
+		if err != nil {
+			return "", false, err
+		}
+		term.DisableEcho(0, state)
+		defer term.RestoreTerminal(0, state)
+	}
+
+	indexOfLastSeparator := strings.LastIndex(keyName, string(filepath.Separator))
+	if indexOfLastSeparator == -1 {
+		indexOfLastSeparator = 0
+	}
+
+	var shortName string
+	if len(keyName) > indexOfLastSeparator+idBytesToDisplay {
+		if indexOfLastSeparator > 0 {
+			keyNamePrefix := keyName[:indexOfLastSeparator]
+			keyNameID := keyName[indexOfLastSeparator+1 : indexOfLastSeparator+idBytesToDisplay+1]
+			shortName = keyNameID + " (" + keyNamePrefix + ")"
+		} else {
+			shortName = keyName[indexOfLastSeparator : indexOfLastSeparator+idBytesToDisplay]
+		}
+	}
+
+	withID := fmt.Sprintf(" with ID %s", shortName)
+	if shortName == "" {
+		withID = ""
+	}
+
+	switch {
+	case createNew:
+		fmt.Fprintf(br.out, "Enter passphrase for new %s key%s: ", displayAlias, withID)
+	case displayAlias == "yubikey":
+		fmt.Fprintf(br.out, "Enter the %s for the attached Yubikey: ", keyName)
+	default:
+		fmt.Fprintf(br.out, "Enter passphrase for %s key%s: ", displayAlias, withID)
+	}
+
+	stdin := bufio.NewReader(br.in)
+	passphrase, err := stdin.ReadBytes('\n')
+	fmt.Fprintln(br.out)
+	if err != nil {
+		return "", false, err
+	}
+
+	retPass := strings.TrimSpace(string(passphrase))
+
+	if createNew {
+		err = br.verifyAndConfirmPassword(stdin, retPass, displayAlias, withID)
+		if err != nil {
+			return "", false, err
+		}
+	}
+
+	br.cachePassword(alias, retPass)
+
+	return retPass, false, nil
+}
+
+func (br *boundRetriever) verifyAndConfirmPassword(stdin *bufio.Reader, retPass, displayAlias, withID string) error {
+	if len(retPass) < 8 {
+		fmt.Fprintln(br.out, "Passphrase is too short. Please use a password manager to generate and store a good random passphrase.")
+		return ErrTooShort
+	}
+
+	fmt.Fprintf(br.out, "Repeat passphrase for new %s key%s: ", displayAlias, withID)
+	confirmation, err := stdin.ReadBytes('\n')
+	fmt.Fprintln(br.out)
+	if err != nil {
+		return err
+	}
+	confirmationStr := strings.TrimSpace(string(confirmation))
+
+	if retPass != confirmationStr {
+		fmt.Fprintln(br.out, "Passphrases do not match. Please retry.")
+		return ErrDontMatch
+	}
+	return nil
+}
+
+func (br *boundRetriever) cachePassword(alias, retPass string) {
+	if alias == tufSnapshotAlias || alias == tufTargetsAlias {
+		br.userEnteredTargetsSnapshotPass = true
+		br.targetsSnapshotPass = retPass
+	}
+	if alias == tufRootAlias {
+		br.userEnteredRootPass = true
+		br.rootPass = retPass
+	}
+}
+
 // PromptRetrieverWithInOut returns a new Retriever which will provide a
 // prompt using the given in and out readers. The passphrase will be cached
 // such that subsequent prompts will produce the same passphrase.
 // aliasMap can be used to specify display names for TUF key aliases. If aliasMap
 // is nil, a sensible default will be used.
 func PromptRetrieverWithInOut(in io.Reader, out io.Writer, aliasMap map[string]string) notary.PassRetriever {
-	userEnteredTargetsSnapshotsPass := false
-	targetsSnapshotsPass := ""
-	userEnteredRootsPass := false
-	rootsPass := ""
-
-	return func(keyName string, alias string, createNew bool, numAttempts int) (string, bool, error) {
-		if alias == tufRootAlias && createNew && numAttempts == 0 {
-			fmt.Fprintln(out, tufRootKeyGenerationWarning)
-		}
-		if numAttempts > 0 {
-			if !createNew {
-				fmt.Fprintln(out, "Passphrase incorrect. Please retry.")
-			}
-		}
-
-		// Figure out if we should display a different string for this alias
-		displayAlias := alias
-		if aliasMap != nil {
-			if val, ok := aliasMap[alias]; ok {
-				displayAlias = val
-			}
-
-		}
-
-		// First, check if we have a password cached for this alias.
-		if numAttempts == 0 {
-			if userEnteredTargetsSnapshotsPass && (alias == tufSnapshotAlias || alias == tufTargetsAlias) {
-				return targetsSnapshotsPass, false, nil
-			}
-			if userEnteredRootsPass && (alias == "root") {
-				return rootsPass, false, nil
-			}
-		}
-
-		if numAttempts > 3 && !createNew {
-			return "", true, ErrTooManyAttempts
-		}
-
-		// If typing on the terminal, we do not want the terminal to echo the
-		// password that is typed (so it doesn't display)
-		if term.IsTerminal(0) {
-			state, err := term.SaveState(0)
-			if err != nil {
-				return "", false, err
-			}
-			term.DisableEcho(0, state)
-			defer term.RestoreTerminal(0, state)
-		}
-
-		stdin := bufio.NewReader(in)
-
-		indexOfLastSeparator := strings.LastIndex(keyName, string(filepath.Separator))
-		if indexOfLastSeparator == -1 {
-			indexOfLastSeparator = 0
-		}
-
-		var shortName string
-		if len(keyName) > indexOfLastSeparator+idBytesToDisplay {
-			if indexOfLastSeparator > 0 {
-				keyNamePrefix := keyName[:indexOfLastSeparator]
-				keyNameID := keyName[indexOfLastSeparator+1 : indexOfLastSeparator+idBytesToDisplay+1]
-				shortName = keyNameID + " (" + keyNamePrefix + ")"
-			} else {
-				shortName = keyName[indexOfLastSeparator : indexOfLastSeparator+idBytesToDisplay]
-			}
-		}
-
-		withID := fmt.Sprintf(" with ID %s", shortName)
-		if shortName == "" {
-			withID = ""
-		}
-
-		if createNew {
-			fmt.Fprintf(out, "Enter passphrase for new %s key%s: ", displayAlias, withID)
-		} else if displayAlias == "yubikey" {
-			fmt.Fprintf(out, "Enter the %s for the attached Yubikey: ", keyName)
-		} else {
-			fmt.Fprintf(out, "Enter passphrase for %s key%s: ", displayAlias, withID)
-		}
-
-		passphrase, err := stdin.ReadBytes('\n')
-		fmt.Fprintln(out)
-		if err != nil {
-			return "", false, err
-		}
-
-		retPass := strings.TrimSpace(string(passphrase))
-
-		if !createNew {
-			if alias == tufSnapshotAlias || alias == tufTargetsAlias {
-				userEnteredTargetsSnapshotsPass = true
-				targetsSnapshotsPass = retPass
-			}
-			if alias == tufRootAlias {
-				userEnteredRootsPass = true
-				rootsPass = retPass
-			}
-			return retPass, false, nil
-		}
-
-		if len(retPass) < 8 {
-			fmt.Fprintln(out, "Passphrase is too short. Please use a password manager to generate and store a good random passphrase.")
-			return "", false, ErrTooShort
-		}
-
-		fmt.Fprintf(out, "Repeat passphrase for new %s key%s: ", displayAlias, withID)
-		confirmation, err := stdin.ReadBytes('\n')
-		fmt.Fprintln(out)
-		if err != nil {
-			return "", false, err
-		}
-		confirmationStr := strings.TrimSpace(string(confirmation))
-
-		if retPass != confirmationStr {
-			fmt.Fprintln(out, "Passphrases do not match. Please retry.")
-			return "", false, ErrDontMatch
-		}
-
-		if alias == tufSnapshotAlias || alias == tufTargetsAlias {
-			userEnteredTargetsSnapshotsPass = true
-			targetsSnapshotsPass = retPass
-		}
-		if alias == tufRootAlias {
-			userEnteredRootsPass = true
-			rootsPass = retPass
-		}
-
-		return retPass, false, nil
+	bound := &boundRetriever{
+		in:                             in,
+		out:                            out,
+		aliasMap:                       aliasMap,
+		userEnteredTargetsSnapshotPass: false,
+		targetsSnapshotPass:            "",
+		userEnteredRootPass:            false,
+		rootPass:                       "",
 	}
+
+	return bound.getPassphrase
 }
 
 // ConstantRetriever returns a new Retriever which will return a constant string
