@@ -199,7 +199,7 @@ func TestSoftwareSignWithInvalidRequestHandler(t *testing.T) {
 
 	var sig *pb.Signature
 	err = json.Unmarshal(jsonBlob, &sig)
-
+	require.Error(t, err)
 	require.Equal(t, 400, res.StatusCode)
 }
 

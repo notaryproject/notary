@@ -298,6 +298,7 @@ func TestSQLGetKeyNoKey(t *testing.T) {
 		t, query.Error, "Inserting timestamp into empty DB should succeed")
 
 	cipher, public, err = dbStore.GetKey("testGUN", data.CanonicalTimestampRole)
+	require.NoError(t, err)
 	require.Equal(t, "testCipher", cipher,
 		"Returned cipher was incorrect")
 	require.Equal(t, []byte("1"), public, "Returned pubkey was incorrect")
