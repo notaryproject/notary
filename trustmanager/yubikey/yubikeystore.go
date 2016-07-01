@@ -902,13 +902,12 @@ func login(ctx IPKCS11Ctx, session pkcs11.SessionHandle, passRetriever notary.Pa
 			return trustmanager.ErrAttemptsExceeded{}
 		}
 
-		// Try to convert PEM encoded bytes back to a PrivateKey using the passphrase
+		// attempt to login. Loop if failed
 		err = ctx.Login(session, userFlag, passwd)
 		if err == nil {
 			return nil
 		}
 	}
-	return nil
 }
 
 func buildKeyMap(keys map[string]yubiSlot) map[string]trustmanager.KeyInfo {

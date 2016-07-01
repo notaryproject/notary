@@ -187,7 +187,7 @@ func TestRSAX509PublickeyID(t *testing.T) {
 
 	actualTUFKey := CertToKey(cert)
 	actualTUFID, err := X509PublicKeyID(actualTUFKey)
-
+	require.NoError(t, err)
 	require.Equal(t, sameWayTUFID, actualTUFID)
 	require.Equal(t, expectedTUFID, actualTUFID)
 }
