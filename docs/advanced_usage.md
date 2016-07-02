@@ -114,6 +114,62 @@ Yubikey support requires
 (which are bundled with the PIV tools)</a> to be available in standard
 library locations.
 
+### Use the native store
+
+We currently support native storage on OS X, Linux and Windows. The advantage of using the native store to manage keydata is 3-fold. It is more easily visible, it more secure and it is more convenient- since the native store is secured, there is no need for passphrases on keys. You can enable use of the native store by following the below instructions. The programs in this repository are written with the Go programming language. These instructions assume that you have set it up your machine. 
+
+##### Step 1: Set up Docker-Credential-Helpers
+1 - Download the source and put it in your $GOPATH with go get.
+
+```
+$ go get github.com/docker/docker-credential-helpers
+$ cd $GOPATH/docker/docker-credentials-helpers
+```
+2 - Use make to build the program you want. That will leave any executable in the bin directory inside the repository.
+
+There are 3 available programs: 
+
+1. osxkeychain: Provides a helper to use the OS X keychain as credentials store.
+2. secretservice: Provides a helper to use the D-Bus secret service as credentials store.
+Note: if using secretservice, you may need to ```$ sudo apt-get install libsecret-1-dev```
+3. wincred: Provides a helper to use Windows credentials manager as store.
+
+Use make to build the program you want. That will leave any executable in the bin directory inside the repository.
+For example: ```$ make osxkeychain```
+
+3 - Put that binary in your $PATH, so Docker can find it.
+
+Add the below line or equivalent to your ```~/.bash_profile```
+```export PATH=$GOPATH/src/github.com/docker/docker-credential-helpers/bin``` 
+
+After this is complete, if you should be able to use docker-credential-helpers directly through the program you made. You can try that you have completed the above steps correctly by doing the following or equivalvent.
+
+``` 
+$ docker-credential-osxkeychain
+Usage: docker-credential-osxkeychain <store|get|erase>
+``` 
+
+##### Step 2: Tell Notary that you want to use native key storage
+
+Set the useNative flag in your .notary/config.json file to true. For example, after doing this my config file looks like this
+``` 
+$ cat ~/.notary/config.json 
+
+{
+	"remote_server": {
+		"url": "https://notary-server:4443",
+		"root_ca": "root-ca.crt"
+	},
+	"useNative":"true"
+}
+``` 
+
+For Notary to detect this change you will have to re-make the notary client. You can do this easily by running ``` make client``` 
+
+Congratulations!  Notary will now use the Native Store for keydata management. You can open up keychain access or the equivalent to view keydata which working with Notary. **Please be careful not to accidentely delete Notary keys from keychain access. Especially the root key!**
+
+Keys are organized such that the name of the key is ```GUN<notary_key>Role```, the keyID is the server name and the keydata is stored as an encoded to string version of the keydata byte slice.
+
 ## Work with delegation roles
 
 Delegation roles simplify collaborator workflows in notary trusted collections, and

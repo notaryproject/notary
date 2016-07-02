@@ -144,8 +144,7 @@ func (k *KeyNativeStore) Get(keyID string) ([]byte, error) {
 		break
 	}
 	// encrypt the byte string
-	encSecret, err := utils.EncryptPrivateKey(gotKey, role, "", chosenPassphrase)
-	return encSecret, err
+	return utils.EncryptPrivateKey(gotKey, role, "", chosenPassphrase)
 }
 
 // Set accepts a key in PEM format at adds it to the native store

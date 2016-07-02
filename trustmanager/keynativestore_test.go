@@ -11,11 +11,28 @@ import (
 
 const testingPassphrase = "password"
 
+func nativeStoreNotDefined(store *KeyNativeStore) bool {
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
+	myKeyInfo := KeyInfo{
+		Gun:  "http://example.com/collections",
+		Role: "Snapshot",
+	}
+	err = store.AddKey(myKeyInfo, privKey)
+	defer store.RemoveKey(privKey.ID())
+	if err != nil {
+		return true
+	}
+	return false
+}
+
 //will only test for your OS- could need to be more generic
 //Testing that add is working while simultaneously testing that getkey and getkeyinfo are working for a keychain we know exists
 func TestAddGetKeyInNativeStore(t *testing.T) {
 	myKeyNativeStore, err := NewKeyNativeStore(passphrase.ConstantRetriever(testingPassphrase))
 	require.NoError(t, err)
+	if nativeStoreNotDefined(myKeyNativeStore) {
+		t.Skip("You need to make the native store in docker-credential-helpers and point your path to the binary")
+	}
 	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	genStore := []KeyStore{myKeyNativeStore}[0]
 	myKeyInfo := KeyInfo{
@@ -39,6 +56,9 @@ func TestAddGetKeyInNativeStore(t *testing.T) {
 func TestRemoveWorksInNativeStore(t *testing.T) {
 	myKeyNativeStore, err := NewKeyNativeStore(passphrase.ConstantRetriever(testingPassphrase))
 	require.NoError(t, err)
+	if nativeStoreNotDefined(myKeyNativeStore) {
+		t.Skip("You need to make the native store in docker-credential-helpers and point your path to the binary")
+	}
 	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	genStore := []KeyStore{myKeyNativeStore}[0]
 	myKeyInfo := KeyInfo{
@@ -67,6 +87,9 @@ func TestRemoveWorksInNativeStore(t *testing.T) {
 func TestRemoveFromNativeStoreNoPanic(t *testing.T) {
 	myKeyNativeStore, err := NewKeyNativeStore(passphrase.ConstantRetriever(testingPassphrase))
 	require.NoError(t, err)
+	if nativeStoreNotDefined(myKeyNativeStore) {
+		t.Skip("You need to make the native store in docker-credential-helpers and point your path to the binary")
+	}
 	genStore := []KeyStore{myKeyNativeStore}[0]
 	err = genStore.RemoveKey("randomkeythatshouldnotexistinnativestore(i hope)")
 	if defaultCredentialsStore == "secretservice" {
@@ -79,16 +102,19 @@ func TestRemoveFromNativeStoreNoPanic(t *testing.T) {
 
 //Testing that Get exports correctly encrypted information given a certain passphrase
 func TestGetFromNativeStore(t *testing.T) {
-	nks, err := NewKeyNativeStore(passphrase.ConstantRetriever(testingPassphrase))
+	myKeyNativeStore, err := NewKeyNativeStore(passphrase.ConstantRetriever(testingPassphrase))
 	require.NoError(t, err)
+	if nativeStoreNotDefined(myKeyNativeStore) {
+		t.Skip("You need to make the native store in docker-credential-helpers and point your path to the binary")
+	}
 	privKey, _ := utils.GenerateECDSAKey(rand.Reader)
 	myKeyInfo := KeyInfo{
 		Gun:  "http://example.com/collections",
 		Role: "Snapshot",
 	}
-	err = nks.AddKey(myKeyInfo, privKey)
-	defer nks.RemoveKey(privKey.ID())
-	encryptedSecret, err := nks.Get(privKey.ID())
+	err = myKeyNativeStore.AddKey(myKeyInfo, privKey)
+	defer myKeyNativeStore.RemoveKey(privKey.ID())
+	encryptedSecret, err := myKeyNativeStore.Get(privKey.ID())
 	require.NoError(t, err)
 	// decrypt to test the encryption
 	gotKey, err := utils.ParsePEMPrivateKey(encryptedSecret, testingPassphrase)
@@ -97,9 +123,12 @@ func TestGetFromNativeStore(t *testing.T) {
 
 //Testing that get behaves gracefully on a key that doesn't exist
 func TestGetFromNativeStoreNoPanic(t *testing.T) {
-	nks, err := NewKeyNativeStore(passphrase.ConstantRetriever(testingPassphrase))
+	myKeyNativeStore, err := NewKeyNativeStore(passphrase.ConstantRetriever(testingPassphrase))
 	require.NoError(t, err)
-	encryptedSecret, err := nks.Get("randomkeythatshouldnotexistinnativestore(i hope)")
+	if nativeStoreNotDefined(myKeyNativeStore) {
+		t.Skip("You need to make the native store in docker-credential-helpers and point your path to the binary")
+	}
+	encryptedSecret, err := myKeyNativeStore.Get("randomkeythatshouldnotexistinnativestore(i hope)")
 	require.Error(t, err)
 	var expected []byte
 	expected = nil

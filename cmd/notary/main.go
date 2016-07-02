@@ -20,7 +20,7 @@ import (
 const (
 	configDir        = ".notary/"
 	defaultServerURL = "https://notary-server:4443"
-	dontusenative	 = "false"
+	dontusenative    = "false"
 )
 
 type usageTemplate struct {

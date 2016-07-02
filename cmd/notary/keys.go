@@ -11,12 +11,12 @@ import (
 	"github.com/docker/notary"
 	notaryclient "github.com/docker/notary/client"
 	"github.com/docker/notary/cryptoservice"
+	"github.com/docker/notary/passphrase"
 	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/utils"
 
-	"github.com/docker/notary/passphrase"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -257,7 +257,7 @@ func removeKeyInteractively(keyStores []trustmanager.KeyStore, keyID string,
 	for _, store := range keyStores {
 		if strings.Contains(store.Name(), "Native keychain store") {
 			gotKeyInfo, err := store.GetKeyInfo(keyID)
-			if err==nil {
+			if err == nil {
 				foundKeys = append(foundKeys,
 					[]string{keyID, gotKeyInfo.Role, store.Name()})
 				storesByIndex = append(storesByIndex, store)
@@ -516,7 +516,7 @@ func (k *keyCommander) getKeyStores(
 		}
 		if err == nil && yubiStore != nil {
 			// Note that the order is important, since we want to prioritize
-			// the yubi key store
+			// the yubikey store
 			ks = append([]trustmanager.KeyStore{yubiStore}, ks...)
 		}
 	}
