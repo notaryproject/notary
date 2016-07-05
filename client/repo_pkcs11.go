@@ -19,7 +19,7 @@ func getKeyStores(baseDir string, retriever notary.PassRetriever, useNative bool
 
 	keyStores := []trustmanager.KeyStore{fileKeyStore}
 	if useNative {
-		nativeKeyStore, err := trustmanager.NewKeyNativeStore(passphrase.ConstantRetriever("password"))
+		nativeKeyStore, err := trustmanager.NewKeyNativeStore(passphrase.PromptRetriever())
 		if err == nil {
 			// Note that the order is important, since we want to prioritize
 			// the native key store

@@ -114,9 +114,9 @@ Yubikey support requires
 (which are bundled with the PIV tools)</a> to be available in standard
 library locations.
 
-### Use the native store
+### Use the native key store
 
-We currently support native storage on OS X, Linux and Windows. The advantage of using the native store to manage keydata is 3-fold. It is more easily visible, it more secure and it is more convenient- since the native store is secured, there is no need for passphrases on keys. You can enable use of the native store by following the below instructions. The programs in this repository are written with the Go programming language. These instructions assume that you have set it up your machine. 
+We currently support native storage on OS X, Linux and Windows. The advantage of using the native store to manage keydata is 3-fold. It is more easily visible, it is more secure (it is encrypted with a key derived from your passphrase and has OS level access control) and it is more convenient (since the native store is secured, there is no need for passphrases on keys). You can enable use of the native store by following the below instructions. The programs in this repository are written with the Go programming language. These instructions assume that you have set it up your machine. 
 
 ##### Step 1: Set up Docker-Credential-Helpers
 1 - Download the source and put it in your $GOPATH with go get.
@@ -166,7 +166,7 @@ $ cat ~/.notary/config.json
 
 For Notary to detect this change you will have to re-make the notary client. You can do this easily by running ``` make client``` 
 
-Congratulations!  Notary will now use the Native Store for keydata management. You can open up keychain access or the equivalent to view keydata which working with Notary. **Please be careful not to accidentely delete Notary keys from keychain access. Especially the root key!**
+Congratulations!  Notary will now use the Native Store for keydata management. You can open up keychain access or the equivalent to view keydata which working with Notary. **Please be careful not to accidentally delete Notary keys from keychain access. Especially the root key!**
 
 Keys are organized such that the name of the key is ```GUN<notary_key>Role```, the keyID is the server name and the keydata is stored as an encoded to string version of the keydata byte slice.
 

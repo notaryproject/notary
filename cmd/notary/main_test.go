@@ -75,7 +75,7 @@ func TestNativeStoreDefault(t *testing.T) {
 
 	config, err := commander.parseConfig()
 	require.NoError(t, err)
-	require.Equal(t, "false", config.Get("useNative"))
+	require.Equal(t, false, config.GetBool("useNative"))
 }
 
 // providing a config file uses the config file's server url instead
