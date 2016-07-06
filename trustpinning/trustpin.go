@@ -36,6 +36,8 @@ func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string) (CertChecker,
 	}
 
 	if caFilepath, err := getPinnedCAFilepathByPrefix(gun, trustPinConfig); err == nil {
+		logrus.Debugf("Trust-pinning using root CA bundle at: %s", caFilepath)
+
 		// Try to add the CA certs from its bundle file to our certificate store,
 		// and use it to validate certs in the root.json later
 		caCerts, err := utils.LoadCertBundleFromFile(caFilepath)
@@ -46,6 +48,7 @@ func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string) (CertChecker,
 		caRootPool := x509.NewCertPool()
 		for _, caCert := range caCerts {
 			if err = utils.ValidateCertificate(caCert); err != nil {
+				logrus.Debugf("Trust-pinning validation for child cert failed: %s", err)
 				continue
 			}
 			caRootPool.AddCert(caCert)
@@ -59,6 +62,7 @@ func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string) (CertChecker,
 	}
 
 	if !trustPinConfig.DisableTOFU {
+		logrus.Debugf("Trust-pinning: allowing TOFU")
 		return t.tofusCheck, nil
 	}
 	return nil, fmt.Errorf("invalid trust pinning specified")
@@ -83,9 +87,11 @@ func (t trustPinChecker) caCheck(leafCert *x509.Certificate, intCerts []*x509.Ce
 	}
 	// Attempt to find a valid certificate chain from the leaf cert to CA root
 	// Use this certificate if such a valid chain exists (possibly using intermediates)
-	if _, err := leafCert.Verify(x509.VerifyOptions{Roots: t.pinnedCAPool, Intermediates: caIntPool}); err == nil {
+	var err error
+	if _, err = leafCert.Verify(x509.VerifyOptions{Roots: t.pinnedCAPool, Intermediates: caIntPool}); err == nil {
 		return true
 	}
+	logrus.Debugf("Unable to find a valid certificate chain from leaf cert to CA root: %s", err)
 	return false
 }
 
