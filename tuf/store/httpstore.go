@@ -193,9 +193,9 @@ func (s HTTPStore) SetMeta(name string, blob []byte) error {
 }
 
 // RemoveMeta always fails, because we should never be able to delete metadata
-// remotely
+// for individual TUF metadata remotely
 func (s HTTPStore) RemoveMeta(name string) error {
-	return ErrInvalidOperation{msg: "cannot delete metadata"}
+	return ErrInvalidOperation{msg: "cannot delete individual metadata files"}
 }
 
 // NewMultiPartMetaRequest builds a request with the provided metadata updates
@@ -243,9 +243,22 @@ func (s HTTPStore) SetMultiMeta(metas map[string][]byte) error {
 	return translateStatusToError(resp, "POST metadata endpoint")
 }
 
-// RemoveAll in the interface is not supported, admins should use the DeleteHandler endpoint directly to delete remote data for a GUN
+// RemoveAll will attempt to delete all TUF metadata for a GUN
 func (s HTTPStore) RemoveAll() error {
-	return errors.New("remove all functionality not supported for HTTPStore")
+	url, err := s.buildMetaURL("")
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("DELETE", url.String(), nil)
+	if err != nil {
+		return err
+	}
+	resp, err := s.roundTrip.RoundTrip(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return translateStatusToError(resp, "DELETE metadata for GUN endpoint")
 }
 
 func (s HTTPStore) buildMetaURL(name string) (*url.URL, error) {
