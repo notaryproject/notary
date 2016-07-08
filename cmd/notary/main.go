@@ -10,6 +10,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
 	"github.com/docker/notary/passphrase"
+	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/version"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
@@ -234,7 +235,7 @@ func getPassphraseRetriever() notary.PassRetriever {
 		// For delegation roles, we can also try the "delegation" alias if it is specified
 		// Note that we don't check if the role name is for a delegation to allow for names like "user"
 		// since delegation keys can be shared across repositories
-		if v := env["delegation"]; v != "" {
+		if v := env["delegation"]; !data.IsBaseRole(alias) && v != "" {
 			return v, numAttempts > 1, nil
 		}
 		return baseRetriever(keyName, alias, createNew, numAttempts)

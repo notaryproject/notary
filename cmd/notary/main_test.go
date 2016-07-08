@@ -523,16 +523,34 @@ func TestConfigFileTrustPinning(t *testing.T) {
 }
 
 func TestPassphraseRetrieverCaching(t *testing.T) {
-	// Set up passphrase environment vars
+	// Only set up one passphrase environment var first for root
 	require.NoError(t, os.Setenv("NOTARY_ROOT_PASSPHRASE", "root_passphrase"))
+	defer os.Clearenv()
+
+	// Check that root is cached
+	retriever := getPassphraseRetriever()
+	passphrase, giveup, err := retriever("key", data.CanonicalRootRole, false, 0)
+	require.NoError(t, err)
+	require.False(t, giveup)
+	require.Equal(t, passphrase, "root_passphrase")
+
+	passphrase, giveup, err = retriever("key", "user", false, 0)
+	require.Error(t, err)
+	passphrase, giveup, err = retriever("key", data.CanonicalTargetsRole, false, 0)
+	require.Error(t, err)
+	passphrase, giveup, err = retriever("key", data.CanonicalSnapshotRole, false, 0)
+	require.Error(t, err)
+	passphrase, giveup, err = retriever("key", "targets/delegation", false, 0)
+	require.Error(t, err)
+
+	// Set up the rest of them
 	require.NoError(t, os.Setenv("NOTARY_TARGETS_PASSPHRASE", "targets_passphrase"))
 	require.NoError(t, os.Setenv("NOTARY_SNAPSHOT_PASSPHRASE", "snapshot_passphrase"))
 	require.NoError(t, os.Setenv("NOTARY_DELEGATION_PASSPHRASE", "delegation_passphrase"))
 
-	defer os.Clearenv()
-	// Check the caching
-	retriever := getPassphraseRetriever()
-	passphrase, giveup, err := retriever("key", data.CanonicalRootRole, false, 0)
+	// Get a new retriever and check the caching
+	retriever = getPassphraseRetriever()
+	passphrase, giveup, err = retriever("key", data.CanonicalRootRole, false, 0)
 	require.NoError(t, err)
 	require.False(t, giveup)
 	require.Equal(t, passphrase, "root_passphrase")
