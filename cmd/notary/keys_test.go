@@ -14,6 +14,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
+	dNotifications "github.com/docker/distribution/notifications"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
@@ -331,7 +332,7 @@ func setUpRepo(t *testing.T, tempBaseDir, gun string, ret notary.PassRetriever) 
 	ctx = ctxu.WithLogger(ctx, logrus.NewEntry(l))
 
 	cryptoService := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(ret))
-	ts := httptest.NewServer(server.RootHandler(nil, ctx, cryptoService, nil, nil, nil))
+	ts := httptest.NewServer(server.RootHandler(nil, ctx, cryptoService, nil, nil, nil, dNotifications.NewBroadcaster(), dNotifications.SourceRecord{}))
 
 	repo, err := client.NewNotaryRepository(
 		tempBaseDir, gun, ts.URL, http.DefaultTransport, ret, trustpinning.TrustPinConfig{})

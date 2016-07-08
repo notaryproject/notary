@@ -8,9 +8,12 @@ import (
 	"strings"
 
 	ctxu "github.com/docker/distribution/context"
+	dNotifications "github.com/docker/distribution/notifications"
+	"github.com/docker/distribution/registry/auth"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 
+	"github.com/docker/notary/notifications"
 	"github.com/docker/notary/server/errors"
 	"github.com/docker/notary/server/snapshot"
 	"github.com/docker/notary/server/storage"
@@ -113,6 +116,26 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 		logger.Errorf("500 POST error applying update request: %v", err)
 		return errors.ErrUpdating.WithDetail(nil)
 	}
+
+	broadcasterKey := ctx.Value("broadcaster")
+	broadcaster, ok := broadcasterKey.(*dNotifications.Broadcaster)
+	if !ok {
+		return errors.ErrUnknown.WithDetail("could not get notification broadcaster")
+	}
+	sourceRecordKey := ctx.Value("sourceRecord")
+	sourceRecord, ok := sourceRecordKey.(dNotifications.SourceRecord)
+	if !ok {
+		return errors.ErrUnknown.WithDetail("could not get notification sourceRecord")
+	}
+
+	// try to get a username, which may be blank if the req is not authd
+	username, _ := ctx.Value(auth.UserNameKey).(string)
+	// dont fail because we can't notify
+	err = notifications.Notify(notifications.TrustDataUpdate, gun, sourceRecord, username, r, broadcaster)
+	if err != nil {
+		logger.Errorf("Could not notify for atomic update, continuing anyway: %s", err.Error())
+	}
+
 	return nil
 }
 

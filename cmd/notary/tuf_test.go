@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -117,4 +118,14 @@ func TestAdminTokenAuthNon200Non401Status(t *testing.T) {
 	auth, err := tokenAuth(s.URL, baseTransport, gun, admin)
 	require.NoError(t, err)
 	require.Nil(t, auth)
+}
+
+func TestPasswordStoreRefreshToken(t *testing.T) {
+	ps := passwordStore{}
+	require.Equal(t, "", ps.RefreshToken(&url.URL{}, ""))
+}
+
+func TestSetRefreshToken(t *testing.T) {
+	ps := passwordStore{}
+	ps.SetRefreshToken(&url.URL{}, "", "")
 }

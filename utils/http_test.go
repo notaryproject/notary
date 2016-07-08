@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	dNotifications "github.com/docker/distribution/notifications"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/stretchr/testify/require"
@@ -25,7 +26,7 @@ func MockBetterErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.
 }
 
 func TestRootHandlerFactory(t *testing.T) {
-	hand := RootHandlerFactory(nil, context.Background(), &signed.Ed25519{})
+	hand := RootHandlerFactory(nil, context.Background(), &signed.Ed25519{}, dNotifications.NewBroadcaster(), dNotifications.SourceRecord{})
 	handler := hand(MockContextHandler)
 	if _, ok := interface{}(handler).(http.Handler); !ok {
 		t.Fatalf("A rootHandler must implement the http.Handler interface")
@@ -44,7 +45,7 @@ func TestRootHandlerFactory(t *testing.T) {
 }
 
 func TestRootHandlerError(t *testing.T) {
-	hand := RootHandlerFactory(nil, context.Background(), &signed.Ed25519{})
+	hand := RootHandlerFactory(nil, context.Background(), &signed.Ed25519{}, dNotifications.NewBroadcaster(), dNotifications.SourceRecord{})
 	handler := hand(MockBetterErrorHandler)
 
 	ts := httptest.NewServer(handler)

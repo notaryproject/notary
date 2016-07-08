@@ -2,16 +2,21 @@ package server
 
 import (
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/health"
+	dNotifications "github.com/docker/distribution/notifications"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/auth"
 	"github.com/docker/notary"
+	"github.com/docker/notary/notifications"
 	"github.com/docker/notary/server/errors"
 	"github.com/docker/notary/server/handlers"
 	"github.com/docker/notary/tuf/data"
@@ -44,6 +49,7 @@ type Config struct {
 	RepoPrefixes                 []string
 	ConsistentCacheControlConfig utils.CacheControlConfig
 	CurrentCacheControlConfig    utils.CacheControlConfig
+	NotificationEndpoints        []notifications.Endpoint
 }
 
 // Run sets up and starts a TLS server that can be cancelled using the
@@ -77,12 +83,17 @@ func Run(ctx context.Context, conf Config) error {
 		}
 	}
 
+	broadcaster, sourceRecord, err := configureEvents(conf)
+	if err != nil {
+		return err
+	}
+
 	svr := http.Server{
 		Addr: conf.Addr,
 		Handler: RootHandler(
 			ac, ctx, conf.Trust,
 			conf.ConsistentCacheControlConfig, conf.CurrentCacheControlConfig,
-			conf.RepoPrefixes),
+			conf.RepoPrefixes, broadcaster, sourceRecord),
 	}
 
 	logrus.Info("Starting on ", conf.Addr)
@@ -90,6 +101,66 @@ func Run(ctx context.Context, conf Config) error {
 	err = svr.Serve(lsnr)
 
 	return err
+}
+
+func configureEvents(conf Config) (*dNotifications.Broadcaster, dNotifications.SourceRecord, error) {
+	// Configure all of the endpoint sinks.
+	var sinks []dNotifications.Sink
+	for _, endpoint := range conf.NotificationEndpoints {
+		if endpoint.Disabled {
+			logrus.Infof("endpoint %s disabled, skipping", endpoint.Name)
+			continue
+		}
+
+		logrus.Infof("configuring endpoint %v (%v), timeout=%s, headers=%v", endpoint.Name, endpoint.URL, endpoint.Timeout, endpoint.Headers)
+		var transport *http.Transport
+		if endpoint.CA != "" {
+			pool := x509.NewCertPool()
+			pemCert, _ := pem.Decode([]byte(endpoint.CA))
+			if pemCert == nil {
+				return nil, dNotifications.SourceRecord{}, fmt.Errorf("Unable to parse cert")
+			}
+			ca, err := x509.ParseCertificate(pemCert.Bytes)
+			if err != nil {
+				return nil, dNotifications.SourceRecord{}, err
+			}
+			pool.AddCert(ca)
+			transport = &http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs: pool,
+				},
+			}
+		}
+		endpoint := dNotifications.NewEndpoint(endpoint.Name, endpoint.URL, dNotifications.EndpointConfig{
+			Timeout:   endpoint.Timeout,
+			Threshold: endpoint.Threshold,
+			Backoff:   endpoint.Backoff,
+			Headers:   endpoint.Headers,
+			Transport: transport,
+		})
+
+		sinks = append(sinks, endpoint)
+	}
+
+	sink := dNotifications.NewBroadcaster(sinks...)
+
+	// Populate event source
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = conf.Addr
+	} else {
+		// try to pick the port off the config
+		_, port, err := net.SplitHostPort(conf.Addr)
+		if err == nil {
+			hostname = net.JoinHostPort(hostname, port)
+		}
+	}
+
+	source := dNotifications.SourceRecord{
+		Addr: hostname,
+	}
+
+	return sink, source, nil
 }
 
 // assumes that required prefixes is not empty
@@ -124,9 +195,10 @@ type _serverEndpoint struct {
 // RootHandler returns the handler that routes all the paths from / for the
 // server.
 func RootHandler(ac auth.AccessController, ctx context.Context, trust signed.CryptoService,
-	consistent, current utils.CacheControlConfig, repoPrefixes []string) http.Handler {
+	consistent, current utils.CacheControlConfig, repoPrefixes []string,
+	broadcaster *dNotifications.Broadcaster, sourceRecord dNotifications.SourceRecord) http.Handler {
 
-	authWrapper := utils.RootHandlerFactory(ac, ctx, trust)
+	authWrapper := utils.RootHandlerFactory(ac, ctx, trust, broadcaster, sourceRecord)
 
 	createHandler := func(opts _serverEndpoint) http.Handler {
 		var wrapped http.Handler

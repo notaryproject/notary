@@ -23,6 +23,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
+	dNotifications "github.com/docker/distribution/notifications"
 	"github.com/docker/notary"
 	"github.com/docker/notary/cryptoservice"
 	"github.com/docker/notary/passphrase"
@@ -73,7 +74,7 @@ func setupServerHandler(metaStore storage.MetaStore) http.Handler {
 	ctx = ctxu.WithLogger(ctx, logrus.NewEntry(l))
 
 	cryptoService := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(passphrase.ConstantRetriever("pass")))
-	return server.RootHandler(nil, ctx, cryptoService, nil, nil, nil)
+	return server.RootHandler(nil, ctx, cryptoService, nil, nil, nil, dNotifications.NewBroadcaster(), dNotifications.SourceRecord{})
 }
 
 // makes a testing notary-server
