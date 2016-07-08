@@ -576,3 +576,43 @@ func TestPassphraseRetrieverCaching(t *testing.T) {
 	require.False(t, giveup)
 	require.Equal(t, passphrase, "delegation_passphrase")
 }
+
+func TestPassphraseRetrieverDelegationRoleCaching(t *testing.T) {
+	// Only set up one passphrase environment var first for delegations
+	require.NoError(t, os.Setenv("NOTARY_DELEGATION_PASSPHRASE", "delegation_passphrase"))
+	defer os.Clearenv()
+
+	// Check that any delegation role is cached
+	retriever := getPassphraseRetriever()
+
+	passphrase, giveup, err := retriever("key", "targets/releases", false, 0)
+	require.NoError(t, err)
+	require.False(t, giveup)
+	require.Equal(t, passphrase, "delegation_passphrase")
+	passphrase, giveup, err = retriever("key", "targets/delegation", false, 0)
+	require.NoError(t, err)
+	require.False(t, giveup)
+	require.Equal(t, passphrase, "delegation_passphrase")
+	passphrase, giveup, err = retriever("key", "targets/a/b/c/d", false, 0)
+	require.NoError(t, err)
+	require.False(t, giveup)
+	require.Equal(t, passphrase, "delegation_passphrase")
+
+	// Also check arbitrary usernames that are non-BaseRoles or imported so that this can be shared across keys
+	passphrase, giveup, err = retriever("key", "user", false, 0)
+	require.NoError(t, err)
+	require.False(t, giveup)
+	require.Equal(t, passphrase, "delegation_passphrase")
+
+	// Make sure base roles fail
+	passphrase, giveup, err = retriever("key", data.CanonicalRootRole, false, 0)
+	require.Error(t, err)
+	passphrase, giveup, err = retriever("key", data.CanonicalTargetsRole, false, 0)
+	require.Error(t, err)
+	passphrase, giveup, err = retriever("key", data.CanonicalSnapshotRole, false, 0)
+	require.Error(t, err)
+
+	// make sure "imported" role fails
+	passphrase, giveup, err = retriever("key", "imported "+data.CanonicalRootRole, false, 0)
+	require.Error(t, err)
+}
