@@ -817,7 +817,7 @@ func TestCheckingCertExpiry(t *testing.T) {
 
 	almostExpiredCert, err := generateTestingCertificate(testPrivKey, gun, notary.Day*30)
 	require.NoError(t, err)
-	almostExpiredPubKey, err := trustmanager.ParsePEMPublicKey(trustmanager.CertToPEM(almostExpiredCert))
+	almostExpiredPubKey, err := utils.ParsePEMPublicKey(utils.CertToPEM(almostExpiredCert))
 	require.NoError(t, err)
 
 	// set up a logrus logger to capture warning output
@@ -854,7 +854,7 @@ func TestCheckingCertExpiry(t *testing.T) {
 
 	expiredCert, err := generateExpiredTestingCertificate(testPrivKey, gun)
 	require.NoError(t, err)
-	expiredPubKey := trustmanager.CertToKey(expiredCert)
+	expiredPubKey := utils.CertToKey(expiredCert)
 
 	rootRole, err = data.NewRole(data.CanonicalRootRole, 1, []string{expiredPubKey.ID()}, nil)
 	require.NoError(t, err)
