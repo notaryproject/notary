@@ -247,7 +247,7 @@ func ParsePEMPublicKey(pubKeyBytes []byte) (data.PublicKey, error) {
 		if err != nil {
 			return nil, fmt.Errorf("could not parse provided certificate: %v", err)
 		}
-		err = ValidateCertificate(cert)
+		err = ValidateCertificate(cert, true)
 		if err != nil {
 			return nil, fmt.Errorf("invalid certificate: %v", err)
 		}
@@ -258,20 +258,27 @@ func ParsePEMPublicKey(pubKeyBytes []byte) (data.PublicKey, error) {
 }
 
 // ValidateCertificate returns an error if the certificate is not valid for notary
-// Currently this is only a time expiry check, and ensuring the public key has a large enough modulus if RSA
-func ValidateCertificate(c *x509.Certificate) error {
+// Currently this is only ensuring the public key has a large enough modulus if RSA,
+// using a non SHA1 signature algorithm, and an optional time expiry check
+func ValidateCertificate(c *x509.Certificate, checkExpiry bool) error {
 	if (c.NotBefore).After(c.NotAfter) {
 		return fmt.Errorf("certificate validity window is invalid")
 	}
-	now := time.Now()
-	tomorrow := now.AddDate(0, 0, 1)
-	// Give one day leeway on creation "before" time, check "after" against today
-	if (tomorrow).Before(c.NotBefore) || now.After(c.NotAfter) {
-		return fmt.Errorf("certificate with CN %s is expired", c.Subject.CommonName)
+	if checkExpiry {
+		now := time.Now()
+		tomorrow := now.AddDate(0, 0, 1)
+		// Give one day leeway on creation "before" time, check "after" against today
+		if (tomorrow).Before(c.NotBefore) || now.After(c.NotAfter) {
+			return fmt.Errorf("certificate with CN %s is expired", c.Subject.CommonName)
+		}
+		// If this certificate is expiring within 6 months, put out a warning
+		if (c.NotAfter).Before(time.Now().AddDate(0, 6, 0)) {
+			logrus.Warnf("certificate with CN %s is near expiry", c.Subject.CommonName)
+		}
 	}
-	// If this certificate is expiring within 6 months, put out a warning
-	if (c.NotAfter).Before(time.Now().AddDate(0, 6, 0)) {
-		logrus.Warn("certificate with CN %s is near expiry", c.Subject.CommonName)
+	// Can't have SHA1 sig algorithm
+	if c.SignatureAlgorithm == x509.SHA1WithRSA || c.SignatureAlgorithm == x509.DSAWithSHA1 || c.SignatureAlgorithm == x509.ECDSAWithSHA1 {
+		return fmt.Errorf("certificate with CN %s uses invalid SHA1 signature algorithm", c.Subject.CommonName)
 	}
 	// If we have an RSA key, make sure it's long enough
 	if c.PublicKeyAlgorithm == x509.RSA {

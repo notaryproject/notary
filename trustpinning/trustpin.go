@@ -48,7 +48,7 @@ func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string) (CertChecker,
 		// Now only consider certificates that are direct children from this CA cert chain
 		caRootPool := x509.NewCertPool()
 		for _, caCert := range caCerts {
-			if err = utils.ValidateCertificate(caCert); err != nil {
+			if err = utils.ValidateCertificate(caCert, true); err != nil {
 				logrus.Debugf("ignoring root CA certificate with CN %s in bundle: %s", caCert.Subject.CommonName, err)
 				continue
 			}
