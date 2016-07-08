@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -19,6 +20,8 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/notary"
 	notaryclient "github.com/docker/notary/client"
+	"github.com/docker/notary/cryptoservice"
+	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/utils"
@@ -90,13 +93,20 @@ type tufCommander struct {
 	sha256 string
 	sha512 string
 
+	rootCert string
+	rootKey  string
+
 	input  string
 	output string
 	quiet  bool
 }
 
 func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
-	cmd.AddCommand(cmdTUFInitTemplate.ToCommand(t.tufInit))
+	cmdTUFInit := cmdTUFInitTemplate.ToCommand(t.tufInit)
+	cmdTUFInit.Flags().StringVar(&t.rootCert, "rootcert", "", "Root cert to initialize the repository with.  Must correspond to the private key specified in --rootkey")
+	cmdTUFInit.Flags().StringVar(&t.rootKey, "rootkey", "", "Root key to initialize the repository with.")
+	cmd.AddCommand(cmdTUFInit)
+
 	cmd.AddCommand(cmdTUFStatusTemplate.ToCommand(t.tufStatus))
 	cmd.AddCommand(cmdTUFPublishTemplate.ToCommand(t.tufPublish))
 	cmd.AddCommand(cmdTUFLookupTemplate.ToCommand(t.tufLookup))
@@ -246,6 +256,10 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Must specify a GUN")
 	}
 
+	if t.rootCert != "" && t.rootKey == "" {
+		return fmt.Errorf("--rootCert specified without --rootKey being specified")
+	}
+
 	config, err := t.configGetter()
 	if err != nil {
 		return err
@@ -266,6 +280,60 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
 	if err != nil {
 		return err
+	}
+
+	if t.rootKey != "" {
+		keyFile, err := os.Open(t.rootKey)
+		if err != nil {
+			return fmt.Errorf("Opening file for import: %v", err)
+		}
+		defer keyFile.Close()
+
+		pemBytes, err := ioutil.ReadAll(keyFile)
+		if err != nil {
+			return fmt.Errorf("Error reading input file: %v", err)
+		}
+		if err = cryptoservice.CheckRootKeyIsEncrypted(pemBytes); err != nil {
+			return err
+		}
+
+		privKey, err := trustmanager.ParsePEMPrivateKey(pemBytes, "")
+		if err != nil {
+			privKey, _, err = trustmanager.GetPasswdDecryptBytes(t.retriever, pemBytes, "", "imported root")
+			if err != nil {
+				return err
+			}
+		}
+		err = nRepo.CryptoService.AddKey(data.CanonicalRootRole, "", privKey)
+		if err != nil {
+			return fmt.Errorf("Error importing key: %v", err)
+		}
+
+		// if a key was explicitly passed in, we assume it should be added
+		// to the root role
+		if t.rootCert == "" {
+			if err = nRepo.Initialize(privKey.ID()); err != nil {
+				return err
+			}
+		} else {
+			// Load the user-specified root cert and initialize the repo with the cert and private key
+			// Read public key bytes from PEM file
+			pubKeyBytes, err := ioutil.ReadFile(t.rootCert)
+			if err != nil {
+				return fmt.Errorf("unable to read public key from file: %s", t.rootCert)
+			}
+
+			// Parse PEM bytes into type PublicKey
+			pubKey, err := trustmanager.ParsePEMPublicKey(pubKeyBytes)
+			if err != nil {
+				return fmt.Errorf("unable to parse valid public key certificate from PEM file %s: %v", t.rootCert, err)
+			}
+
+			if err = nRepo.InitializeWithCert(privKey.ID(), pubKey); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 
 	rootKeyList := nRepo.CryptoService.ListKeys(data.CanonicalRootRole)
