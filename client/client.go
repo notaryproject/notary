@@ -168,13 +168,38 @@ func rootCertKey(gun string, privKey data.PrivateKey) (data.PublicKey, error) {
 	return x509PublicKey, nil
 }
 
-// Initialize creates a new repository by using rootKey as the root Key for the
+// Initialize creates a new repository by using rootKeyID to identify the root Key for the
 // TUF repository. The server must be reachable (and is asked to generate a
 // timestamp key and possibly other serverManagedRoles), but the created repository
 // result is only stored on local disk, not published to the server. To do that,
 // use r.Publish() eventually.
 func (r *NotaryRepository) Initialize(rootKeyID string, serverManagedRoles ...string) error {
-	privKey, _, err := r.CryptoService.GetPrivateKey(rootKeyID)
+	return r.InitializeWithPubKey(rootKeyID, (data.PublicKey)(nil), serverManagedRoles...)
+}
+
+// KeyPairVerifier is used to verify that a private key and public key form a matching keypair
+type KeyPairVerifier func(privKey data.PrivateKey, pubKey data.PublicKey) error
+
+func defaultKeyPairVerifier() KeyPairVerifier {
+	return signed.VerifyPublicKeyMatchesPrivateKey
+}
+
+// InitializeWithPubKey creates a new repository by using rootPrivKeyID to identify the root private key for the
+// TUF repository.
+// If rootPubKey is non-nil, it must form a valid keypair together with the private key identified by rootPrivKeyID,
+// otherwise an error is thrown.  The repository is then initialized with the given root keypair.
+// If rootPubKey is nil, then the root public key is generated automatically.
+// The server must be reachable (and is asked to generate a
+// timestamp key and possibly other serverManagedRoles), but the created repository
+// result is only stored on local disk, not published to the server. To do that,
+// use r.Publish() eventually.
+func (r *NotaryRepository) InitializeWithPubKey(rootPrivKeyID string, rootPubKey data.PublicKey, serverManagedRoles ...string) error {
+	return r.InitializeWithPubKeyAndVerifier(rootPrivKeyID, rootPubKey, defaultKeyPairVerifier(), serverManagedRoles...)
+}
+
+// InitializeWithPubKeyAndVerifier allows the keyPairVerifier to be overridden for testing
+func (r *NotaryRepository) InitializeWithPubKeyAndVerifier(rootPrivKeyID string, rootPubKey data.PublicKey, keyPairVerifier KeyPairVerifier, serverManagedRoles ...string) error {
+	rootPrivKey, _, err := r.CryptoService.GetPrivateKey(rootPrivKeyID)
 	if err != nil {
 		return err
 	}
@@ -206,16 +231,24 @@ func (r *NotaryRepository) Initialize(rootKeyID string, serverManagedRoles ...st
 		}
 	}
 
-	rootKey, err := rootCertKey(r.gun, privKey)
-	if err != nil {
-		return err
+	if rootPubKey == nil {
+		logrus.Debug("No root public key specified; generating a new one.")
+		rootPubKey, err = rootCertKey(r.gun, rootPrivKey)
+		if err != nil {
+			return err
+		}
+	} else {
+		logrus.Debugf("Verifying user-specified root public key: %s", rootPubKey.ID())
+		if err := keyPairVerifier(rootPrivKey, rootPubKey); err != nil {
+			return err
+		}
 	}
 
 	var (
 		rootRole = data.NewBaseRole(
 			data.CanonicalRootRole,
 			notary.MinThreshold,
-			rootKey,
+			rootPubKey,
 		)
 		timestampRole data.BaseRole
 		snapshotRole  data.BaseRole

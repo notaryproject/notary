@@ -1,6 +1,7 @@
 package signed
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"strings"
@@ -103,5 +104,33 @@ func VerifySignature(msg []byte, sig data.Signature, pk data.PublicKey) error {
 	if err := verifier.Verify(pk, sig.Signature, msg); err != nil {
 		return fmt.Errorf("signature was invalid\n")
 	}
+	return nil
+}
+
+// VerifyPublicKeyMatchesPrivateKey checks that the specified private key and public key together form a valid keypair.
+func VerifyPublicKeyMatchesPrivateKey(privKey data.PrivateKey, pubKey data.PublicKey) error {
+	// generate a random message
+	msgLength := 64
+	msg := make([]byte, msgLength)
+	_, err := rand.Read(msg)
+	if err != nil {
+		return fmt.Errorf("failed to generate random test message: %s", err)
+	}
+
+	// sign the message with the private key
+	signatureBytes, err := privKey.Sign(rand.Reader, msg, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to sign test message:", err)
+	}
+
+	verifier, ok := Verifiers[privKey.SignatureAlgorithm()]
+	if !ok {
+		return fmt.Errorf("signing method is not supported: %s\n", privKey.SignatureAlgorithm())
+	}
+
+	if err := verifier.Verify(pubKey, signatureBytes, msg); err != nil {
+		return fmt.Errorf("Private Key did not match Public Key: %s", err)
+	}
+
 	return nil
 }
