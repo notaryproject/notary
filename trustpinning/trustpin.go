@@ -62,16 +62,10 @@ func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string, firstBootstra
 		return t.caCheck, nil
 	}
 
-	if !trustPinConfig.DisableTOFU {
-		logrus.Debugf("trust-pinning: using TOFU")
-		return t.tofusCheck, nil
-	}
-
-	// If we already have previous trusted root data for this GUN, disabling TOFUs should not change trust
-	// At this point, we assume that we have already trusted previous root data and so will not perform any
-	// additional trust pinning checks on this new certificate
-	if !firstBootstrap {
-		logrus.Debug("TOFU is disabled but previous root data exists, skipping disable TOFU restriction")
+	// If TOFUs is not disabled or we already have previous trusted root data for this GUN (even with TOFUs disabled),
+	// use TOFUs.  It's ok if we have previous root data with TOFUs disabled because we've already
+	// bootstrapped the first use of trust
+	if !trustPinConfig.DisableTOFU || !firstBootstrap {
 		return t.tofusCheck, nil
 	}
 	return nil, fmt.Errorf("invalid trust pinning specified")
