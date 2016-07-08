@@ -2017,6 +2017,47 @@ func TestPublishSnapshotLocalKeysCreatedFirst(t *testing.T) {
 	require.False(t, requestMade)
 }
 
+func TestInitializeWithPublicKeyVerifiesKeypairAndFailsIfKeysDontMatch(t *testing.T) {
+	// Temporary directory where test files will be created
+	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	require.NoError(t, err, "failed to create a temporary directory")
+	defer os.RemoveAll(tempBaseDir)
+
+	repo, rec, privKeyID := createRepoAndKey(
+		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", "http://localhost")
+	require.NotNil(t, rec, "")
+	rootPubKey := repo.CryptoService.GetKey(privKeyID)
+	require.NotNil(t, rootPubKey, "Couldn't get the root public key")
+
+	keyPairVerifierFail := func(privKey data.PrivateKey, pubKey data.PublicKey) error {
+		return fmt.Errorf("Private key %s does not match public key %s", privKey.ID(), pubKey.ID())
+	}
+	err = repo.InitializeWithPubKeyAndVerifier(privKeyID, rootPubKey, keyPairVerifierFail, data.CanonicalSnapshotRole)
+	require.Error(t, err)
+	require.Equal(t, err.Error(), fmt.Sprintf("Private key %s does not match public key %s", privKeyID, rootPubKey.ID()))
+}
+
+func TestInitializeWithPublicKeyVerifiesKeypairAndSucceedsIfKeysMatch(t *testing.T) {
+	// Temporary directory where test files will be created
+	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	require.NoError(t, err, "failed to create a temporary directory")
+	defer os.RemoveAll(tempBaseDir)
+
+	ts, _, _ := simpleTestServer(t)
+	defer ts.Close()
+
+	repo, rec, privKeyID := createRepoAndKey(
+		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
+	require.NotNil(t, rec, "")
+	rootPubKey := repo.CryptoService.GetKey(privKeyID)
+	require.NotNil(t, rootPubKey, "Couldn't get the root public key")
+
+	keyPairVerifierSucceed := func(privKey data.PrivateKey, pubKey data.PublicKey) error { return nil }
+	err = repo.InitializeWithPubKeyAndVerifier(privKeyID, rootPubKey, keyPairVerifierSucceed, data.CanonicalSnapshotRole)
+	require.NoError(t, err)
+	require.Equal(t, rootPubKey.Public(), repo.tufRepo.Root.Signed.Keys[rootPubKey.ID()].Public())
+}
+
 func createKey(t *testing.T, repo *NotaryRepository, role string, x509 bool) data.PublicKey {
 	key, err := repo.CryptoService.Create(role, repo.gun, data.ECDSAKey)
 	require.NoError(t, err, "error creating key")
