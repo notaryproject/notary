@@ -902,7 +902,7 @@ func TestValidateRootRotationTrustPinning(t *testing.T) {
 }
 
 // TestValidateRootRotationTrustPinningInvalidCA runs a full root certificate rotation but ensures that
-// the specified trust pinning rejectas the new root for not being signed by the specified CA
+// the specified trust pinning rejects the new root for not being signed by the specified CA
 func TestValidateRootRotationTrustPinningInvalidCA(t *testing.T) {
 	gun := "notary-signer"
 	keyAlg := data.RSAKey
@@ -911,13 +911,13 @@ func TestValidateRootRotationTrustPinningInvalidCA(t *testing.T) {
 	defer os.RemoveAll(tempBaseDir)
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
 
-	leafCert, err := trustmanager.LoadCertFromFile("../fixtures/notary-signer.crt")
+	leafCert, err := utils.LoadCertFromFile("../fixtures/notary-signer.crt")
 	require.NoError(t, err)
 
-	intermediateCert, err := trustmanager.LoadCertFromFile("../fixtures/intermediate-ca.crt")
+	intermediateCert, err := utils.LoadCertFromFile("../fixtures/intermediate-ca.crt")
 	require.NoError(t, err)
 
-	pemChainBytes, err := trustmanager.CertChainToPEM([]*x509.Certificate{leafCert, intermediateCert})
+	pemChainBytes, err := utils.CertChainToPEM([]*x509.Certificate{leafCert, intermediateCert})
 	require.NoError(t, err)
 
 	origRootKey := data.NewPublicKey(data.RSAx509Key, pemChainBytes)
@@ -937,11 +937,9 @@ func TestValidateRootRotationTrustPinningInvalidCA(t *testing.T) {
 	testRoot.Signed.Version = 1
 	require.NoError(t, err, "Failed to create new root")
 
-	keyReader, err := os.Open("../fixtures/notary-signer.key")
-	require.NoError(t, err, "could not open key file")
-	pemBytes, err := ioutil.ReadAll(keyReader)
+	pemBytes, err := ioutil.ReadFile("../fixtures/notary-signer.key")
 	require.NoError(t, err, "could not read key file")
-	privKey, err := trustmanager.ParsePEMPrivateKey(pemBytes, "")
+	privKey, err := utils.ParsePEMPrivateKey(pemBytes, "")
 	require.NoError(t, err)
 
 	store, err := trustmanager.NewKeyFileStore(tempBaseDir, passphraseRetriever)
