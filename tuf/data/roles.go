@@ -86,6 +86,16 @@ func IsDelegation(role string) bool {
 		isClean
 }
 
+// IsBaseRole checks if the role is a base role
+func IsBaseRole(role string) bool {
+	for _, baseRole := range BaseRoles {
+		if role == baseRole {
+			return true
+		}
+	}
+	return false
+}
+
 // BaseRole is an internal representation of a root/targets/snapshot/timestamp role, with its public keys included
 type BaseRole struct {
 	Keys      map[string]PublicKey
