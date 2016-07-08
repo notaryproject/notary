@@ -5,16 +5,38 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/docker/notary/tuf/data"
 	"github.com/jinzhu/gorm"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 )
+
+func SetupSQLDB(t *testing.T, dbtype, dburl string) (*gorm.DB, *SQLStorage) {
+	dbStore, err := NewSQLStorage(dbtype, dburl)
+	require.NoError(t, err)
+
+	// Create the DB tables
+	err = CreateTUFTable(dbStore.DB)
+	require.NoError(t, err)
+
+	err = CreateKeyTable(dbStore.DB)
+	require.NoError(t, err)
+
+	// verify that the tables are empty
+	var count int
+	for _, model := range [2]interface{}{&TUFFile{}, &Key{}} {
+		query := dbStore.DB.Model(model).Count(&count)
+		require.NoError(t, query.Error)
+		require.Equal(t, 0, count)
+	}
+	return &dbStore.DB, dbStore
+}
+
+type sqldbSetupFunc func(*testing.T) (*gorm.DB, *SQLStorage, func())
+
+var sqldbSetup sqldbSetupFunc
 
 // SampleTUF returns a sample TUFFile with the given Version (ID will have
 // to be set independently)
@@ -42,37 +64,14 @@ func SampleUpdate(version int) MetaUpdate {
 	}
 }
 
-// SetUpSQLite creates a sqlite database for testing
-func SetUpSQLite(t *testing.T, dbDir string) (*gorm.DB, *SQLStorage) {
-	dbStore, err := NewSQLStorage("sqlite3", dbDir+"test_db")
-	require.NoError(t, err)
-
-	// Create the DB tables
-	err = CreateTUFTable(dbStore.DB)
-	require.NoError(t, err)
-
-	err = CreateKeyTable(dbStore.DB)
-	require.NoError(t, err)
-
-	// verify that the tables are empty
-	var count int
-	for _, model := range [2]interface{}{&TUFFile{}, &Key{}} {
-		query := dbStore.DB.Model(model).Count(&count)
-		require.NoError(t, query.Error)
-		require.Equal(t, 0, count)
-	}
-	return &dbStore.DB, dbStore
-}
-
 // TestSQLUpdateCurrent asserts that UpdateCurrent will add a new TUF file
 // if no previous version existed.
 func TestSQLUpdateCurrentNew(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	gormDB, dbStore := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	gormDB, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
 	// Adding a new TUF file should succeed
-	err = dbStore.UpdateCurrent("testGUN", SampleUpdate(0))
+	err := dbStore.UpdateCurrent("testGUN", SampleUpdate(0))
 	require.NoError(t, err, "Creating a row in an empty DB failed.")
 
 	// There should just be one row
@@ -88,9 +87,8 @@ func TestSQLUpdateCurrentNew(t *testing.T) {
 // TestSQLUpdateCurrentNewVersion asserts that UpdateCurrent will add a
 // new (higher) version of an existing TUF file
 func TestSQLUpdateCurrentNewVersion(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	gormDB, dbStore := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	gormDB, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
 	// insert row
 	oldVersion := SampleTUF(0)
@@ -99,7 +97,7 @@ func TestSQLUpdateCurrentNewVersion(t *testing.T) {
 
 	// UpdateCurrent with a newer version should succeed
 	update := SampleUpdate(2)
-	err = dbStore.UpdateCurrent("testGUN", update)
+	err := dbStore.UpdateCurrent("testGUN", update)
 	require.NoError(t, err, "Creating a row in an empty DB failed.")
 
 	// There should just be one row
@@ -116,9 +114,8 @@ func TestSQLUpdateCurrentNewVersion(t *testing.T) {
 // TestSQLUpdateCurrentOldVersionError asserts that an error is raised if
 // trying to update to an older version of a TUF file.
 func TestSQLUpdateCurrentOldVersionError(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	gormDB, dbStore := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	gormDB, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
 	// insert row
 	newVersion := SampleTUF(3)
@@ -127,7 +124,7 @@ func TestSQLUpdateCurrentOldVersionError(t *testing.T) {
 
 	// UpdateCurrent should fail due to the version being lower than the
 	// previous row
-	err = dbStore.UpdateCurrent("testGUN", SampleUpdate(0))
+	err := dbStore.UpdateCurrent("testGUN", SampleUpdate(0))
 	require.Error(t, err, "Error should not be nil")
 	require.IsType(t, &ErrOldVersion{}, err,
 		"Expected ErrOldVersion error type, got: %v", err)
@@ -146,11 +143,10 @@ func TestSQLUpdateCurrentOldVersionError(t *testing.T) {
 // TestSQLUpdateMany asserts that inserting multiple updates succeeds if the
 // updates do not conflict with each.
 func TestSQLUpdateMany(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	gormDB, dbStore := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	gormDB, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
-	err = dbStore.UpdateMany("testGUN", []MetaUpdate{
+	err := dbStore.UpdateMany("testGUN", []MetaUpdate{
 		SampleUpdate(0),
 		{
 			Role:    "targets",
@@ -184,11 +180,10 @@ func TestSQLUpdateMany(t *testing.T) {
 // TestSQLUpdateManyVersionOrder asserts that inserting updates with
 // non-monotonic versions still succeeds.
 func TestSQLUpdateManyVersionOrder(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	gormDB, dbStore := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	gormDB, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
-	err = dbStore.UpdateMany(
+	err := dbStore.UpdateMany(
 		"testGUN", []MetaUpdate{SampleUpdate(2), SampleUpdate(0)})
 	require.NoError(t, err)
 
@@ -210,12 +205,11 @@ func TestSQLUpdateManyVersionOrder(t *testing.T) {
 // TestSQLUpdateManyDuplicateRollback asserts that inserting duplicate
 // updates fails.
 func TestSQLUpdateManyDuplicateRollback(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	gormDB, dbStore := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	gormDB, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
 	update := SampleUpdate(0)
-	err = dbStore.UpdateMany("testGUN", []MetaUpdate{update, update})
+	err := dbStore.UpdateMany("testGUN", []MetaUpdate{update, update})
 	require.Error(
 		t, err, "There should be an error updating the same data twice.")
 	require.IsType(t, &ErrOldVersion{}, err,
@@ -232,9 +226,8 @@ func TestSQLUpdateManyDuplicateRollback(t *testing.T) {
 }
 
 func TestSQLGetCurrent(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	gormDB, dbStore := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	gormDB, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
 	_, byt, err := dbStore.GetCurrent("testGUN", "root")
 	require.Nil(t, byt)
@@ -257,15 +250,14 @@ func TestSQLGetCurrent(t *testing.T) {
 }
 
 func TestSQLDelete(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	gormDB, dbStore := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	gormDB, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
 	tuf := SampleTUF(0)
 	query := gormDB.Create(&tuf)
 	require.NoError(t, query.Error, "Creating a row in an empty DB failed.")
 
-	err = dbStore.Delete("testGUN")
+	err := dbStore.Delete("testGUN")
 	require.NoError(t, err, "There should not be any errors deleting.")
 
 	// verify deletion
@@ -278,9 +270,8 @@ func TestSQLDelete(t *testing.T) {
 }
 
 func TestSQLGetKeyNoKey(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	gormDB, dbStore := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	gormDB, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
 	cipher, public, err := dbStore.GetKey("testGUN", data.CanonicalTimestampRole)
 	require.Equal(t, "", cipher)
@@ -305,11 +296,10 @@ func TestSQLGetKeyNoKey(t *testing.T) {
 }
 
 func TestSQLSetKeyExists(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	gormDB, dbStore := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	gormDB, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
-	err = dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
+	err := dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
 	require.NoError(t, err, "Inserting timestamp into empty DB should succeed")
 
 	err = dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
@@ -331,11 +321,10 @@ func TestSQLSetKeyExists(t *testing.T) {
 }
 
 func TestSQLSetKeyMultipleRoles(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	gormDB, dbStore := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	gormDB, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
-	err = dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
+	err := dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
 	require.NoError(t, err, "Inserting timestamp into empty DB should succeed")
 
 	err = dbStore.SetKey("testGUN", data.CanonicalSnapshotRole, "testCipher", []byte("1"))
@@ -359,11 +348,10 @@ func TestSQLSetKeyMultipleRoles(t *testing.T) {
 }
 
 func TestSQLSetKeyMultipleGuns(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	gormDB, dbStore := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	gormDB, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
-	err = dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
+	err := dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
 	require.NoError(t, err, "Inserting timestamp into empty DB should succeed")
 
 	err = dbStore.SetKey("testAnotherGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
@@ -387,11 +375,10 @@ func TestSQLSetKeyMultipleGuns(t *testing.T) {
 }
 
 func TestSQLSetKeySameRoleGun(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	_, dbStore := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	_, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
-	err = dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
+	err := dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
 	require.NoError(t, err, "Inserting timestamp into empty DB should succeed")
 
 	err = dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("2"))
@@ -405,15 +392,14 @@ func TestSQLSetKeySameRoleGun(t *testing.T) {
 // TestDBCheckHealthTableMissing asserts that the health check fails if one or
 // both the tables are missing.
 func TestDBCheckHealthTableMissing(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	_, dbStore := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	_, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
 	dbStore.DropTable(&TUFFile{})
 	dbStore.DropTable(&Key{})
 
 	// No tables, health check fails
-	err = dbStore.CheckHealth()
+	err := dbStore.CheckHealth()
 	require.Error(t, err, "Cannot access table:")
 
 	// only one table existing causes health check to fail
@@ -430,11 +416,10 @@ func TestDBCheckHealthTableMissing(t *testing.T) {
 // TestDBCheckHealthDBCOnnection asserts that if the DB is not connectable, the
 // health check fails.
 func TestDBCheckHealthDBConnectionFail(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	_, dbStore := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	_, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
-	err = dbStore.Close()
+	err := dbStore.Close()
 	require.NoError(t, err)
 
 	err = dbStore.CheckHealth()
@@ -444,18 +429,16 @@ func TestDBCheckHealthDBConnectionFail(t *testing.T) {
 // TestDBCheckHealthSuceeds asserts that if the DB is connectable and both
 // tables exist, the health check succeeds.
 func TestDBCheckHealthSucceeds(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	_, dbStore := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	_, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
-	err = dbStore.CheckHealth()
+	err := dbStore.CheckHealth()
 	require.NoError(t, err)
 }
 
 func TestDBGetChecksum(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	_, store := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	_, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
 	ts := data.SignedTimestamp{
 		Signatures: make([]data.Signature, 0),
@@ -477,7 +460,7 @@ func TestDBGetChecksum(t *testing.T) {
 	checksumBytes := sha256.Sum256(j)
 	checksum := hex.EncodeToString(checksumBytes[:])
 
-	store.UpdateCurrent("gun", update)
+	dbStore.UpdateCurrent("gun", update)
 
 	// create and add a newer timestamp. We're going to try and get the one
 	// created above by checksum
@@ -499,9 +482,9 @@ func TestDBGetChecksum(t *testing.T) {
 		Data:    newJ,
 	}
 
-	store.UpdateCurrent("gun", update)
+	dbStore.UpdateCurrent("gun", update)
 
-	cDate, data, err := store.GetChecksum("gun", data.CanonicalTimestampRole, checksum)
+	cDate, data, err := dbStore.GetChecksum("gun", data.CanonicalTimestampRole, checksum)
 	require.NoError(t, err)
 	require.EqualValues(t, j, data)
 	// the creation date was sometime wthin the last minute
@@ -510,11 +493,10 @@ func TestDBGetChecksum(t *testing.T) {
 }
 
 func TestDBGetChecksumNotFound(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	_, store := SetUpSQLite(t, tempBaseDir)
-	defer os.RemoveAll(tempBaseDir)
+	_, dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
 
-	_, _, err = store.GetChecksum("gun", data.CanonicalTimestampRole, "12345")
+	_, _, err := dbStore.GetChecksum("gun", data.CanonicalTimestampRole, "12345")
 	require.Error(t, err)
 	require.IsType(t, ErrNotFound{}, err)
 }
