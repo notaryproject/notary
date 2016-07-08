@@ -6,23 +6,27 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
-	"github.com/olekukonko/tablewriter"
 )
 
-// returns a tablewriter
-func getTable(headers []string, writer io.Writer) *tablewriter.Table {
-	table := tablewriter.NewWriter(writer)
-	table.SetBorder(false)
-	table.SetColumnSeparator(" ")
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetCenterSeparator("-")
-	table.SetAutoWrapText(false)
-	table.SetHeader(headers)
-	return table
+const fourItemRow = "%s\t%s\t%s\t%s\n"
+
+func initTabWriter(columns []string, writer io.Writer) *tabwriter.Writer {
+	tw := tabwriter.NewWriter(writer, 4, 4, 4, ' ', 0)
+	fmt.Fprintln(tw, strings.Join(columns, "\t"))
+	breakLine := make([]string, 0, len(columns))
+	for _, h := range columns {
+		breakLine = append(
+			breakLine,
+			strings.Repeat("-", len(h)),
+		)
+	}
+	fmt.Fprintln(tw, strings.Join(breakLine, "\t"))
+	return tw
 }
 
 // --- pretty printing certs ---
@@ -109,17 +113,19 @@ func prettyPrintKeys(keyStores []trustmanager.KeyStore, writer io.Writer) {
 
 	sort.Stable(keyInfoSorter(info))
 
-	table := getTable([]string{"ROLE", "GUN", "KEY ID", "LOCATION"}, writer)
+	tw := initTabWriter([]string{"ROLE", "GUN", "KEY ID", "LOCATION"}, writer)
 
 	for _, oneKeyInfo := range info {
-		table.Append([]string{
+		fmt.Fprintf(
+			tw,
+			fourItemRow,
 			oneKeyInfo.role,
 			truncateWithEllipsis(oneKeyInfo.gun, maxGUNWidth, true),
 			oneKeyInfo.keyID,
 			truncateWithEllipsis(oneKeyInfo.location, maxLocWidth, true),
-		})
+		)
 	}
-	table.Render()
+	tw.Flush()
 }
 
 // --- pretty printing targets ---
@@ -151,17 +157,19 @@ func prettyPrintTargets(ts []*client.TargetWithRole, writer io.Writer) {
 
 	sort.Stable(targetsSorter(ts))
 
-	table := getTable([]string{"Name", "Digest", "Size (bytes)", "Role"}, writer)
+	tw := initTabWriter([]string{"NAME", "DIGEST", "SIZE (BYTES)", "ROLE"}, writer)
 
 	for _, t := range ts {
-		table.Append([]string{
+		fmt.Fprintf(
+			tw,
+			fourItemRow,
 			t.Name,
 			hex.EncodeToString(t.Hashes["sha256"]),
 			fmt.Sprintf("%d", t.Length),
 			t.Role,
-		})
+		)
 	}
-	table.Render()
+	tw.Flush()
 }
 
 // Pretty-prints the list of provided Roles
@@ -174,30 +182,67 @@ func prettyPrintRoles(rs []*data.Role, writer io.Writer, roleType string) {
 	// this sorter works for Role types
 	sort.Stable(roleSorter(rs))
 
-	table := getTable([]string{"Role", "Paths", "Key IDs", "Threshold"}, writer)
+	tw := initTabWriter([]string{"ROLE", "PATHS", "KEY IDS", "THRESHOLD"}, writer)
 
 	for _, r := range rs {
-		table.Append([]string{
+		var path, kid string
+		pp := prettyPaths(r.Paths)
+		if len(pp) > 0 {
+			path = pp[0]
+		}
+		if len(r.KeyIDs) > 0 {
+			kid = r.KeyIDs[0]
+		}
+		fmt.Fprintf(
+			tw,
+			fourItemRow,
 			r.Name,
-			prettyPrintPaths(r.Paths),
-			strings.Join(r.KeyIDs, "\n"),
+			path,
+			kid,
 			fmt.Sprintf("%v", r.Threshold),
-		})
+		)
+		printExtraRoleRows(tw, pp, r.KeyIDs)
 	}
-	table.Render()
+	tw.Flush()
 }
 
-// Pretty-prints a list of delegation paths, and ensures the empty string is printed as "" in the console
-func prettyPrintPaths(paths []string) string {
+func printExtraRoleRows(tw *tabwriter.Writer, paths, keyIDs []string) {
+	lPaths := len(paths)
+	lKeyIDs := len(keyIDs)
+	longer := len(keyIDs)
+	if len(paths) > len(keyIDs) {
+		longer = len(paths)
+	}
+	for i := 1; i < longer; i++ {
+		var path, kid string
+		if lPaths > i {
+			path = paths[i]
+		}
+		if lKeyIDs > i {
+			kid = keyIDs[i]
+		}
+		fmt.Fprintf(
+			tw,
+			fourItemRow,
+			"",
+			path,
+			kid,
+			"",
+		)
+	}
+}
+
+// Pretty-formats a list of delegation paths, and ensures the empty string is printed as "" in the console
+func prettyPaths(paths []string) []string {
 	// sort paths first
 	sort.Strings(paths)
-	prettyPaths := []string{}
+	pp := make([]string, 0, len(paths))
 	for _, path := range paths {
 		// manually escape "" and designate that it is all paths with an extra print <all paths>
 		if path == "" {
 			path = "\"\" <all paths>"
 		}
-		prettyPaths = append(prettyPaths, path)
+		pp = append(pp, path)
 	}
-	return strings.Join(prettyPaths, "\n")
+	return pp
 }
