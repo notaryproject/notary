@@ -117,6 +117,7 @@ func (k *KeyNativeStore) GetKeyInfo(keyID string) (KeyInfo, error) {
 // Just a placeholder for now- returns an empty slice
 func (k *KeyNativeStore) ListKeys() map[string]KeyInfo {
 	//still to implement for secretservice and figure out calling from credentials
+	m := make(map[string]KeyInfo)
 	//out := new(bytes.Buffer)
 	//err := credentials.List(helper, out)
 	//if err!=nil {
@@ -124,7 +125,10 @@ func (k *KeyNativeStore) ListKeys() map[string]KeyInfo {
 	//}
 	//fmt.Println("--")
 	//fmt.Println(out.Bytes())
-	return nil
+	//gotKeys := &credentials.KeyData{
+	//
+	//}
+	return m
 }
 
 //RemoveKey removes a KeyChain (identified by server name- a string) from the keychain access store
