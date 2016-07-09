@@ -1,13 +1,14 @@
 package trustmanager
 
 import (
+	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker-credential-helpers/client"
 	"github.com/docker/docker-credential-helpers/credentials"
 	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/data"
@@ -18,7 +19,6 @@ import (
 // the contents in the keychain access.
 type KeyNativeStore struct {
 	notary.PassRetriever
-	newProgFunc client.ProgramFunc
 }
 
 // NewKeyNativeStore creates a KeyNativeStore
@@ -26,11 +26,8 @@ func NewKeyNativeStore(passphraseRetriever notary.PassRetriever) (*KeyNativeStor
 	if defaultCredentialsStore == "" {
 		return nil, errors.New("Native storage on your operating system is not yet supported")
 	}
-	credCommand := "docker-credential-" + defaultCredentialsStore
-	x := client.NewShellProgramFunc(credCommand)
 	return &KeyNativeStore{
 		PassRetriever: passphraseRetriever,
-		newProgFunc:   x,
 	}, nil
 }
 
@@ -46,14 +43,31 @@ func (k *KeyNativeStore) AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error 
 		Username:  keyInfo.Gun + "<notary_key>" + keyInfo.Role,
 		Secret:    secretByte,
 	}
-	return client.Store(k.newProgFunc, &(keyCredentials))
+	//err = client.Store(k.newProgFunc, &(keyCredentials))
+	b, err := json.Marshal(keyCredentials)
+	return credentials.Store(helper, bytes.NewReader(b))
 }
 
 // GetKey returns the credentials from the native keychain store given a server name
 func (k *KeyNativeStore) GetKey(keyID string) (data.PrivateKey, string, error) {
-	serverName := keyID
-	gotCredentials, err := client.Get(k.newProgFunc, serverName)
+	//gotCredentials, err := client.Get(k.newProgFunc, serverName)
+	buf := strings.NewReader(keyID)
+	out := new(bytes.Buffer)
+	err := credentials.Get(helper, buf, out)
+	outb := out.Bytes()
 	if err != nil {
+		t := strings.TrimSpace(string(outb))
+
+		if credentials.IsErrCredentialsNotFoundMessage(t) {
+			return nil, "", credentials.NewErrCredentialsNotFound()
+		}
+
+		return nil, "", fmt.Errorf("error getting credentials - err: %v, out: `%s`", err, t)
+	}
+	gotCredentials := &credentials.Credentials{
+		ServerURL: keyID,
+	}
+	if err := json.NewDecoder(bytes.NewReader(outb)).Decode(gotCredentials); err != nil {
 		return nil, "", err
 	}
 	gotSecret := gotCredentials.Secret
@@ -65,8 +79,26 @@ func (k *KeyNativeStore) GetKey(keyID string) (data.PrivateKey, string, error) {
 
 // GetKeyInfo returns the corresponding gun and role key info for a keyID
 func (k *KeyNativeStore) GetKeyInfo(keyID string) (KeyInfo, error) {
-	serverName := keyID
-	gotCredentials, err := client.Get(k.newProgFunc, serverName)
+	//gotCredentials, err := client.Get(k.newProgFunc, serverName)
+	buf := strings.NewReader(keyID)
+	out := new(bytes.Buffer)
+	err := credentials.Get(helper, buf, out)
+	outb := out.Bytes()
+	if err != nil {
+		t := strings.TrimSpace(string(outb))
+
+		if credentials.IsErrCredentialsNotFoundMessage(t) {
+			return KeyInfo{}, credentials.NewErrCredentialsNotFound()
+		}
+
+		return KeyInfo{}, fmt.Errorf("error getting credentials - err: %v, out: `%s`", err, t)
+	}
+	gotCredentials := &credentials.Credentials{
+		ServerURL: keyID,
+	}
+	if err := json.NewDecoder(bytes.NewReader(outb)).Decode(gotCredentials); err != nil {
+		return KeyInfo{}, err
+	}
 	if err != nil {
 		return KeyInfo{}, err
 	}
@@ -84,20 +116,15 @@ func (k *KeyNativeStore) GetKeyInfo(keyID string) (KeyInfo, error) {
 // ListKeys lists all the Keys inside of a native store
 // Just a placeholder for now- returns an empty slice
 func (k *KeyNativeStore) ListKeys() map[string]KeyInfo {
-	m := make(map[string]KeyInfo)
-	//working list functionality on osxkeychain. if uncommenting, also uncomment the imports at the file start
-	//if defaultCredentialsStore=="osxkeychain" {
-	//	out, _ := exec.Command("security","dump").Output()
-	//	output:=string(out)
-	//	re := regexp.MustCompile("path\"<blob>=\"(\\d|[a-z]){64}\"")
-	//	keys:=re.FindAllString(output,-1)
-	//	for _,key := range keys {
-	//		keyId:=key[13:(len(key)-1)]
-	//		keyInfo, _:=k.GetKeyInfo(keyId)
-	//		m[keyId]=keyInfo
-	//	}
+	//still to implement for secretservice and figure out calling from credentials
+	//out := new(bytes.Buffer)
+	//err := credentials.List(helper, out)
+	//if err!=nil {
+	//	return nil
 	//}
-	return m
+	//fmt.Println("--")
+	//fmt.Println(out.Bytes())
+	return nil
 }
 
 //RemoveKey removes a KeyChain (identified by server name- a string) from the keychain access store
@@ -105,7 +132,9 @@ func (k *KeyNativeStore) ListKeys() map[string]KeyInfo {
 //This is due to inconsistent behaviour from the credentials-helper which can be corrected if necessary
 //The inconsistency can be seen clearly if we read through TestRemoveFromNativeStoreNoPanic in keynativestore_test.go
 func (k *KeyNativeStore) RemoveKey(keyID string) error {
-	err := client.Erase(k.newProgFunc, keyID)
+	//err := client.Erase(k.newProgFunc, keyID)
+	buf := strings.NewReader(keyID)
+	err := credentials.Erase(helper, buf)
 	return err
 }
 
