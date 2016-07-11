@@ -36,7 +36,16 @@ func MainHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) er
 
 // AtomicUpdateHandler will accept multiple TUF files and ensure that the storage
 // backend is atomically updated with all the new records.
+// AtomicUpdateHandler can only perform updates and thus cannot be used to create new repositories
 func AtomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	defer r.Body.Close()
+	vars := mux.Vars(r)
+	return atomicUpdateHandler(ctx, w, r, vars)
+}
+
+// AtomicInitHandler will accept multiple TUF files to initialize a new repo
+// and ensure that the storage backend is atomically updated with all the new records.
+func AtomicInitHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	defer r.Body.Close()
 	vars := mux.Vars(r)
 	return atomicUpdateHandler(ctx, w, r, vars)
