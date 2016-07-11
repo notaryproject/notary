@@ -161,6 +161,7 @@ var exampleValidCommands = []string{
 	"key generate rsa",
 	"key remove e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 	"key passwd e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+	"key import backup.pem",
 	"delegation list repo",
 	"delegation add repo targets/releases path/to/pem/file.pem",
 	"delegation remove repo targets/releases",

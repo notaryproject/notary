@@ -41,6 +41,13 @@ func NewSimpleFileStore(baseDir, fileExt string) (*FilesystemStore, error) {
 	return NewFileStore(baseDir, fileExt, notary.PubCertPerms)
 }
 
+// NewPrivateKeyFileStorage initializes a new filestore for private keys, appending
+// the notary.PrivDir to the baseDir.
+func NewPrivateKeyFileStorage(baseDir, fileExt string) (*FilesystemStore, error) {
+	baseDir = filepath.Join(baseDir, notary.PrivDir)
+	return NewFileStore(baseDir, fileExt, notary.PrivKeyPerms)
+}
+
 // NewPrivateSimpleFileStore is a wrapper to create an owner readable/writeable
 // _only_ filestore
 func NewPrivateSimpleFileStore(baseDir, fileExt string) (*FilesystemStore, error) {

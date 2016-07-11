@@ -9,12 +9,15 @@ import (
 
 	notaryclient "github.com/docker/notary/client"
 	"github.com/docker/notary/cryptoservice"
+	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
+	"github.com/docker/notary/utils"
 
 	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/data"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"os"
 )
 
 var cmdKeyTemplate = usageTemplate{
@@ -53,6 +56,18 @@ var cmdKeyPasswdTemplate = usageTemplate{
 	Long:  "Changes the passphrase for the key with the given keyID.  Will require validation of the old passphrase.",
 }
 
+var cmdKeyImportTemplate = usageTemplate{
+	Use:   "import pemfile [ pemfile ... ]",
+	Short: "Imports all keys from all provided .pem files",
+	Long:  "Imports all keys from all provided .pem files by reading each PEM block from the file and writing that block to a unique object in the local keystore. A Yubikey will be the prefferred import location for root keys if present.",
+}
+
+var cmdKeyExportTemplate = usageTemplate{
+	Use:   "export",
+	Short: "Exports all keys from all local keystores. Can be filtered using the --key and --gun flags.",
+	Long:  "Exports all keys from all local keystores. Which keys are exported can be restricted by using the --key or --gun flags. By default the result is sent to stdout, it can be directed to a file with the -o flag. Keys stored in a Yubikey cannot be exported.",
+}
+
 type keyCommander struct {
 	// these need to be set
 	configGetter func() (*viper.Viper, error)
@@ -63,6 +78,10 @@ type keyCommander struct {
 	rotateKeyServerManaged bool
 
 	input io.Reader
+
+	exportGUNs   []string
+	exportKeyIDs []string
+	outFile      string
 }
 
 func (k *keyCommander) GetCommand() *cobra.Command {
@@ -78,6 +97,28 @@ func (k *keyCommander) GetCommand() *cobra.Command {
 			"Required for timestamp role, optional for snapshot role")
 	cmd.AddCommand(cmdRotateKey)
 
+	cmd.AddCommand(cmdKeyImportTemplate.ToCommand(k.importKeys))
+	cmdExport := cmdKeyExportTemplate.ToCommand(k.exportKeys)
+	cmdExport.Flags().StringSliceVar(
+		&k.exportGUNs,
+		"gun",
+		nil,
+		"GUNs for which to export keys",
+	)
+	cmdExport.Flags().StringSliceVar(
+		&k.exportKeyIDs,
+		"key",
+		nil,
+		"Key IDs to export",
+	)
+	cmdExport.Flags().StringVarP(
+		&k.outFile,
+		"output",
+		"o",
+		"",
+		"Filepath to write export output to",
+	)
+	cmd.AddCommand(cmdExport)
 	return cmd
 }
 
@@ -345,14 +386,91 @@ func (k *keyCommander) keyPassphraseChange(cmd *cobra.Command, args []string) er
 	if err != nil {
 		return err
 	}
-	cmd.Println("")
-	cmd.Printf("Successfully updated passphrase for key ID: %s", keyID)
-	cmd.Println("")
+	cmd.Printf("\nSuccessfully updated passphrase for key ID: %s\n", keyID)
+	return nil
+}
+
+func (k *keyCommander) importKeys(cmd *cobra.Command, args []string) error {
+	if len(args) < 1 {
+		cmd.Usage()
+		return fmt.Errorf("must specify at least one input file to import keys from")
+	}
+	config, err := k.configGetter()
+	if err != nil {
+		return err
+	}
+
+	directory := config.GetString("trust_dir")
+	importers, err := getImporters(directory, k.getRetriever())
+	if err != nil {
+		return err
+	}
+	for _, file := range args {
+		from, err := os.OpenFile(file, os.O_RDONLY, notary.PrivKeyPerms)
+		defer from.Close()
+
+		if err = utils.ImportKeys(from, importers); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (k *keyCommander) exportKeys(cmd *cobra.Command, args []string) error {
+	var (
+		out io.Writer
+		err error
+	)
+	if len(args) > 0 {
+		cmd.Usage()
+		return fmt.Errorf("export does not take any positional arguments")
+	}
+	config, err := k.configGetter()
+	if err != nil {
+		return err
+	}
+
+	if k.outFile == "" {
+		out = cmd.Out()
+	} else {
+		f, err := os.OpenFile(k.outFile, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, notary.PrivKeyPerms)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		out = f
+	}
+
+	directory := config.GetString("trust_dir")
+	fileStore, err := store.NewPrivateKeyFileStorage(directory, notary.KeyExtension)
+	if err != nil {
+		return err
+	}
+	if len(k.exportGUNs) > 0 {
+		if len(k.exportKeyIDs) > 0 {
+			return fmt.Errorf("Only the --gun or --key flag may be provided, not a mix of the two flags")
+		}
+		for _, gun := range k.exportGUNs {
+			gunPath := filepath.Join(notary.NonRootKeysSubdir, gun)
+			return utils.ExportKeysByGUN(out, fileStore, gunPath)
+		}
+	} else if len(k.exportKeyIDs) > 0 {
+		return utils.ExportKeysByID(out, fileStore, k.exportKeyIDs)
+	}
+	// export everything
+	keys := fileStore.ListFiles()
+	for _, k := range keys {
+		err := utils.ExportKeys(out, fileStore, k)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 func (k *keyCommander) getKeyStores(
 	config *viper.Viper, withHardware, hardwareBackup bool) ([]trustmanager.KeyStore, error) {
+
 	retriever := k.getRetriever()
 
 	directory := config.GetString("trust_dir")

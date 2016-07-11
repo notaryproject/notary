@@ -48,7 +48,7 @@ func TestHTTPStoreGetSized(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// Test that passing -1 to httpstore's GetMeta will return all content
+// Test that passing -1 to httpstore's GetSized will return all content
 func TestHTTPStoreGetAllMeta(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(testRoot))
