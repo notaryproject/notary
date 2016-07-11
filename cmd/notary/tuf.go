@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -19,6 +20,8 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/notary"
 	notaryclient "github.com/docker/notary/client"
+	"github.com/docker/notary/cryptoservice"
+	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/utils"
@@ -86,9 +89,10 @@ type tufCommander struct {
 	retriever    notary.PassRetriever
 
 	// these are for command line parsing - no need to set
-	roles  []string
-	sha256 string
-	sha512 string
+	roles   []string
+	sha256  string
+	sha512  string
+	rootKey string
 
 	input  string
 	output string
@@ -96,7 +100,10 @@ type tufCommander struct {
 }
 
 func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
-	cmd.AddCommand(cmdTUFInitTemplate.ToCommand(t.tufInit))
+	cmdTUFInit := cmdTUFInitTemplate.ToCommand(t.tufInit)
+	cmdTUFInit.Flags().StringVar(&t.rootKey, "rootkey", "", "Root key to initialize the repository with")
+	cmd.AddCommand(cmdTUFInit)
+
 	cmd.AddCommand(cmdTUFStatusTemplate.ToCommand(t.tufStatus))
 	cmd.AddCommand(cmdTUFPublishTemplate.ToCommand(t.tufPublish))
 	cmd.AddCommand(cmdTUFLookupTemplate.ToCommand(t.tufLookup))
@@ -268,7 +275,36 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	rootKeyList := nRepo.CryptoService.ListKeys(data.CanonicalRootRole)
+	var rootKeyList []string
+
+	if t.rootKey != "" {
+		keyFile, err := os.Open(t.rootKey)
+		if err != nil {
+			return fmt.Errorf("Opening file for import: %v", err)
+		}
+		defer keyFile.Close()
+
+		pemBytes, err := ioutil.ReadAll(keyFile)
+		if err != nil {
+			return fmt.Errorf("Error reading input file: %v", err)
+		}
+		if err = cryptoservice.CheckRootKeyIsEncrypted(pemBytes); err != nil {
+			return err
+		}
+
+		privKey, _, err := trustmanager.GetPasswdDecryptBytes(t.retriever, pemBytes, "", data.CanonicalRootRole)
+		if err != nil {
+			return err
+		}
+
+		err = nRepo.CryptoService.AddKey(data.CanonicalRootRole, "", privKey)
+		if err != nil {
+			return fmt.Errorf("Error importing key: %v", err)
+		}
+		rootKeyList = []string{data.PublicKeyFromPrivate(privKey).ID()}
+	} else {
+		rootKeyList = nRepo.CryptoService.ListKeys(data.CanonicalRootRole)
+	}
 
 	var rootKeyID string
 	if len(rootKeyList) < 1 {
@@ -285,7 +321,7 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Root key found, using: %s\n", rootKeyID)
 	}
 
-	if err = nRepo.Initialize(rootKeyID); err != nil {
+	if err = nRepo.Initialize([]string{rootKeyID}); err != nil {
 		return err
 	}
 	return nil
