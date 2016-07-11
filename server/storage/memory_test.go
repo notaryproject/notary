@@ -1,3 +1,5 @@
+// +build !mysqldb,!rethinkdb
+
 package storage
 
 import (

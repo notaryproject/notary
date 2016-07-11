@@ -42,16 +42,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    env_file: buildscripts/env.list
     command: buildscripts/testclient.sh
     volumes:
       - ./test_output:/test_output
     networks:
+      - mdb
       - srv
     depends_on:
       - server
-volumes:
-  notary_data:
-    external: false
 networks:
   mdb:
     external: false

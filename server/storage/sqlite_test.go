@@ -9,18 +9,17 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jinzhu/gorm"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 )
 
-func sqlite3Setup(t *testing.T) (*gorm.DB, *SQLStorage, func()) {
+func sqlite3Setup(t *testing.T) (*SQLStorage, func()) {
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 
-	gormDB, dbStore := SetupSQLDB(t, "sqlite3", tempBaseDir+"test_db")
+	dbStore := SetupSQLDB(t, "sqlite3", tempBaseDir+"test_db")
 	var cleanup = func() { os.RemoveAll(tempBaseDir) }
-	return gormDB, dbStore, cleanup
+	return dbStore, cleanup
 }
 
 func init() {
