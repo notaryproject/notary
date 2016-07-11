@@ -43,14 +43,12 @@ func (k *KeyNativeStore) AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error 
 		Username:  keyInfo.Gun + "<notary_key>" + keyInfo.Role,
 		Secret:    secretByte,
 	}
-	//err = client.Store(k.newProgFunc, &(keyCredentials))
 	b, err := json.Marshal(keyCredentials)
 	return credentials.Store(helper, bytes.NewReader(b))
 }
 
 // GetKey returns the credentials from the native keychain store given a server name
 func (k *KeyNativeStore) GetKey(keyID string) (data.PrivateKey, string, error) {
-	//gotCredentials, err := client.Get(k.newProgFunc, serverName)
 	buf := strings.NewReader(keyID)
 	out := new(bytes.Buffer)
 	err := credentials.Get(helper, buf, out)
@@ -79,7 +77,6 @@ func (k *KeyNativeStore) GetKey(keyID string) (data.PrivateKey, string, error) {
 
 // GetKeyInfo returns the corresponding gun and role key info for a keyID
 func (k *KeyNativeStore) GetKeyInfo(keyID string) (KeyInfo, error) {
-	//gotCredentials, err := client.Get(k.newProgFunc, serverName)
 	buf := strings.NewReader(keyID)
 	out := new(bytes.Buffer)
 	err := credentials.Get(helper, buf, out)
@@ -118,16 +115,25 @@ func (k *KeyNativeStore) GetKeyInfo(keyID string) (KeyInfo, error) {
 func (k *KeyNativeStore) ListKeys() map[string]KeyInfo {
 	//still to implement for secretservice and figure out calling from credentials
 	m := make(map[string]KeyInfo)
-	//out := new(bytes.Buffer)
-	//err := credentials.List(helper, out)
-	//if err!=nil {
-	//	return nil
-	//}
-	//fmt.Println("--")
-	//fmt.Println(out.Bytes())
-	//gotKeys := &credentials.KeyData{
-	//
-	//}
+	out := new(bytes.Buffer)
+	err := credentials.List(helper, out)
+	if err!=nil {
+		return nil
+	}
+	outb := out.Bytes()
+	var gotKeys []credentials.KeyData
+	err = json.Unmarshal(outb, &gotKeys)
+	//We get this as a list of KeyData types
+	for _, gotKey := range(gotKeys) {
+		if strings.Contains(gotKey.Username, "<notary_key>") {
+			keyInfo := strings.SplitAfter(gotKey.Username, "<notary_key>")
+			//gun :=
+			m[gotKey.Path] = KeyInfo{
+				Gun:  keyInfo[0][:(len(keyInfo[0]) - 12)],
+				Role: keyInfo[1],
+			}
+		}
+	}
 	return m
 }
 
@@ -136,7 +142,6 @@ func (k *KeyNativeStore) ListKeys() map[string]KeyInfo {
 //This is due to inconsistent behaviour from the credentials-helper which can be corrected if necessary
 //The inconsistency can be seen clearly if we read through TestRemoveFromNativeStoreNoPanic in keynativestore_test.go
 func (k *KeyNativeStore) RemoveKey(keyID string) error {
-	//err := client.Erase(k.newProgFunc, keyID)
 	buf := strings.NewReader(keyID)
 	err := credentials.Erase(helper, buf)
 	return err
