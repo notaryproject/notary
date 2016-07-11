@@ -30,10 +30,26 @@ fi
 set -e
 set -x
 
-cleanup
+# cleanup
 
 docker-compose -f $composeFile config
 docker-compose -f $composeFile build ${BUILDOPTS} --pull | tee
-docker-compose -f $composeFile up --abort-on-container-exit
 
 trap cleanupAndExit SIGINT SIGTERM EXIT
+
+# run the unit tests that require a DB
+case $composeFile in
+  development.mysql.yml)
+    docker-compose -f $composeFile run --no-deps -d --name "mysql_tests" mysql mysqld --innodb_file_per_table
+    docker-compose -f $composeFile run --no-deps \
+        -e NOTARY_BUILDTAGS=mysqldb \
+        -e PKGS="github.com/docker/notary/server/storage" \
+        -e MYSQL="server@tcp(mysql_tests:3306)/notaryserver?parseTime=True" \
+        --user notary \
+        client bash -c "make ci && codecov"
+    ;;
+esac
+
+cleanup
+
+docker-compose -f $composeFile up --abort-on-container-exit

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -e
+set +x
 case $CIRCLE_NODE_INDEX in
 0) docker run --rm -e NOTARY_BUILDTAGS=pkcs11 --env-file buildscripts/env.list --user notary notary_client bash -c "make ci && codecov"
    ;;
@@ -13,3 +14,6 @@ case $CIRCLE_NODE_INDEX in
 4) docker run --rm -e NOTARY_BUILDTAGS=pkcs11 notary_client make vet lint fmt misspell ineffassign
    ;;
 esac
+
+set +e
+set +x

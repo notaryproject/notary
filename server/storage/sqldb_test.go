@@ -1,3 +1,5 @@
+// +build !rethinkdb
+
 package storage
 
 import (
@@ -13,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func SetupSQLDB(t *testing.T, dbtype, dburl string) (*gorm.DB, *SQLStorage) {
+func SetupSQLDB(t *testing.T, dbtype, dburl string) *SQLStorage {
 	dbStore, err := NewSQLStorage(dbtype, dburl)
 	require.NoError(t, err)
 
@@ -31,10 +33,10 @@ func SetupSQLDB(t *testing.T, dbtype, dburl string) (*gorm.DB, *SQLStorage) {
 		require.NoError(t, query.Error)
 		require.Equal(t, 0, count)
 	}
-	return &dbStore.DB, dbStore
+	return dbStore
 }
 
-type sqldbSetupFunc func(*testing.T) (*gorm.DB, *SQLStorage, func())
+type sqldbSetupFunc func(*testing.T) (*SQLStorage, func())
 
 var sqldbSetup sqldbSetupFunc
 
@@ -67,7 +69,7 @@ func SampleUpdate(version int) MetaUpdate {
 // TestSQLUpdateCurrent asserts that UpdateCurrent will add a new TUF file
 // if no previous version existed.
 func TestSQLUpdateCurrentNew(t *testing.T) {
-	gormDB, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	// Adding a new TUF file should succeed
@@ -76,7 +78,7 @@ func TestSQLUpdateCurrentNew(t *testing.T) {
 
 	// There should just be one row
 	var rows []TUFFile
-	query := gormDB.Select("ID, Gun, Role, Version, Sha256, Data").Find(&rows)
+	query := dbStore.DB.Select("id, gun, role, version, sha256, data").Find(&rows)
 	require.NoError(t, query.Error)
 
 	expected := SampleTUF(0)
@@ -87,12 +89,12 @@ func TestSQLUpdateCurrentNew(t *testing.T) {
 // TestSQLUpdateCurrentNewVersion asserts that UpdateCurrent will add a
 // new (higher) version of an existing TUF file
 func TestSQLUpdateCurrentNewVersion(t *testing.T) {
-	gormDB, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	// insert row
 	oldVersion := SampleTUF(0)
-	query := gormDB.Create(&oldVersion)
+	query := dbStore.DB.Create(&oldVersion)
 	require.NoError(t, query.Error, "Creating a row in an empty DB failed.")
 
 	// UpdateCurrent with a newer version should succeed
@@ -102,7 +104,7 @@ func TestSQLUpdateCurrentNewVersion(t *testing.T) {
 
 	// There should just be one row
 	var rows []TUFFile
-	query = gormDB.Select("ID, Gun, Role, Version, Sha256, Data").Find(&rows)
+	query = dbStore.DB.Select("id, gun, role, version, sha256, data").Find(&rows)
 	require.NoError(t, query.Error)
 
 	oldVersion.Model = gorm.Model{ID: 1}
@@ -114,12 +116,12 @@ func TestSQLUpdateCurrentNewVersion(t *testing.T) {
 // TestSQLUpdateCurrentOldVersionError asserts that an error is raised if
 // trying to update to an older version of a TUF file.
 func TestSQLUpdateCurrentOldVersionError(t *testing.T) {
-	gormDB, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	// insert row
 	newVersion := SampleTUF(3)
-	query := gormDB.Create(&newVersion)
+	query := dbStore.DB.Create(&newVersion)
 	require.NoError(t, query.Error, "Creating a row in an empty DB failed.")
 
 	// UpdateCurrent should fail due to the version being lower than the
@@ -131,7 +133,7 @@ func TestSQLUpdateCurrentOldVersionError(t *testing.T) {
 
 	// There should just be one row
 	var rows []TUFFile
-	query = gormDB.Select("ID, Gun, Role, Version, Sha256, Data").Find(&rows)
+	query = dbStore.DB.Select("id, gun, role, version, sha256, data").Find(&rows)
 	require.NoError(t, query.Error)
 
 	newVersion.Model = gorm.Model{ID: 1}
@@ -143,7 +145,7 @@ func TestSQLUpdateCurrentOldVersionError(t *testing.T) {
 // TestSQLUpdateMany asserts that inserting multiple updates succeeds if the
 // updates do not conflict with each.
 func TestSQLUpdateMany(t *testing.T) {
-	gormDB, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	err := dbStore.UpdateMany("testGUN", []MetaUpdate{
@@ -170,7 +172,7 @@ func TestSQLUpdateMany(t *testing.T) {
 	expected := []TUFFile{gorm1, gorm2, gorm3}
 
 	var rows []TUFFile
-	query := gormDB.Select("ID, Gun, Role, Version, Sha256, Data").Find(&rows)
+	query := dbStore.DB.Select("id, gun, role, version, sha256, data").Find(&rows)
 	require.NoError(t, query.Error)
 	require.Equal(t, expected, rows)
 
@@ -180,7 +182,7 @@ func TestSQLUpdateMany(t *testing.T) {
 // TestSQLUpdateManyVersionOrder asserts that inserting updates with
 // non-monotonic versions still succeeds.
 func TestSQLUpdateManyVersionOrder(t *testing.T) {
-	gormDB, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	err := dbStore.UpdateMany(
@@ -195,7 +197,7 @@ func TestSQLUpdateManyVersionOrder(t *testing.T) {
 	gorm2.ID = 2
 
 	var rows []TUFFile
-	query := gormDB.Select("ID, Gun, Role, Version, Sha256, Data").Find(&rows)
+	query := dbStore.DB.Select("id, gun, role, version, sha256, data").Find(&rows)
 	require.NoError(t, query.Error)
 	require.Equal(t, []TUFFile{gorm1, gorm2}, rows)
 
@@ -205,7 +207,7 @@ func TestSQLUpdateManyVersionOrder(t *testing.T) {
 // TestSQLUpdateManyDuplicateRollback asserts that inserting duplicate
 // updates fails.
 func TestSQLUpdateManyDuplicateRollback(t *testing.T) {
-	gormDB, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	update := SampleUpdate(0)
@@ -218,7 +220,7 @@ func TestSQLUpdateManyDuplicateRollback(t *testing.T) {
 	// the whole transaction should have rolled back, so there should be
 	// no entries.
 	var count int
-	query := gormDB.Model(&TUFFile{}).Count(&count)
+	query := dbStore.DB.Model(&TUFFile{}).Count(&count)
 	require.NoError(t, query.Error)
 	require.Equal(t, 0, count)
 
@@ -226,7 +228,7 @@ func TestSQLUpdateManyDuplicateRollback(t *testing.T) {
 }
 
 func TestSQLGetCurrent(t *testing.T) {
-	gormDB, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	_, byt, err := dbStore.GetCurrent("testGUN", "root")
@@ -235,7 +237,7 @@ func TestSQLGetCurrent(t *testing.T) {
 	require.IsType(t, ErrNotFound{}, err, "Should get a not found error")
 
 	tuf := SampleTUF(0)
-	query := gormDB.Create(&tuf)
+	query := dbStore.DB.Create(&tuf)
 	require.NoError(t, query.Error, "Creating a row in an empty DB failed.")
 
 	cDate, byt, err := dbStore.GetCurrent("testGUN", "root")
@@ -250,11 +252,11 @@ func TestSQLGetCurrent(t *testing.T) {
 }
 
 func TestSQLDelete(t *testing.T) {
-	gormDB, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	tuf := SampleTUF(0)
-	query := gormDB.Create(&tuf)
+	query := dbStore.DB.Create(&tuf)
 	require.NoError(t, query.Error, "Creating a row in an empty DB failed.")
 
 	err := dbStore.Delete("testGUN")
@@ -262,7 +264,7 @@ func TestSQLDelete(t *testing.T) {
 
 	// verify deletion
 	var count int
-	query = gormDB.Model(&TUFFile{}).Count(&count)
+	query = dbStore.DB.Model(&TUFFile{}).Count(&count)
 	require.NoError(t, query.Error)
 	require.Equal(t, 0, count)
 
@@ -270,7 +272,7 @@ func TestSQLDelete(t *testing.T) {
 }
 
 func TestSQLGetKeyNoKey(t *testing.T) {
-	gormDB, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	cipher, public, err := dbStore.GetKey("testGUN", data.CanonicalTimestampRole)
@@ -279,7 +281,7 @@ func TestSQLGetKeyNoKey(t *testing.T) {
 	require.IsType(t, &ErrNoKey{}, err,
 		"Expected ErrNoKey from GetKey")
 
-	query := gormDB.Create(&Key{
+	query := dbStore.DB.Create(&Key{
 		Gun:    "testGUN",
 		Role:   data.CanonicalTimestampRole,
 		Cipher: "testCipher",
@@ -296,7 +298,7 @@ func TestSQLGetKeyNoKey(t *testing.T) {
 }
 
 func TestSQLSetKeyExists(t *testing.T) {
-	gormDB, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	err := dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
@@ -308,7 +310,7 @@ func TestSQLSetKeyExists(t *testing.T) {
 		"Expected ErrKeyExists from SetKey")
 
 	var rows []Key
-	query := gormDB.Select("ID, Gun, Cipher, Public").Find(&rows)
+	query := dbStore.DB.Select("id, gun, cipher, public").Find(&rows)
 	require.NoError(t, query.Error)
 
 	expected := Key{Gun: "testGUN", Cipher: "testCipher",
@@ -321,7 +323,7 @@ func TestSQLSetKeyExists(t *testing.T) {
 }
 
 func TestSQLSetKeyMultipleRoles(t *testing.T) {
-	gormDB, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	err := dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
@@ -331,7 +333,7 @@ func TestSQLSetKeyMultipleRoles(t *testing.T) {
 	require.NoError(t, err, "Inserting snapshot key into DB with timestamp key should succeed")
 
 	var rows []Key
-	query := gormDB.Select("ID, Gun, Role, Cipher, Public").Find(&rows)
+	query := dbStore.DB.Select("id, gun, role, cipher, public").Find(&rows)
 	require.NoError(t, query.Error)
 
 	expectedTS := Key{Gun: "testGUN", Role: "timestamp", Cipher: "testCipher",
@@ -348,7 +350,7 @@ func TestSQLSetKeyMultipleRoles(t *testing.T) {
 }
 
 func TestSQLSetKeyMultipleGuns(t *testing.T) {
-	gormDB, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	err := dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
@@ -358,7 +360,7 @@ func TestSQLSetKeyMultipleGuns(t *testing.T) {
 	require.NoError(t, err, "Inserting snapshot key into DB with timestamp key should succeed")
 
 	var rows []Key
-	query := gormDB.Select("ID, Gun, Role, Cipher, Public").Find(&rows)
+	query := dbStore.DB.Select("id, gun, role, cipher, public").Find(&rows)
 	require.NoError(t, query.Error)
 
 	expected1 := Key{Gun: "testGUN", Role: "timestamp", Cipher: "testCipher",
@@ -375,7 +377,7 @@ func TestSQLSetKeyMultipleGuns(t *testing.T) {
 }
 
 func TestSQLSetKeySameRoleGun(t *testing.T) {
-	_, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	err := dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
@@ -392,7 +394,7 @@ func TestSQLSetKeySameRoleGun(t *testing.T) {
 // TestDBCheckHealthTableMissing asserts that the health check fails if one or
 // both the tables are missing.
 func TestDBCheckHealthTableMissing(t *testing.T) {
-	_, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	dbStore.DropTable(&TUFFile{})
@@ -416,7 +418,7 @@ func TestDBCheckHealthTableMissing(t *testing.T) {
 // TestDBCheckHealthDBCOnnection asserts that if the DB is not connectable, the
 // health check fails.
 func TestDBCheckHealthDBConnectionFail(t *testing.T) {
-	_, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	err := dbStore.Close()
@@ -429,7 +431,7 @@ func TestDBCheckHealthDBConnectionFail(t *testing.T) {
 // TestDBCheckHealthSuceeds asserts that if the DB is connectable and both
 // tables exist, the health check succeeds.
 func TestDBCheckHealthSucceeds(t *testing.T) {
-	_, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	err := dbStore.CheckHealth()
@@ -437,7 +439,7 @@ func TestDBCheckHealthSucceeds(t *testing.T) {
 }
 
 func TestDBGetChecksum(t *testing.T) {
-	_, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	ts := data.SignedTimestamp{
@@ -493,7 +495,7 @@ func TestDBGetChecksum(t *testing.T) {
 }
 
 func TestDBGetChecksumNotFound(t *testing.T) {
-	_, dbStore, cleanup := sqldbSetup(t)
+	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	_, _, err := dbStore.GetChecksum("gun", data.CanonicalTimestampRole, "12345")
