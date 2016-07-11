@@ -621,6 +621,12 @@ const (
 	admin
 )
 
+func (ps passwordStore) RefreshToken(*url.URL, string) string {
+	return ""
+}
+func (ps passwordStore) SetRefreshToken(realm *url.URL, service, token string) {}
+
+// getTransport returns an http.RoundTripper to be used for all http requests.
 // It correctly handles the auth challenge/credentials required to interact
 // with a notary server over both HTTP Basic Auth and the JWT auth implemented
 // in the notary-server
