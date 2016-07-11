@@ -62,10 +62,6 @@ func (err ErrKeyNotFound) Error() string {
 	return fmt.Sprintf("signing key not found: %s", err.KeyID)
 }
 
-const (
-	keyExtension = "key"
-)
-
 // KeyStore is a generic interface for private key storage
 type KeyStore interface {
 	// AddKey adds a key to the KeyStore, and if the key already exists,

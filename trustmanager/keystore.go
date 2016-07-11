@@ -36,8 +36,7 @@ type GenericKeyStore struct {
 // NewKeyFileStore returns a new KeyFileStore creating a private directory to
 // hold the keys.
 func NewKeyFileStore(baseDir string, p notary.PassRetriever) (*GenericKeyStore, error) {
-	baseDir = filepath.Join(baseDir, notary.PrivDir)
-	fileStore, err := store.NewPrivateSimpleFileStore(baseDir, keyExtension)
+	fileStore, err := store.NewPrivateKeyFileStorage(baseDir, notary.KeyExtension)
 	if err != nil {
 		return nil, err
 	}
