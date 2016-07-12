@@ -28,6 +28,19 @@ func rethinkSessionSetup(t *testing.T) (*gorethink.Session, string) {
 	return sess, rethinkSource
 }
 
+func rethinkDBSetup(t *testing.T) (RethinkDB, func()) {
+	session, _ := rethinkSessionSetup(t)
+	dbName := "testdb"
+	var cleanup = func() { gorethink.DBDrop(dbName).Exec(session) }
+
+	cleanup()
+	require.NoError(t, rethinkdb.SetupDB(session, dbName, []rethinkdb.Table{
+		TUFFilesRethinkTable,
+		PubKeysRethinkTable,
+	}))
+	return NewRethinkDBStorage(dbName, "", "", session), cleanup
+}
+
 func TestBootstrapSetsUsernamePassword(t *testing.T) {
 	adminSession, source := rethinkSessionSetup(t)
 	dbname, username, password := "testdb", "testuser", "testpassword"
@@ -58,4 +71,49 @@ func TestBootstrapSetsUsernamePassword(t *testing.T) {
 	_, _, err = s.GetCurrent("gun", data.CanonicalRootRole)
 	require.Error(t, err)
 	require.IsType(t, ErrNotFound{}, err)
+}
+
+// UpdateCurrent will add a new TUF file if no previous version of that gun and role existed.
+func TestRethinkUpdateCurrentEmpty(t *testing.T) {
+	dbStore, cleanup := rethinkDBSetup(t)
+	defer cleanup()
+
+	testUpdateCurrentEmptyStore(t, dbStore)
+}
+
+// UpdateCurrent will add a new TUF file if the version is higher than previous, but fail
+// if the version is equal to or less than the current, whether or not that previous
+// version exists
+func TestRethinkUpdateCurrentVersionCheck(t *testing.T) {
+	t.Skip("Currently rethink only errors if the previous version exists - it doesn't check for strictly increasing")
+	dbStore, cleanup := rethinkDBSetup(t)
+	defer cleanup()
+
+	testUpdateCurrentVersionCheck(t, dbStore)
+}
+
+// UpdateMany succeeds if the updates do not conflict with each other or with what's
+// already in the DB
+func TestRethinkUpdateManyNoConflicts(t *testing.T) {
+	dbStore, cleanup := rethinkDBSetup(t)
+	defer cleanup()
+
+	testUpdateManyNoConflicts(t, dbStore)
+}
+
+// UpdateMany does not insert any rows (or at least rolls them back) if there
+// are any conflicts.
+func TestRethinkUpdateManyConflictRollback(t *testing.T) {
+	dbStore, cleanup := rethinkDBSetup(t)
+	defer cleanup()
+
+	testUpdateManyConflictRollback(t, dbStore)
+}
+
+// Delete will remove all TUF metadata, all versions, associated with a gun
+func TestRethinkDeleteSuccess(t *testing.T) {
+	dbStore, cleanup := rethinkDBSetup(t)
+	defer cleanup()
+
+	testDeleteSuccess(t, dbStore)
 }

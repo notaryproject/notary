@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary/storage/rethinkdb"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
@@ -234,7 +235,11 @@ func (rdb RethinkDB) UpdateMany(gun string, updates []MetaUpdate) error {
 	for _, up := range updates {
 		if err := rdb.UpdateCurrentWithTSChecksum(gun, tsChecksum, up); err != nil {
 			// roll back with best-effort deletion, and then error out
-			rdb.deleteByTSChecksum(tsChecksum)
+			rollbackErr := rdb.deleteByTSChecksum(tsChecksum)
+			if rollbackErr != nil {
+				logrus.Errorf("Unable to rollback DB conflict - items with timestamp_checksum %s: %v",
+					tsChecksum, rollbackErr)
+			}
 			return err
 		}
 	}
@@ -289,7 +294,7 @@ func (rdb RethinkDB) GetChecksum(gun, role, checksum string) (created *time.Time
 // error if no metadata exists for the given GUN.
 func (rdb RethinkDB) Delete(gun string) error {
 	_, err := gorethink.DB(rdb.dbName).Table(RDBTUFFile{}.TableName()).GetAllByIndex(
-		"gun", []string{gun},
+		"gun", gun,
 	).Delete().RunWrite(rdb.sess)
 	if err != nil {
 		return fmt.Errorf("unable to delete %s from database: %s", gun, err.Error())
@@ -301,10 +306,10 @@ func (rdb RethinkDB) Delete(gun string) error {
 // from a call to rethinkdb's UpdateMany
 func (rdb RethinkDB) deleteByTSChecksum(tsChecksum string) error {
 	_, err := gorethink.DB(rdb.dbName).Table(RDBTUFFile{}.TableName()).GetAllByIndex(
-		"timestamp_checksum", []string{tsChecksum},
+		"timestamp_checksum", tsChecksum,
 	).Delete().RunWrite(rdb.sess)
 	if err != nil {
-		return fmt.Errorf("unable to delete timestamp checksum data: %s from database: %s", tsChecksum, err.Error())
+		return fmt.Errorf("unable to delete timestamp checksum data: %s from database: %v", tsChecksum, err.Error())
 	}
 	return nil
 }

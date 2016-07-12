@@ -65,10 +65,47 @@ func (st *MemStorage) UpdateCurrent(gun string, update MetaUpdate) error {
 
 // UpdateMany updates multiple TUF records
 func (st *MemStorage) UpdateMany(gun string, updates []MetaUpdate) error {
+	st.lock.Lock()
+	defer st.lock.Unlock()
+
+	versioner := make(map[string]map[int]struct{})
+	constant := struct{}{}
+
+	// ensure that we only update in one transaction
 	for _, u := range updates {
-		if err := st.UpdateCurrent(gun, u); err != nil {
-			return err
+		id := entryKey(gun, u.Role)
+
+		// prevent duplicate versions of the same role
+		if _, ok := versioner[u.Role][u.Version]; ok {
+			return &ErrOldVersion{}
 		}
+		if _, ok := versioner[u.Role]; !ok {
+			versioner[u.Role] = make(map[int]struct{})
+		}
+		versioner[u.Role][u.Version] = constant
+
+		if space, ok := st.tufMeta[id]; ok {
+			for _, v := range space {
+				if v.version >= u.Version {
+					return &ErrOldVersion{}
+				}
+			}
+		}
+	}
+
+	for _, u := range updates {
+		id := entryKey(gun, u.Role)
+
+		version := ver{version: u.Version, data: u.Data, createupdate: time.Now()}
+		st.tufMeta[id] = append(st.tufMeta[id], &version)
+		checksumBytes := sha256.Sum256(u.Data)
+		checksum := hex.EncodeToString(checksumBytes[:])
+
+		_, ok := st.checksums[gun]
+		if !ok {
+			st.checksums[gun] = make(map[string]ver)
+		}
+		st.checksums[gun][checksum] = version
 	}
 	return nil
 }

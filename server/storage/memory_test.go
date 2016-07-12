@@ -9,38 +9,58 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUpdateCurrent(t *testing.T) {
-	s := NewMemStorage()
-	s.UpdateCurrent("gun", MetaUpdate{"role", 1, []byte("test")})
-
-	k := entryKey("gun", "role")
-	gun, ok := s.tufMeta[k]
-	v := gun[0]
-	require.True(t, ok, "Did not find gun in store")
-	require.Equal(t, 1, v.version, "Version mismatch. Expected 1, found %d", v.version)
-	require.Equal(t, []byte("test"), v.data, "Data was incorrect")
+func assertExpectedMemoryTUFMeta(t *testing.T, expected []tufMeta, s *MemStorage) {
+	counter := make(map[string]int)
+	for _, tufObj := range expected {
+		k := entryKey(tufObj.Gun, tufObj.Role)
+		gun, ok := s.tufMeta[k]
+		require.True(t, len(gun) >= counter[k])
+		v := gun[counter[k]]
+		require.True(t, ok, "Did not find gun in store")
+		require.Equal(t, tufObj.Version, v.version, "Version mismatch. Expected %d, found %d",
+			tufObj.Version, v.version)
+		require.Equal(t, tufObj.Data, v.data, "Data was incorrect")
+		counter[k]++
+	}
 }
 
-func TestUpdateMany(t *testing.T) {
+// UpdateCurrent should succeed if there was no previous metadata of the same
+// gun and role.  They should be gettable.
+func TestMemoryUpdateCurrentEmpty(t *testing.T) {
 	s := NewMemStorage()
-	require.NoError(t, s.UpdateMany("gun", []MetaUpdate{
-		{"role1", 1, []byte("test1")},
-		{"role2", 1, []byte("test2")},
-	}))
+	expected := testUpdateCurrentEmptyStore(t, s)
+	assertExpectedMemoryTUFMeta(t, expected, s)
+}
 
-	_, d, err := s.GetCurrent("gun", "role1")
-	require.Nil(t, err, "Expected error to be nil")
-	require.Equal(t, []byte("test1"), d, "Data was incorrect")
+// UpdateCurrent will successfully add a new (higher) version of an existing TUF file,
+// but will return an error if there is an older version of a TUF file.
+func TestMemoryUpdateCurrentVersionCheck(t *testing.T) {
+	s := NewMemStorage()
+	expected := testUpdateCurrentVersionCheck(t, s)
+	assertExpectedMemoryTUFMeta(t, expected, s)
+}
 
-	_, d, err = s.GetCurrent("gun", "role2")
-	require.Nil(t, err, "Expected error to be nil")
-	require.Equal(t, []byte("test2"), d, "Data was incorrect")
+// UpdateMany succeeds if the updates do not conflict with each other or with what's
+// already in the DB
+func TestMemoryUpdateManyNoConflicts(t *testing.T) {
+	s := NewMemStorage()
+	expected := testUpdateManyNoConflicts(t, s)
+	assertExpectedMemoryTUFMeta(t, expected, s)
+}
 
-	// updating even one with an equal version fails
-	require.IsType(t, &ErrOldVersion{}, s.UpdateMany("gun", []MetaUpdate{
-		{"role1", 1, []byte("test1")},
-		{"role2", 2, []byte("test2")},
-	}))
+// UpdateMany does not insert any rows (or at least rolls them back) if there
+// are any conflicts.
+func TestMemoryUpdateManyConflictRollback(t *testing.T) {
+	s := NewMemStorage()
+	expected := testUpdateManyConflictRollback(t, s)
+	assertExpectedMemoryTUFMeta(t, expected, s)
+}
+
+// Delete will remove all TUF metadata, all versions, associated with a gun
+func TestMemoryDeleteSuccess(t *testing.T) {
+	s := NewMemStorage()
+	testDeleteSuccess(t, s)
+	assertExpectedMemoryTUFMeta(t, nil, s)
 }
 
 func TestGetCurrent(t *testing.T) {
@@ -53,16 +73,6 @@ func TestGetCurrent(t *testing.T) {
 	_, d, err := s.GetCurrent("gun", "role")
 	require.Nil(t, err, "Expected error to be nil")
 	require.Equal(t, []byte("test"), d, "Data was incorrect")
-}
-
-func TestDelete(t *testing.T) {
-	s := NewMemStorage()
-	s.UpdateCurrent("gun", MetaUpdate{"role", 1, []byte("test")})
-	s.Delete("gun")
-
-	k := entryKey("gun", "role")
-	_, ok := s.tufMeta[k]
-	require.False(t, ok, "Found gun in store, should have been deleted")
 }
 
 func TestGetTimestampKey(t *testing.T) {

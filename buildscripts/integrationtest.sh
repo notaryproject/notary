@@ -30,7 +30,7 @@ fi
 set -e
 set -x
 
-# cleanup
+cleanup
 
 docker-compose -f $composeFile config
 docker-compose -f $composeFile build ${BUILDOPTS} --pull | tee
@@ -63,4 +63,4 @@ esac
 
 docker-compose -f $composeFile down -v
 
-# docker-compose -f $composeFile up --abort-on-container-exit
+docker-compose -f $composeFile up --abort-on-container-exit

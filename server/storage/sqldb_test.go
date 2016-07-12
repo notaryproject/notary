@@ -64,163 +64,89 @@ func SampleUpdate(version int) MetaUpdate {
 	}
 }
 
-// TestSQLUpdateCurrent asserts that UpdateCurrent will add a new TUF file
-// if no previous version existed.
-func TestSQLUpdateCurrentNew(t *testing.T) {
-	dbStore, cleanup := sqldbSetup(t)
-	defer cleanup()
-
-	// Adding a new TUF file should succeed
-	err := dbStore.UpdateCurrent("testGUN", SampleUpdate(0))
-	require.NoError(t, err, "Creating a row in an empty DB failed.")
+func assertExpectedGormTUFMeta(t *testing.T, expected []tufMeta, gormDB gorm.DB) {
+	expectedGorm := make([]TUFFile, len(expected))
+	for i, tufObj := range expected {
+		expectedGorm[i] = TUFFile{
+			Model:   gorm.Model{ID: uint(i + 1)},
+			Gun:     tufObj.Gun,
+			Role:    tufObj.Role,
+			Version: tufObj.Version,
+			Sha256:  tufObj.Sha256,
+			Data:    tufObj.Data,
+		}
+	}
 
 	// There should just be one row
 	var rows []TUFFile
-	query := dbStore.DB.Select("id, gun, role, version, sha256, data").Find(&rows)
+	query := gormDB.Select("id, gun, role, version, sha256, data").Find(&rows)
 	require.NoError(t, query.Error)
+	// to avoid issues with nil vs zero len list
+	if len(expectedGorm) == 0 {
+		require.Len(t, rows, 0)
+	} else {
+		require.Equal(t, expectedGorm, rows)
+	}
+}
 
-	expected := SampleTUF(0)
-	expected.ID = 1
-	require.Equal(t, []TUFFile{expected}, rows)
+// TestSQLUpdateCurrent asserts that UpdateCurrent will add a new TUF file
+// if no previous version of that gun and role existed.
+func TestSQLUpdateCurrentEmpty(t *testing.T) {
+	dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
+
+	expected := testUpdateCurrentEmptyStore(t, dbStore)
+	assertExpectedGormTUFMeta(t, expected, dbStore.DB)
+
+	dbStore.DB.Close()
 }
 
 // TestSQLUpdateCurrentNewVersion asserts that UpdateCurrent will add a
-// new (higher) version of an existing TUF file
+// new (higher) version of an existing TUF file, and that an error is raised if
+// trying to update to an older version of a TUF file.
 func TestSQLUpdateCurrentNewVersion(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
-	// insert row
-	oldVersion := SampleTUF(0)
-	query := dbStore.DB.Create(&oldVersion)
-	require.NoError(t, query.Error, "Creating a row in an empty DB failed.")
-
-	// UpdateCurrent with a newer version should succeed
-	update := SampleUpdate(2)
-	err := dbStore.UpdateCurrent("testGUN", update)
-	require.NoError(t, err, "Creating a row in an empty DB failed.")
-
-	// There should just be one row
-	var rows []TUFFile
-	query = dbStore.DB.Select("id, gun, role, version, sha256, data").Find(&rows)
-	require.NoError(t, query.Error)
-
-	oldVersion.Model = gorm.Model{ID: 1}
-	expected := SampleTUF(2)
-	expected.Model = gorm.Model{ID: 2}
-	require.Equal(t, []TUFFile{oldVersion, expected}, rows)
-}
-
-// TestSQLUpdateCurrentOldVersionError asserts that an error is raised if
-// trying to update to an older version of a TUF file.
-func TestSQLUpdateCurrentOldVersionError(t *testing.T) {
-	dbStore, cleanup := sqldbSetup(t)
-	defer cleanup()
-
-	// insert row
-	newVersion := SampleTUF(3)
-	query := dbStore.DB.Create(&newVersion)
-	require.NoError(t, query.Error, "Creating a row in an empty DB failed.")
-
-	// UpdateCurrent should fail due to the version being lower than the
-	// previous row
-	err := dbStore.UpdateCurrent("testGUN", SampleUpdate(0))
-	require.Error(t, err, "Error should not be nil")
-	require.IsType(t, &ErrOldVersion{}, err,
-		"Expected ErrOldVersion error type, got: %v", err)
-
-	// There should just be one row
-	var rows []TUFFile
-	query = dbStore.DB.Select("id, gun, role, version, sha256, data").Find(&rows)
-	require.NoError(t, query.Error)
-
-	newVersion.Model = gorm.Model{ID: 1}
-	require.Equal(t, []TUFFile{newVersion}, rows)
+	expected := testUpdateCurrentVersionCheck(t, dbStore)
+	assertExpectedGormTUFMeta(t, expected, dbStore.DB)
 
 	dbStore.DB.Close()
 }
 
-// TestSQLUpdateMany asserts that inserting multiple updates succeeds if the
-// updates do not conflict with each.
-func TestSQLUpdateMany(t *testing.T) {
+// TestSQLUpdateManyNoConflicts asserts that inserting multiple updates succeeds if the
+// updates do not conflict with each other or with the DB, even if there are
+// 2 versions of the same role/gun in a non-monotonic order.
+func TestSQLUpdateManyNoConflicts(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
-	err := dbStore.UpdateMany("testGUN", []MetaUpdate{
-		SampleUpdate(0),
-		{
-			Role:    "targets",
-			Version: 1,
-			Data:    []byte("2"),
-		},
-		SampleUpdate(2),
-	})
-	require.NoError(t, err, "UpdateMany errored unexpectedly: %v", err)
-
-	gorm1 := SampleTUF(0)
-	gorm1.ID = 1
-	data := []byte("2")
-	checksum := sha256.Sum256(data)
-	hexChecksum := hex.EncodeToString(checksum[:])
-	gorm2 := TUFFile{
-		Model: gorm.Model{ID: 2}, Gun: "testGUN", Role: "targets",
-		Version: 1, Sha256: hexChecksum, Data: data}
-	gorm3 := SampleTUF(2)
-	gorm3.ID = 3
-	expected := []TUFFile{gorm1, gorm2, gorm3}
-
-	var rows []TUFFile
-	query := dbStore.DB.Select("id, gun, role, version, sha256, data").Find(&rows)
-	require.NoError(t, query.Error)
-	require.Equal(t, expected, rows)
+	expected := testUpdateManyNoConflicts(t, dbStore)
+	assertExpectedGormTUFMeta(t, expected, dbStore.DB)
 
 	dbStore.DB.Close()
 }
 
-// TestSQLUpdateManyVersionOrder asserts that inserting updates with
-// non-monotonic versions still succeeds.
-func TestSQLUpdateManyVersionOrder(t *testing.T) {
+// TestSQLUpdateManyConflictRollback asserts that no data ends up in the DB if there is
+// a conflict
+func TestSQLUpdateManyConflictRollback(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
-	err := dbStore.UpdateMany(
-		"testGUN", []MetaUpdate{SampleUpdate(2), SampleUpdate(0)})
-	require.NoError(t, err)
-
-	// the whole transaction should have rolled back, so there should be
-	// no entries.
-	gorm1 := SampleTUF(2)
-	gorm1.ID = 1
-	gorm2 := SampleTUF(0)
-	gorm2.ID = 2
-
-	var rows []TUFFile
-	query := dbStore.DB.Select("id, gun, role, version, sha256, data").Find(&rows)
-	require.NoError(t, query.Error)
-	require.Equal(t, []TUFFile{gorm1, gorm2}, rows)
+	expected := testUpdateManyConflictRollback(t, dbStore)
+	assertExpectedGormTUFMeta(t, expected, dbStore.DB)
 
 	dbStore.DB.Close()
 }
 
-// TestSQLUpdateManyDuplicateRollback asserts that inserting duplicate
-// updates fails.
-func TestSQLUpdateManyDuplicateRollback(t *testing.T) {
+// TestSQLDelete asserts that Delete will remove all TUF metadata, all versions,
+// associated with a gun
+func TestSQLDelete(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
-	update := SampleUpdate(0)
-	err := dbStore.UpdateMany("testGUN", []MetaUpdate{update, update})
-	require.Error(
-		t, err, "There should be an error updating the same data twice.")
-	require.IsType(t, &ErrOldVersion{}, err,
-		"UpdateMany returned wrong error type")
-
-	// the whole transaction should have rolled back, so there should be
-	// no entries.
-	var count int
-	query := dbStore.DB.Model(&TUFFile{}).Count(&count)
-	require.NoError(t, query.Error)
-	require.Equal(t, 0, count)
+	testDeleteSuccess(t, dbStore)
+	assertExpectedGormTUFMeta(t, nil, dbStore.DB)
 
 	dbStore.DB.Close()
 }
@@ -245,26 +171,6 @@ func TestSQLGetCurrent(t *testing.T) {
 	fmt.Println(cDate)
 	require.True(t, cDate.After(time.Now().Add(-1*time.Minute)))
 	require.True(t, cDate.Before(time.Now().Add(5*time.Second)))
-
-	dbStore.DB.Close()
-}
-
-func TestSQLDelete(t *testing.T) {
-	dbStore, cleanup := sqldbSetup(t)
-	defer cleanup()
-
-	tuf := SampleTUF(0)
-	query := dbStore.DB.Create(&tuf)
-	require.NoError(t, query.Error, "Creating a row in an empty DB failed.")
-
-	err := dbStore.Delete("testGUN")
-	require.NoError(t, err, "There should not be any errors deleting.")
-
-	// verify deletion
-	var count int
-	query = dbStore.DB.Model(&TUFFile{}).Count(&count)
-	require.NoError(t, query.Error)
-	require.Equal(t, 0, count)
 
 	dbStore.DB.Close()
 }
