@@ -1,4 +1,4 @@
-// +build !mysqldb,!rethinkdb
+// +build !mysqldb
 
 // Initializes an SQLlite DBs for testing purposes
 
