@@ -87,13 +87,14 @@ services:
         - rdb-02
         - rdb-03
     client:
+      build:
+        context: .
+        dockerfile: Dockerfile
       volumes:
         - ./test_output:/test_output
       networks:
         - rdb
-      build:
-        context: .
-        dockerfile: Dockerfile
+      env_file: buildscripts/env.list
       links:
         - server:notary-server
       command: buildscripts/testclient.sh
