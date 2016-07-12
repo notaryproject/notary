@@ -1,5 +1,3 @@
-// +build !rethinkdb
-
 package storage
 
 import (

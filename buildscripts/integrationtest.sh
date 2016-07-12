@@ -48,8 +48,19 @@ case $composeFile in
         --user notary \
         client bash -c "make ci && codecov"
     ;;
+  development.rethink.yml)
+    docker-compose -f $composeFile run --no-deps -d --name "rethinkdb_tests" \
+        rdb-01 --bind all --no-http-admin --server-name rdb_01 \
+        --driver-tls-key /tls/key.pem --driver-tls-cert /tls/cert.pem
+    docker-compose -f $composeFile run --no-deps \
+        -e NOTARY_BUILDTAGS=rethinkdb \
+        -e PKGS="github.com/docker/notary/server/storage" \
+        -e RETHINK="rethinkdb_tests" \
+        --user notary \
+        client bash -c "make ci && codecov"
+    ;;
 esac
 
-cleanup
+docker-compose -f $composeFile down -v
 
-docker-compose -f $composeFile up --abort-on-container-exit
+# docker-compose -f $composeFile up --abort-on-container-exit
