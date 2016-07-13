@@ -604,7 +604,7 @@ func TestRootRotationNotSignedWithOldKeysForOldRole(t *testing.T) {
 
 	sn, err = repo.SignSnapshot(data.DefaultExpires(data.CanonicalSnapshotRole))
 	require.NoError(t, err)
-	root, targets, snapshot, timestamp, err = getUpdates(r, tg, sn, ts)
+	root, _, snapshot, _, err = getUpdates(r, tg, sn, ts)
 	require.NoError(t, err)
 
 	_, err = validateUpdate(serverCrypto, gun, []storage.MetaUpdate{root, snapshot}, store)
