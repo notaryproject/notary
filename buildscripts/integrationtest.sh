@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 
-composeFile="$1"
+db="$1"
+composeFile="development.${db}.yml"
+project=integration
 
 function cleanup {
     rm -f bin/notary
-	docker-compose -f $composeFile kill
+	docker-compose -p "${project}_${db}" -f ${composeFile} kill
 	# if we're in CircleCI, we cannot remove any containers
 	if [[ -z "${CIRCLECI}" ]]; then
-		docker-compose -f $composeFile down -v --remove-orphans
+		docker-compose -p "${project}_${db}" -f ${composeFile} down -v --remove-orphans
 	fi
 }
 
@@ -32,35 +34,9 @@ set -x
 
 cleanup
 
-docker-compose -f $composeFile config
-docker-compose -f $composeFile build ${BUILDOPTS} --pull | tee
+docker-compose -p "${project}_${db}" -f ${composeFile} config
+docker-compose -p "${project}_${db}" -f ${composeFile} build ${BUILDOPTS} --pull | tee
 
 trap cleanupAndExit SIGINT SIGTERM EXIT
 
-# run the unit tests that require a DB
-case $composeFile in
-  development.mysql.yml)
-    docker-compose -f $composeFile run --no-deps -d --name "mysql_tests" mysql mysqld --innodb_file_per_table
-    docker-compose -f $composeFile run --no-deps \
-        -e NOTARY_BUILDTAGS=mysqldb \
-        -e PKGS="github.com/docker/notary/server/storage" \
-        -e MYSQL="server@tcp(mysql_tests:3306)/notaryserver?parseTime=True" \
-        --user notary \
-        client bash -c "make ci && codecov"
-    ;;
-  development.rethink.yml)
-    docker-compose -f $composeFile run --no-deps -d --name "rethinkdb_tests" \
-        rdb-01 --bind all --no-http-admin --server-name rdb_01 \
-        --driver-tls-key /tls/key.pem --driver-tls-cert /tls/cert.pem
-    docker-compose -f $composeFile run --no-deps \
-        -e NOTARY_BUILDTAGS=rethinkdb \
-        -e PKGS="github.com/docker/notary/server/storage" \
-        -e RETHINK="rethinkdb_tests" \
-        --user notary \
-        client bash -c "make ci && codecov"
-    ;;
-esac
-
-docker-compose -f $composeFile down -v
-
-docker-compose -f $composeFile up --abort-on-container-exit
+docker-compose -p "${project}_${db}" -f ${composeFile} up --abort-on-container-exit

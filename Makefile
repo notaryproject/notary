@@ -140,16 +140,13 @@ test:
 	@echo
 	go test -tags "${NOTARY_BUILDTAGS}" $(TESTOPTS) $(PKGS)
 
-test-full: TESTOPTS =
-test-full: vet lint
-	@echo Note: when testing with a yubikey plugged in, make sure to include 'TESTOPTS="-p 1"'
-	@echo "+ $@"
-	@echo
-	go test -tags "${NOTARY_BUILDTAGS}" $(TESTOPTS) -v $(PKGS)
-
 integration: TESTDB = mysql
 integration:
-	buildscripts/integrationtest.sh development.$(TESTDB).yml
+	buildscripts/integrationtest.sh $(TESTDB)
+
+testdb: TESTDB = mysql
+testdb:
+	buildscripts/dbtests.sh $(TESTDB)
 
 protos:
 	@protoc --go_out=plugins=grpc:. proto/*.proto
