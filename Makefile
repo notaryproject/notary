@@ -117,6 +117,16 @@ misspell:
 	@echo "+ $@"
 	@test -z "$$(find . -name '*' | grep -v vendor/ | grep -v bin/ | grep -v misc/ | grep -v .git/ | xargs misspell | tee /dev/stderr)"
 
+# Requires that the following:
+# go get -u github.com/gordonklaus/ineffassign
+#
+# be run first
+
+# ineffassign target, don't include Godeps, binaries, python tests, or git files
+ineffassign:
+	@echo "+ $@"
+	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec ineffassign {} \; | tee /dev/stderr)"
+
 build:
 	@echo "+ $@"
 	@go build -tags "${NOTARY_BUILDTAGS}" -v ${GO_LDFLAGS} $(PKGS)
