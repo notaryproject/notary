@@ -17,7 +17,7 @@ import (
 
 func init() {
 	// Get the MYSQL connection string from an environment variable
-	dburl := os.Getenv("MYSQL")
+	dburl := os.Getenv("DBURL")
 	if dburl == "" {
 		logrus.Fatal("MYSQL environment variable not set")
 	}

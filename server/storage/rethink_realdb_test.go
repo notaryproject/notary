@@ -19,7 +19,7 @@ var tlsOpts = tlsconfig.Options{InsecureSkipVerify: true}
 
 func rethinkSessionSetup(t *testing.T) (*gorethink.Session, string) {
 	// Get the MYSQL connection string from an environment variable
-	rethinkSource := os.Getenv("RETHINK")
+	rethinkSource := os.Getenv("DBURL")
 	require.NotEqual(t, "", rethinkSource)
 
 	sess, err := rethinkdb.AdminConnection(tlsOpts, rethinkSource)

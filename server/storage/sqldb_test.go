@@ -64,7 +64,7 @@ func SampleUpdate(version int) MetaUpdate {
 	}
 }
 
-func assertExpectedGormTUFMeta(t *testing.T, expected []tufMeta, gormDB gorm.DB) {
+func assertExpectedGormTUFMeta(t *testing.T, expected []StoredTUFMeta, gormDB gorm.DB) {
 	expectedGorm := make([]TUFFile, len(expected))
 	for i, tufObj := range expected {
 		expectedGorm[i] = TUFFile{

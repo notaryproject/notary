@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type tufMeta struct {
+type StoredTUFMeta struct {
 	Gun     string
 	Role    string
 	Sha256  string
@@ -18,10 +18,10 @@ type tufMeta struct {
 	Version int
 }
 
-func SampleCustomTUFObj(role, gun string, tufdata []byte, version int) tufMeta {
+func SampleCustomTUFObj(role, gun string, tufdata []byte, version int) StoredTUFMeta {
 	checksum := sha256.Sum256(tufdata)
 	hexChecksum := hex.EncodeToString(checksum[:])
-	return tufMeta{
+	return StoredTUFMeta{
 		Gun:     gun,
 		Role:    role,
 		Version: version,
@@ -38,7 +38,7 @@ func SampleCustomUpdate(role string, tufdata []byte, version int) MetaUpdate {
 	}
 }
 
-func assertExpectedTUFMetaInStore(t *testing.T, s MetaStore, expected []tufMeta) {
+func assertExpectedTUFMetaInStore(t *testing.T, s MetaStore, expected []StoredTUFMeta) {
 	for _, tufObj := range expected {
 		_, tufdata, err := s.GetCurrent(tufObj.Gun, tufObj.Role)
 		require.NoError(t, err)
@@ -55,8 +55,8 @@ func assertExpectedTUFMetaInStore(t *testing.T, s MetaStore, expected []tufMeta)
 
 // UpdateCurrent should succeed if there was no previous metadata of the same
 // gun and role.  They should be gettable.
-func testUpdateCurrentEmptyStore(t *testing.T, s MetaStore) []tufMeta {
-	expected := make([]tufMeta, 0, 10)
+func testUpdateCurrentEmptyStore(t *testing.T, s MetaStore) []StoredTUFMeta {
+	expected := make([]StoredTUFMeta, 0, 10)
 	for _, role := range append(data.BaseRoles, "targets/a") {
 		for _, gun := range []string{"gun1", "gun2"} {
 			// Adding a new TUF file should succeed
@@ -72,7 +72,7 @@ func testUpdateCurrentEmptyStore(t *testing.T, s MetaStore) []tufMeta {
 
 // UpdateCurrent will successfully add a new (higher) version of an existing TUF file,
 // but will return an error if there is an older version of a TUF file.
-func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore) []tufMeta {
+func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore) []StoredTUFMeta {
 	role, gun, tufdata := data.CanonicalRootRole, "testGUN", []byte("1")
 
 	// starting meta is version 1
@@ -90,7 +90,7 @@ func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore) []tufMeta {
 			"Expected ErrOldVersion error type, got: %v", err)
 	}
 
-	expected := []tufMeta{
+	expected := []StoredTUFMeta{
 		SampleCustomTUFObj(role, gun, tufdata, 1),
 		SampleCustomTUFObj(role, gun, tufdata, 2),
 		SampleCustomTUFObj(role, gun, tufdata, 4),
@@ -101,9 +101,9 @@ func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore) []tufMeta {
 
 // UpdateMany succeeds if the updates do not conflict with each other or with what's
 // already in the DB
-func testUpdateManyNoConflicts(t *testing.T, s MetaStore) []tufMeta {
+func testUpdateManyNoConflicts(t *testing.T, s MetaStore) []StoredTUFMeta {
 	gun, tufdata := "testGUN", []byte("many")
-	expected := make([]tufMeta, 4)
+	expected := make([]StoredTUFMeta, 4)
 	updates := make([]MetaUpdate, 4)
 	for i, role := range data.BaseRoles {
 		expected[i] = SampleCustomTUFObj(role, gun, tufdata, 1)
@@ -137,9 +137,9 @@ func testUpdateManyNoConflicts(t *testing.T, s MetaStore) []tufMeta {
 
 // UpdateMany does not insert any rows (or at least rolls them back) if there
 // are any conflicts.
-func testUpdateManyConflictRollback(t *testing.T, s MetaStore) []tufMeta {
+func testUpdateManyConflictRollback(t *testing.T, s MetaStore) []StoredTUFMeta {
 	gun := "testGUN"
-	successBatch := make([]tufMeta, 4)
+	successBatch := make([]StoredTUFMeta, 4)
 	updates := make([]MetaUpdate, 4)
 	for i, role := range data.BaseRoles {
 		tufdata := []byte(gun + "_" + role + "_1")
@@ -150,7 +150,7 @@ func testUpdateManyConflictRollback(t *testing.T, s MetaStore) []tufMeta {
 	require.NoError(t, s.UpdateMany(gun, updates))
 
 	// conflicts with what's in DB
-	badBatch := make([]tufMeta, 4)
+	badBatch := make([]StoredTUFMeta, 4)
 	for i, role := range data.BaseRoles {
 		version := 2
 		if role == data.CanonicalTargetsRole {
@@ -193,7 +193,7 @@ func testDeleteSuccess(t *testing.T, s MetaStore) {
 	require.NoError(t, s.Delete(gun))
 
 	// If there is data in the DB, all versions are deleted
-	unexpected := make([]tufMeta, 0, 10)
+	unexpected := make([]StoredTUFMeta, 0, 10)
 	updates := make([]MetaUpdate, 0, 10)
 	for _, role := range append(data.BaseRoles, "targets/a") {
 		for version := 1; version < 3; version++ {

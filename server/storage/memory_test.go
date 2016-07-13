@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func assertExpectedMemoryTUFMeta(t *testing.T, expected []tufMeta, s *MemStorage) {
+func assertExpectedMemoryTUFMeta(t *testing.T, expected []StoredTUFMeta, s *MemStorage) {
 	counter := make(map[string]int)
 	for _, tufObj := range expected {
 		k := entryKey(tufObj.Gun, tufObj.Role)

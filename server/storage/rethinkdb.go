@@ -309,7 +309,7 @@ func (rdb RethinkDB) deleteByTSChecksum(tsChecksum string) error {
 		"timestamp_checksum", tsChecksum,
 	).Delete().RunWrite(rdb.sess)
 	if err != nil {
-		return fmt.Errorf("unable to delete timestamp checksum data: %s from database: %v", tsChecksum, err.Error())
+		return fmt.Errorf("unable to delete timestamp checksum data: %s from database: %s", tsChecksum, err.Error())
 	}
 	return nil
 }
