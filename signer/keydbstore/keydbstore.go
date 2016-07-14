@@ -1,7 +1,6 @@
 package keydbstore
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 
@@ -212,11 +211,6 @@ func (s *KeyDBStore) RotateKeyPassphrase(keyID, newPassphraseAlias string) error
 	s.db.Save(dbPrivateKey)
 
 	return nil
-}
-
-// ExportKey is currently unimplemented and will always return an error
-func (s *KeyDBStore) ExportKey(keyID string) ([]byte, error) {
-	return nil, errors.New("Exporting from a KeyDBStore is not supported.")
 }
 
 // HealthCheck verifies that DB exists and is query-able

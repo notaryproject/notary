@@ -1,16 +1,147 @@
-package trustmanager
+package storage
 
 import (
-	"crypto/rand"
-	"fmt"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
-	"strconv"
 	"testing"
+
+	"crypto/rand"
+	"fmt"
+	"github.com/docker/notary"
+	"github.com/stretchr/testify/require"
+	"strconv"
 )
 
+const testDir = "/tmp/testFilesystemStore/"
+
+func TestNewFilesystemStore(t *testing.T) {
+	_, err := NewFilesystemStore(testDir, "metadata", "json")
+	require.Nil(t, err, "Initializing FilesystemStore returned unexpected error: %v", err)
+	defer os.RemoveAll(testDir)
+
+	info, err := os.Stat(path.Join(testDir, "metadata"))
+	require.Nil(t, err, "Error attempting to stat metadata dir: %v", err)
+	require.NotNil(t, info, "Nil FileInfo from stat on metadata dir")
+	require.True(t, 0700&info.Mode() != 0, "Metadata directory is not writable")
+}
+
+func TestSet(t *testing.T) {
+	s, err := NewFilesystemStore(testDir, "metadata", "json")
+	require.Nil(t, err, "Initializing FilesystemStore returned unexpected error: %v", err)
+	defer os.RemoveAll(testDir)
+
+	testContent := []byte("test data")
+
+	err = s.Set("testMeta", testContent)
+	require.Nil(t, err, "Set returned unexpected error: %v", err)
+
+	content, err := ioutil.ReadFile(path.Join(testDir, "metadata", "testMeta.json"))
+	require.Nil(t, err, "Error reading file: %v", err)
+	require.Equal(t, testContent, content, "Content written to file was corrupted.")
+}
+
+func TestSetWithNoParentDirectory(t *testing.T) {
+	s, err := NewFilesystemStore(testDir, "metadata", "json")
+	require.Nil(t, err, "Initializing FilesystemStore returned unexpected error: %v", err)
+	defer os.RemoveAll(testDir)
+
+	testContent := []byte("test data")
+
+	err = s.Set("noexist/"+"testMeta", testContent)
+	require.Nil(t, err, "Set returned unexpected error: %v", err)
+
+	content, err := ioutil.ReadFile(path.Join(testDir, "metadata", "noexist/testMeta.json"))
+	require.Nil(t, err, "Error reading file: %v", err)
+	require.Equal(t, testContent, content, "Content written to file was corrupted.")
+}
+
+// if something already existed there, remove it first and write a new file
+func TestSetRemovesExistingFileBeforeWriting(t *testing.T) {
+	s, err := NewFilesystemStore(testDir, "metadata", "json")
+	require.Nil(t, err, "Initializing FilesystemStore returned unexpected error: %v", err)
+	defer os.RemoveAll(testDir)
+
+	// make a directory where we want metadata to go
+	os.Mkdir(filepath.Join(testDir, "metadata", "root.json"), 0700)
+
+	testContent := []byte("test data")
+	err = s.Set("root", testContent)
+	require.NoError(t, err, "Set returned unexpected error: %v", err)
+
+	content, err := ioutil.ReadFile(path.Join(testDir, "metadata", "root.json"))
+	require.NoError(t, err, "Error reading file: %v", err)
+	require.Equal(t, testContent, content, "Content written to file was corrupted.")
+}
+
+func TestGetSized(t *testing.T) {
+	s, err := NewFilesystemStore(testDir, "metadata", "json")
+	require.Nil(t, err, "Initializing FilesystemStore returned unexpected error: %v", err)
+	defer os.RemoveAll(testDir)
+
+	testContent := []byte("test data")
+
+	ioutil.WriteFile(path.Join(testDir, "metadata", "testMeta.json"), testContent, 0600)
+
+	content, err := s.GetSized("testMeta", int64(len(testContent)))
+	require.Nil(t, err, "GetSized returned unexpected error: %v", err)
+
+	require.Equal(t, testContent, content, "Content read from file was corrupted.")
+
+	// Check that NoSizeLimit size reads everything
+	content, err = s.GetSized("testMeta", NoSizeLimit)
+	require.Nil(t, err, "GetSized returned unexpected error: %v", err)
+
+	require.Equal(t, testContent, content, "Content read from file was corrupted.")
+
+	// Check that we error if the file is larger than the expected size
+	content, err = s.GetSized("testMeta", 4)
+	require.Error(t, err)
+	require.Len(t, content, 0)
+}
+
+func TestGetSizedSet(t *testing.T) {
+	s, err := NewFilesystemStore(testDir, "metadata", "json")
+	require.NoError(t, err, "Initializing FilesystemStore returned unexpected error", err)
+	defer os.RemoveAll(testDir)
+
+	testGetSetMeta(t, func() MetadataStore { return s })
+}
+
+func TestRemove(t *testing.T) {
+	s, err := NewFilesystemStore(testDir, "metadata", "json")
+	require.NoError(t, err, "Initializing FilesystemStore returned unexpected error", err)
+	defer os.RemoveAll(testDir)
+
+	testRemove(t, func() MetadataStore { return s })
+}
+
+func TestRemoveAll(t *testing.T) {
+	s, err := NewFilesystemStore(testDir, "metadata", "json")
+	require.Nil(t, err, "Initializing FilesystemStore returned unexpected error: %v", err)
+	defer os.RemoveAll(testDir)
+
+	testContent := []byte("test data")
+
+	// Write some files in metadata and targets dirs
+	metaPath := path.Join(testDir, "metadata", "testMeta.json")
+	ioutil.WriteFile(metaPath, testContent, 0600)
+
+	// Remove all
+	err = s.RemoveAll()
+	require.Nil(t, err, "Removing all from FilesystemStore returned unexpected error: %v", err)
+
+	// Test that files no longer exist
+	_, err = ioutil.ReadFile(metaPath)
+	require.True(t, os.IsNotExist(err))
+
+	// Removing the empty filestore returns nil
+	require.Nil(t, s.RemoveAll())
+}
+
+// Tests originally from Trustmanager ensuring the FilesystemStore satisfies the
+// necessary behaviour
 func TestAddFile(t *testing.T) {
 	testData := []byte("This test data should be part of the file.")
 	testName := "docker.com/notary/certificate"
@@ -25,15 +156,15 @@ func TestAddFile(t *testing.T) {
 	// Since we're generating this manually we need to add the extension '.'
 	expectedFilePath := filepath.Join(tempBaseDir, testName+testExt)
 
-	// Create our SimpleFileStore
-	store := &SimpleFileStore{
+	// Create our FilesystemStore
+	store := &FilesystemStore{
 		baseDir: tempBaseDir,
-		fileExt: testExt,
+		ext:     testExt,
 		perms:   perms,
 	}
 
-	// Call the Add function
-	err = store.Add(testName, testData)
+	// Call the Set function
+	err = store.Set(testName, testData)
 	require.NoError(t, err)
 
 	// Check to see if file exists
@@ -58,10 +189,10 @@ func TestRemoveFile(t *testing.T) {
 	_, err = generateRandomFile(expectedFilePath, perms)
 	require.NoError(t, err)
 
-	// Create our SimpleFileStore
-	store := &SimpleFileStore{
+	// Create our FilesystemStore
+	store := &FilesystemStore{
 		baseDir: tempBaseDir,
-		fileExt: testExt,
+		ext:     testExt,
 		perms:   perms,
 	}
 
@@ -94,10 +225,10 @@ func TestListFiles(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	// Create our SimpleFileStore
-	store := &SimpleFileStore{
+	// Create our FilesystemStore
+	store := &FilesystemStore{
 		baseDir: tempBaseDir,
-		fileExt: testExt,
+		ext:     testExt,
 		perms:   perms,
 	}
 
@@ -110,20 +241,20 @@ func TestGetPath(t *testing.T) {
 	testExt := ".crt"
 	perms := os.FileMode(0755)
 
-	// Create our SimpleFileStore
-	store := &SimpleFileStore{
+	// Create our FilesystemStore
+	store := &FilesystemStore{
 		baseDir: "",
-		fileExt: testExt,
+		ext:     testExt,
 		perms:   perms,
 	}
 
 	firstPath := "diogomonica.com/openvpn/0xdeadbeef.crt"
 	secondPath := "/docker.io/testing-dashes/@#$%^&().crt"
 
-	result, err := store.GetPath("diogomonica.com/openvpn/0xdeadbeef")
+	result, err := store.getPath("diogomonica.com/openvpn/0xdeadbeef")
 	require.Equal(t, firstPath, result, "unexpected error from GetPath: %v", err)
 
-	result, err = store.GetPath("/docker.io/testing-dashes/@#$%^&()")
+	result, err = store.getPath("/docker.io/testing-dashes/@#$%^&()")
 	require.Equal(t, secondPath, result, "unexpected error from GetPath: %v", err)
 }
 
@@ -131,46 +262,46 @@ func TestGetPathProtection(t *testing.T) {
 	testExt := ".crt"
 	perms := os.FileMode(0755)
 
-	// Create our SimpleFileStore
-	store := &SimpleFileStore{
+	// Create our FilesystemStore
+	store := &FilesystemStore{
 		baseDir: "/path/to/filestore/",
-		fileExt: testExt,
+		ext:     testExt,
 		perms:   perms,
 	}
 
 	// Should deny requests for paths outside the filestore
-	_, err := store.GetPath("../../etc/passwd")
+	_, err := store.getPath("../../etc/passwd")
 	require.Error(t, err)
 	require.Equal(t, ErrPathOutsideStore, err)
 
-	_, err = store.GetPath("private/../../../etc/passwd")
+	_, err = store.getPath("private/../../../etc/passwd")
 	require.Error(t, err)
 	require.Equal(t, ErrPathOutsideStore, err)
 
 	// Convoluted paths should work as long as they end up inside the store
 	expected := "/path/to/filestore/filename.crt"
-	result, err := store.GetPath("private/../../filestore/./filename")
+	result, err := store.getPath("private/../../filestore/./filename")
 	require.NoError(t, err)
 	require.Equal(t, expected, result)
 
 	// Repeat tests with a relative baseDir
-	relStore := &SimpleFileStore{
+	relStore := &FilesystemStore{
 		baseDir: "relative/file/path",
-		fileExt: testExt,
+		ext:     testExt,
 		perms:   perms,
 	}
 
 	// Should deny requests for paths outside the filestore
-	_, err = relStore.GetPath("../../etc/passwd")
+	_, err = relStore.getPath("../../etc/passwd")
 	require.Error(t, err)
 	require.Equal(t, ErrPathOutsideStore, err)
-	_, err = relStore.GetPath("private/../../../etc/passwd")
+	_, err = relStore.getPath("private/../../../etc/passwd")
 	require.Error(t, err)
 	require.Equal(t, ErrPathOutsideStore, err)
 
 	// Convoluted paths should work as long as they end up inside the store
 	expected = "relative/file/path/filename.crt"
-	result, err = relStore.GetPath("private/../../path/./filename")
+	result, err = relStore.getPath("private/../../path/./filename")
 	require.NoError(t, err)
 	require.Equal(t, expected, result)
 }
@@ -191,10 +322,10 @@ func TestGetData(t *testing.T) {
 	expectedData, err := generateRandomFile(expectedFilePath, perms)
 	require.NoError(t, err)
 
-	// Create our SimpleFileStore
-	store := &SimpleFileStore{
+	// Create our FilesystemStore
+	store := &FilesystemStore{
 		baseDir: tempBaseDir,
-		fileExt: testExt,
+		ext:     testExt,
 		perms:   perms,
 	}
 	testData, err := store.Get(testName)
@@ -213,7 +344,7 @@ func TestCreateDirectory(t *testing.T) {
 	dirPath := filepath.Join(tempBaseDir, testDir)
 
 	// Call createDirectory
-	createDirectory(dirPath, visible)
+	createDirectory(dirPath, notary.PubCertPerms)
 
 	// Check to see if file exists
 	fi, err := os.Stat(dirPath)
@@ -237,7 +368,7 @@ func TestCreatePrivateDirectory(t *testing.T) {
 	dirPath := filepath.Join(tempBaseDir, testDir)
 
 	// Call createDirectory
-	createDirectory(dirPath, private)
+	createDirectory(dirPath, notary.PrivKeyPerms)
 
 	// Check to see if file exists
 	fi, err := os.Stat(dirPath)
@@ -297,10 +428,10 @@ func TestFileStoreConsistency(t *testing.T) {
 	file2Path := "path/file2"
 	file3Path := "long/path/file3"
 
-	for _, s := range []Storage{s, s2} {
-		s.Add(file1Path, file1Data)
-		s.Add(file2Path, file2Data)
-		s.Add(file3Path, file3Data)
+	for _, s := range []*FilesystemStore{s, s2} {
+		s.Set(file1Path, file1Data)
+		s.Set(file2Path, file2Data)
+		s.Set(file3Path, file3Data)
 
 		paths := map[string][]byte{
 			file1Path: file1Data,

@@ -24,6 +24,7 @@ import (
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
@@ -50,7 +51,7 @@ func TestRemoveOneKeyAbort(t *testing.T) {
 	nos := []string{"no", "NO", "AAAARGH", "   N    "}
 	store := trustmanager.NewKeyMemoryStore(ret)
 
-	key, err := trustmanager.GenerateED25519Key(rand.Reader)
+	key, err := utils.GenerateED25519Key(rand.Reader)
 	require.NoError(t, err)
 	err = store.AddKey(trustmanager.KeyInfo{Role: data.CanonicalRootRole, Gun: ""}, key)
 	require.NoError(t, err)
@@ -82,7 +83,7 @@ func TestRemoveOneKeyConfirm(t *testing.T) {
 	for _, yesAnswer := range yesses {
 		store := trustmanager.NewKeyMemoryStore(ret)
 
-		key, err := trustmanager.GenerateED25519Key(rand.Reader)
+		key, err := utils.GenerateED25519Key(rand.Reader)
 		require.NoError(t, err)
 		err = store.AddKey(trustmanager.KeyInfo{Role: data.CanonicalRootRole, Gun: ""}, key)
 		require.NoError(t, err)
@@ -110,7 +111,7 @@ func TestRemoveMultikeysInvalidInput(t *testing.T) {
 	setUp(t)
 	in := bytes.NewBuffer([]byte("notanumber\n9999\n-3\n0"))
 
-	key, err := trustmanager.GenerateED25519Key(rand.Reader)
+	key, err := utils.GenerateED25519Key(rand.Reader)
 	require.NoError(t, err)
 
 	stores := []trustmanager.KeyStore{
@@ -159,7 +160,7 @@ func TestRemoveMultikeysAbortChoice(t *testing.T) {
 	setUp(t)
 	in := bytes.NewBuffer([]byte("1\nn\n"))
 
-	key, err := trustmanager.GenerateED25519Key(rand.Reader)
+	key, err := utils.GenerateED25519Key(rand.Reader)
 	require.NoError(t, err)
 
 	stores := []trustmanager.KeyStore{
@@ -198,7 +199,7 @@ func TestRemoveMultikeysRemoveOnlyChosenKey(t *testing.T) {
 	setUp(t)
 	in := bytes.NewBuffer([]byte("1\ny\n"))
 
-	key, err := trustmanager.GenerateED25519Key(rand.Reader)
+	key, err := utils.GenerateED25519Key(rand.Reader)
 	require.NoError(t, err)
 
 	stores := []trustmanager.KeyStore{
@@ -533,100 +534,13 @@ func TestChangeKeyPassphraseNonexistentID(t *testing.T) {
 	require.Contains(t, err.Error(), "could not retrieve local key for key ID provided")
 }
 
-func TestKeyImportMismatchingRoles(t *testing.T) {
-	setUp(t)
-	k := &keyCommander{
-		configGetter:   func() (*viper.Viper, error) { return viper.New(), nil },
-		getRetriever:   func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
-		keysImportRole: "targets",
-	}
-	tempFileName := generateTempTestKeyFile(t, "snapshot")
-	defer os.Remove(tempFileName)
-
-	err := k.keysImport(&cobra.Command{}, []string{tempFileName})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "does not match role")
-}
-
-func TestKeyImportNoGUNForTargetsPEM(t *testing.T) {
-	setUp(t)
-	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) { return viper.New(), nil },
-		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
-	}
-	tempFileName := generateTempTestKeyFile(t, "targets")
-	defer os.Remove(tempFileName)
-
-	err := k.keysImport(&cobra.Command{}, []string{tempFileName})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "Must specify GUN")
-}
-
-func TestKeyImportNoGUNForSnapshotPEM(t *testing.T) {
-	setUp(t)
-	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) { return viper.New(), nil },
-		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
-	}
-	tempFileName := generateTempTestKeyFile(t, "snapshot")
-	defer os.Remove(tempFileName)
-
-	err := k.keysImport(&cobra.Command{}, []string{tempFileName})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "Must specify GUN")
-}
-
-func TestKeyImportNoGUNForTargetsFlag(t *testing.T) {
-	setUp(t)
-	k := &keyCommander{
-		configGetter:   func() (*viper.Viper, error) { return viper.New(), nil },
-		getRetriever:   func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
-		keysImportRole: "targets",
-	}
-	tempFileName := generateTempTestKeyFile(t, "")
-	defer os.Remove(tempFileName)
-
-	err := k.keysImport(&cobra.Command{}, []string{tempFileName})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "Must specify GUN")
-}
-
-func TestKeyImportNoGUNForSnapshotFlag(t *testing.T) {
-	setUp(t)
-	k := &keyCommander{
-		configGetter:   func() (*viper.Viper, error) { return viper.New(), nil },
-		getRetriever:   func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
-		keysImportRole: "snapshot",
-	}
-	tempFileName := generateTempTestKeyFile(t, "")
-	defer os.Remove(tempFileName)
-
-	err := k.keysImport(&cobra.Command{}, []string{tempFileName})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "Must specify GUN")
-}
-
-func TestKeyImportNoRole(t *testing.T) {
-	setUp(t)
-	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) { return viper.New(), nil },
-		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
-	}
-	tempFileName := generateTempTestKeyFile(t, "")
-	defer os.Remove(tempFileName)
-
-	err := k.keysImport(&cobra.Command{}, []string{tempFileName})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "Could not infer role, and no role was specified for key")
-}
-
 func generateTempTestKeyFile(t *testing.T, role string) string {
 	setUp(t)
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	if err != nil {
 		return ""
 	}
-	keyBytes, err := trustmanager.KeyToPEM(privKey, role)
+	keyBytes, err := utils.KeyToPEM(privKey, role)
 	require.NoError(t, err)
 
 	tempPrivFile, err := ioutil.TempFile("/tmp", "privfile")

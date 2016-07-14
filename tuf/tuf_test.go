@@ -15,6 +15,7 @@ import (
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1175,7 +1176,7 @@ func TestSignRootOldKeyCertExists(t *testing.T) {
 	oldRootCert, err := cryptoservice.GenerateCertificate(rootPrivateKey, gun, referenceTime.AddDate(-9, 0, 0),
 		referenceTime.AddDate(1, 0, 0))
 	require.NoError(t, err)
-	oldRootCertKey := trustmanager.CertToKey(oldRootCert)
+	oldRootCertKey := utils.CertToKey(oldRootCert)
 
 	repo := initRepoWithRoot(t, cs, oldRootCertKey)
 
@@ -1189,7 +1190,7 @@ func TestSignRootOldKeyCertExists(t *testing.T) {
 	// Create a new certificate
 	newRootCert, err := cryptoservice.GenerateCertificate(rootPrivateKey, gun, referenceTime, referenceTime.AddDate(10, 0, 0))
 	require.NoError(t, err)
-	newRootCertKey := trustmanager.CertToKey(newRootCert)
+	newRootCertKey := utils.CertToKey(newRootCert)
 	require.NotEqual(t, oldRootCertKey.ID(), newRootCertKey.ID())
 
 	// Only trust the new certificate
@@ -1228,7 +1229,7 @@ func TestSignRootOldKeyCertMissing(t *testing.T) {
 	oldRootCert, err := cryptoservice.GenerateCertificate(rootPrivateKey, gun, referenceTime.AddDate(-9, 0, 0),
 		referenceTime.AddDate(1, 0, 0))
 	require.NoError(t, err)
-	oldRootCertKey := trustmanager.CertToKey(oldRootCert)
+	oldRootCertKey := utils.CertToKey(oldRootCert)
 
 	repo := initRepoWithRoot(t, cs, oldRootCertKey)
 
@@ -1242,7 +1243,7 @@ func TestSignRootOldKeyCertMissing(t *testing.T) {
 	// Create a new certificate
 	newRootCert, err := cryptoservice.GenerateCertificate(rootPrivateKey, gun, referenceTime, referenceTime.AddDate(10, 0, 0))
 	require.NoError(t, err)
-	newRootCertKey := trustmanager.CertToKey(newRootCert)
+	newRootCertKey := utils.CertToKey(newRootCert)
 	require.NotEqual(t, oldRootCertKey.ID(), newRootCertKey.ID())
 
 	// Only trust the new certificate
@@ -1293,7 +1294,7 @@ func TestSignRootOldRootRolesAndOldSigs(t *testing.T) {
 		rootCert, err := cryptoservice.GenerateCertificate(rootPrivateKey, gun, referenceTime.AddDate(-9, 0, 0),
 			referenceTime.AddDate(1, 0, 0))
 		require.NoError(t, err)
-		rootCertKeys[i] = trustmanager.CertToKey(rootCert)
+		rootCertKeys[i] = utils.CertToKey(rootCert)
 		rootPrivKeys[i] = rootPrivateKey
 	}
 

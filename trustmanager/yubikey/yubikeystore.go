@@ -21,6 +21,7 @@ import (
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/miekg/pkcs11"
 )
 
@@ -249,7 +250,7 @@ func addECDSAKey(
 
 	// Hard-coded policy: the generated certificate expires in 10 years.
 	startTime := time.Now()
-	template, err := trustmanager.NewCertificate(role, startTime, startTime.AddDate(10, 0, 0))
+	template, err := utils.NewCertificate(role, startTime, startTime.AddDate(10, 0, 0))
 	if err != nil {
 		return fmt.Errorf("failed to create the certificate template: %v", err)
 	}
@@ -787,12 +788,6 @@ func (s *YubiStore) RemoveKey(keyID string) error {
 	}
 
 	return err
-}
-
-// ExportKey doesn't work, because you can't export data from a Yubikey
-func (s *YubiStore) ExportKey(keyID string) ([]byte, error) {
-	logrus.Debugf("Attempting to export: %s key inside of YubiStore", keyID)
-	return nil, errors.New("Keys cannot be exported from a Yubikey.")
 }
 
 // GetKeyInfo is not yet implemented

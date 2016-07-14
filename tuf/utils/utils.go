@@ -5,6 +5,7 @@ import (
 	"crypto/sha512"
 	"crypto/tls"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -149,4 +150,38 @@ func ConsistentName(role string, hashSha256 []byte) string {
 		return fmt.Sprintf("%s.%s", role, hash)
 	}
 	return role
+}
+
+// ErrWrongLength indicates the length was different to that expected
+var ErrWrongLength = errors.New("wrong length")
+
+// ErrWrongHash indicates the hash was different to that expected
+type ErrWrongHash struct {
+	Type     string
+	Expected []byte
+	Actual   []byte
+}
+
+// Error implements error interface
+func (e ErrWrongHash) Error() string {
+	return fmt.Sprintf("wrong %s hash, expected %#x got %#x", e.Type, e.Expected, e.Actual)
+}
+
+// ErrNoCommonHash indicates the metadata did not provide any hashes this
+// client recognizes
+type ErrNoCommonHash struct {
+	Expected data.Hashes
+	Actual   data.Hashes
+}
+
+// Error implements error interface
+func (e ErrNoCommonHash) Error() string {
+	types := func(a data.Hashes) []string {
+		t := make([]string, 0, len(a))
+		for typ := range a {
+			t = append(t, typ)
+		}
+		return t
+	}
+	return fmt.Sprintf("no common hash function, expected one of %s, got %s", types(e.Expected), types(e.Actual))
 }

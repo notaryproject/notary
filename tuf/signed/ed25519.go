@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
 )
 
 type edCryptoKey struct {
@@ -72,7 +73,7 @@ func (e *Ed25519) Create(role, gun, algorithm string) (data.PublicKey, error) {
 		return nil, errors.New("only ED25519 supported by this cryptoservice")
 	}
 
-	private, err := trustmanager.GenerateED25519Key(rand.Reader)
+	private, err := utils.GenerateED25519Key(rand.Reader)
 	if err != nil {
 		return nil, err
 	}
