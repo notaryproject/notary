@@ -12,6 +12,6 @@ case $CIRCLE_NODE_INDEX in
 3) SKIPENVCHECK=1 make TESTDB=rethink testdb
    SKIPENVCHECK=1 make TESTDB=rethink integration
    ;;
-4) docker run --rm -e NOTARY_BUILDTAGS=pkcs11 notary_client make vet lint fmt misspell ineffassign
+4) docker run --rm -e NOTARY_BUILDTAGS=pkcs11 notary_client make lint
    ;;
 esac
