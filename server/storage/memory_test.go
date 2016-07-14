@@ -10,17 +10,18 @@ import (
 )
 
 func assertExpectedMemoryTUFMeta(t *testing.T, expected []StoredTUFMeta, s *MemStorage) {
-	counter := make(map[string]int)
 	for _, tufObj := range expected {
 		k := entryKey(tufObj.Gun, tufObj.Role)
-		gun, ok := s.tufMeta[k]
-		require.True(t, len(gun) >= counter[k])
-		v := gun[counter[k]]
-		require.True(t, ok, "Did not find gun in store")
-		require.Equal(t, tufObj.Version, v.version, "Version mismatch. Expected %d, found %d",
-			tufObj.Version, v.version)
+		versionList, ok := s.tufMeta[k]
+		require.True(t, ok, "Did not find this gun+role in store")
+		byVersion := make(map[int]ver)
+		for _, v := range versionList {
+			byVersion[v.version] = v
+		}
+
+		v, ok := byVersion[tufObj.Version]
+		require.True(t, ok, "Did not find version %d in store", tufObj.Version)
 		require.Equal(t, tufObj.Data, v.data, "Data was incorrect")
-		counter[k]++
 	}
 }
 

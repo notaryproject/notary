@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 
 db="$1"
+case ${db} in
+  mysql*)
+    db="mysql"
+    ;;
+  rethink*)
+    db="rethink"
+    ;;
+  *)
+    echo "Usage: $0 (mysql|rethink)"
+    exit 1
+    ;;
+esac
+
 composeFile="development.${db}.yml"
 project=integration
 

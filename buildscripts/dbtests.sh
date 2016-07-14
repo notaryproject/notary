@@ -13,6 +13,10 @@ case ${db} in
     dbContainerOpts="--name rethinkdb_tests rdb-01 --bind all --driver-tls-key /tls/key.pem --driver-tls-cert /tls/cert.pem"
     DBURL="rethinkdb_tests"
     ;;
+  *)
+    echo "Usage: $0 (mysql|rethink)"
+    exit 1
+    ;;
 esac
 
 composeFile="development.${db}.yml"
