@@ -42,11 +42,11 @@ COVERPROFILE?=$(COVERDIR)/cover.out
 COVERMODE=count
 PKGS ?= $(shell go list -tags "${NOTARY_BUILDTAGS}" ./... | grep -v /vendor/ | tr '\n' ' ')
 
-.PHONY: clean all fmt vet lint build test binaries cross cover docker-images notary-dockerfile
+.PHONY: clean all lint build test binaries cross cover docker-images notary-dockerfile
 .DELETE_ON_ERROR: cover
 .DEFAULT: default
 
-all: AUTHORS clean fmt vet fmt lint build test binaries
+all: AUTHORS clean lint build test binaries
 
 AUTHORS: .git/HEAD
 	git log --format='%aN <%aE>' | sort -fu > $@
@@ -90,41 +90,26 @@ ${PREFIX}/bin/static/notary:
 	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary
 endif
 
-vet:
-	@echo "+ $@"
+
+# run all lint functionality - excludes Godep directory, vendoring, binaries, python tests, and git files
+lint:
+	@echo "+ $@: golint, go vet, go fmt, misspell, ineffassign"
+	# golint
+	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec golint {} \; | tee /dev/stderr)"
+	# gofmt
+	@test -z "$$(gofmt -s -l .| grep -v .pb. | grep -v vendor/ | tee /dev/stderr)"
+	# govet
 ifeq ($(shell uname -s), Darwin)
 	@test -z "$(shell find . -iname *test*.go | grep -v _test.go | grep -v vendor | xargs echo "This file should end with '_test':"  | tee /dev/stderr)"
 else
 	@test -z "$(shell find . -iname *test*.go | grep -v _test.go | grep -v vendor | xargs -r echo "This file should end with '_test':"  | tee /dev/stderr)"
 endif
 	@test -z "$$(go tool vet -printf=false . 2>&1 | grep -v vendor/ | tee /dev/stderr)"
-
-fmt:
-	@echo "+ $@"
-	@test -z "$$(gofmt -s -l .| grep -v .pb. | grep -v vendor/ | tee /dev/stderr)"
-
-lint:
-	@echo "+ $@"
-	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec golint {} \; | tee /dev/stderr)"
-
-# Requires that the following:
-# go get -u github.com/client9/misspell/cmd/misspell
-#
-# be run first
-
-# misspell target, don't include Godeps, binaries, python tests, or git files
-misspell:
-	@echo "+ $@"
+	# misspell - requires that the following be run first:
+	#    go get -u github.com/client9/misspell/cmd/misspell
 	@test -z "$$(find . -name '*' | grep -v vendor/ | grep -v bin/ | grep -v misc/ | grep -v .git/ | xargs misspell | tee /dev/stderr)"
-
-# Requires that the following:
-# go get -u github.com/gordonklaus/ineffassign
-#
-# be run first
-
-# ineffassign target, don't include Godeps, binaries, python tests, or git files
-ineffassign:
-	@echo "+ $@"
+	# ineffassign - requires that the following be run first:
+	#    go get -u github.com/gordonklaus/ineffassign
 	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec ineffassign {} \; | tee /dev/stderr)"
 
 build:
