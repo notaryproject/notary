@@ -252,7 +252,7 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 	}
 	gun := args[0]
 
-	rt, err := getTransport(config, gun, false)
+	rt, err := getTransport(config, gun, readWrite)
 	if err != nil {
 		return err
 	}
@@ -302,7 +302,7 @@ func (t *tufCommander) tufList(cmd *cobra.Command, args []string) error {
 	}
 	gun := args[0]
 
-	rt, err := getTransport(config, gun, true)
+	rt, err := getTransport(config, gun, readOnly)
 	if err != nil {
 		return err
 	}
@@ -342,7 +342,7 @@ func (t *tufCommander) tufLookup(cmd *cobra.Command, args []string) error {
 	gun := args[0]
 	targetName := args[1]
 
-	rt, err := getTransport(config, gun, true)
+	rt, err := getTransport(config, gun, readOnly)
 	if err != nil {
 		return err
 	}
@@ -423,7 +423,7 @@ func (t *tufCommander) tufPublish(cmd *cobra.Command, args []string) error {
 
 	cmd.Println("Pushing changes to", gun)
 
-	rt, err := getTransport(config, gun, false)
+	rt, err := getTransport(config, gun, readWrite)
 	if err != nil {
 		return err
 	}
@@ -497,7 +497,7 @@ func (t *tufCommander) tufVerify(cmd *cobra.Command, args []string) error {
 	gun := args[0]
 	targetName := args[1]
 
-	rt, err := getTransport(config, gun, true)
+	rt, err := getTransport(config, gun, readOnly)
 	if err != nil {
 		return err
 	}
@@ -568,37 +568,21 @@ func (ps passwordStore) Basic(u *url.URL) (string, string) {
 	return username, password
 }
 
-// getTransport returns a non-admin http.RoundTripper to be used for all http requests.
+type httpAccess int
+
+const (
+	readOnly httpAccess = iota
+	readWrite
+	admin
+)
+
 // It correctly handles the auth challenge/credentials required to interact
 // with a notary server over both HTTP Basic Auth and the JWT auth implemented
 // in the notary-server
 // The readOnly flag indicates if the operation should be performed as an
 // anonymous read only operation. If the command entered requires write
 // permissions on the server, readOnly must be false
-// This RoundTripper cannot perform admin requests, such as deleting repos
-func getTransport(config *viper.Viper, gun string, readOnly bool) (http.RoundTripper, error) {
-	trustServerURL := getRemoteTrustServer(config)
-	base, err := getBaseTransport(config)
-	if err != nil {
-		return nil, err
-	}
-	return tokenAuth(trustServerURL, base, gun, readOnly, false)
-}
-
-// getAdminTransport returns an admin http.RoundTripper to be used for all http requests,
-// and can be used for deleting repos
-func getAdminTransport(config *viper.Viper, gun string) (http.RoundTripper, error) {
-	trustServerURL := getRemoteTrustServer(config)
-	base, err := getBaseTransport(config)
-	if err != nil {
-		return nil, err
-	}
-	return tokenAuth(trustServerURL, base, gun, false, true)
-}
-
-// getBaseTransport parses the config for TLS and server options to be used and bundles them in a
-// http.Transport.  This does not include logic for handling auth credentials
-func getBaseTransport(config *viper.Viper) (*http.Transport, error) {
+func getTransport(config *viper.Viper, gun string, permission httpAccess) (http.RoundTripper, error) {
 	// Attempt to get a root CA from the config file. Nil is the host defaults.
 	rootCAFile := utils.GetPathRelativeToConfig(config, "remote_server.root_ca")
 	clientCert := utils.GetPathRelativeToConfig(config, "remote_server.tls_client_cert")
@@ -634,11 +618,12 @@ func getBaseTransport(config *viper.Viper) (*http.Transport, error) {
 		TLSClientConfig:     tlsConfig,
 		DisableKeepAlives:   true,
 	}
-	return base, nil
+	trustServerURL := getRemoteTrustServer(config)
+	return tokenAuth(trustServerURL, base, gun, permission)
 }
 
 func tokenAuth(trustServerURL string, baseTransport *http.Transport, gun string,
-	readOnly, adminAccess bool) (http.RoundTripper, error) {
+	permission httpAccess) (http.RoundTripper, error) {
 
 	// TODO(dmcgowan): add notary specific headers
 	authTransport := transport.NewTransport(baseTransport)
@@ -685,22 +670,26 @@ func tokenAuth(trustServerURL string, baseTransport *http.Transport, gun string,
 		return nil, err
 	}
 
-	ps := passwordStore{anonymous: readOnly}
+	ps := passwordStore{anonymous: permission == readOnly}
 
 	var actions []string
-	if adminAccess {
+	switch permission {
+	case admin:
 		actions = []string{"*"}
-	} else if readOnly {
-		actions = []string{"pull"}
-	} else {
+	case readWrite:
 		actions = []string{"push", "pull"}
+	case readOnly:
+		actions = []string{"pull"}
+	default:
+		return nil, fmt.Errorf("Invalid permission requested for token authentication of gun %s", gun)
 	}
+
 	tokenHandler := auth.NewTokenHandler(authTransport, ps, gun, actions...)
 	basicHandler := auth.NewBasicHandler(ps)
 
 	modifier := auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler)
 
-	if adminAccess || !readOnly {
+	if permission != readOnly {
 		return newAuthRoundTripper(transport.NewTransport(baseTransport, modifier)), nil
 	}
 
