@@ -79,7 +79,7 @@ func (d *delegationCommander) delegationsList(cmd *cobra.Command, args []string)
 
 	gun := args[0]
 
-	rt, err := getTransport(config, gun, true)
+	rt, err := getTransport(config, gun, readOnly)
 	if err != nil {
 		return err
 	}
