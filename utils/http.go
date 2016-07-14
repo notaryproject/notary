@@ -81,11 +81,11 @@ func (root *rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if httpErr, ok := err.(errcode.ErrorCoder); ok {
 			// info level logging for non-5XX http errors
 			httpErrCode := httpErr.ErrorCode().Descriptor().HTTPStatusCode
-			if (httpErrCode < http.StatusOK || httpErrCode >= http.StatusMultipleChoices) && httpErrCode < http.StatusInternalServerError {
-				log.Info(httpErr)
-			} else if httpErrCode >= http.StatusInternalServerError {
+			if httpErrCode >= http.StatusInternalServerError {
 				// error level logging for 5XX http errors
 				log.Error(httpErr)
+			} else {
+				log.Info(httpErr)
 			}
 		}
 		e := errcode.ServeJSON(w, err)
