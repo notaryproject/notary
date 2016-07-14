@@ -121,3 +121,10 @@ func TestRethinkDeleteSuccess(t *testing.T) {
 
 	testDeleteSuccess(t, dbStore)
 }
+
+func TestRethinkTUFMetaStoreGetCurrent(t *testing.T) {
+	dbStore, cleanup := rethinkDBSetup(t)
+	defer cleanup()
+
+	testTUFMetaStoreGetCurrent(t, dbStore)
+}
