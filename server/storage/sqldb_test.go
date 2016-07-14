@@ -1,10 +1,11 @@
+// +build !rethinkdb
+
 package storage
 
 import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
@@ -37,32 +38,6 @@ func SetupSQLDB(t *testing.T, dbtype, dburl string) *SQLStorage {
 type sqldbSetupFunc func(*testing.T) (*SQLStorage, func())
 
 var sqldbSetup sqldbSetupFunc
-
-// SampleTUF returns a sample TUFFile with the given Version (ID will have
-// to be set independently)
-func SampleTUF(version int) TUFFile {
-	return SampleCustomTUF(data.CanonicalRootRole, "testGUN", []byte("1"), version)
-}
-
-func SampleCustomTUF(role, gun string, data []byte, version int) TUFFile {
-	checksum := sha256.Sum256(data)
-	hexChecksum := hex.EncodeToString(checksum[:])
-	return TUFFile{
-		Gun:     gun,
-		Role:    role,
-		Version: version,
-		Sha256:  hexChecksum,
-		Data:    data,
-	}
-}
-
-func SampleUpdate(version int) MetaUpdate {
-	return MetaUpdate{
-		Role:    "root",
-		Version: version,
-		Data:    []byte("1"),
-	}
-}
 
 func assertExpectedGormTUFMeta(t *testing.T, expected []StoredTUFMeta, gormDB gorm.DB) {
 	expectedGorm := make([]TUFFile, len(expected))
@@ -147,30 +122,6 @@ func TestSQLDelete(t *testing.T) {
 
 	testDeleteSuccess(t, dbStore)
 	assertExpectedGormTUFMeta(t, nil, dbStore.DB)
-
-	dbStore.DB.Close()
-}
-
-func TestSQLGetCurrent(t *testing.T) {
-	dbStore, cleanup := sqldbSetup(t)
-	defer cleanup()
-
-	_, byt, err := dbStore.GetCurrent("testGUN", "root")
-	require.Nil(t, byt)
-	require.Error(t, err, "There should be an error Getting an empty table")
-	require.IsType(t, ErrNotFound{}, err, "Should get a not found error")
-
-	tuf := SampleTUF(0)
-	query := dbStore.DB.Create(&tuf)
-	require.NoError(t, query.Error, "Creating a row in an empty DB failed.")
-
-	cDate, byt, err := dbStore.GetCurrent("testGUN", "root")
-	require.NoError(t, err, "There should not be any errors getting.")
-	require.Equal(t, []byte("1"), byt, "Returned data was incorrect")
-	// the update date was sometime wthin the last minute
-	fmt.Println(cDate)
-	require.True(t, cDate.After(time.Now().Add(-1*time.Minute)))
-	require.True(t, cDate.Before(time.Now().Add(5*time.Second)))
 
 	dbStore.DB.Close()
 }
@@ -405,4 +356,11 @@ func TestDBGetChecksumNotFound(t *testing.T) {
 	_, _, err := dbStore.GetChecksum("gun", data.CanonicalTimestampRole, "12345")
 	require.Error(t, err)
 	require.IsType(t, ErrNotFound{}, err)
+}
+
+func TestSQLiteTUFMetaStoreGetCurrent(t *testing.T) {
+	dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
+
+	testTUFMetaStoreGetCurrent(t, dbStore)
 }

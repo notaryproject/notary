@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/docker/notary/tuf/data"
 	"github.com/stretchr/testify/require"
@@ -43,18 +44,32 @@ func MakeUpdate(tufObj StoredTUFMeta) MetaUpdate {
 
 func assertExpectedTUFMetaInStore(t *testing.T, s MetaStore, expected []StoredTUFMeta, current bool) {
 	for _, tufObj := range expected {
+		var prevTime *time.Time
 		if current {
-			_, tufdata, err := s.GetCurrent(tufObj.Gun, tufObj.Role)
+			cDate, tufdata, err := s.GetCurrent(tufObj.Gun, tufObj.Role)
 			require.NoError(t, err)
 			require.Equal(t, tufObj.Data, tufdata)
+
+			// the update date was sometime wthin the last minute
+			require.True(t, cDate.After(time.Now().Add(-1*time.Minute)))
+			require.True(t, cDate.Before(time.Now().Add(5*time.Second)))
+			prevTime = cDate
 		}
 
 		checksumBytes := sha256.Sum256(tufObj.Data)
 		checksum := hex.EncodeToString(checksumBytes[:])
 
-		_, tufdata, err := s.GetChecksum(tufObj.Gun, tufObj.Role, checksum)
+		cDate, tufdata, err := s.GetChecksum(tufObj.Gun, tufObj.Role, checksum)
 		require.NoError(t, err)
 		require.Equal(t, tufObj.Data, tufdata)
+
+		if current {
+			require.True(t, prevTime.Equal(*cDate), "%s should be equal to %s", prevTime, cDate)
+		} else {
+			// the update date was sometime wthin the last minute
+			require.True(t, cDate.After(time.Now().Add(-1*time.Minute)))
+			require.True(t, cDate.Before(time.Now().Add(5*time.Second)))
+		}
 	}
 }
 
@@ -212,14 +227,17 @@ func testDeleteSuccess(t *testing.T, s MetaStore) {
 	// If there is data in the DB, all versions are deleted
 	unexpected := make([]StoredTUFMeta, 0, 10)
 	updates := make([]MetaUpdate, 0, 10)
-	for _, role := range append(data.BaseRoles, "targets/a") {
-		for version := 1; version < 3; version++ {
+	for version := 1; version < 3; version++ {
+		for _, role := range append(data.BaseRoles, "targets/a") {
 			tufObj := SampleCustomTUFObj(gun, role, version, nil)
 			unexpected = append(unexpected, tufObj)
 			updates = append(updates, MakeUpdate(tufObj))
 		}
 	}
 	require.NoError(t, s.UpdateMany(gun, updates))
+	assertExpectedTUFMetaInStore(t, s, unexpected[:5], false)
+	assertExpectedTUFMetaInStore(t, s, unexpected[5:], true)
+
 	require.NoError(t, s.Delete(gun))
 
 	for _, tufObj := range unexpected {
@@ -233,4 +251,12 @@ func testDeleteSuccess(t *testing.T, s MetaStore) {
 		require.Error(t, err)
 		require.IsType(t, ErrNotFound{}, err)
 	}
+
+	// We can now write the same files without conflicts to the DB
+	require.NoError(t, s.UpdateMany(gun, updates))
+	assertExpectedTUFMetaInStore(t, s, unexpected[:5], false)
+	assertExpectedTUFMetaInStore(t, s, unexpected[5:], true)
+
+	// And delete them again successfully
+	require.NoError(t, s.Delete(gun))
 }
