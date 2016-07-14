@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
@@ -149,7 +148,7 @@ func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, var
 		// of time.
 		utils.SetLastModifiedHeader(w.Header(), *lastModified)
 	} else {
-		logrus.Warnf("Got bytes out for %s's %s (checksum: %s), but missing lastModified date",
+		logger.Warnf("Got bytes out for %s's %s (checksum: %s), but missing lastModified date",
 			gun, tufRole, checksum)
 	}
 
@@ -159,15 +158,15 @@ func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, var
 
 // DeleteHandler deletes all data for a GUN. A 200 responses indicates success.
 func DeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-	s := ctx.Value("metaStore")
-	store, ok := s.(storage.MetaStore)
-	if !ok {
-		logrus.Error("500 DELETE repository: no storage exists")
-		return errors.ErrNoStorage.WithDetail(nil)
-	}
 	vars := mux.Vars(r)
 	gun := vars["imageName"]
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
+	s := ctx.Value("metaStore")
+	store, ok := s.(storage.MetaStore)
+	if !ok {
+		logger.Error("500 DELETE repository: no storage exists")
+		return errors.ErrNoStorage.WithDetail(nil)
+	}
 	err := store.Delete(gun)
 	if err != nil {
 		logger.Error("500 DELETE repository")
@@ -186,12 +185,11 @@ func GetKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 
 func getKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	gun, ok := vars["imageName"]
+	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	if !ok || gun == "" {
-		logrus.Info("400 GET no gun in request")
+		logger.Info("400 GET no gun in request")
 		return errors.ErrUnknown.WithDetail("no gun")
 	}
-
-	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 
 	role, ok := vars["tufRole"]
 	if !ok || role == "" {
