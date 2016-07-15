@@ -292,19 +292,15 @@ func TestTranslateErrorsWhenCannotParse400(t *testing.T) {
 }
 
 func TestHTTPStoreRemoveAll(t *testing.T) {
-	// Set up a simple handler and server for our store
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(testRoot))
-	}
+	// Set up a simple handler and server for our store, just check that a non-error response back is fine
+	handler := func(w http.ResponseWriter, r *http.Request) {}
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
 	store, err := NewHTTPStore(server.URL, "metadata", "json", "key", http.DefaultTransport)
 	require.NoError(t, err)
 
-	// currently unsupported since there is no use case
-	// check for the error
 	err = store.RemoveAll()
-	require.Error(t, err)
+	require.NoError(t, err)
 }
 
 func TestHTTPOffline(t *testing.T) {
