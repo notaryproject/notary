@@ -3269,7 +3269,7 @@ func testPublishTargetsDelegationCanUseUserKeyWithArbitraryRole(t *testing.T, x5
 	delgRec.requireAsked(t, []string{"targets/a/b"})
 }
 
-// TestDeleteRepo tests that local repo data, certificate, and keys are deleted from the client library call
+// TestDeleteRepo tests that local repo data is deleted from the client library call
 func TestDeleteRepo(t *testing.T) {
 	gun := "docker.com/notary"
 
@@ -3285,8 +3285,8 @@ func TestDeleteRepo(t *testing.T) {
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, true)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, true)
 
-	// Delete all client trust data for repo
-	err := repo.DeleteTrustData()
+	// Delete all local trust data for repo
+	err := repo.DeleteTrustData(false)
 	require.NoError(t, err)
 
 	// Assert no metadata for this repo exists locally
@@ -3297,6 +3297,89 @@ func TestDeleteRepo(t *testing.T) {
 
 	// Assert keys for this repo exist locally
 	requireRepoHasExpectedKeys(t, repo, rootKeyID, true)
+}
+
+// TestDeleteRemoteRepo tests that local and remote repo data is deleted from the client library call
+func TestDeleteRemoteRepo(t *testing.T) {
+	gun := "docker.com/notary"
+
+	ts := fullTestServer(t)
+	defer ts.Close()
+
+	// Create and publish a repo to delete
+	repo, rootKeyID := initializeRepo(t, data.ECDSAKey, gun, ts.URL, false)
+	defer os.RemoveAll(repo.baseDir)
+
+	require.NoError(t, repo.Publish())
+
+	// Create another repo to ensure it stays intact
+	livingGun := "stayingAlive"
+	longLivingRepo, _ := initializeRepo(t, data.ECDSAKey, livingGun, ts.URL, false)
+	defer os.RemoveAll(longLivingRepo.baseDir)
+
+	require.NoError(t, longLivingRepo.Publish())
+
+	// Assert initialization was successful before we delete
+	requireRepoHasExpectedKeys(t, repo, rootKeyID, true)
+	requireRepoHasExpectedMetadata(t, repo, data.CanonicalRootRole, true)
+	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, true)
+	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, true)
+
+	// Delete all local and remote trust data for one repo
+	err := repo.DeleteTrustData(true)
+	require.NoError(t, err)
+
+	// Assert no metadata for that repo exists locally
+	requireRepoHasExpectedMetadata(t, repo, data.CanonicalRootRole, false)
+	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, false)
+	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, false)
+	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTimestampRole, false)
+
+	// Assert keys for this repo still exist locally
+	requireRepoHasExpectedKeys(t, repo, rootKeyID, true)
+
+	// Try connecting to the remote store directly and make sure that no metadata exists for this gun
+	remoteStore, err := getRemoteStore(repo.baseURL, repo.gun, repo.roundTrip)
+	require.NoError(t, err)
+	meta, err := remoteStore.GetMeta(data.CanonicalRootRole, store.NoSizeLimit)
+	require.Error(t, err)
+	require.IsType(t, store.ErrMetaNotFound{}, err)
+	require.Nil(t, meta)
+	meta, err = remoteStore.GetMeta(data.CanonicalTargetsRole, store.NoSizeLimit)
+	require.Error(t, err)
+	require.IsType(t, store.ErrMetaNotFound{}, err)
+	require.Nil(t, meta)
+	meta, err = remoteStore.GetMeta(data.CanonicalSnapshotRole, store.NoSizeLimit)
+	require.Error(t, err)
+	require.IsType(t, store.ErrMetaNotFound{}, err)
+	require.Nil(t, meta)
+	meta, err = remoteStore.GetMeta(data.CanonicalTimestampRole, store.NoSizeLimit)
+	require.Error(t, err)
+	require.IsType(t, store.ErrMetaNotFound{}, err)
+	require.Nil(t, meta)
+
+	// Check that the other repo was unaffected
+	requireRepoHasExpectedMetadata(t, longLivingRepo, data.CanonicalRootRole, true)
+	requireRepoHasExpectedMetadata(t, longLivingRepo, data.CanonicalTargetsRole, true)
+	requireRepoHasExpectedMetadata(t, longLivingRepo, data.CanonicalSnapshotRole, true)
+	remoteStore, err = getRemoteStore(longLivingRepo.baseURL, longLivingRepo.gun, longLivingRepo.roundTrip)
+	require.NoError(t, err)
+	meta, err = remoteStore.GetMeta(data.CanonicalRootRole, store.NoSizeLimit)
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	meta, err = remoteStore.GetMeta(data.CanonicalTargetsRole, store.NoSizeLimit)
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	meta, err = remoteStore.GetMeta(data.CanonicalSnapshotRole, store.NoSizeLimit)
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	meta, err = remoteStore.GetMeta(data.CanonicalTimestampRole, store.NoSizeLimit)
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+
+	// Try deleting again with an invalid server URL
+	repo.baseURL = "invalid"
+	require.Error(t, repo.DeleteTrustData(true))
 }
 
 type brokenRemoveFilestore struct {
@@ -3326,8 +3409,8 @@ func TestDeleteRepoBadFilestore(t *testing.T) {
 	// Make the filestore faulty on remove
 	repo.fileStore = &brokenRemoveFilestore{repo.fileStore}
 
-	// Delete all client trust data for repo, require an error on the filestore removal
-	err := repo.DeleteTrustData()
+	// Delete all local trust data for repo, require an error on the filestore removal
+	err := repo.DeleteTrustData(false)
 	require.Error(t, err)
 }
 
