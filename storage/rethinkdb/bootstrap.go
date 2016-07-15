@@ -47,6 +47,16 @@ func (t Table) wait(session *gorethink.Session, dbName string) error {
 		resp.Close()
 	}
 
+	if err != nil {
+		return err
+	}
+
+	// also try waiting for all table indices
+	resp, err = t.term(dbName).IndexWait().Run(session)
+
+	if resp != nil {
+		resp.Close()
+	}
 	return err
 }
 
