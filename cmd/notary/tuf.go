@@ -80,7 +80,7 @@ var cmdTUFStatusTemplate = usageTemplate{
 var cmdTUFVerifyTemplate = usageTemplate{
 	Use:   "verify [ GUN ] <target>",
 	Short: "Verifies if the content is included in the remote trusted collection",
-	Long:  "Verifies if the data passed in STDIN is included in the remote trusted collection identified by the Global Unique Name.",
+	Long:  "Verifies if the data passed in STDIN is included in the remote trusted collection identified by the Globally Unique Name.",
 }
 
 type tufCommander struct {

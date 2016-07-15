@@ -383,6 +383,7 @@ func (r *NotaryRepository) RemoveTarget(targetName string, roles ...string) erro
 
 // ListTargets lists all targets for the current repository. The list of
 // roles should be passed in order from highest to lowest priority.
+//
 // IMPORTANT: if you pass a set of roles such as [ "targets/a", "targets/x"
 // "targets/a/b" ], even though "targets/a/b" is part of the "targets/a" subtree
 // its entries will be strictly shadowed by those in other parts of the "targets/a"
@@ -410,11 +411,18 @@ func (r *NotaryRepository) ListTargets(roles ...string) ([]*TargetWithRole, erro
 				if _, ok := targets[targetName]; ok || !validRole.CheckPaths(targetName) {
 					continue
 				}
-				targets[targetName] =
-					&TargetWithRole{Target: Target{Name: targetName, Hashes: targetMeta.Hashes, Length: targetMeta.Length}, Role: validRole.Name}
+				targets[targetName] = &TargetWithRole{
+					Target: Target{
+						Name:   targetName,
+						Hashes: targetMeta.Hashes,
+						Length: targetMeta.Length,
+					},
+					Role: validRole.Name,
+				}
 			}
 			return nil
 		}
+
 		r.tufRepo.WalkTargets("", role, listVisitorFunc, skipRoles...)
 	}
 
