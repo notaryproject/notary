@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/auth"
@@ -79,9 +78,19 @@ func (root *rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctx = authCtx
 	}
 	if err := root.handler(ctx, w, r); err != nil {
+		if httpErr, ok := err.(errcode.ErrorCoder); ok {
+			// info level logging for non-5XX http errors
+			httpErrCode := httpErr.ErrorCode().Descriptor().HTTPStatusCode
+			if httpErrCode >= http.StatusInternalServerError {
+				// error level logging for 5XX http errors
+				log.Error(httpErr)
+			} else {
+				log.Info(httpErr)
+			}
+		}
 		e := errcode.ServeJSON(w, err)
 		if e != nil {
-			logrus.Error(e)
+			log.Error(e)
 		}
 		return
 	}
