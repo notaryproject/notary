@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/notary/storage/rethinkdb"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
 	"gopkg.in/dancannon/gorethink.v2"
 )
 
@@ -319,7 +320,17 @@ func (rdb RethinkDB) Bootstrap() error {
 	return rethinkdb.CreateAndGrantDBUser(rdb.sess, rdb.dbName, rdb.user, rdb.password)
 }
 
-// CheckHealth is currently a noop
+// CheckHealth checks that all tables and databases exist and are query-able
 func (rdb RethinkDB) CheckHealth() error {
+	var tables []string
+	res, err := gorethink.DB(rdb.dbName).TableList().Run(rdb.sess)
+	if err != nil {
+		return err
+	}
+	defer res.Close()
+	err = res.All(&tables)
+	if err != nil || !utils.StrSliceContains(tables, RDBTUFFile{}.TableName()) || !utils.StrSliceContains(tables, RDBKey{}.TableName()) {
+		return fmt.Errorf("%s is unavailable and missing one or more tables", rdb.dbName)
+	}
 	return nil
 }
