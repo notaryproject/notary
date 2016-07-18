@@ -49,7 +49,6 @@ type KeyStore interface {
 	GetKeyInfo(keyID string) (KeyInfo, error)
 	ListKeys() map[string]KeyInfo
 	RemoveKey(keyID string) error
-	ExportKey(keyID string) ([]byte, error)
 	Name() string
 }
 

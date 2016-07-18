@@ -1,11 +1,8 @@
 package main
 
 import (
-	"archive/zip"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -44,30 +41,6 @@ var cmdKeyGenerateRootKeyTemplate = usageTemplate{
 	Long:  "Generates a new root key with a given algorithm. If hardware key storage (e.g. a Yubikey) is available, the key will be stored both on hardware and on disk (so that it can be backed up).  Please make sure to back up and then remove this on-key disk immediately afterwards.",
 }
 
-var cmdKeysBackupTemplate = usageTemplate{
-	Use:   "backup [ zipfilename ]",
-	Short: "Backs up all your on-disk keys to a ZIP file.",
-	Long:  "Backs up all of your accessible of keys. The keys are reencrypted with a new passphrase. The output is a ZIP file.  If the --gun option is passed, only signing keys and no root keys will be backed up.  Does not work on keys that are only in hardware (e.g. Yubikeys).",
-}
-
-var cmdKeyExportTemplate = usageTemplate{
-	Use:   "export [ keyID ] [ pemfilename ]",
-	Short: "Export a private key on disk to a PEM file.",
-	Long:  "Exports a single private key on disk, without reencrypting. The output is a PEM file. Does not work on keys that are only in hardware (e.g. Yubikeys).",
-}
-
-var cmdKeysRestoreTemplate = usageTemplate{
-	Use:   "restore [ zipfilename ]",
-	Short: "Restore multiple keys from a ZIP file.",
-	Long:  "Restores one or more keys from a ZIP file. If hardware key storage (e.g. a Yubikey) is available, root keys will be imported into the hardware, but not backed up to disk in the same location as the other, non-root keys.",
-}
-
-var cmdKeyImportTemplate = usageTemplate{
-	Use:   "import [ pemfilename ]",
-	Short: "Imports a key from a PEM file.",
-	Long:  "Imports a single key from a PEM file. If a hardware key storage (e.g. Yubikey) is available, the root key will be imported into the hardware but not backed up on disk again.",
-}
-
 var cmdKeyRemoveTemplate = usageTemplate{
 	Use:   "remove [ keyID ]",
 	Short: "Removes the key with the given keyID.",
@@ -86,12 +59,8 @@ type keyCommander struct {
 	getRetriever func() notary.PassRetriever
 
 	// these are for command line parsing - no need to set
-	keysExportChangePassphrase bool
-	keysExportGUN              string
-	keysImportGUN              string
-	keysImportRole             string
-	rotateKeyRole              string
-	rotateKeyServerManaged     bool
+	rotateKeyRole          string
+	rotateKeyServerManaged bool
 
 	input io.Reader
 }
@@ -100,28 +69,8 @@ func (k *keyCommander) GetCommand() *cobra.Command {
 	cmd := cmdKeyTemplate.ToCommand(nil)
 	cmd.AddCommand(cmdKeyListTemplate.ToCommand(k.keysList))
 	cmd.AddCommand(cmdKeyGenerateRootKeyTemplate.ToCommand(k.keysGenerateRootKey))
-	cmd.AddCommand(cmdKeysRestoreTemplate.ToCommand(k.keysRestore))
-	cmdKeysImport := cmdKeyImportTemplate.ToCommand(k.keysImport)
-	cmdKeysImport.Flags().StringVarP(
-		&k.keysImportGUN, "gun", "g", "", "Globally Unique Name to import key to")
-	cmdKeysImport.Flags().StringVarP(
-		&k.keysImportRole, "role", "r", "", "Role to import key to (if not in PEM headers)")
-	cmd.AddCommand(cmdKeysImport)
-
 	cmd.AddCommand(cmdKeyRemoveTemplate.ToCommand(k.keyRemove))
 	cmd.AddCommand(cmdKeyPasswdTemplate.ToCommand(k.keyPassphraseChange))
-
-	cmdKeysBackup := cmdKeysBackupTemplate.ToCommand(k.keysBackup)
-	cmdKeysBackup.Flags().StringVarP(
-		&k.keysExportGUN, "gun", "g", "", "Globally Unique Name to export keys for")
-	cmd.AddCommand(cmdKeysBackup)
-
-	cmdKeyExport := cmdKeyExportTemplate.ToCommand(k.keysExport)
-	cmdKeyExport.Flags().BoolVarP(
-		&k.keysExportChangePassphrase, "change-passphrase", "p", false,
-		"Set a new passphrase for the key being exported")
-	cmd.AddCommand(cmdKeyExport)
-
 	cmdRotateKey := cmdRotateKeyTemplate.ToCommand(k.keysRotate)
 	cmdRotateKey.Flags().BoolVarP(&k.rotateKeyServerManaged, "server-managed", "r",
 		false, "Signing and key management will be handled by the remote server "+
@@ -195,207 +144,6 @@ func (k *keyCommander) keysGenerateRootKey(cmd *cobra.Command, args []string) er
 	}
 
 	cmd.Printf("Generated new %s root key with keyID: %s\n", algorithm, pubKey.ID())
-	return nil
-}
-
-// keysBackup exports a collection of keys to a ZIP file
-func (k *keyCommander) keysBackup(cmd *cobra.Command, args []string) error {
-	if len(args) < 1 {
-		cmd.Usage()
-		return fmt.Errorf("Must specify output filename for export")
-	}
-
-	config, err := k.configGetter()
-	if err != nil {
-		return err
-	}
-	ks, err := k.getKeyStores(config, false, false)
-	if err != nil {
-		return err
-	}
-	exportFilename := args[0]
-
-	cs := cryptoservice.NewCryptoService(ks...)
-
-	exportFile, err := os.Create(exportFilename)
-	if err != nil {
-		return fmt.Errorf("Error creating output file: %v", err)
-	}
-
-	// Must use a different passphrase retriever to avoid caching the
-	// unlocking passphrase and reusing that.
-	exportRetriever := k.getRetriever()
-	if k.keysExportGUN != "" {
-		err = cs.ExportKeysByGUN(exportFile, k.keysExportGUN, exportRetriever)
-	} else {
-		err = cs.ExportAllKeys(exportFile, exportRetriever)
-	}
-
-	exportFile.Close()
-
-	if err != nil {
-		os.Remove(exportFilename)
-		return fmt.Errorf("Error exporting keys: %v", err)
-	}
-	return nil
-}
-
-// keysExport exports a key by ID to a PEM file
-func (k *keyCommander) keysExport(cmd *cobra.Command, args []string) error {
-	if len(args) < 2 {
-		cmd.Usage()
-		return fmt.Errorf("Must specify key ID and output filename for export")
-	}
-
-	keyID := args[0]
-	exportFilename := args[1]
-
-	if len(keyID) != notary.Sha256HexSize {
-		return fmt.Errorf("Please specify a valid key ID")
-	}
-
-	config, err := k.configGetter()
-	if err != nil {
-		return err
-	}
-	ks, err := k.getKeyStores(config, true, false)
-	if err != nil {
-		return err
-	}
-
-	cs := cryptoservice.NewCryptoService(ks...)
-	keyInfo, err := cs.GetKeyInfo(keyID)
-	if err != nil {
-		return fmt.Errorf("Could not retrieve info for key %s", keyID)
-	}
-
-	exportFile, err := os.Create(exportFilename)
-	if err != nil {
-		return fmt.Errorf("Error creating output file: %v", err)
-	}
-	if k.keysExportChangePassphrase {
-		// Must use a different passphrase retriever to avoid caching the
-		// unlocking passphrase and reusing that.
-		exportRetriever := k.getRetriever()
-		err = cs.ExportKeyReencrypt(exportFile, keyID, exportRetriever)
-	} else {
-		err = cs.ExportKey(exportFile, keyID, keyInfo.Role)
-	}
-	exportFile.Close()
-	if err != nil {
-		os.Remove(exportFilename)
-		return fmt.Errorf("Error exporting %s key: %v", keyInfo.Role, err)
-	}
-	return nil
-}
-
-// keysRestore imports keys from a ZIP file
-func (k *keyCommander) keysRestore(cmd *cobra.Command, args []string) error {
-	if len(args) < 1 {
-		cmd.Usage()
-		return fmt.Errorf("Must specify input filename for import")
-	}
-
-	importFilename := args[0]
-
-	config, err := k.configGetter()
-	if err != nil {
-		return err
-	}
-	ks, err := k.getKeyStores(config, true, false)
-	if err != nil {
-		return err
-	}
-	cs := cryptoservice.NewCryptoService(ks...)
-
-	zipReader, err := zip.OpenReader(importFilename)
-	if err != nil {
-		return fmt.Errorf("Opening file for import: %v", err)
-	}
-	defer zipReader.Close()
-
-	err = cs.ImportKeysZip(zipReader.Reader, k.getRetriever())
-
-	if err != nil {
-		return fmt.Errorf("Error importing keys: %v", err)
-	}
-	return nil
-}
-
-// keysImport imports a private key from a PEM file for a role
-func (k *keyCommander) keysImport(cmd *cobra.Command, args []string) error {
-	if len(args) != 1 {
-		cmd.Usage()
-		return fmt.Errorf("Must specify input filename for import")
-	}
-
-	config, err := k.configGetter()
-	if err != nil {
-		return err
-	}
-	ks, err := k.getKeyStores(config, true, false)
-	if err != nil {
-		return err
-	}
-
-	importFilename := args[0]
-
-	importFile, err := os.Open(importFilename)
-	if err != nil {
-		return fmt.Errorf("Opening file for import: %v", err)
-	}
-	defer importFile.Close()
-
-	pemBytes, err := ioutil.ReadAll(importFile)
-	if err != nil {
-		return fmt.Errorf("Error reading input file: %v", err)
-	}
-
-	pemRole := trustmanager.ReadRoleFromPEM(pemBytes)
-
-	// If the PEM key doesn't have a role in it, we must have --role set
-	if pemRole == "" && k.keysImportRole == "" {
-		return fmt.Errorf("Could not infer role, and no role was specified for key")
-	}
-
-	// If both  PEM role and a --role are provided and they don't match, error
-	if pemRole != "" && k.keysImportRole != "" && pemRole != k.keysImportRole {
-		return fmt.Errorf("Specified role %s does not match role %s in PEM headers", k.keysImportRole, pemRole)
-	}
-
-	// Determine which role to add to between PEM headers and --role flag:
-	var importRole string
-	if k.keysImportRole != "" {
-		importRole = k.keysImportRole
-	} else {
-		importRole = pemRole
-	}
-
-	// If we're importing to targets or snapshot, we need a GUN
-	if (importRole == data.CanonicalTargetsRole || importRole == data.CanonicalSnapshotRole) && k.keysImportGUN == "" {
-		return fmt.Errorf("Must specify GUN for %s key", importRole)
-	}
-
-	// Root keys must be encrypted
-	if importRole == data.CanonicalRootRole {
-		if err = cryptoservice.CheckRootKeyIsEncrypted(pemBytes); err != nil {
-			return err
-		}
-	}
-
-	cs := cryptoservice.NewCryptoService(ks...)
-	// Convert to a data.PrivateKey, potentially decrypting the key
-	privKey, err := trustmanager.ParsePEMPrivateKey(pemBytes, "")
-	if err != nil {
-		privKey, _, err = trustmanager.GetPasswdDecryptBytes(k.getRetriever(), pemBytes, "", "imported "+importRole)
-		if err != nil {
-			return err
-		}
-	}
-	err = cs.AddKey(importRole, k.keysImportGUN, privKey)
-	if err != nil {
-		return fmt.Errorf("Error importing key: %v", err)
-	}
 	return nil
 }
 

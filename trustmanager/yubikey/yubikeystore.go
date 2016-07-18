@@ -789,12 +789,6 @@ func (s *YubiStore) RemoveKey(keyID string) error {
 	return err
 }
 
-// ExportKey doesn't work, because you can't export data from a Yubikey
-func (s *YubiStore) ExportKey(keyID string) ([]byte, error) {
-	logrus.Debugf("Attempting to export: %s key inside of YubiStore", keyID)
-	return nil, errors.New("Keys cannot be exported from a Yubikey.")
-}
-
 // GetKeyInfo is not yet implemented
 func (s *YubiStore) GetKeyInfo(keyID string) (trustmanager.KeyInfo, error) {
 	return trustmanager.KeyInfo{}, fmt.Errorf("Not yet implemented")
