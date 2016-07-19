@@ -60,13 +60,14 @@ func TestRethinkBootstrapSetsUsernamePassword(t *testing.T) {
 	_, err := rethinkdb.UserConnection(tlsOpts, source, username, "wrongpass")
 	require.Error(t, err)
 
-	// the other user cannot access rethink
+	// the other user cannot access rethink, causing health checks to fail
 	userSession, err := rethinkdb.UserConnection(tlsOpts, source, otherUser, otherPass)
 	require.NoError(t, err)
 	s = NewRethinkDBStorage(dbname, otherUser, otherPass, userSession)
 	_, _, err = s.GetCurrent("gun", data.CanonicalRootRole)
 	require.Error(t, err)
 	require.IsType(t, gorethink.RQLRuntimeError{}, err)
+	require.Error(t, s.CheckHealth())
 
 	// our user can access the DB though
 	userSession, err = rethinkdb.UserConnection(tlsOpts, source, username, password)
@@ -75,6 +76,35 @@ func TestRethinkBootstrapSetsUsernamePassword(t *testing.T) {
 	_, _, err = s.GetCurrent("gun", data.CanonicalRootRole)
 	require.Error(t, err)
 	require.IsType(t, ErrNotFound{}, err)
+	require.NoError(t, s.CheckHealth())
+}
+
+func TestRethinkCheckHealth(t *testing.T) {
+	dbStore, cleanup := rethinkDBSetup(t)
+	defer cleanup()
+
+	// sanity check - all tables present - health check passes
+	require.NoError(t, dbStore.CheckHealth())
+
+	// if the DB is unreachable, health check fails
+	require.NoError(t, dbStore.sess.Close())
+	require.Error(t, dbStore.CheckHealth())
+
+	// if the connection is reopened, health check succeeds
+	require.NoError(t, dbStore.sess.Reconnect())
+	require.NoError(t, dbStore.CheckHealth())
+
+	// only one table existing causes health check to fail
+	require.NoError(t, gorethink.DB(dbStore.dbName).TableDrop(TUFFilesRethinkTable.Name).Exec(dbStore.sess))
+	require.Error(t, dbStore.CheckHealth())
+
+	// No tables, health check fails
+	require.NoError(t, gorethink.DB(dbStore.dbName).TableDrop(PubKeysRethinkTable.Name).Exec(dbStore.sess))
+	require.Error(t, dbStore.CheckHealth())
+
+	// No DB, health check fails
+	cleanup()
+	require.Error(t, dbStore.CheckHealth())
 }
 
 // UpdateCurrent will add a new TUF file if no previous version of that gun and role existed.
