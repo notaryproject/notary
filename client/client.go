@@ -174,7 +174,7 @@ func rootCertKey(gun string, privKey data.PrivateKey) (data.PublicKey, error) {
 // result is only stored on local disk, not published to the server. To do that,
 // use r.Publish() eventually.
 func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ...string) error {
-	privKeys := []data.PrivateKey{}
+	privKeys := make([]data.PrivateKey, 0, len(rootKeyIDs))
 	for _, keyID := range rootKeyIDs {
 		privKey, _, err := r.CryptoService.GetPrivateKey(keyID)
 		if err != nil {
@@ -210,7 +210,7 @@ func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ..
 		}
 	}
 
-	rootKeys := []data.PublicKey{}
+	rootKeys := make([]data.PublicKey, 0, len(privKeys))
 	for _, privKey := range privKeys {
 		rootKey, err := rootCertKey(r.gun, privKey)
 		if err != nil {
