@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -11,22 +12,25 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/net/context"
-
 	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
+
 	"github.com/docker/notary"
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/cryptoservice"
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/server"
 	"github.com/docker/notary/server/storage"
+	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"github.com/stretchr/testify/require"
+	"github.com/docker/notary/tuf/utils"
+	"path/filepath"
 )
 
 var ret = passphrase.ConstantRetriever("pass")
@@ -50,7 +54,7 @@ func TestRemoveOneKeyAbort(t *testing.T) {
 	nos := []string{"no", "NO", "AAAARGH", "   N    "}
 	store := trustmanager.NewKeyMemoryStore(ret)
 
-	key, err := trustmanager.GenerateED25519Key(rand.Reader)
+	key, err := utils.GenerateED25519Key(rand.Reader)
 	require.NoError(t, err)
 	err = store.AddKey(trustmanager.KeyInfo{Role: data.CanonicalRootRole, Gun: ""}, key)
 	require.NoError(t, err)
@@ -82,7 +86,7 @@ func TestRemoveOneKeyConfirm(t *testing.T) {
 	for _, yesAnswer := range yesses {
 		store := trustmanager.NewKeyMemoryStore(ret)
 
-		key, err := trustmanager.GenerateED25519Key(rand.Reader)
+		key, err := utils.GenerateED25519Key(rand.Reader)
 		require.NoError(t, err)
 		err = store.AddKey(trustmanager.KeyInfo{Role: data.CanonicalRootRole, Gun: ""}, key)
 		require.NoError(t, err)
@@ -110,7 +114,7 @@ func TestRemoveMultikeysInvalidInput(t *testing.T) {
 	setUp(t)
 	in := bytes.NewBuffer([]byte("notanumber\n9999\n-3\n0"))
 
-	key, err := trustmanager.GenerateED25519Key(rand.Reader)
+	key, err := utils.GenerateED25519Key(rand.Reader)
 	require.NoError(t, err)
 
 	stores := []trustmanager.KeyStore{
@@ -159,7 +163,7 @@ func TestRemoveMultikeysAbortChoice(t *testing.T) {
 	setUp(t)
 	in := bytes.NewBuffer([]byte("1\nn\n"))
 
-	key, err := trustmanager.GenerateED25519Key(rand.Reader)
+	key, err := utils.GenerateED25519Key(rand.Reader)
 	require.NoError(t, err)
 
 	stores := []trustmanager.KeyStore{
@@ -198,7 +202,7 @@ func TestRemoveMultikeysRemoveOnlyChosenKey(t *testing.T) {
 	setUp(t)
 	in := bytes.NewBuffer([]byte("1\ny\n"))
 
-	key, err := trustmanager.GenerateED25519Key(rand.Reader)
+	key, err := utils.GenerateED25519Key(rand.Reader)
 	require.NoError(t, err)
 
 	stores := []trustmanager.KeyStore{
@@ -533,100 +537,246 @@ func TestChangeKeyPassphraseNonexistentID(t *testing.T) {
 	require.Contains(t, err.Error(), "could not retrieve local key for key ID provided")
 }
 
-func TestKeyImportMismatchingRoles(t *testing.T) {
+func TestExportKeys(t *testing.T) {
 	setUp(t)
+	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempBaseDir)
+	output, err := ioutil.TempFile("/tmp", "notary-test-import-")
+	require.NoError(t, err)
+	defer os.RemoveAll(output.Name())
 	k := &keyCommander{
-		configGetter:   func() (*viper.Viper, error) { return viper.New(), nil },
-		getRetriever:   func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
-		keysImportRole: "targets",
+		configGetter: func() (*viper.Viper, error) {
+			v := viper.New()
+			v.SetDefault("trust_dir", tempBaseDir)
+			return v, nil
+		},
 	}
-	tempFileName := generateTempTestKeyFile(t, "snapshot")
-	defer os.Remove(tempFileName)
+	k.outFile = output.Name()
+	err = output.Close() // close so export can open
+	require.NoError(t, err)
 
-	err := k.keysImport(&cobra.Command{}, []string{tempFileName})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "does not match role")
+	b := &pem.Block{}
+	b.Bytes = make([]byte, 1000)
+	rand.Read(b.Bytes)
+
+	c := &pem.Block{}
+	c.Bytes = make([]byte, 1000)
+	rand.Read(c.Bytes)
+
+	bBytes := pem.EncodeToMemory(b)
+	cBytes := pem.EncodeToMemory(c)
+	require.NoError(t, err)
+
+	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	err = fileStore.Set(filepath.Join(notary.NonRootKeysSubdir, "discworld/ankh"), bBytes)
+	require.NoError(t, err)
+	err = fileStore.Set(filepath.Join(notary.NonRootKeysSubdir, "discworld/morpork"), cBytes)
+	require.NoError(t, err)
+
+	err = k.exportKeys(&cobra.Command{}, nil)
+	require.NoError(t, err)
+
+	outRes, err := ioutil.ReadFile(k.outFile)
+	require.NoError(t, err)
+
+	block, rest := pem.Decode(outRes)
+	require.Equal(t, b.Bytes, block.Bytes)
+	require.Equal(t, filepath.Join(notary.NonRootKeysSubdir, "discworld/ankh"), block.Headers["path"])
+	require.Equal(t, "discworld", block.Headers["gun"])
+
+	block, rest = pem.Decode(rest)
+	require.Equal(t, c.Bytes, block.Bytes)
+	require.Equal(t, filepath.Join(notary.NonRootKeysSubdir, "discworld/morpork"), block.Headers["path"])
+	require.Equal(t, "discworld", block.Headers["gun"])
+	require.Len(t, rest, 0)
+
+	// test no outFile uses stdout (or our replace buffer)
+	k.outFile = ""
+	cmd := &cobra.Command{}
+	out := bytes.NewBuffer(make([]byte, 0, 3000))
+	cmd.SetOutput(out)
+	err = k.exportKeys(cmd, nil)
+	require.NoError(t, err)
+
+	bufOut, err := ioutil.ReadAll(out)
+	require.NoError(t, err)
+	require.Equal(t, outRes, bufOut) // should be identical output to file earlier
 }
 
-func TestKeyImportNoGUNForTargetsPEM(t *testing.T) {
+func TestExportKeysByGUN(t *testing.T) {
 	setUp(t)
+	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempBaseDir)
+	output, err := ioutil.TempFile("/tmp", "notary-test-import-")
+	require.NoError(t, err)
+	defer os.RemoveAll(output.Name())
 	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) { return viper.New(), nil },
-		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
+		configGetter: func() (*viper.Viper, error) {
+			v := viper.New()
+			v.SetDefault("trust_dir", tempBaseDir)
+			return v, nil
+		},
 	}
-	tempFileName := generateTempTestKeyFile(t, "targets")
-	defer os.Remove(tempFileName)
+	k.outFile = output.Name()
+	err = output.Close() // close so export can open
+	require.NoError(t, err)
+	k.exportGUNs = []string{"ankh"}
 
-	err := k.keysImport(&cobra.Command{}, []string{tempFileName})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "Must specify GUN")
+	b := &pem.Block{}
+	b.Bytes = make([]byte, 1000)
+	rand.Read(b.Bytes)
+
+	b2 := &pem.Block{}
+	b2.Bytes = make([]byte, 1000)
+	rand.Read(b2.Bytes)
+
+	c := &pem.Block{}
+	c.Bytes = make([]byte, 1000)
+	rand.Read(c.Bytes)
+
+	bBytes := pem.EncodeToMemory(b)
+	b2Bytes := pem.EncodeToMemory(b2)
+	cBytes := pem.EncodeToMemory(c)
+	require.NoError(t, err)
+
+	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	// we have to manually prepend the NonRootKeysSubdir because
+	// KeyStore would be expected to do this for us.
+	err = fileStore.Set(
+		filepath.Join(notary.NonRootKeysSubdir, "ankh/one"),
+		bBytes,
+	)
+	require.NoError(t, err)
+	err = fileStore.Set(
+		filepath.Join(notary.NonRootKeysSubdir, "ankh/two"),
+		b2Bytes,
+	)
+	require.NoError(t, err)
+	err = fileStore.Set(
+		filepath.Join(notary.NonRootKeysSubdir, "morpork/three"),
+		cBytes,
+	)
+	require.NoError(t, err)
+
+	err = k.exportKeys(&cobra.Command{}, nil)
+	require.NoError(t, err)
+
+	outRes, err := ioutil.ReadFile(k.outFile)
+	require.NoError(t, err)
+
+	block, rest := pem.Decode(outRes)
+	require.Equal(t, b.Bytes, block.Bytes)
+	require.Equal(
+		t,
+		filepath.Join(notary.NonRootKeysSubdir, "ankh/one"),
+		block.Headers["path"],
+	)
+
+	block, rest = pem.Decode(rest)
+	require.Equal(t, b2.Bytes, block.Bytes)
+	require.Equal(
+		t,
+		filepath.Join(notary.NonRootKeysSubdir, "ankh/two"),
+		block.Headers["path"],
+	)
+	require.Len(t, rest, 0)
 }
 
-func TestKeyImportNoGUNForSnapshotPEM(t *testing.T) {
+func TestExportKeysByID(t *testing.T) {
 	setUp(t)
+	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempBaseDir)
+	output, err := ioutil.TempFile("/tmp", "notary-test-import-")
+	require.NoError(t, err)
+	defer os.RemoveAll(output.Name())
 	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) { return viper.New(), nil },
-		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
+		configGetter: func() (*viper.Viper, error) {
+			v := viper.New()
+			v.SetDefault("trust_dir", tempBaseDir)
+			return v, nil
+		},
 	}
-	tempFileName := generateTempTestKeyFile(t, "snapshot")
-	defer os.Remove(tempFileName)
+	k.outFile = output.Name()
+	err = output.Close() // close so export can open
+	require.NoError(t, err)
+	k.exportKeyIDs = []string{"one", "three"}
 
-	err := k.keysImport(&cobra.Command{}, []string{tempFileName})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "Must specify GUN")
+	b := &pem.Block{}
+	b.Bytes = make([]byte, 1000)
+	rand.Read(b.Bytes)
+
+	b2 := &pem.Block{}
+	b2.Bytes = make([]byte, 1000)
+	rand.Read(b2.Bytes)
+
+	c := &pem.Block{}
+	c.Bytes = make([]byte, 1000)
+	rand.Read(c.Bytes)
+
+	bBytes := pem.EncodeToMemory(b)
+	b2Bytes := pem.EncodeToMemory(b2)
+	cBytes := pem.EncodeToMemory(c)
+	require.NoError(t, err)
+
+	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	err = fileStore.Set("ankh/one", bBytes)
+	require.NoError(t, err)
+	err = fileStore.Set("ankh/two", b2Bytes)
+	require.NoError(t, err)
+	err = fileStore.Set("morpork/three", cBytes)
+	require.NoError(t, err)
+
+	err = k.exportKeys(&cobra.Command{}, nil)
+	require.NoError(t, err)
+
+	outRes, err := ioutil.ReadFile(k.outFile)
+	require.NoError(t, err)
+
+	block, rest := pem.Decode(outRes)
+	require.Equal(t, b.Bytes, block.Bytes)
+	require.Equal(t, "ankh/one", block.Headers["path"])
+
+	block, rest = pem.Decode(rest)
+	require.Equal(t, c.Bytes, block.Bytes)
+	require.Equal(t, "morpork/three", block.Headers["path"])
+	require.Len(t, rest, 0)
 }
 
-func TestKeyImportNoGUNForTargetsFlag(t *testing.T) {
+func TestExportKeysBadFlagCombo(t *testing.T) {
 	setUp(t)
+	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempBaseDir)
+	output, err := ioutil.TempFile("/tmp", "notary-test-import-")
+	require.NoError(t, err)
+	defer os.RemoveAll(output.Name())
 	k := &keyCommander{
-		configGetter:   func() (*viper.Viper, error) { return viper.New(), nil },
-		getRetriever:   func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
-		keysImportRole: "targets",
+		configGetter: func() (*viper.Viper, error) {
+			v := viper.New()
+			v.SetDefault("trust_dir", tempBaseDir)
+			return v, nil
+		},
 	}
-	tempFileName := generateTempTestKeyFile(t, "")
-	defer os.Remove(tempFileName)
+	k.outFile = output.Name()
+	err = output.Close() // close so export can open
+	require.NoError(t, err)
+	k.exportGUNs = []string{"ankh"}
+	k.exportKeyIDs = []string{"one", "three"}
 
-	err := k.keysImport(&cobra.Command{}, []string{tempFileName})
+	err = k.exportKeys(&cobra.Command{}, nil)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Must specify GUN")
-}
-
-func TestKeyImportNoGUNForSnapshotFlag(t *testing.T) {
-	setUp(t)
-	k := &keyCommander{
-		configGetter:   func() (*viper.Viper, error) { return viper.New(), nil },
-		getRetriever:   func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
-		keysImportRole: "snapshot",
-	}
-	tempFileName := generateTempTestKeyFile(t, "")
-	defer os.Remove(tempFileName)
-
-	err := k.keysImport(&cobra.Command{}, []string{tempFileName})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "Must specify GUN")
-}
-
-func TestKeyImportNoRole(t *testing.T) {
-	setUp(t)
-	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) { return viper.New(), nil },
-		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
-	}
-	tempFileName := generateTempTestKeyFile(t, "")
-	defer os.Remove(tempFileName)
-
-	err := k.keysImport(&cobra.Command{}, []string{tempFileName})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "Could not infer role, and no role was specified for key")
 }
 
 func generateTempTestKeyFile(t *testing.T, role string) string {
 	setUp(t)
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	if err != nil {
 		return ""
 	}
-	keyBytes, err := trustmanager.KeyToPEM(privKey, role)
+	keyBytes, err := utils.KeyToPEM(privKey, role)
 	require.NoError(t, err)
 
 	tempPrivFile, err := ioutil.TempFile("/tmp", "privfile")

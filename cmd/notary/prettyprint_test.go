@@ -15,6 +15,7 @@ import (
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -56,7 +57,7 @@ func TestKeyInfoSorter(t *testing.T) {
 }
 
 type otherMemoryStore struct {
-	trustmanager.KeyMemoryStore
+	trustmanager.GenericKeyStore
 }
 
 func (l *otherMemoryStore) Name() string {
@@ -85,14 +86,14 @@ func TestPrettyPrintRootAndSigningKeys(t *testing.T) {
 	ret := passphrase.ConstantRetriever("pass")
 	keyStores := []trustmanager.KeyStore{
 		trustmanager.NewKeyMemoryStore(ret),
-		&otherMemoryStore{KeyMemoryStore: *trustmanager.NewKeyMemoryStore(ret)},
+		&otherMemoryStore{GenericKeyStore: *trustmanager.NewKeyMemoryStore(ret)},
 	}
 
 	longNameShortened := "..." + strings.Repeat("z", 37)
 
 	keys := make([]data.PrivateKey, 4)
 	for i := 0; i < 4; i++ {
-		key, err := trustmanager.GenerateED25519Key(rand.Reader)
+		key, err := utils.GenerateED25519Key(rand.Reader)
 		require.NoError(t, err)
 		keys[i] = key
 	}

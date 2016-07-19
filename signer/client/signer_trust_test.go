@@ -19,6 +19,7 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/testutils/interfaces"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
@@ -109,7 +110,7 @@ func TestHealthCheckConnectionDied(t *testing.T) {
 var ret = passphrase.ConstantRetriever("pass")
 
 func TestGetPrivateKeyAndSignWithExistingKey(t *testing.T) {
-	key, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	key, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, "could not generate key")
 
 	store := trustmanager.NewKeyMemoryStore(ret)

@@ -12,6 +12,7 @@ import (
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/miekg/pkcs11"
 	"github.com/stretchr/testify/require"
 )
@@ -57,7 +58,7 @@ func TestEnsurePrivateKeySizePadsLessThanRequiredSizeArrays(t *testing.T) {
 }
 
 func testAddKey(t *testing.T, store trustmanager.KeyStore) (data.PrivateKey, error) {
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
 	err = store.AddKey(trustmanager.KeyInfo{Role: data.CanonicalRootRole, Gun: ""}, privKey)
@@ -250,7 +251,7 @@ func TestYubiAddKeyCanAddToMiddleSlot(t *testing.T) {
 }
 
 type nonworkingBackup struct {
-	trustmanager.KeyMemoryStore
+	trustmanager.GenericKeyStore
 }
 
 // AddKey stores the contents of a PEM-encoded private key as a PEM block
@@ -273,7 +274,7 @@ func TestYubiAddKeyRollsBackIfCannotBackup(t *testing.T) {
 	}()
 
 	backup := &nonworkingBackup{
-		KeyMemoryStore: *trustmanager.NewKeyMemoryStore(ret),
+		GenericKeyStore: *trustmanager.NewKeyMemoryStore(ret),
 	}
 	store, err := NewYubiStore(backup, ret)
 	require.NoError(t, err)
@@ -356,29 +357,6 @@ func TestYubiRemoveKey(t *testing.T) {
 		_, _, err := store.GetKey(key.ID())
 		require.Error(t, err)
 	}
-}
-
-// One cannot export from hardware - it will not export from the backup
-func TestYubiExportKeyFails(t *testing.T) {
-	if !IsAccessible() {
-		t.Skip("Must have Yubikey access.")
-	}
-	clearAllKeys(t)
-
-	SetYubikeyKeyMode(KeymodeNone)
-	defer func() {
-		SetYubikeyKeyMode(KeymodeTouch | KeymodePinOnce)
-	}()
-
-	store, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
-	require.NoError(t, err)
-
-	key, err := testAddKey(t, store)
-	require.NoError(t, err)
-
-	_, err = store.ExportKey(key.ID())
-	require.Error(t, err)
-	require.Equal(t, "Keys cannot be exported from a Yubikey.", err.Error())
 }
 
 // If there are keys in the backup store but no keys in the Yubikey,
@@ -681,8 +659,6 @@ func TestYubiListKeyCleansUpOnError(t *testing.T) {
 			"GetAttributeValue",
 		), false)
 }
-
-// export key fails anyway, don't bother testing
 
 func TestYubiSignCleansUpOnError(t *testing.T) {
 	if !IsAccessible() {

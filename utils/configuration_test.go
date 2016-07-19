@@ -12,7 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/docker/notary"
-	"github.com/docker/notary/trustmanager"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
@@ -390,7 +390,7 @@ func TestParseTLSWithTLS(t *testing.T) {
 	expectedCert, err := tls.LoadX509KeyPair(Cert, Key)
 	require.NoError(t, err)
 
-	expectedRoot, err := trustmanager.LoadCertFromFile(Root)
+	expectedRoot, err := utils.LoadCertFromFile(Root)
 	require.NoError(t, err)
 
 	require.Len(t, tlsConfig.Certificates, 1)
@@ -449,7 +449,7 @@ func TestParseTLSWithEnvironmentVariables(t *testing.T) {
 	expectedCert, err := tls.LoadX509KeyPair(Cert, Key)
 	require.NoError(t, err)
 
-	expectedRoot, err := trustmanager.LoadCertFromFile(Root)
+	expectedRoot, err := utils.LoadCertFromFile(Root)
 	require.NoError(t, err)
 
 	require.Len(t, tlsConfig.Certificates, 1)

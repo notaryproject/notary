@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/notary"
 	notaryclient "github.com/docker/notary/client"
-	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
 	"github.com/spf13/cobra"
@@ -238,7 +237,7 @@ func (d *delegationCommander) delegationAdd(cmd *cobra.Command, args []string) e
 			}
 
 			// Parse PEM bytes into type PublicKey
-			pubKey, err := trustmanager.ParsePEMPublicKey(pubKeyBytes)
+			pubKey, err := utils.ParsePEMPublicKey(pubKeyBytes)
 			if err != nil {
 				return fmt.Errorf("unable to parse valid public key certificate from PEM file %s: %v", pubKeyPath, err)
 			}

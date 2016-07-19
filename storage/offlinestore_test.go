@@ -1,4 +1,4 @@
-package store
+package storage
 
 import (
 	"testing"
@@ -8,23 +8,19 @@ import (
 
 func TestOfflineStore(t *testing.T) {
 	s := OfflineStore{}
-	_, err := s.GetMeta("", 0)
+	_, err := s.GetSized("", 0)
 	require.Error(t, err)
 	require.IsType(t, ErrOffline{}, err)
 
-	err = s.SetMeta("", nil)
+	err = s.Set("", nil)
 	require.Error(t, err)
 	require.IsType(t, ErrOffline{}, err)
 
-	err = s.SetMultiMeta(nil)
+	err = s.SetMulti(nil)
 	require.Error(t, err)
 	require.IsType(t, ErrOffline{}, err)
 
 	_, err = s.GetKey("")
-	require.Error(t, err)
-	require.IsType(t, ErrOffline{}, err)
-
-	_, err = s.GetTarget("")
 	require.Error(t, err)
 	require.IsType(t, ErrOffline{}, err)
 
