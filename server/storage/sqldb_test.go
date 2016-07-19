@@ -246,9 +246,9 @@ func TestSQLSetKeySameRoleGun(t *testing.T) {
 	dbStore.DB.Close()
 }
 
-// TestDBCheckHealthTableMissing asserts that the health check fails if one or
+// TestSQLDBCheckHealthTableMissing asserts that the health check fails if one or
 // both the tables are missing.
-func TestDBCheckHealthTableMissing(t *testing.T) {
+func TestSQLDBCheckHealthTableMissing(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
@@ -270,9 +270,9 @@ func TestDBCheckHealthTableMissing(t *testing.T) {
 	require.Error(t, err, "Cannot access table:")
 }
 
-// TestDBCheckHealthDBCOnnection asserts that if the DB is not connectable, the
+// TestSQLDBCheckHealthDBCOnnection asserts that if the DB is not connectable, the
 // health check fails.
-func TestDBCheckHealthDBConnectionFail(t *testing.T) {
+func TestSQLDBCheckHealthDBConnectionFail(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
@@ -283,9 +283,9 @@ func TestDBCheckHealthDBConnectionFail(t *testing.T) {
 	require.Error(t, err, "Cannot access table:")
 }
 
-// TestDBCheckHealthSuceeds asserts that if the DB is connectable and both
+// TestSQLDBCheckHealthSuceeds asserts that if the DB is connectable and both
 // tables exist, the health check succeeds.
-func TestDBCheckHealthSucceeds(t *testing.T) {
+func TestSQLDBCheckHealthSucceeds(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
@@ -293,7 +293,7 @@ func TestDBCheckHealthSucceeds(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestDBGetChecksum(t *testing.T) {
+func TestSQLDBGetChecksum(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
@@ -349,7 +349,7 @@ func TestDBGetChecksum(t *testing.T) {
 	require.True(t, cDate.Before(time.Now().Add(5*time.Second)))
 }
 
-func TestDBGetChecksumNotFound(t *testing.T) {
+func TestSQLDBGetChecksumNotFound(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
@@ -358,7 +358,7 @@ func TestDBGetChecksumNotFound(t *testing.T) {
 	require.IsType(t, ErrNotFound{}, err)
 }
 
-func TestSQLiteTUFMetaStoreGetCurrent(t *testing.T) {
+func TestSQLTUFMetaStoreGetCurrent(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
