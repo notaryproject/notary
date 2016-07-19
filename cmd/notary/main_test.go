@@ -523,16 +523,34 @@ func TestConfigFileTrustPinning(t *testing.T) {
 }
 
 func TestPassphraseRetrieverCaching(t *testing.T) {
-	// Set up passphrase environment vars
+	// Only set up one passphrase environment var first for root
 	require.NoError(t, os.Setenv("NOTARY_ROOT_PASSPHRASE", "root_passphrase"))
+	defer os.Clearenv()
+
+	// Check that root is cached
+	retriever := getPassphraseRetriever()
+	passphrase, giveup, err := retriever("key", data.CanonicalRootRole, false, 0)
+	require.NoError(t, err)
+	require.False(t, giveup)
+	require.Equal(t, passphrase, "root_passphrase")
+
+	passphrase, giveup, err = retriever("key", "user", false, 0)
+	require.Error(t, err)
+	passphrase, giveup, err = retriever("key", data.CanonicalTargetsRole, false, 0)
+	require.Error(t, err)
+	passphrase, giveup, err = retriever("key", data.CanonicalSnapshotRole, false, 0)
+	require.Error(t, err)
+	passphrase, giveup, err = retriever("key", "targets/delegation", false, 0)
+	require.Error(t, err)
+
+	// Set up the rest of them
 	require.NoError(t, os.Setenv("NOTARY_TARGETS_PASSPHRASE", "targets_passphrase"))
 	require.NoError(t, os.Setenv("NOTARY_SNAPSHOT_PASSPHRASE", "snapshot_passphrase"))
 	require.NoError(t, os.Setenv("NOTARY_DELEGATION_PASSPHRASE", "delegation_passphrase"))
 
-	defer os.Clearenv()
-	// Check the caching
-	retriever := getPassphraseRetriever()
-	passphrase, giveup, err := retriever("key", data.CanonicalRootRole, false, 0)
+	// Get a new retriever and check the caching
+	retriever = getPassphraseRetriever()
+	passphrase, giveup, err = retriever("key", data.CanonicalRootRole, false, 0)
 	require.NoError(t, err)
 	require.False(t, giveup)
 	require.Equal(t, passphrase, "root_passphrase")
@@ -557,4 +575,40 @@ func TestPassphraseRetrieverCaching(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, giveup)
 	require.Equal(t, passphrase, "delegation_passphrase")
+}
+
+func TestPassphraseRetrieverDelegationRoleCaching(t *testing.T) {
+	// Only set up one passphrase environment var first for delegations
+	require.NoError(t, os.Setenv("NOTARY_DELEGATION_PASSPHRASE", "delegation_passphrase"))
+	defer os.Clearenv()
+
+	// Check that any delegation role is cached
+	retriever := getPassphraseRetriever()
+
+	passphrase, giveup, err := retriever("key", "targets/releases", false, 0)
+	require.NoError(t, err)
+	require.False(t, giveup)
+	require.Equal(t, passphrase, "delegation_passphrase")
+	passphrase, giveup, err = retriever("key", "targets/delegation", false, 0)
+	require.NoError(t, err)
+	require.False(t, giveup)
+	require.Equal(t, passphrase, "delegation_passphrase")
+	passphrase, giveup, err = retriever("key", "targets/a/b/c/d", false, 0)
+	require.NoError(t, err)
+	require.False(t, giveup)
+	require.Equal(t, passphrase, "delegation_passphrase")
+
+	// Also check arbitrary usernames that are non-BaseRoles or imported so that this can be shared across keys
+	passphrase, giveup, err = retriever("key", "user", false, 0)
+	require.NoError(t, err)
+	require.False(t, giveup)
+	require.Equal(t, passphrase, "delegation_passphrase")
+
+	// Make sure base roles fail
+	_, _, err = retriever("key", data.CanonicalRootRole, false, 0)
+	require.Error(t, err)
+	_, _, err = retriever("key", data.CanonicalTargetsRole, false, 0)
+	require.Error(t, err)
+	_, _, err = retriever("key", data.CanonicalSnapshotRole, false, 0)
+	require.Error(t, err)
 }
