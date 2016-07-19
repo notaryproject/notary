@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -20,11 +21,21 @@ type ver struct {
 	createupdate time.Time
 }
 
+// we want to keep these sorted by version so that it's in increasing version
+// order
+type verList []ver
+
+func (k verList) Len() int      { return len(k) }
+func (k verList) Swap(i, j int) { k[i], k[j] = k[j], k[i] }
+func (k verList) Less(i, j int) bool {
+	return k[i].version < k[j].version
+}
+
 // MemStorage is really just designed for dev and testing. It is very
 // inefficient in many scenarios
 type MemStorage struct {
 	lock      sync.Mutex
-	tufMeta   map[string][]*ver
+	tufMeta   map[string]verList
 	keys      map[string]map[string]*key
 	checksums map[string]map[string]ver
 }
@@ -32,7 +43,7 @@ type MemStorage struct {
 // NewMemStorage instantiates a memStorage instance
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
-		tufMeta:   make(map[string][]*ver),
+		tufMeta:   make(map[string]verList),
 		keys:      make(map[string]map[string]*key),
 		checksums: make(map[string]map[string]ver),
 	}
@@ -51,7 +62,7 @@ func (st *MemStorage) UpdateCurrent(gun string, update MetaUpdate) error {
 		}
 	}
 	version := ver{version: update.Version, data: update.Data, createupdate: time.Now()}
-	st.tufMeta[id] = append(st.tufMeta[id], &version)
+	st.tufMeta[id] = append(st.tufMeta[id], version)
 	checksumBytes := sha256.Sum256(update.Data)
 	checksum := hex.EncodeToString(checksumBytes[:])
 
@@ -65,10 +76,48 @@ func (st *MemStorage) UpdateCurrent(gun string, update MetaUpdate) error {
 
 // UpdateMany updates multiple TUF records
 func (st *MemStorage) UpdateMany(gun string, updates []MetaUpdate) error {
+	st.lock.Lock()
+	defer st.lock.Unlock()
+
+	versioner := make(map[string]map[int]struct{})
+	constant := struct{}{}
+
+	// ensure that we only update in one transaction
 	for _, u := range updates {
-		if err := st.UpdateCurrent(gun, u); err != nil {
-			return err
+		id := entryKey(gun, u.Role)
+
+		// prevent duplicate versions of the same role
+		if _, ok := versioner[u.Role][u.Version]; ok {
+			return &ErrOldVersion{}
 		}
+		if _, ok := versioner[u.Role]; !ok {
+			versioner[u.Role] = make(map[int]struct{})
+		}
+		versioner[u.Role][u.Version] = constant
+
+		if space, ok := st.tufMeta[id]; ok {
+			for _, v := range space {
+				if v.version >= u.Version {
+					return &ErrOldVersion{}
+				}
+			}
+		}
+	}
+
+	for _, u := range updates {
+		id := entryKey(gun, u.Role)
+
+		version := ver{version: u.Version, data: u.Data, createupdate: time.Now()}
+		st.tufMeta[id] = append(st.tufMeta[id], version)
+		sort.Sort(st.tufMeta[id]) // ensure that it's sorted
+		checksumBytes := sha256.Sum256(u.Data)
+		checksum := hex.EncodeToString(checksumBytes[:])
+
+		_, ok := st.checksums[gun]
+		if !ok {
+			st.checksums[gun] = make(map[string]ver)
+		}
+		st.checksums[gun][checksum] = version
 	}
 	return nil
 }
