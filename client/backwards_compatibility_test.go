@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/docker/notary/passphrase"
+	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/store"
 	"github.com/stretchr/testify/require"
 )
 
@@ -101,7 +101,7 @@ func Test0Dot1RepoFormat(t *testing.T) {
 
 	// delete the timestamp metadata, since the server will ignore the uploaded
 	// one and try to create a new one from scratch, which will be the wrong version
-	require.NoError(t, repo.fileStore.RemoveMeta(data.CanonicalTimestampRole))
+	require.NoError(t, repo.fileStore.Remove(data.CanonicalTimestampRole))
 
 	// rotate the timestamp key, since the server doesn't have that one
 	err = repo.RotateKey(data.CanonicalTimestampRole, true)

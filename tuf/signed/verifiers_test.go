@@ -433,6 +433,39 @@ func TestRSAPyCryptoVerifierInvalidKeyType(t *testing.T) {
 	require.IsType(t, ErrInvalidKeyType{}, err)
 }
 
+func TestPyCryptoRSAPSSCompat(t *testing.T) {
+	pubPem := "-----BEGIN PUBLIC KEY-----\nMIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAnKuXZeefa2LmgxaL5NsM\nzKOHNe+x/nL6ik+lDBCTV6OdcwAhHQS+PONGhrChIUVR6Vth3hUCrreLzPO73Oo5\nVSCuRJ53UronENl6lsa5mFKP8StYLvIDITNvkoT3j52BJIjyNUK9UKY9As2TNqDf\nBEPIRp28ev/NViwGOEkBu2UAbwCIdnDXm8JQErCZA0Ydm7PKGgjLbFsFGrVzqXHK\n6pdzJXlhr9yap3UpgQ/iO9JtoEYB2EXsnSrPc9JRjR30bNHHtnVql3fvinXrAEwq\n3xmN4p+R4VGzfdQN+8Kl/IPjqWB535twhFYEG/B7Ze8IwbygBjK3co/KnOPqMUrM\nBI8ztvPiogz+MvXb8WvarZ6TMTh8ifZI96r7zzqyzjR1hJulEy3IsMGvz8XS2J0X\n7sXoaqszEtXdq5ef5zKVxkiyIQZcbPgmpHLq4MgfdryuVVc/RPASoRIXG4lKaTJj\n1ANMFPxDQpHudCLxwCzjCb+sVa20HBRPTnzo8LSZkI6jAgMBAAE=\n-----END PUBLIC KEY-----"
+	testStr := "The quick brown fox jumps over the lazy dog."
+	sigHex := "4e05ee9e435653549ac4eddbc43e1a6868636e8ea6dbec2564435afcb0de47e0824cddbd88776ddb20728c53ecc90b5d543d5c37575fda8bd0317025fc07de62ee8084b1a75203b1a23d1ef4ac285da3d1fc63317d5b2cf1aafa3e522acedd366ccd5fe4a7f02a42922237426ca3dc154c57408638b9bfaf0d0213855d4e9ee621db204151bcb13d4dbb18f930ec601469c992c84b14e9e0b6f91ac9517bb3b749dd117e1cbac2e4acb0e549f44558a2005898a226d5b6c8b9291d7abae0d9e0a16858b89662a085f74a202deb867acab792bdbd2c36731217caea8b17bd210c29b890472f11e5afdd1dd7b69004db070e04201778f2c49f5758643881403d45a58d08f51b5c63910c6185892f0b590f191d760b669eff2464456f130239bba94acf54a0cb98f6939ff84ae26a37f9b890be259d9b5d636f6eb367b53e895227d7d79a3a88afd6d28c198ee80f6527437c5fbf63accb81709925c4e03d1c9eaee86f58e4bd1c669d6af042dbd412de0d13b98b1111e2fadbe34b45de52125e9a"
+	k := data.NewPublicKey(data.RSAKey, []byte(pubPem))
+
+	sigBytes, err := hex.DecodeString(sigHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := RSAPyCryptoVerifier{}
+	err = v.Verify(k, sigBytes, []byte(testStr))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPyNaCled25519Compat(t *testing.T) {
+	pubHex := "846612b43cef909a0e4ea9c818379bca4723a2020619f95e7a0ccc6f0850b7dc"
+	testStr := "The quick brown fox jumps over the lazy dog."
+	sigHex := "166e7013e48f26dccb4e68fe4cf558d1cd3af902f8395534336a7f8b4c56588694aa3ac671767246298a59d5ef4224f02c854f41bfcfe70241db4be1546d6a00"
+
+	pub, _ := hex.DecodeString(pubHex)
+	k := data.NewPublicKey(data.ED25519Key, pub)
+
+	sigBytes, _ := hex.DecodeString(sigHex)
+
+	err := Verifiers[data.EDDSASignature].Verify(k, sigBytes, []byte(testStr))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func rsaPSSSign(privKey data.PrivateKey, hash crypto.Hash, hashed []byte) ([]byte, error) {
 	if privKey, ok := privKey.(*data.RSAPrivateKey); !ok {
 		return nil, fmt.Errorf("private key type not supported: %s", privKey.Algorithm())

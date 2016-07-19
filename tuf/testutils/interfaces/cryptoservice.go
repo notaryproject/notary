@@ -4,9 +4,9 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -91,11 +91,11 @@ func AddGetKeyCryptoServiceInterfaceBehaviorTests(t *testing.T, cs signed.Crypto
 		role := data.BaseRoles[i+1]
 		switch algo {
 		case data.RSAKey:
-			addedPrivKey, err = trustmanager.GenerateRSAKey(rand.Reader, 2048)
+			addedPrivKey, err = utils.GenerateRSAKey(rand.Reader, 2048)
 		case data.ECDSAKey:
-			addedPrivKey, err = trustmanager.GenerateECDSAKey(rand.Reader)
+			addedPrivKey, err = utils.GenerateECDSAKey(rand.Reader)
 		case data.ED25519Key:
-			addedPrivKey, err = trustmanager.GenerateED25519Key(rand.Reader)
+			addedPrivKey, err = utils.GenerateED25519Key(rand.Reader)
 		default:
 			require.FailNow(t, "invalid algorithm %s", algo)
 		}
@@ -123,11 +123,11 @@ func AddListKeyCryptoServiceInterfaceBehaviorTests(t *testing.T, cs signed.Crypt
 		role := data.BaseRoles[i+1]
 		switch algo {
 		case data.RSAKey:
-			addedPrivKey, err = trustmanager.GenerateRSAKey(rand.Reader, 2048)
+			addedPrivKey, err = utils.GenerateRSAKey(rand.Reader, 2048)
 		case data.ECDSAKey:
-			addedPrivKey, err = trustmanager.GenerateECDSAKey(rand.Reader)
+			addedPrivKey, err = utils.GenerateECDSAKey(rand.Reader)
 		case data.ED25519Key:
-			addedPrivKey, err = trustmanager.GenerateED25519Key(rand.Reader)
+			addedPrivKey, err = utils.GenerateED25519Key(rand.Reader)
 		default:
 			require.FailNow(t, "invalid algorithm %s", algo)
 		}

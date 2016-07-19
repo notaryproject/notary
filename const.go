@@ -36,6 +36,8 @@ const (
 	RootKeysSubdir = "root_keys"
 	// NonRootKeysSubdir is the subdirectory under PrivDir where non-root private keys are stored
 	NonRootKeysSubdir = "tuf_keys"
+	// KeyExtension is the file extension to use for private key files
+	KeyExtension = "key"
 
 	// Day is a duration of one day
 	Day  = 24 * time.Hour

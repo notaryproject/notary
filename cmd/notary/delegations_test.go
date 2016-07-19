@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/notary/cryptoservice"
-	"github.com/docker/notary/trustmanager"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
@@ -35,7 +35,7 @@ func TestAddInvalidDelegationName(t *testing.T) {
 	tempFile, err := ioutil.TempFile("/tmp", "pemfile")
 	require.NoError(t, err)
 	cert, _, err := generateValidTestCert()
-	_, err = tempFile.Write(trustmanager.CertToPEM(cert))
+	_, err = tempFile.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
@@ -56,7 +56,7 @@ func TestAddInvalidDelegationCert(t *testing.T) {
 	tempFile, err := ioutil.TempFile("/tmp", "pemfile")
 	require.NoError(t, err)
 	cert, _, err := generateExpiredTestCert()
-	_, err = tempFile.Write(trustmanager.CertToPEM(cert))
+	_, err = tempFile.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
@@ -77,7 +77,7 @@ func TestAddInvalidShortPubkeyCert(t *testing.T) {
 	tempFile, err := ioutil.TempFile("/tmp", "pemfile")
 	require.NoError(t, err)
 	cert, _, err := generateShortRSAKeyTestCert()
-	_, err = tempFile.Write(trustmanager.CertToPEM(cert))
+	_, err = tempFile.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
@@ -142,7 +142,7 @@ func TestRemoveInvalidNumArgs(t *testing.T) {
 }
 
 func generateValidTestCert() (*x509.Certificate, string, error) {
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	if err != nil {
 		return nil, "", err
 	}
@@ -157,7 +157,7 @@ func generateValidTestCert() (*x509.Certificate, string, error) {
 }
 
 func generateExpiredTestCert() (*x509.Certificate, string, error) {
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	if err != nil {
 		return nil, "", err
 	}
@@ -174,7 +174,7 @@ func generateExpiredTestCert() (*x509.Certificate, string, error) {
 
 func generateShortRSAKeyTestCert() (*x509.Certificate, string, error) {
 	// 1024 bits is too short
-	privKey, err := trustmanager.GenerateRSAKey(rand.Reader, 1024)
+	privKey, err := utils.GenerateRSAKey(rand.Reader, 1024)
 	if err != nil {
 		return nil, "", err
 	}

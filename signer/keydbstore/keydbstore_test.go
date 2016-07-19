@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/jinzhu/gorm"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
@@ -73,7 +74,7 @@ func TestNewKeyDBStorePropagatesDBError(t *testing.T) {
 
 // Creating a key, on succcess, populates the cache.
 func TestCreateSuccessPopulatesCache(t *testing.T) {
-	testKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	testKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
 	tmpFilename := initializeDB(t)
@@ -92,7 +93,7 @@ func TestCreateSuccessPopulatesCache(t *testing.T) {
 
 // Getting a key, on succcess, populates the cache.
 func TestGetSuccessPopulatesCache(t *testing.T) {
-	testKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	testKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
 	tmpFilename := initializeDB(t)
@@ -112,10 +113,10 @@ func TestGetSuccessPopulatesCache(t *testing.T) {
 }
 
 func TestDoubleCreate(t *testing.T) {
-	testKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	testKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
-	anotherTestKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	anotherTestKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
 	tmpFilename := initializeDB(t)
@@ -139,7 +140,7 @@ func TestDoubleCreate(t *testing.T) {
 }
 
 func TestCreateDelete(t *testing.T) {
-	testKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	testKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
 	tmpFilename := initializeDB(t)
@@ -163,7 +164,7 @@ func TestCreateDelete(t *testing.T) {
 }
 
 func TestKeyRotation(t *testing.T) {
-	testKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	testKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
 	tmpFilename := initializeDB(t)

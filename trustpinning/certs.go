@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
+	"github.com/docker/notary/tuf/utils"
 )
 
 // ErrValidationFail is returned when there is no valid trusted certificates
@@ -123,7 +123,7 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 		}
 
 		err = signed.VerifySignatures(
-			root, data.BaseRole{Keys: trustmanager.CertsToKeys(trustedLeafCerts, allTrustedIntCerts), Threshold: prevRootRoleData.Threshold})
+			root, data.BaseRole{Keys: utils.CertsToKeys(trustedLeafCerts, allTrustedIntCerts), Threshold: prevRootRoleData.Threshold})
 		if err != nil {
 			logrus.Debugf("failed to verify TUF data for: %s, %v", gun, err)
 			return nil, &ErrRootRotationFail{Reason: "failed to validate data with current trusted certificates"}
@@ -152,7 +152,7 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 	// Note that certsFromRoot is guaranteed to be unchanged only if we had prior cert data for this GUN or enabled TOFUS
 	// If we attempted to pin a certain certificate or CA, certsFromRoot could have been pruned accordingly
 	err = signed.VerifySignatures(root, data.BaseRole{
-		Keys: trustmanager.CertsToKeys(certsFromRoot, allIntCerts), Threshold: rootRole.Threshold})
+		Keys: utils.CertsToKeys(certsFromRoot, allIntCerts), Threshold: rootRole.Threshold})
 	if err != nil {
 		logrus.Debugf("failed to verify TUF data for: %s, %v", gun, err)
 		return nil, &ErrValidationFail{Reason: "failed to validate integrity of roots"}
@@ -233,14 +233,14 @@ func parseAllCerts(signedRoot *data.SignedRoot) (map[string]*x509.Certificate, m
 
 		// Decode all the x509 certificates that were bundled with this
 		// Specific root key
-		decodedCerts, err := trustmanager.LoadCertBundleFromPEM(key.Public())
+		decodedCerts, err := utils.LoadCertBundleFromPEM(key.Public())
 		if err != nil {
 			logrus.Debugf("error while parsing root certificate with keyID: %s, %v", keyID, err)
 			continue
 		}
 
 		// Get all non-CA certificates in the decoded certificates
-		leafCertList := trustmanager.GetLeafCerts(decodedCerts)
+		leafCertList := utils.GetLeafCerts(decodedCerts)
 
 		// If we got no leaf certificates or we got more than one, fail
 		if len(leafCertList) != 1 {
@@ -260,7 +260,7 @@ func parseAllCerts(signedRoot *data.SignedRoot) (map[string]*x509.Certificate, m
 		leafCerts[key.ID()] = leafCert
 
 		// Get all the remainder certificates marked as a CA to be used as intermediates
-		intermediateCerts := trustmanager.GetIntermediateCerts(decodedCerts)
+		intermediateCerts := utils.GetIntermediateCerts(decodedCerts)
 		intCerts[key.ID()] = intermediateCerts
 	}
 

@@ -100,9 +100,9 @@ func TestInitWithRootKey(t *testing.T) {
 	// -- tests --
 
 	// create encrypted root key
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	encryptedPEMPrivKey, err := trustmanager.EncryptPrivateKey(privKey, data.CanonicalRootRole, testPassphrase)
+	encryptedPEMPrivKey, err := utils.EncryptPrivateKey(privKey, data.CanonicalRootRole, testPassphrase)
 	require.NoError(t, err)
 	encryptedPEMKeyFilename := filepath.Join(tempDir, "encrypted_key.key")
 	err = ioutil.WriteFile(encryptedPEMKeyFilename, encryptedPEMPrivKey, 0644)
@@ -135,9 +135,9 @@ func TestInitWithRootKey(t *testing.T) {
 	require.Error(t, err, "Init with non-PEM key should error")
 
 	// check error if unencrypted PEM used
-	unencryptedPrivKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	unencryptedPrivKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	unencryptedPEMPrivKey, err := trustmanager.KeyToPEM(unencryptedPrivKey, data.CanonicalRootRole)
+	unencryptedPEMPrivKey, err := utils.KeyToPEM(unencryptedPrivKey, data.CanonicalRootRole)
 	require.NoError(t, err)
 	unencryptedPEMKeyFilename := filepath.Join(tempDir, "unencrypted_key.key")
 	err = ioutil.WriteFile(unencryptedPEMKeyFilename, unencryptedPEMPrivKey, 0644)
@@ -148,9 +148,9 @@ func TestInitWithRootKey(t *testing.T) {
 
 	// check error if invalid password used
 	// instead of using a new retriever, we create a new key with a different pass
-	badPassPrivKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	badPassPrivKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	badPassPEMPrivKey, err := trustmanager.EncryptPrivateKey(badPassPrivKey, data.CanonicalRootRole, "bad_pass")
+	badPassPEMPrivKey, err := utils.EncryptPrivateKey(badPassPrivKey, data.CanonicalRootRole, "bad_pass")
 	require.NoError(t, err)
 	badPassPEMKeyFilename := filepath.Join(tempDir, "badpass_key.key")
 	err = ioutil.WriteFile(badPassPEMKeyFilename, badPassPEMPrivKey, 0644)
@@ -160,9 +160,9 @@ func TestInitWithRootKey(t *testing.T) {
 	require.Error(t, err, "Init with wrong password should error")
 
 	// check error if wrong role specified
-	snapshotPrivKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	snapshotPrivKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	snapshotPEMPrivKey, err := trustmanager.KeyToPEM(snapshotPrivKey, data.CanonicalSnapshotRole)
+	snapshotPEMPrivKey, err := utils.KeyToPEM(snapshotPrivKey, data.CanonicalSnapshotRole)
 	require.NoError(t, err)
 	snapshotPEMKeyFilename := filepath.Join(tempDir, "snapshot_key.key")
 	err = ioutil.WriteFile(snapshotPEMKeyFilename, snapshotPEMPrivKey, 0644)
@@ -406,19 +406,19 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
 
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	startTime := time.Now()
 	endTime := startTime.AddDate(10, 0, 0)
 	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
 	require.NoError(t, err)
 
-	_, err = tempFile.Write(trustmanager.CertToPEM(cert))
+	_, err = tempFile.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
 
 	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
-	parsedPubKey, _ := trustmanager.ParsePEMPublicKey(rawPubBytes)
+	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
 	keyID, err := utils.CanonicalKeyID(parsedPubKey)
 	require.NoError(t, err)
 
@@ -494,20 +494,20 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	tempFile2, err := ioutil.TempFile("", "pemfile2")
 	require.NoError(t, err)
 
-	privKey, err = trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err = utils.GenerateECDSAKey(rand.Reader)
 	startTime = time.Now()
 	endTime = startTime.AddDate(10, 0, 0)
 	cert, err = cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
 	require.NoError(t, err)
 
-	_, err = tempFile2.Write(trustmanager.CertToPEM(cert))
+	_, err = tempFile2.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	require.NoError(t, err)
 	tempFile2.Close()
 	defer os.Remove(tempFile2.Name())
 
 	rawPubBytes2, _ := ioutil.ReadFile(tempFile2.Name())
-	parsedPubKey2, _ := trustmanager.ParsePEMPublicKey(rawPubBytes2)
+	parsedPubKey2, _ := utils.ParsePEMPublicKey(rawPubBytes2)
 	keyID2, err := utils.CanonicalKeyID(parsedPubKey2)
 	require.NoError(t, err)
 
@@ -777,24 +777,24 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
 
-	privKey, err := trustmanager.GenerateRSAKey(rand.Reader, 2048)
+	privKey, err := utils.GenerateRSAKey(rand.Reader, 2048)
 	require.NoError(t, err)
-	privKeyBytesNoRole, err := trustmanager.KeyToPEM(privKey, "")
+	privKeyBytesNoRole, err := utils.KeyToPEM(privKey, "")
 	require.NoError(t, err)
-	privKeyBytesWithRole, err := trustmanager.KeyToPEM(privKey, "user")
+	privKeyBytesWithRole, err := utils.KeyToPEM(privKey, "user")
 	require.NoError(t, err)
 	startTime := time.Now()
 	endTime := startTime.AddDate(10, 0, 0)
 	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
 	require.NoError(t, err)
 
-	_, err = tempFile.Write(trustmanager.CertToPEM(cert))
+	_, err = tempFile.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
 
 	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
-	parsedPubKey, _ := trustmanager.ParsePEMPublicKey(rawPubBytes)
+	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
 	canonicalKeyID, err := utils.CanonicalKeyID(parsedPubKey)
 	require.NoError(t, err)
 
@@ -927,21 +927,6 @@ func TestClientDelegationsPublishing(t *testing.T) {
 
 	// publish repo
 	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
-	require.NoError(t, err)
-
-	// Now remove this key, and make a new file to import the delegation's key from
-	require.NoError(t, os.Remove(filepath.Join(keyDir, canonicalKeyID+".key")))
-	tempPrivFile, err := ioutil.TempFile("/tmp", "privfile")
-	require.NoError(t, err)
-	defer os.Remove(tempPrivFile.Name())
-
-	// Write the private key to a file so we can import it
-	_, err = tempPrivFile.Write(privKeyBytesNoRole)
-	require.NoError(t, err)
-	tempPrivFile.Close()
-
-	// Import the private key, associating it with our delegation role
-	_, err = runCommand(t, tempDir, "key", "import", tempPrivFile.Name(), "--role", "targets/releases")
 	require.NoError(t, err)
 
 	// add a target using the delegation -- will only add to targets/releases
@@ -1133,208 +1118,6 @@ func TestClientKeyGenerationRotation(t *testing.T) {
 	require.True(t, strings.Contains(string(output), target))
 }
 
-// Tests backup/restore root+signing keys - repo with restored keys should be
-// able to publish successfully
-func TestClientKeyBackupAndRestore(t *testing.T) {
-	// -- setup --
-	setUp(t)
-
-	dirs := make([]string, 3)
-	for i := 0; i < 3; i++ {
-		tempDir := tempDirWithConfig(t, "{}")
-		defer os.RemoveAll(tempDir)
-		dirs[i] = tempDir
-	}
-
-	tempfiles := make([]string, 2)
-	for i := 0; i < 2; i++ {
-		tempFile, err := ioutil.TempFile("", "tempfile")
-		require.NoError(t, err)
-		tempFile.Close()
-		tempfiles[i] = tempFile.Name()
-		defer os.Remove(tempFile.Name())
-	}
-
-	server := setupServer()
-	defer server.Close()
-
-	var (
-		target = "sdgkadga"
-		err    error
-	)
-
-	// create two repos and publish a target
-	for _, gun := range []string{"gun1", "gun2"} {
-		_, err = runCommand(t, dirs[0], "-s", server.URL, "init", gun)
-		require.NoError(t, err)
-
-		assertSuccessfullyPublish(
-			t, dirs[0], server.URL, gun, target, tempfiles[0])
-	}
-	assertNumKeys(t, dirs[0], 1, 4, true)
-
-	// -- tests --
-	zipfile := tempfiles[0] + ".zip"
-	defer os.Remove(zipfile)
-
-	// backup then restore all keys
-	_, err = runCommand(t, dirs[0], "key", "backup", zipfile)
-	require.NoError(t, err)
-
-	_, err = runCommand(t, dirs[1], "key", "restore", zipfile)
-	require.NoError(t, err)
-	// all keys should be there, including root because the root key was backed up to disk,
-	// and export just backs up all the keys on disk
-	assertNumKeys(t, dirs[1], 1, 4, !rootOnHardware())
-
-	// can list and publish to both repos using restored keys
-	for _, gun := range []string{"gun1", "gun2"} {
-		output, err := runCommand(t, dirs[1], "-s", server.URL, "list", gun)
-		require.NoError(t, err)
-		require.True(t, strings.Contains(string(output), target))
-
-		assertSuccessfullyPublish(
-			t, dirs[1], server.URL, gun, target+"2", tempfiles[1])
-	}
-
-	// backup and restore keys for one gun
-	_, err = runCommand(t, dirs[0], "key", "backup", zipfile, "-g", "gun1")
-	require.NoError(t, err)
-
-	_, err = runCommand(t, dirs[2], "key", "restore", zipfile)
-	require.NoError(t, err)
-
-	// this function is declared is in the build-tagged setup files
-	if rootOnHardware() {
-		// hardware root is still present, and the key will ONLY be on hardware
-		// and not on disk
-		assertNumKeys(t, dirs[2], 1, 2, false)
-	} else {
-		// only 2 signing keys should be there, and no root key
-		assertNumKeys(t, dirs[2], 0, 2, true)
-	}
-}
-
-// Generate a root key and export the root key only.  Return the key ID
-// exported.
-func exportRoot(t *testing.T, exportTo string) string {
-	tempDir := tempDirWithConfig(t, "{}")
-	defer os.RemoveAll(tempDir)
-
-	// generate root key produces a single root key and no other keys
-	_, err := runCommand(t, tempDir, "key", "generate", data.ECDSAKey)
-	require.NoError(t, err)
-	oldRoot, _ := assertNumKeys(t, tempDir, 1, 0, true)
-
-	// export does not require a password
-	oldNewCommand := NewNotaryCommand
-	NewNotaryCommand = func() *cobra.Command {
-		commander := &notaryCommander{getRetriever: func() notary.PassRetriever { return nil }}
-		return commander.GetCommand()
-	}
-	defer func() { // but import will, later
-		NewNotaryCommand = oldNewCommand
-	}()
-
-	_, err = runCommand(
-		t, tempDir, "key", "export", oldRoot[0], exportTo)
-	require.NoError(t, err)
-
-	return oldRoot[0]
-}
-
-// Tests import/export root key only
-func TestClientKeyImportExportRootOnly(t *testing.T) {
-	// -- setup --
-	setUp(t)
-
-	tempDir := tempDirWithConfig(t, "{}")
-	defer os.RemoveAll(tempDir)
-
-	server := setupServer()
-	defer server.Close()
-
-	var (
-		target    = "sdgkadga"
-		rootKeyID string
-	)
-
-	tempFile, err := ioutil.TempFile("", "pemfile")
-	require.NoError(t, err)
-	// close later, because we might need to write to it
-	defer os.Remove(tempFile.Name())
-
-	// -- tests --
-
-	if rootOnHardware() {
-		t.Log("Cannot export a key from hardware. Will generate one to import.")
-
-		privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
-		require.NoError(t, err)
-
-		pemBytes, err := trustmanager.EncryptPrivateKey(privKey, "root", testPassphrase)
-		require.NoError(t, err)
-
-		nBytes, err := tempFile.Write(pemBytes)
-		require.NoError(t, err)
-		tempFile.Close()
-		require.Equal(t, len(pemBytes), nBytes)
-		rootKeyID = privKey.ID()
-	} else {
-		tempFile.Close()
-		rootKeyID = exportRoot(t, tempFile.Name())
-	}
-
-	// import the key
-	_, err = runCommand(t, tempDir, "key", "import", tempFile.Name())
-	require.NoError(t, err)
-
-	// if there is hardware available, root will only be on hardware, and not
-	// on disk
-	newRoot, _ := assertNumKeys(t, tempDir, 1, 0, !rootOnHardware())
-	require.Equal(t, rootKeyID, newRoot[0])
-
-	// Just to make sure, init a repo and publish
-	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun")
-	require.NoError(t, err)
-	assertNumKeys(t, tempDir, 1, 2, !rootOnHardware())
-	assertSuccessfullyPublish(
-		t, tempDir, server.URL, "gun", target, tempFile.Name())
-
-	// Now assert that bad root keys give an error
-	// Try importing an unencrypted root key:
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
-	require.NoError(t, err)
-	decryptedPEMBytes, err := trustmanager.KeyToPEM(privKey, data.CanonicalRootRole)
-	decryptedKeyFile, err := ioutil.TempFile("", "decryptedPem")
-	require.NoError(t, err)
-	// close later, because we might need to write to it
-	defer os.Remove(decryptedKeyFile.Name())
-
-	nBytes, err := decryptedKeyFile.Write(decryptedPEMBytes)
-	require.NoError(t, err)
-	decryptedKeyFile.Close()
-	require.Equal(t, len(decryptedPEMBytes), nBytes)
-	// import the key
-	_, err = runCommand(t, tempDir, "key", "import", decryptedKeyFile.Name())
-	require.Error(t, err)
-
-	// Now try importing an invalid PEM as a root key
-	invalidPEMBytes := []byte("this is not PEM")
-	invalidPEMFile, err := ioutil.TempFile("", "invalidPem")
-	require.NoError(t, err)
-	// close later, because we might need to write to it
-	defer os.Remove(invalidPEMFile.Name())
-
-	nBytes, err = invalidPEMFile.Write(invalidPEMBytes)
-	require.NoError(t, err)
-	invalidPEMFile.Close()
-	require.Equal(t, len(invalidPEMBytes), nBytes)
-	// import the key
-	_, err = runCommand(t, tempDir, "key", "import", invalidPEMFile.Name())
-	require.Error(t, err)
-}
-
 // Helper method to get the subdirectory for TUF keys
 func getKeySubdir(role, gun string) string {
 	subdir := notary.PrivDir
@@ -1347,93 +1130,6 @@ func getKeySubdir(role, gun string) string {
 		return filepath.Join(subdir, notary.NonRootKeysSubdir, gun)
 	default:
 		return filepath.Join(subdir, notary.NonRootKeysSubdir)
-	}
-}
-
-// Tests importing and exporting keys for all different roles and GUNs
-func TestClientKeyImportExportAllRoles(t *testing.T) {
-	if rootOnHardware() {
-		t.Log("Cannot import or export a non-root key from hardware. Will skip test.")
-		return
-	}
-	// -- setup --
-	setUp(t)
-
-	tempDir := tempDirWithConfig(t, "{}")
-	defer os.RemoveAll(tempDir)
-
-	server := setupServer()
-	defer server.Close()
-
-	// -- tests --
-	_, err := runCommand(t, tempDir, "-s", server.URL, "init", "gun")
-	require.NoError(t, err)
-
-	testRoles := append(data.BaseRoles, "targets/releases")
-	// Test importing and exporting keys to all base roles and delegation role
-	for _, role := range testRoles {
-		// Do this while importing keys that have the PEM header role set or have --role set on import
-		for _, setKeyRole := range []bool{true, false} {
-			// Make a new key for this role
-			privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
-			require.NoError(t, err)
-
-			// Make a tempfile for importing
-			tempFile, err := ioutil.TempFile("", "pemfile")
-			require.NoError(t, err)
-
-			// Specify the role in the PEM header
-			pemBytes, err := trustmanager.EncryptPrivateKey(privKey, role, testPassphrase)
-			require.NoError(t, err)
-			ioutil.WriteFile(tempFile.Name(), pemBytes, 0644)
-
-			// If we need to set the key role with the --role flag, do so on import
-			if setKeyRole {
-				// If it's targets/snapshot we must specify the GUN
-				if role == data.CanonicalTargetsRole || role == data.CanonicalSnapshotRole {
-					_, err = runCommand(t, tempDir, "key", "import", tempFile.Name(), "--gun", "gun", "--role", role)
-				} else {
-					_, err = runCommand(t, tempDir, "key", "import", tempFile.Name(), "--role", role)
-				}
-			} else {
-				// If it's targets/snapshot we must specify the GUN
-				if role == data.CanonicalTargetsRole || role == data.CanonicalSnapshotRole {
-					_, err = runCommand(t, tempDir, "key", "import", tempFile.Name(), "--gun", "gun")
-				} else {
-					_, err = runCommand(t, tempDir, "key", "import", tempFile.Name())
-				}
-			}
-			require.NoError(t, err)
-
-			// Test that we imported correctly
-			keySubdir := getKeySubdir(role, "gun")
-			_, err = os.Stat(filepath.Join(tempDir, keySubdir, privKey.ID()+".key"))
-			require.Nil(t, err)
-
-			// Remove the input file so we can test exporting
-			require.NoError(t, os.Remove(tempFile.Name()))
-
-			// Make a tempfile for exporting to
-			tempFile, err = ioutil.TempFile("", "pemfile")
-			require.NoError(t, err)
-
-			// Ensure exporting this key by ID gets the same key
-			_, err = runCommand(t, tempDir, "key", "export", privKey.ID(), tempFile.Name())
-			require.NoError(t, err)
-			// Compare the bytes of the exported file and the root key file in the repo
-			exportedBytes, err := ioutil.ReadFile(tempFile.Name())
-			require.NoError(t, err)
-			repoBytes, err := ioutil.ReadFile(filepath.Join(tempDir, keySubdir, privKey.ID()+".key"))
-			require.NoError(t, err)
-			require.Equal(t, repoBytes, exportedBytes)
-
-			// Ensure exporting this key and changing the passphrase works
-			_, err = runCommand(t, tempDir, "key", "export", privKey.ID(), tempFile.Name(), "-p")
-			require.NoError(t, err)
-
-			// Remove the export file for cleanup
-			require.NoError(t, os.Remove(tempFile.Name()))
-		}
 	}
 }
 

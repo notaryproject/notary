@@ -16,9 +16,9 @@ import (
 	_ "github.com/docker/distribution/registry/auth/silly"
 	"github.com/docker/notary"
 	"github.com/docker/notary/server/storage"
+	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/store"
 	"github.com/docker/notary/tuf/testutils"
 	tufutils "github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/utils"
@@ -77,12 +77,12 @@ func TestRepoPrefixMatches(t *testing.T) {
 	require.NoError(t, err)
 
 	// uploading is cool
-	require.NoError(t, uploader.SetMultiMeta(meta))
+	require.NoError(t, uploader.SetMulti(meta))
 	// getting is cool
-	_, err = uploader.GetMeta(data.CanonicalSnapshotRole, notary.MaxDownloadSize)
+	_, err = uploader.GetSized(data.CanonicalSnapshotRole, notary.MaxDownloadSize)
 	require.NoError(t, err)
 
-	_, err = uploader.GetMeta(
+	_, err = uploader.GetSized(
 		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]), notary.MaxDownloadSize)
 	require.NoError(t, err)
 
@@ -117,7 +117,7 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 	uploader, err := store.NewHTTPStore(url, "", "json", "key", http.DefaultTransport)
 	require.NoError(t, err)
 
-	require.Error(t, uploader.SetMultiMeta(meta))
+	require.Error(t, uploader.SetMulti(meta))
 
 	// update the storage so we don't fail just because the metadata is missing
 	for _, roleName := range data.BaseRoles {
@@ -128,10 +128,10 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 		}))
 	}
 
-	_, err = uploader.GetMeta(data.CanonicalSnapshotRole, notary.MaxDownloadSize)
+	_, err = uploader.GetSized(data.CanonicalSnapshotRole, notary.MaxDownloadSize)
 	require.Error(t, err)
 
-	_, err = uploader.GetMeta(
+	_, err = uploader.GetSized(
 		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]), notary.MaxDownloadSize)
 	require.Error(t, err)
 

@@ -16,6 +16,7 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/testutils/interfaces"
+	"github.com/docker/notary/tuf/utils"
 )
 
 var algoToSigType = map[string]data.SigAlgorithm{
@@ -130,7 +131,7 @@ func (c CryptoServiceTester) TestSignWithKey(t *testing.T) {
 func (c CryptoServiceTester) TestSignNoMatchingKeys(t *testing.T) {
 	cryptoService := c.cryptoServiceFactory()
 
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, c.errorMsg("error creating key"))
 
 	// Test Sign
@@ -144,7 +145,7 @@ func (c CryptoServiceTester) TestGetPrivateKeyMultipleKeystores(t *testing.T) {
 	cryptoService.keyStores = append(cryptoService.keyStores,
 		trustmanager.NewKeyMemoryStore(passphraseRetriever))
 
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, c.errorMsg("error creating key"))
 
 	for _, store := range cryptoService.keyStores {
@@ -234,7 +235,7 @@ func (c CryptoServiceTester) TestRemoveFromMultipleKeystores(t *testing.T) {
 	cryptoService.keyStores = append(cryptoService.keyStores,
 		trustmanager.NewKeyMemoryStore(passphraseRetriever))
 
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, c.errorMsg("error creating key"))
 
 	for _, store := range cryptoService.keyStores {
@@ -264,7 +265,7 @@ func (c CryptoServiceTester) TestListFromMultipleKeystores(t *testing.T) {
 	expectedKeysIDs := make(map[string]bool) // just want to be able to index by key
 
 	for i := 0; i < 3; i++ {
-		privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+		privKey, err := utils.GenerateECDSAKey(rand.Reader)
 		require.NoError(t, err, c.errorMsg("error creating key"))
 		expectedKeysIDs[privKey.ID()] = true
 
@@ -308,7 +309,7 @@ func (c CryptoServiceTester) TestAddKey(t *testing.T) {
 	cryptoService.keyStores = append(cryptoService.keyStores,
 		trustmanager.NewKeyMemoryStore(passphraseRetriever))
 
-	privKey, err := trustmanager.GenerateECDSAKey(rand.Reader)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
 	// Add the key to the targets role

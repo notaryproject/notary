@@ -8,7 +8,7 @@
 //   If writing your own server, please have a look at
 //   github.com/docker/distribution/registry/api/errcode
 
-package store
+package storage
 
 import (
 	"bytes"
@@ -136,12 +136,12 @@ func translateStatusToError(resp *http.Response, resource string) error {
 	}
 }
 
-// GetMeta downloads the named meta file with the given size. A short body
+// GetSized downloads the named meta file with the given size. A short body
 // is acceptable because in the case of timestamp.json, the size is a cap,
 // not an exact length.
 // If size is "NoSizeLimit", this corresponds to "infinite," but we cut off at a
 // predefined threshold "notary.MaxDownloadSize".
-func (s HTTPStore) GetMeta(name string, size int64) ([]byte, error) {
+func (s HTTPStore) GetSized(name string, size int64) ([]byte, error) {
 	url, err := s.buildMetaURL(name)
 	if err != nil {
 		return nil, err
@@ -174,8 +174,8 @@ func (s HTTPStore) GetMeta(name string, size int64) ([]byte, error) {
 	return body, nil
 }
 
-// SetMeta uploads a piece of TUF metadata to the server
-func (s HTTPStore) SetMeta(name string, blob []byte) error {
+// Set uploads a piece of TUF metadata to the server
+func (s HTTPStore) Set(name string, blob []byte) error {
 	url, err := s.buildMetaURL("")
 	if err != nil {
 		return err
@@ -192,9 +192,9 @@ func (s HTTPStore) SetMeta(name string, blob []byte) error {
 	return translateStatusToError(resp, "POST "+name)
 }
 
-// RemoveMeta always fails, because we should never be able to delete metadata
-// for individual TUF metadata remotely
-func (s HTTPStore) RemoveMeta(name string) error {
+// Remove always fails, because we should never be able to delete metadata
+// remotely
+func (s HTTPStore) Remove(name string) error {
 	return ErrInvalidOperation{msg: "cannot delete individual metadata files"}
 }
 
@@ -222,10 +222,10 @@ func NewMultiPartMetaRequest(url string, metas map[string][]byte) (*http.Request
 	return req, nil
 }
 
-// SetMultiMeta does a single batch upload of multiple pieces of TUF metadata.
+// SetMulti does a single batch upload of multiple pieces of TUF metadata.
 // This should be preferred for updating a remote server as it enable the server
 // to remain consistent, either accepting or rejecting the complete update.
-func (s HTTPStore) SetMultiMeta(metas map[string][]byte) error {
+func (s HTTPStore) SetMulti(metas map[string][]byte) error {
 	url, err := s.buildMetaURL("")
 	if err != nil {
 		return err
@@ -307,4 +307,9 @@ func (s HTTPStore) GetKey(role string) ([]byte, error) {
 		return nil, err
 	}
 	return body, nil
+}
+
+// Location returns a human readable name for the storage location
+func (s HTTPStore) Location() string {
+	return s.baseURL.String()
 }
