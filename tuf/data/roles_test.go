@@ -165,6 +165,17 @@ func TestValidRoleFunction(t *testing.T) {
 	require.False(t, ValidRole(path.Join("role")))
 }
 
+func TestIsBaseRole(t *testing.T) {
+	for _, role := range BaseRoles {
+		require.True(t, IsBaseRole(role))
+	}
+	require.False(t, IsBaseRole("user"))
+	require.False(t, IsBaseRole(
+		path.Join(CanonicalTargetsRole, "level1", "level2", "level3")))
+	require.False(t, IsBaseRole(path.Join(CanonicalTargetsRole, "level1")))
+	require.False(t, IsBaseRole(""))
+}
+
 func TestBaseRoleEquals(t *testing.T) {
 	fakeKeyHello := NewRSAPublicKey([]byte("hello"))
 	fakeKeyThere := NewRSAPublicKey([]byte("there"))
