@@ -605,14 +605,10 @@ func TestPassphraseRetrieverDelegationRoleCaching(t *testing.T) {
 	require.Equal(t, passphrase, "delegation_passphrase")
 
 	// Make sure base roles fail
-	passphrase, giveup, err = retriever("key", data.CanonicalRootRole, false, 0)
+	_, _, err = retriever("key", data.CanonicalRootRole, false, 0)
 	require.Error(t, err)
-	passphrase, giveup, err = retriever("key", data.CanonicalTargetsRole, false, 0)
+	_, _, err = retriever("key", data.CanonicalTargetsRole, false, 0)
 	require.Error(t, err)
-	passphrase, giveup, err = retriever("key", data.CanonicalSnapshotRole, false, 0)
-	require.Error(t, err)
-
-	// make sure "imported" role fails
-	passphrase, giveup, err = retriever("key", "imported "+data.CanonicalRootRole, false, 0)
+	_, _, err = retriever("key", data.CanonicalSnapshotRole, false, 0)
 	require.Error(t, err)
 }
