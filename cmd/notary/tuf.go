@@ -278,30 +278,15 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 	var rootKeyList []string
 
 	if t.rootKey != "" {
-		keyFile, err := os.Open(t.rootKey)
-		if err != nil {
-			return fmt.Errorf("Opening file for import: %v", err)
-		}
-		defer keyFile.Close()
-
-		pemBytes, err := ioutil.ReadAll(keyFile)
-		if err != nil {
-			return fmt.Errorf("Error reading input file: %v", err)
-		}
-		if err = cryptoservice.CheckRootKeyIsEncrypted(pemBytes); err != nil {
-			return err
-		}
-
-		privKey, _, err := trustmanager.GetPasswdDecryptBytes(t.retriever, pemBytes, "", data.CanonicalRootRole)
+		privKey, err := readRootKey(t.rootKey, t.retriever)
 		if err != nil {
 			return err
 		}
-
 		err = nRepo.CryptoService.AddKey(data.CanonicalRootRole, "", privKey)
 		if err != nil {
 			return fmt.Errorf("Error importing key: %v", err)
 		}
-		rootKeyList = []string{data.PublicKeyFromPrivate(privKey).ID()}
+		rootKeyList = []string{privKey.ID()}
 	} else {
 		rootKeyList = nRepo.CryptoService.ListKeys(data.CanonicalRootRole)
 	}
@@ -325,6 +310,30 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	return nil
+}
+
+// Attempt to read an encrypted root key from a file, and return it as a data.PrivateKey
+func readRootKey(rootKeyFile string, retriever notary.PassRetriever) (data.PrivateKey, error) {
+	keyFile, err := os.Open(rootKeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("Opening file to import as a root key: %v", err)
+	}
+	defer keyFile.Close()
+
+	pemBytes, err := ioutil.ReadAll(keyFile)
+	if err != nil {
+		return nil, fmt.Errorf("Error reading input root key file: %v", err)
+	}
+	if err = cryptoservice.CheckRootKeyIsEncrypted(pemBytes); err != nil {
+		return nil, err
+	}
+
+	privKey, _, err := trustmanager.GetPasswdDecryptBytes(retriever, pemBytes, "", data.CanonicalRootRole)
+	if err != nil {
+		return nil, err
+	}
+
+	return privKey, nil
 }
 
 func (t *tufCommander) tufList(cmd *cobra.Command, args []string) error {
