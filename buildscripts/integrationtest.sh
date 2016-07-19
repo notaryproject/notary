@@ -1,13 +1,28 @@
 #!/usr/bin/env bash
 
-composeFile="$1"
+db="$1"
+case ${db} in
+  mysql*)
+    db="mysql"
+    ;;
+  rethink*)
+    db="rethink"
+    ;;
+  *)
+    echo "Usage: $0 (mysql|rethink)"
+    exit 1
+    ;;
+esac
+
+composeFile="development.${db}.yml"
+project=integration
 
 function cleanup {
     rm -f bin/notary
-	docker-compose -f $composeFile kill
+	docker-compose -p "${project}_${db}" -f ${composeFile} kill
 	# if we're in CircleCI, we cannot remove any containers
 	if [[ -z "${CIRCLECI}" ]]; then
-		docker-compose -f $composeFile down -v --remove-orphans
+		docker-compose -p "${project}_${db}" -f ${composeFile} down -v --remove-orphans
 	fi
 }
 
@@ -32,8 +47,9 @@ set -x
 
 cleanup
 
-docker-compose -f $composeFile config
-docker-compose -f $composeFile build ${BUILDOPTS} --pull | tee
-docker-compose -f $composeFile up --abort-on-container-exit
+docker-compose -p "${project}_${db}" -f ${composeFile} config
+docker-compose -p "${project}_${db}" -f ${composeFile} build ${BUILDOPTS} --pull | tee
 
 trap cleanupAndExit SIGINT SIGTERM EXIT
+
+docker-compose -p "${project}_${db}" -f ${composeFile} up --abort-on-container-exit
