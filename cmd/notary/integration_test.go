@@ -555,7 +555,8 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	// list delegations - we should see no delegations
 	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
 	require.NoError(t, err)
-	require.Contains(t, output, "No delegations present in this repository.")
+	require.NotContains(t, output, keyID)
+	require.NotContains(t, output, keyID2)
 
 	// add delegation with multiple certs and multiple paths
 	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", tempFile.Name(), tempFile2.Name(), "--paths", "path1,path2")

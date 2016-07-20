@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -116,10 +115,6 @@ func changeTargetsDelegation(repo *tuf.Repo, c changelist.Change) error {
 			removeTUFKeyIDs = append(removeTUFKeyIDs, canonicalToTUFID[canonID])
 		}
 
-		// If we specify the only keys left delete the role, else just delete specified keys
-		if strings.Join(delgRole.ListKeyIDs(), ";") == strings.Join(removeTUFKeyIDs, ";") && len(td.AddKeys) == 0 {
-			return repo.DeleteDelegation(c.Scope())
-		}
 		err = repo.UpdateDelegationKeys(c.Scope(), td.AddKeys, removeTUFKeyIDs, td.NewThreshold)
 		if err != nil {
 			return err

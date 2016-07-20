@@ -32,7 +32,7 @@ var cmdDelegationRemoveTemplate = usageTemplate{
 	Long:  "Remove KeyID(s) from the specified Role delegation in a specific Global Unique Name.",
 }
 
-var cmdDelegationRemoveKeysTemplate = usageTemplate{
+var cmdDelegationPurgeKeysTemplate = usageTemplate{
 	Use:   "purge [ GUN ]",
 	Short: "Remove KeyID(s) from all delegations it is found in.",
 	Long:  "Remove KeyID(s) from all delegations it is found in, for which the signing keys are available. Warnings will be printed for delegations that cannot be updated.",
@@ -58,9 +58,9 @@ func (d *delegationCommander) GetCommand() *cobra.Command {
 	cmd := cmdDelegationTemplate.ToCommand(nil)
 	cmd.AddCommand(cmdDelegationListTemplate.ToCommand(d.delegationsList))
 
-	cmdRemDelgKeys := cmdDelegationRemoveKeysTemplate.ToCommand(d.delegationRemoveKeys)
-	cmdRemDelgKeys.Flags().StringSliceVar(&d.keyIDs, "key", nil, "Delegation keys to be removed from the GUN")
-	cmd.AddCommand(cmdRemDelgKeys)
+	cmdPurgeDelgKeys := cmdDelegationPurgeKeysTemplate.ToCommand(d.delegationPurgeKeys)
+	cmdPurgeDelgKeys.Flags().StringSliceVar(&d.keyIDs, "key", nil, "Delegation keys to be removed from the GUN")
+	cmd.AddCommand(cmdPurgeDelgKeys)
 
 	cmdRemDelg := cmdDelegationRemoveTemplate.ToCommand(d.delegationRemove)
 	cmdRemDelg.Flags().StringSliceVar(&d.paths, "paths", nil, "List of paths to remove")
@@ -75,10 +75,10 @@ func (d *delegationCommander) GetCommand() *cobra.Command {
 	return cmd
 }
 
-func (d *delegationCommander) delegationRemoveKeys(cmd *cobra.Command, args []string) error {
-	if len(args) > 1 {
+func (d *delegationCommander) delegationPurgeKeys(cmd *cobra.Command, args []string) error {
+	if len(args) != 1 {
 		cmd.Usage()
-		return fmt.Errorf("Please provide a Global Unique Name as an argument to remove")
+		return fmt.Errorf("Please provide a single Global Unique Name as an argument to remove")
 	}
 
 	if len(d.keyIDs) == 0 {

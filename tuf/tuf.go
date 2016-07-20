@@ -326,16 +326,16 @@ func delegationUpdateVisitor(roleName string, addKeys data.KeyList, removeKeys, 
 			}
 		}
 		// We didn't find the role earlier, so create it only if we have keys to add
+		// that are also sufficient to meet the threshold.
+		if addKeys == nil {
+			addKeys = data.KeyList{} // initialize to empty list if necessary so calling .IDs() below won't panic
+		}
 		if delgRole == nil {
-			if len(addKeys) > 0 {
-				delgRole, err = data.NewRole(roleName, newThreshold, addKeys.IDs(), addPaths)
-				if err != nil {
-					return err
-				}
-			} else {
-				// If we can't find the role and didn't specify keys to add, this is an error
-				return data.ErrInvalidRole{Role: roleName, Reason: "cannot create new delegation without keys"}
+			delgRole, err = data.NewRole(roleName, newThreshold, addKeys.IDs(), addPaths)
+			if err != nil {
+				return err
 			}
+
 		}
 		// Add the key IDs to the role and the keys themselves to the parent
 		for _, k := range addKeys {
@@ -345,7 +345,7 @@ func delegationUpdateVisitor(roleName string, addKeys data.KeyList, removeKeys, 
 		}
 		// Make sure we have a valid role still
 		if len(delgRole.KeyIDs) < delgRole.Threshold {
-			return data.ErrInvalidRole{Role: roleName, Reason: "insufficient keys to meet threshold"}
+			logrus.Warnf("role %s has fewer keys than its threshold of %d; it will not be usable until keys are added to it", delgRole.Name, delgRole.Threshold)
 		}
 		// NOTE: this closure CANNOT error after this point, as we've committed to editing the SignedTargets metadata in the repo object.
 		// Any errors related to updating this delegation must occur before this point.
@@ -416,9 +416,13 @@ func (tr *Repo) PurgeDelegationKeys(role string, removeKeys []string) error {
 
 	purgeKeys := func(tgt *data.SignedTargets, validRole data.DelegationRole) interface{} {
 		var (
-			deleteCandidates []string
-			err              error
+			deleteCandidates    []string
+			err                 error
+			canSign             bool
+			needsUpdateCantSign bool
 		)
+		err = tr.VerifyCanSign(validRole.Name)
+		canSign = err == nil
 		for id, key := range tgt.Signed.Delegations.Keys {
 			var (
 				canonID string
@@ -433,12 +437,32 @@ func (tr *Repo) PurgeDelegationKeys(role string, removeKeys []string) error {
 				tufIDToCanon[id] = canonID
 			}
 			if _, ok := removeIDs[canonID]; ok {
+				if !canSign {
+					needsUpdateCantSign = true
+					break
+				}
 				delete(tgt.Signed.Delegations.Keys, id)
 				deleteCandidates = append(deleteCandidates, id)
 			}
 		}
+		if needsUpdateCantSign {
+			logrus.Warnf(
+				"role %s contains keys being purged but you do not have the necessary keys present to sign it; keys will not be purged from %s or its immediate children",
+				validRole.Name,
+				validRole.Name,
+			)
+			return nil
+		}
+		if len(deleteCandidates) == 0 {
+			// none of the interesting keys were present
+			return nil
+		}
+		// delete candidate keys from all roles. Keep only roles that still have keys
 		for _, role := range tgt.Signed.Delegations.Roles {
 			role.RemoveKeys(deleteCandidates)
+			if len(role.KeyIDs) < role.Threshold {
+				logrus.Warnf("role %s has fewer keys than its threshold of %d; it will not be usable until keys are added to it", role.Name, role.Threshold)
+			}
 		}
 		return nil
 	}
