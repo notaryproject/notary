@@ -116,14 +116,23 @@ func TestRethinkUpdateCurrentEmpty(t *testing.T) {
 }
 
 // UpdateCurrent will add a new TUF file if the version is higher than previous, but fail
-// if the version is equal to or less than the current, whether or not that previous
-// version exists
-func TestRethinkUpdateCurrentVersionCheck(t *testing.T) {
+// if the version already exists in the DB
+func TestRethinkUpdateCurrentVersionCheckOldVersionExists(t *testing.T) {
+	dbStore, cleanup := rethinkDBSetup(t)
+	defer cleanup()
+
+	testUpdateCurrentVersionCheck(t, dbStore, true)
+}
+
+// UpdateCurrent will successfully add a new (higher) version of an existing TUF file,
+// but will return an error if the to-be-added version does not exist in the DB, but
+// is older than an existing version in the DB.
+func TestRethinkUpdateCurrentVersionCheckOldVersionNotExist(t *testing.T) {
 	t.Skip("Currently rethink only errors if the previous version exists - it doesn't check for strictly increasing")
 	dbStore, cleanup := rethinkDBSetup(t)
 	defer cleanup()
 
-	testUpdateCurrentVersionCheck(t, dbStore)
+	testUpdateCurrentVersionCheck(t, dbStore, false)
 }
 
 // UpdateMany succeeds if the updates do not conflict with each other or with what's
