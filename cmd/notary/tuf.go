@@ -97,6 +97,8 @@ type tufCommander struct {
 	input  string
 	output string
 	quiet  bool
+
+	changes []int
 }
 
 func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
@@ -104,7 +106,10 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmdTUFInit.Flags().StringVar(&t.rootKey, "rootkey", "", "Root key to initialize the repository with")
 	cmd.AddCommand(cmdTUFInit)
 
-	cmd.AddCommand(cmdTUFStatusTemplate.ToCommand(t.tufStatus))
+	cmdStatus := cmdTUFStatusTemplate.ToCommand(t.tufStatus)
+	cmdStatus.Flags().IntSliceVarP(&t.changes, "unstage", "u", nil, "Numbers of changes to delete, as show in status list")
+	cmd.AddCommand(cmdStatus)
+
 	cmd.AddCommand(cmdTUFPublishTemplate.ToCommand(t.tufPublish))
 	cmd.AddCommand(cmdTUFLookupTemplate.ToCommand(t.tufLookup))
 
@@ -440,17 +445,32 @@ func (t *tufCommander) tufStatus(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if len(t.changes) > 0 {
+		return cl.Remove(t.changes)
+	}
+
 	if len(cl.List()) == 0 {
 		cmd.Printf("No unpublished changes for %s\n", gun)
 		return nil
 	}
 
 	cmd.Printf("Unpublished changes for %s:\n\n", gun)
-	cmd.Printf("%-10s%-10s%-12s%s\n", "action", "scope", "type", "path")
-	cmd.Println("----------------------------------------------------")
-	for _, ch := range cl.List() {
-		cmd.Printf("%-10s%-10s%-12s%s\n", ch.Action(), ch.Scope(), ch.Type(), ch.Path())
+	tw := initTabWriter(
+		[]string{"#", "ACTION", "SCOPE", "TYPE", "PATH"},
+		cmd.Out(),
+	)
+	for i, ch := range cl.List() {
+		fmt.Fprintf(
+			tw,
+			fiveItemRow,
+			fmt.Sprintf("%d", i),
+			ch.Action(),
+			ch.Scope(),
+			ch.Type(),
+			ch.Path(),
+		)
 	}
+	tw.Flush()
 	return nil
 }
 
