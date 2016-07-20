@@ -32,6 +32,12 @@ var cmdDelegationRemoveTemplate = usageTemplate{
 	Long:  "Remove KeyID(s) from the specified Role delegation in a specific Global Unique Name.",
 }
 
+var cmdDelegationRemoveKeysTemplate = usageTemplate{
+	Use:   "purge [ GUN ]",
+	Short: "Remove KeyID(s) from all delegations it is found in.",
+	Long:  "Remove KeyID(s) from all delegations it is found in, for which the signing keys are available. Warnings will be printed for delegations that cannot be updated.",
+}
+
 var cmdDelegationAddTemplate = usageTemplate{
 	Use:   "add [ GUN ] [ Role ] <X509 file path 1> ...",
 	Short: "Add a keys to delegation using the provided public key X509 certificates.",
@@ -45,11 +51,16 @@ type delegationCommander struct {
 
 	paths                         []string
 	allPaths, removeAll, forceYes bool
+	keyIDs                        []string
 }
 
 func (d *delegationCommander) GetCommand() *cobra.Command {
 	cmd := cmdDelegationTemplate.ToCommand(nil)
 	cmd.AddCommand(cmdDelegationListTemplate.ToCommand(d.delegationsList))
+
+	cmdRemDelgKeys := cmdDelegationRemoveKeysTemplate.ToCommand(d.delegationRemoveKeys)
+	cmdRemDelgKeys.Flags().StringSliceVar(&d.keyIDs, "key", nil, "Delegation keys to be removed from the GUN")
+	cmd.AddCommand(cmdRemDelgKeys)
 
 	cmdRemDelg := cmdDelegationRemoveTemplate.ToCommand(d.delegationRemove)
 	cmdRemDelg.Flags().StringSliceVar(&d.paths, "paths", nil, "List of paths to remove")
@@ -62,6 +73,53 @@ func (d *delegationCommander) GetCommand() *cobra.Command {
 	cmdAddDelg.Flags().BoolVar(&d.allPaths, "all-paths", false, "Add all paths to this delegation")
 	cmd.AddCommand(cmdAddDelg)
 	return cmd
+}
+
+func (d *delegationCommander) delegationRemoveKeys(cmd *cobra.Command, args []string) error {
+	if len(args) > 1 {
+		cmd.Usage()
+		return fmt.Errorf("Please provide a Global Unique Name as an argument to remove")
+	}
+
+	if len(d.keyIDs) == 0 {
+		cmd.Usage()
+		return fmt.Errorf("Please provide at least one key ID to be removed using the --key flag")
+	}
+
+	gun := args[0]
+
+	config, err := d.configGetter()
+	if err != nil {
+		return err
+	}
+
+	trustPin, err := getTrustPinning(config)
+	if err != nil {
+		return err
+	}
+
+	nRepo, err := notaryclient.NewNotaryRepository(
+		config.GetString("trust_dir"),
+		gun,
+		getRemoteTrustServer(config),
+		nil,
+		d.retriever,
+		trustPin,
+	)
+	if err != nil {
+		return err
+	}
+
+	err = nRepo.RemoveDelegationKeys("targets/*", d.keyIDs)
+	if err != nil {
+		return fmt.Errorf("failed to remove delegation: %v", err)
+	}
+	fmt.Printf(
+		"Removal of the following keys from all delegations in %s staged for next publish:\n\t- %s\n",
+		gun,
+		strings.Join(d.keyIDs, "\n\t- "),
+	)
+	return nil
 }
 
 // delegationsList lists all the delegations for a particular GUN

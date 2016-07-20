@@ -392,11 +392,57 @@ func (tr *Repo) UpdateDelegationKeys(roleName string, addKeys data.KeyList, remo
 	// Walk to the parent of this delegation, since that is where its role metadata exists
 	// We do not have to verify that the walker reached its desired role in this scenario
 	// since we've already done another walk to the parent role in VerifyCanSign, and potentially made a targets file
-	err := tr.WalkTargets("", parent, delegationUpdateVisitor(roleName, addKeys, removeKeys, []string{}, []string{}, false, newThreshold))
-	if err != nil {
-		return err
+	return tr.WalkTargets("", parent, delegationUpdateVisitor(roleName, addKeys, removeKeys, []string{}, []string{}, false, newThreshold))
+}
+
+// PurgeDelegationKeys removes the provided canonical key IDs from all delegations
+// present in the subtree rooted at role. The role argument must be provided in a wildcard
+// format, i.e. targets/* would remove the key from all delegations in the repo
+func (tr *Repo) PurgeDelegationKeys(role string, removeKeys []string) error {
+	if !data.IsWildDelegation(role) {
+		return data.ErrInvalidRole{
+			Role:   role,
+			Reason: "only wildcard roles can be used in a purge",
+		}
 	}
-	return nil
+
+	removeIDs := make(map[string]struct{})
+	for _, id := range removeKeys {
+		removeIDs[id] = struct{}{}
+	}
+
+	start := path.Dir(role)
+	tufIDToCanon := make(map[string]string)
+
+	purgeKeys := func(tgt *data.SignedTargets, validRole data.DelegationRole) interface{} {
+		var (
+			deleteCandidates []string
+			err              error
+		)
+		for id, key := range tgt.Signed.Delegations.Keys {
+			var (
+				canonID string
+				ok      bool
+			)
+			if canonID, ok = tufIDToCanon[id]; !ok {
+				canonID, err = utils.CanonicalKeyID(key)
+				if err != nil {
+					// TODO: should we return here or just log?
+					return err
+				}
+				tufIDToCanon[id] = canonID
+			}
+			if _, ok := removeIDs[canonID]; ok {
+				delete(tgt.Signed.Delegations.Keys, id)
+				deleteCandidates = append(deleteCandidates, id)
+			}
+		}
+		for _, role := range tgt.Signed.Delegations.Roles {
+			role.RemoveKeys(deleteCandidates)
+		}
+		return nil
+	}
+	return tr.WalkTargets("", start, purgeKeys)
 }
 
 // UpdateDelegationPaths updates the appropriate delegation's paths.
