@@ -155,9 +155,11 @@ func (r *NotaryRepository) RemoveDelegationPaths(name string, paths []string) er
 // RemoveDelegationKeys creates a changelist entry to remove provided keys from an existing delegation.
 // When this changelist is applied, if the specified keys are the only keys left in the role,
 // the role itself will be deleted in its entirety.
+// It can also delete a key from all delegations under a parent using a name
+// with a wildcard at the end.
 func (r *NotaryRepository) RemoveDelegationKeys(name string, keyIDs []string) error {
 
-	if !data.IsDelegation(name) {
+	if !data.IsDelegation(name) && !data.IsWildDelegation(name) {
 		return data.ErrInvalidRole{Role: name, Reason: "invalid delegation role name"}
 	}
 

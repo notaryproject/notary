@@ -92,6 +92,10 @@ func changeTargetsDelegation(repo *tuf.Repo, c changelist.Change) error {
 		if err != nil {
 			return err
 		}
+		if data.IsWildDelegation(c.Scope()) {
+			return repo.PurgeDelegationKeys(c.Scope(), td.RemoveKeys)
+		}
+
 		delgRole, err := repo.GetDelegationRole(c.Scope())
 		if err != nil {
 			return err
