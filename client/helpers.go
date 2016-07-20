@@ -49,10 +49,11 @@ func applyChangelist(repo *tuf.Repo, cl changelist.Changelist) error {
 		default:
 			logrus.Debug("scope not supported: ", c.Scope())
 		}
-		index++
 		if err != nil {
+			logrus.Debugf("error attempting to apply change #%d: %s, on scope: %s path: %s type: %s", index, c.Action(), c.Scope(), c.Path(), c.Type())
 			return err
 		}
+		index++
 	}
 	logrus.Debugf("applied %d change(s)", index)
 	return nil
