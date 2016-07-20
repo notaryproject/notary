@@ -14,7 +14,6 @@ type TUFFile struct {
 
 // TableName sets a specific table name for TUFFile
 func (g TUFFile) TableName() string {
-	// NOTE: if this value changes, please also change it in SQLStorage.Delete
 	return "tuf_files"
 }
 

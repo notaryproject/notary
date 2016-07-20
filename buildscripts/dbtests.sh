@@ -31,7 +31,7 @@ function cleanup {
     fi
 }
 
-clientCmd="make TESTOPTS='-v' test"
+clientCmd="make TESTOPTS='-p 1' test"
 if [[ -z "${CIRCLECI}" ]]; then
     BUILDOPTS="--force-rm"
 else
