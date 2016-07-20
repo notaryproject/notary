@@ -283,7 +283,7 @@ func TestSQLDBCheckHealthTableMissing(t *testing.T) {
 	require.Error(t, err, "Cannot access table:")
 }
 
-// TestSQLDBCheckHealthDBCOnnection asserts that if the DB is not connectable, the
+// TestSQLDBCheckHealthDBConnection asserts that if the DB is not connectable, the
 // health check fails.
 func TestSQLDBCheckHealthDBConnectionFail(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)

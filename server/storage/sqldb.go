@@ -153,11 +153,10 @@ func isReadErr(q *gorm.DB, row TUFFile) error {
 	return nil
 }
 
-// Delete deletes all the records for a specific GUN - we have to do a raw execute, because
-// otherwise GORM will do a soft delete, because we have CreatedAt, ModifiedAt, and DeletedAt
-// columns (and we actually use CreatedAt and ModifiedAt)
+// Delete deletes all the records for a specific GUN - we have to do a hard delete using Unscoped
+// otherwise we can't insert for that GUN again
 func (db *SQLStorage) Delete(gun string) error {
-	return db.Exec("DELETE FROM tuf_files WHERE gun = ?", gun).Error
+	return db.Unscoped().Where(&TUFFile{Gun: gun}).Delete(TUFFile{}).Error
 }
 
 // GetKey returns the Public Key data for a gun+role
