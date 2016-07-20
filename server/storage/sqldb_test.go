@@ -76,14 +76,27 @@ func TestSQLUpdateCurrentEmpty(t *testing.T) {
 	dbStore.DB.Close()
 }
 
-// TestSQLUpdateCurrentNewVersion asserts that UpdateCurrent will add a
+// TestSQLUpdateCurrentVersionCheckOldVersionExists asserts that UpdateCurrent will add a
 // new (higher) version of an existing TUF file, and that an error is raised if
-// trying to update to an older version of a TUF file.
-func TestSQLUpdateCurrentNewVersion(t *testing.T) {
+// trying to update to an older version of a TUF file that already exists.
+func TestSQLUpdateCurrentVersionCheckOldVersionExists(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
-	expected := testUpdateCurrentVersionCheck(t, dbStore)
+	expected := testUpdateCurrentVersionCheck(t, dbStore, true)
+	assertExpectedGormTUFMeta(t, expected, dbStore.DB)
+
+	dbStore.DB.Close()
+}
+
+// TestSQLUpdateCurrentVersionCheckOldVersionNotExist asserts that UpdateCurrent will add a
+// new (higher) version of an existing TUF file, and that an error is raised if
+// trying to update to an older version of a TUF file that doesn't exist in the DB.
+func TestSQLUpdateCurrentVersionCheckOldVersionNotExist(t *testing.T) {
+	dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
+
+	expected := testUpdateCurrentVersionCheck(t, dbStore, false)
 	assertExpectedGormTUFMeta(t, expected, dbStore.DB)
 
 	dbStore.DB.Close()

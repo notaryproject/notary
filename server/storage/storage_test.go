@@ -91,8 +91,9 @@ func testUpdateCurrentEmptyStore(t *testing.T, s MetaStore) []StoredTUFMeta {
 }
 
 // UpdateCurrent will successfully add a new (higher) version of an existing TUF file,
-// but will return an error if there is an older version of a TUF file.
-func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore) []StoredTUFMeta {
+// but will return an error if there is an older version of a TUF file.  oldVersionExists
+// specifies whether the older version should already exist in the DB or not.
+func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore, oldVersionExists bool) []StoredTUFMeta {
 	role, gun := data.CanonicalRootRole, "testGUN"
 
 	expected := []StoredTUFMeta{
@@ -109,13 +110,16 @@ func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore) []StoredTUFMeta {
 	require.NoError(t, s.UpdateCurrent(gun, MakeUpdate(expected[2])))
 
 	// Inserting a version that already exists, or that is lower than the current version, will fail
-	for _, version := range []int{3, 4} {
-		tufObj := SampleCustomTUFObj(gun, role, version, nil)
-		err := s.UpdateCurrent(gun, MakeUpdate(tufObj))
-		require.Error(t, err, "Error should not be nil")
-		require.IsType(t, &ErrOldVersion{}, err,
-			"Expected ErrOldVersion error type, got: %v", err)
+	version := 3
+	if oldVersionExists {
+		version = 4
 	}
+
+	tufObj := SampleCustomTUFObj(gun, role, version, nil)
+	err := s.UpdateCurrent(gun, MakeUpdate(tufObj))
+	require.Error(t, err, "Error should not be nil")
+	require.IsType(t, &ErrOldVersion{}, err,
+		"Expected ErrOldVersion error type, got: %v", err)
 
 	assertExpectedTUFMetaInStore(t, s, expected[:2], false)
 	assertExpectedTUFMetaInStore(t, s, expected[2:], true)
