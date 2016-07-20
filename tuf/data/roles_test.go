@@ -105,44 +105,61 @@ func TestErrInvalidRole(t *testing.T) {
 }
 
 func TestIsDelegation(t *testing.T) {
-	require.True(t, IsDelegation(path.Join(CanonicalTargetsRole, "level1")))
-	require.True(t, IsDelegation(
-		path.Join(CanonicalTargetsRole, "level1", "level2", "level3")))
-	require.True(t, IsDelegation(path.Join(CanonicalTargetsRole, "under_score")))
-	require.True(t, IsDelegation(path.Join(CanonicalTargetsRole, "hyphen-hyphen")))
-	require.False(t, IsDelegation(
-		path.Join(CanonicalTargetsRole, strings.Repeat("x", 255-len(CanonicalTargetsRole)))))
+	f := require.False
+	tr := require.True
+	for val, check := range map[string]func(require.TestingT, bool, ...interface{}){
+		// false checks
+		path.Join(CanonicalTargetsRole, strings.Repeat("x", 255-len(CanonicalTargetsRole))): f,
+		"":                                                                                  f,
+		CanonicalRootRole:                                                                   f,
+		path.Join(CanonicalRootRole, "level1"):                                              f,
+		CanonicalTargetsRole:                                                                f,
+		CanonicalTargetsRole + "/":                                                          f,
+		path.Join(CanonicalTargetsRole, "level1") + "/":                                     f,
+		path.Join(CanonicalTargetsRole, "UpperCase"):                                        f,
+		path.Join(CanonicalTargetsRole, "directory") + "/../../traversal":                   f,
+		CanonicalTargetsRole + "///test/middle/slashes":                                     f,
+		CanonicalTargetsRole + "/./././":                                                    f,
+		path.Join("  ", CanonicalTargetsRole, "level1"):                                     f,
+		path.Join("  "+CanonicalTargetsRole, "level1"):                                      f,
+		path.Join(CanonicalTargetsRole, "level1"+"  "):                                      f,
+		path.Join(CanonicalTargetsRole, "white   space"+"level2"):                           f,
+		path.Join(CanonicalTargetsRole, strings.Repeat("x", 256-len(CanonicalTargetsRole))): f,
 
-	require.False(t, IsDelegation(""))
-	require.False(t, IsDelegation(CanonicalRootRole))
-	require.False(t, IsDelegation(path.Join(CanonicalRootRole, "level1")))
+		// true checks
+		path.Join(CanonicalTargetsRole, "level1"):                     tr,
+		path.Join(CanonicalTargetsRole, "level1", "level2", "level3"): tr,
+		path.Join(CanonicalTargetsRole, "under_score"):                tr,
+		path.Join(CanonicalTargetsRole, "hyphen-hyphen"):              tr,
+	} {
+		check(t, IsDelegation(val))
+	}
 
-	require.False(t, IsDelegation(CanonicalTargetsRole))
-	require.False(t, IsDelegation(CanonicalTargetsRole+"/"))
-	require.False(t, IsDelegation(path.Join(CanonicalTargetsRole, "level1")+"/"))
-	require.False(t, IsDelegation(path.Join(CanonicalTargetsRole, "UpperCase")))
+}
 
-	require.False(t, IsDelegation(
-		path.Join(CanonicalTargetsRole, "directory")+"/../../traversal"))
+func TestIsWildDelegation(t *testing.T) {
+	f := require.False
+	tr := require.True
+	for val, check := range map[string]func(require.TestingT, bool, ...interface{}){
+		// false checks
+		CanonicalRootRole:      f,
+		CanonicalTargetsRole:   f,
+		CanonicalSnapshotRole:  f,
+		CanonicalTimestampRole: f,
+		"foo":   f,
+		"foo/*": f,
+		path.Join(CanonicalRootRole, "*"):           f,
+		path.Join(CanonicalSnapshotRole, "*"):       f,
+		path.Join(CanonicalTimestampRole, "*"):      f,
+		path.Join(CanonicalTargetsRole, "*", "foo"): f,
+		path.Join(CanonicalTargetsRole, "*", "*"):   f,
 
-	require.False(t, IsDelegation(CanonicalTargetsRole+"///test/middle/slashes"))
-
-	require.False(t, IsDelegation(CanonicalTargetsRole+"/./././"))
-
-	require.False(t, IsDelegation(
-		path.Join("  ", CanonicalTargetsRole, "level1")))
-
-	require.False(t, IsDelegation(
-		path.Join("  "+CanonicalTargetsRole, "level1")))
-
-	require.False(t, IsDelegation(
-		path.Join(CanonicalTargetsRole, "level1"+"  ")))
-
-	require.False(t, IsDelegation(
-		path.Join(CanonicalTargetsRole, "white   space"+"level2")))
-
-	require.False(t, IsDelegation(
-		path.Join(CanonicalTargetsRole, strings.Repeat("x", 256-len(CanonicalTargetsRole)))))
+		// true checks
+		path.Join(CanonicalTargetsRole, "*"):        tr,
+		path.Join(CanonicalTargetsRole, "foo", "*"): tr,
+	} {
+		check(t, IsWildDelegation(val))
+	}
 }
 
 func TestValidRoleFunction(t *testing.T) {

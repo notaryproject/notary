@@ -166,6 +166,144 @@ func TestUpdateDelegations(t *testing.T) {
 	require.False(t, ok, "no empty targets file should be created for deepest delegation")
 }
 
+func TestPurgeDelegationsKeyFromTop(t *testing.T) {
+	ed25519 := signed.NewEd25519()
+	repo := initRepo(t, ed25519)
+
+	vetinari := path.Join(data.CanonicalTargetsRole, "vetinari")
+	sybil := path.Join(data.CanonicalTargetsRole, "sybil")
+	vimes := path.Join(data.CanonicalTargetsRole, "vimes")
+	carrot := path.Join(vimes, "carrot")
+	targetsWild := path.Join(data.CanonicalTargetsRole, "*")
+
+	// create 2 keys, we'll purge one of them
+	testKey1, err := ed25519.Create(vetinari, testGUN, data.ED25519Key)
+	require.NoError(t, err)
+	testKey2, err := ed25519.Create(vetinari, testGUN, data.ED25519Key)
+	require.NoError(t, err)
+
+	// create some delegations
+	err = repo.UpdateDelegationKeys(vetinari, []data.PublicKey{testKey1, testKey2}, []string{}, 1)
+	require.NoError(t, err)
+	err = repo.UpdateDelegationPaths(vetinari, []string{""}, []string{}, false)
+	require.NoError(t, err)
+
+	err = repo.UpdateDelegationKeys(sybil, []data.PublicKey{testKey1}, []string{}, 1)
+	require.NoError(t, err)
+	err = repo.UpdateDelegationPaths(sybil, []string{""}, []string{}, false)
+	require.NoError(t, err)
+
+	err = repo.UpdateDelegationKeys(vimes, []data.PublicKey{testKey2}, []string{}, 1)
+	require.NoError(t, err)
+	err = repo.UpdateDelegationPaths(vimes, []string{""}, []string{}, false)
+	require.NoError(t, err)
+
+	err = repo.UpdateDelegationKeys(carrot, []data.PublicKey{testKey1}, []string{}, 1)
+	require.NoError(t, err)
+	err = repo.UpdateDelegationPaths(carrot, []string{""}, []string{}, false)
+	require.NoError(t, err)
+
+	id1, err := utils.CanonicalKeyID(testKey1)
+	require.NoError(t, err)
+	err = repo.PurgeDelegationKeys(targetsWild, []string{id1})
+	require.NoError(t, err)
+
+	role, err := repo.GetDelegationRole(vetinari)
+	require.NoError(t, err)
+	require.Len(t, role.Keys, 1)
+	_, ok := role.Keys[testKey2.ID()]
+	require.True(t, ok)
+
+	role, err = repo.GetDelegationRole(sybil)
+	require.NoError(t, err)
+	require.Len(t, role.Keys, 0)
+
+	role, err = repo.GetDelegationRole(vimes)
+	require.NoError(t, err)
+	require.Len(t, role.Keys, 1)
+	_, ok = role.Keys[testKey2.ID()]
+	require.True(t, ok)
+
+	role, err = repo.GetDelegationRole(carrot)
+	require.NoError(t, err)
+	require.Len(t, role.Keys, 0)
+}
+
+func TestPurgeDelegationsKeyFromDeep(t *testing.T) {
+	ed25519 := signed.NewEd25519()
+	repo := initRepo(t, ed25519)
+
+	vetinari := path.Join(data.CanonicalTargetsRole, "vetinari")
+	sybil := path.Join(data.CanonicalTargetsRole, "sybil")
+	vimes := path.Join(data.CanonicalTargetsRole, "vimes")
+	carrot := path.Join(vimes, "carrot")
+	vimesWild := path.Join(vimes, "*")
+
+	// create 2 keys, we'll purge one of them
+	testKey1, err := ed25519.Create(vetinari, testGUN, data.ED25519Key)
+	require.NoError(t, err)
+	testKey2, err := ed25519.Create(vetinari, testGUN, data.ED25519Key)
+	require.NoError(t, err)
+
+	// create some delegations
+	err = repo.UpdateDelegationKeys(vetinari, []data.PublicKey{testKey1, testKey2}, []string{}, 1)
+	require.NoError(t, err)
+	err = repo.UpdateDelegationPaths(vetinari, []string{""}, []string{}, false)
+	require.NoError(t, err)
+
+	err = repo.UpdateDelegationKeys(sybil, []data.PublicKey{testKey1}, []string{}, 1)
+	require.NoError(t, err)
+	err = repo.UpdateDelegationPaths(sybil, []string{""}, []string{}, false)
+	require.NoError(t, err)
+
+	err = repo.UpdateDelegationKeys(vimes, []data.PublicKey{testKey2}, []string{}, 1)
+	require.NoError(t, err)
+	err = repo.UpdateDelegationPaths(vimes, []string{""}, []string{}, false)
+	require.NoError(t, err)
+
+	err = repo.UpdateDelegationKeys(carrot, []data.PublicKey{testKey1}, []string{}, 1)
+	require.NoError(t, err)
+	err = repo.UpdateDelegationPaths(carrot, []string{""}, []string{}, false)
+	require.NoError(t, err)
+
+	id1, err := utils.CanonicalKeyID(testKey1)
+	require.NoError(t, err)
+	err = repo.PurgeDelegationKeys(vimesWild, []string{id1})
+	require.NoError(t, err)
+
+	role, err := repo.GetDelegationRole(vetinari)
+	require.NoError(t, err)
+	require.Len(t, role.Keys, 2)
+	_, ok := role.Keys[testKey1.ID()]
+	require.True(t, ok)
+	_, ok = role.Keys[testKey2.ID()]
+	require.True(t, ok)
+
+	role, err = repo.GetDelegationRole(sybil)
+	require.NoError(t, err)
+	require.Len(t, role.Keys, 1)
+	_, ok = role.Keys[testKey1.ID()]
+	require.True(t, ok)
+
+	role, err = repo.GetDelegationRole(vimes)
+	require.NoError(t, err)
+	require.Len(t, role.Keys, 1)
+	_, ok = role.Keys[testKey2.ID()]
+	require.True(t, ok)
+
+	role, err = repo.GetDelegationRole(carrot)
+	require.NoError(t, err)
+	require.Len(t, role.Keys, 0)
+}
+
+func TestPurgeDelegationsKeyBadWildRole(t *testing.T) {
+	ed25519 := signed.NewEd25519()
+	repo := initRepo(t, ed25519)
+
+	err := repo.PurgeDelegationKeys("targets/foo", nil)
+	require.Error(t, err)
+	require.IsType(t, data.ErrInvalidRole{}, err)
+}
 func TestUpdateDelegationsParentMissing(t *testing.T) {
 	ed25519 := signed.NewEd25519()
 	repo := initRepo(t, ed25519)
@@ -262,8 +400,7 @@ func TestUpdateDelegationsNotEnoughKeys(t *testing.T) {
 	require.NoError(t, err)
 
 	err = repo.UpdateDelegationKeys("targets/role", []data.PublicKey{roleKey}, []string{}, 2)
-	require.Error(t, err)
-	require.IsType(t, data.ErrInvalidRole{}, err)
+	require.NoError(t, err)
 
 	// no delegation metadata created for failed delegation
 	_, ok := repo.Targets["targets/role"]
