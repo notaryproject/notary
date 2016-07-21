@@ -136,7 +136,7 @@ func (rdb *RethinkDBKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.
 	// Add encrypted private key to the database
 	_, err = gorethink.DB(rdb.dbName).Table(rethinkPrivKey.TableName()).Insert(rethinkPrivKey).RunWrite(rdb.sess)
 	if err != nil {
-		return fmt.Errorf("failed to add private key to database: %s", privKey.ID())
+		return fmt.Errorf("failed to add private key %s to database: %s", privKey.ID(), err.Error())
 	}
 
 	return nil
@@ -206,7 +206,7 @@ func (rdb RethinkDBKeyStore) RemoveKey(keyID string) error {
 	dbPrivateKey := RDBPrivateKey{KeyID: keyID}
 	_, err := gorethink.DB(rdb.dbName).Table(dbPrivateKey.TableName()).Filter(gorethink.Row.Field("key_id").Eq(keyID)).Delete().RunWrite(rdb.sess)
 	if err != nil {
-		return fmt.Errorf("unable to delete private key from database: %s", err.Error())
+		return fmt.Errorf("unable to delete private key %s from database: %s", keyID, err.Error())
 	}
 
 	return nil

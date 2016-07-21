@@ -46,6 +46,9 @@ func init() {
 		}
 		cleanup1()
 		dbStore := SetupSQLDB(t, "mysql", dburl)
+
+		require.Equal(t, "mysql", dbStore.Name())
+
 		return dbStore, func() {
 			dbStore.db.Close()
 			cleanup1()

@@ -23,6 +23,8 @@ func sqlite3Setup(t *testing.T) (*SQLKeyDBStore, func()) {
 		dbStore.db.Close()
 		os.RemoveAll(tempBaseDir)
 	}
+
+	require.Equal(t, "sqlite3", dbStore.Name())
 	return dbStore, cleanup
 }
 

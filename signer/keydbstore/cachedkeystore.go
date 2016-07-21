@@ -49,8 +49,6 @@ func (s *cachedKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.Priva
 
 // GetKey returns the PrivateKey given a KeyID
 func (s *cachedKeyStore) GetKey(keyID string) (data.PrivateKey, string, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
 	cachedKeyEntry, ok := s.cachedKeys[keyID]
 	if ok {
 		return cachedKeyEntry.key, cachedKeyEntry.role, nil
@@ -59,10 +57,13 @@ func (s *cachedKeyStore) GetKey(keyID string) (data.PrivateKey, string, error) {
 	// retrieve the key from the underlying store and put it into the cache
 	privKey, role, err := s.KeyStore.GetKey(keyID)
 	if err == nil {
+		s.lock.Lock()
+		defer s.lock.Unlock()
 		// Add the key to cache
 		s.cachedKeys[privKey.ID()] = &cachedKey{key: privKey, role: role}
+		return privKey, role, nil
 	}
-	return privKey, role, err
+	return nil, "", err
 }
 
 // RemoveKey removes the key from the keyfilestore
