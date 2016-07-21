@@ -38,7 +38,10 @@ func rethinkDBSetup(t *testing.T, dbName string) (*RethinkDBKeyStore, func()) {
 	err := rethinkdb.SetupDB(session, dbName, []rethinkdb.Table{PrivateKeysRethinkTable})
 	require.NoError(t, err)
 
-	return NewRethinkDBKeyStore(dbName, "", "", multiAliasRetriever, validAliases[0], session), cleanup
+	dbStore := NewRethinkDBKeyStore(dbName, "", "", multiAliasRetriever, validAliases[0], session)
+	require.Equal(t, "RethinkDB", dbStore.Name())
+
+	return dbStore, cleanup
 }
 
 func TestRethinkBootstrapSetsUsernamePassword(t *testing.T) {
@@ -90,8 +93,8 @@ func getRethinkDBRows(t *testing.T, dbStore *RethinkDBKeyStore) []RDBPrivateKey 
 }
 
 func TestRethinkKeyCanOnlyBeAddedOnce(t *testing.T) {
-	dbStore, _ := rethinkDBSetup(t, "signerAddTests")
-	// defer cleanup()
+	dbStore, cleanup := rethinkDBSetup(t, "signerAddTests")
+	defer cleanup()
 	expectedKeys := testKeyCanOnlyBeAddedOnce(t, dbStore)
 
 	rows := getRethinkDBRows(t, dbStore)
