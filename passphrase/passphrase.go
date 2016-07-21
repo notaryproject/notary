@@ -50,13 +50,10 @@ func PromptRetriever() notary.PassRetriever {
 }
 
 type boundRetriever struct {
-	in                             io.Reader
-	out                            io.Writer
-	aliasMap                       map[string]string
-	userEnteredTargetsSnapshotPass bool
-	targetsSnapshotPass            string
-	userEnteredRootPass            bool
-	rootPass                       string
+	in              io.Reader
+	out             io.Writer
+	aliasMap        map[string]string
+	passphraseCache map[string]string
 }
 
 func (br *boundRetriever) getPassphrase(keyName, alias string, createNew bool, numAttempts int) (string, bool, error) {
@@ -65,11 +62,8 @@ func (br *boundRetriever) getPassphrase(keyName, alias string, createNew bool, n
 			fmt.Fprintln(br.out, tufRootKeyGenerationWarning)
 		}
 
-		if br.userEnteredTargetsSnapshotPass && (alias == tufSnapshotAlias || alias == tufTargetsAlias) {
-			return br.targetsSnapshotPass, false, nil
-		}
-		if br.userEnteredRootPass && (alias == "root") {
-			return br.rootPass, false, nil
+		if pass, ok := br.passphraseCache[alias]; ok {
+			return pass, false, nil
 		}
 	} else if !createNew { // per `if`, numAttempts > 0 if we're at this `else`
 		if numAttempts > 3 {
@@ -173,14 +167,7 @@ func (br *boundRetriever) verifyAndConfirmPassword(stdin *bufio.Reader, retPass,
 }
 
 func (br *boundRetriever) cachePassword(alias, retPass string) {
-	if alias == tufSnapshotAlias || alias == tufTargetsAlias {
-		br.userEnteredTargetsSnapshotPass = true
-		br.targetsSnapshotPass = retPass
-	}
-	if alias == tufRootAlias {
-		br.userEnteredRootPass = true
-		br.rootPass = retPass
-	}
+	br.passphraseCache[alias] = retPass
 }
 
 // PromptRetrieverWithInOut returns a new Retriever which will provide a
@@ -190,13 +177,10 @@ func (br *boundRetriever) cachePassword(alias, retPass string) {
 // is nil, a sensible default will be used.
 func PromptRetrieverWithInOut(in io.Reader, out io.Writer, aliasMap map[string]string) notary.PassRetriever {
 	bound := &boundRetriever{
-		in:                             in,
-		out:                            out,
-		aliasMap:                       aliasMap,
-		userEnteredTargetsSnapshotPass: false,
-		targetsSnapshotPass:            "",
-		userEnteredRootPass:            false,
-		rootPass:                       "",
+		in:              in,
+		out:             out,
+		aliasMap:        aliasMap,
+		passphraseCache: make(map[string]string),
 	}
 
 	return bound.getPassphrase
