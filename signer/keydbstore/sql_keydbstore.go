@@ -2,7 +2,6 @@ package keydbstore
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/docker/notary"
 	"github.com/docker/notary/trustmanager"
@@ -19,11 +18,9 @@ const (
 
 // KeyDBStore persists and manages private keys on a SQL database
 type KeyDBStore struct {
-	sync.Mutex
 	db               gorm.DB
 	defaultPassAlias string
 	retriever        notary.PassRetriever
-	cachedKeys       map[string]data.PrivateKey
 }
 
 // GormPrivateKey represents a PrivateKey in the database
@@ -46,7 +43,6 @@ func (g GormPrivateKey) TableName() string {
 // NewKeyDBStore returns a new KeyDBStore backed by a SQL database
 func NewKeyDBStore(passphraseRetriever notary.PassRetriever, defaultPassAlias string,
 	dbDialect string, dbArgs ...interface{}) (*KeyDBStore, error) {
-	cachedKeys := make(map[string]data.PrivateKey)
 
 	db, err := gorm.Open(dbDialect, dbArgs...)
 	if err != nil {
@@ -57,7 +53,7 @@ func NewKeyDBStore(passphraseRetriever notary.PassRetriever, defaultPassAlias st
 		db:               db,
 		defaultPassAlias: defaultPassAlias,
 		retriever:        passphraseRetriever,
-		cachedKeys:       cachedKeys}, nil
+	}, nil
 }
 
 // Name returns a user friendly name for the storage location
@@ -96,22 +92,11 @@ func (s *KeyDBStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.PrivateKe
 		return fmt.Errorf("failed to add private key to database: %s", privKey.ID())
 	}
 
-	// Add the private key to our cache
-	s.Lock()
-	defer s.Unlock()
-	s.cachedKeys[privKey.ID()] = privKey
-
 	return nil
 }
 
 // GetKey returns the PrivateKey given a KeyID
 func (s *KeyDBStore) GetKey(keyID string) (data.PrivateKey, string, error) {
-	s.Lock()
-	defer s.Unlock()
-	cachedKeyEntry, ok := s.cachedKeys[keyID]
-	if ok {
-		return cachedKeyEntry, "", nil
-	}
 
 	// Retrieve the GORM private key from the database
 	dbPrivateKey := GormPrivateKey{}
@@ -138,9 +123,6 @@ func (s *KeyDBStore) GetKey(keyID string) (data.PrivateKey, string, error) {
 		return nil, "", err
 	}
 
-	// Add the key to cache
-	s.cachedKeys[privKey.ID()] = privKey
-
 	return privKey, "", nil
 }
 
@@ -156,10 +138,6 @@ func (s *KeyDBStore) ListKeys() map[string]trustmanager.KeyInfo {
 
 // RemoveKey removes the key from the keyfilestore
 func (s *KeyDBStore) RemoveKey(keyID string) error {
-	s.Lock()
-	defer s.Unlock()
-
-	delete(s.cachedKeys, keyID)
 
 	// Retrieve the GORM private key from the database
 	dbPrivateKey := GormPrivateKey{}
