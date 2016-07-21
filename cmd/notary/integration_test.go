@@ -946,6 +946,58 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun", "--roles", "targets/releases")
 	require.NoError(t, err)
 	require.Contains(t, output, "targets/releases")
+
+	// Setup another certificate
+	tempFile2, err := ioutil.TempFile("", "pemfile2")
+	require.NoError(t, err)
+
+	privKey, err = utils.GenerateECDSAKey(rand.Reader)
+	startTime = time.Now()
+	endTime = startTime.AddDate(10, 0, 0)
+	cert, err = cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
+	require.NoError(t, err)
+
+	_, err = tempFile2.Write(utils.CertToPEM(cert))
+	require.NoError(t, err)
+	require.NoError(t, err)
+	tempFile2.Close()
+	defer os.Remove(tempFile2.Name())
+
+	rawPubBytes2, _ := ioutil.ReadFile(tempFile2.Name())
+	parsedPubKey2, _ := utils.ParsePEMPublicKey(rawPubBytes2)
+	keyID2, err := utils.CanonicalKeyID(parsedPubKey2)
+	require.NoError(t, err)
+
+	// add a nested delegation under this releases role
+	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/releases/nested", tempFile2.Name(), "--paths", "nested/path")
+	require.NoError(t, err)
+	require.Contains(t, output, "Addition of delegation role")
+	require.Contains(t, output, keyID2)
+
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// list delegations - we should see two roles
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, "targets/releases")
+	require.Contains(t, output, "targets/releases/nested")
+	require.Contains(t, output, canonicalKeyID)
+	require.Contains(t, output, keyID2)
+	require.Contains(t, output, "nested/path")
+	require.Contains(t, output, "\"\"")
+	require.Contains(t, output, "<all paths>")
+
+	// remove by force to delete the nested delegation entirely
+	output, err = runCommand(t, tempDir, "delegation", "remove", "gun", "targets/releases/nested", "-y")
+	require.NoError(t, err)
+	require.Contains(t, output, "Forced removal (including all keys and paths) of delegation role")
+
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
 }
 
 // Splits a string into lines, and returns any lines that are not empty (
