@@ -30,7 +30,7 @@ func rethinkSessionSetup(t *testing.T) (*gorethink.Session, string) {
 
 func rethinkDBSetup(t *testing.T) (RethinkDB, func()) {
 	session, _ := rethinkSessionSetup(t)
-	dbName := "testdb"
+	dbName := "servertestdb"
 	var cleanup = func() { gorethink.DBDrop(dbName).Exec(session) }
 
 	cleanup()
@@ -41,18 +41,20 @@ func rethinkDBSetup(t *testing.T) (RethinkDB, func()) {
 	return NewRethinkDBStorage(dbName, "", "", session), cleanup
 }
 
-func TestBootstrapSetsUsernamePassword(t *testing.T) {
+func TestRethinkBootstrapSetsUsernamePassword(t *testing.T) {
 	adminSession, source := rethinkSessionSetup(t)
-	dbname, username, password := "testdb", "testuser", "testpassword"
-	otherDB, otherUser, otherPass := "otherdb", "otheruser", "otherpassword"
+	dbname, username, password := "servertestdb", "testuser", "testpassword"
+	otherDB, otherUser, otherPass := "otherservertestdb", "otheruser", "otherpassword"
 
 	// create a separate user with access to a different DB
 	require.NoError(t, rethinkdb.SetupDB(adminSession, otherDB, nil))
+	defer gorethink.DBDrop(otherDB).Exec(adminSession)
 	require.NoError(t, rethinkdb.CreateAndGrantDBUser(adminSession, otherDB, otherUser, otherPass))
 
 	// Bootstrap
 	s := NewRethinkDBStorage(dbname, username, password, adminSession)
 	require.NoError(t, s.Bootstrap())
+	defer gorethink.DBDrop(dbname).Exec(adminSession)
 
 	// A user with an invalid password cannot connect to rethink DB at all
 	_, err := rethinkdb.UserConnection(tlsOpts, source, username, "wrongpass")
@@ -60,6 +62,7 @@ func TestBootstrapSetsUsernamePassword(t *testing.T) {
 
 	// the other user cannot access rethink
 	userSession, err := rethinkdb.UserConnection(tlsOpts, source, otherUser, otherPass)
+	require.NoError(t, err)
 	s = NewRethinkDBStorage(dbname, otherUser, otherPass, userSession)
 	_, _, err = s.GetCurrent("gun", data.CanonicalRootRole)
 	require.Error(t, err)
@@ -67,6 +70,7 @@ func TestBootstrapSetsUsernamePassword(t *testing.T) {
 
 	// our user can access the DB though
 	userSession, err = rethinkdb.UserConnection(tlsOpts, source, username, password)
+	require.NoError(t, err)
 	s = NewRethinkDBStorage(dbname, username, password, userSession)
 	_, _, err = s.GetCurrent("gun", data.CanonicalRootRole)
 	require.Error(t, err)

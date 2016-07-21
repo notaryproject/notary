@@ -13,12 +13,18 @@ func TestRDBPrivateKeyJSONUnmarshalling(t *testing.T) {
 	created := time.Now().AddDate(-1, -1, -1)
 	updated := time.Now().AddDate(0, -5, 0)
 	deleted := time.Time{}
+	publicKey := []byte("Hello world public")
+	privateKey := []byte("Hello world private")
 
 	createdMarshalled, err := json.Marshal(created)
 	require.NoError(t, err)
 	updatedMarshalled, err := json.Marshal(updated)
 	require.NoError(t, err)
 	deletedMarshalled, err := json.Marshal(deleted)
+	require.NoError(t, err)
+	publicMarshalled, err := json.Marshal(publicKey)
+	require.NoError(t, err)
+	privateMarshalled, err := json.Marshal(privateKey)
 	require.NoError(t, err)
 
 	jsonBytes := []byte(fmt.Sprintf(`
@@ -31,11 +37,10 @@ func TestRDBPrivateKeyJSONUnmarshalling(t *testing.T) {
 		"keywrap_alg": "PBES2-HS256+A128KW",
 		"algorithm": "ecdsa",
 		"passphrase_alias": "timestamp_1",
-		"public": "Hello world public",
-		"private": "Hello world private"
+		"public": %s,
+		"private": %s
 	}
-	`, createdMarshalled, updatedMarshalled, deletedMarshalled))
-	fmt.Println(string(jsonBytes))
+	`, createdMarshalled, updatedMarshalled, deletedMarshalled, publicMarshalled, privateMarshalled))
 
 	unmarshalledAnon, err := PrivateKeysRethinkTable.JSONUnmarshaller(jsonBytes)
 	require.NoError(t, err)
@@ -56,8 +61,8 @@ func TestRDBPrivateKeyJSONUnmarshalling(t *testing.T) {
 		KeywrapAlg:      "PBES2-HS256+A128KW",
 		Algorithm:       "ecdsa",
 		PassphraseAlias: "timestamp_1",
-		Public:          "Hello world public",
-		Private:         "Hello world private",
+		Public:          publicKey,
+		Private:         privateKey,
 	}
 	require.Equal(t, expected, unmarshalled)
 }
