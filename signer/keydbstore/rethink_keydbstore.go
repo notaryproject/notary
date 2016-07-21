@@ -3,7 +3,6 @@ package keydbstore
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/docker/notary"
@@ -17,12 +16,10 @@ import (
 
 // RethinkDBKeyStore persists and manages private keys on a RethinkDB database
 type RethinkDBKeyStore struct {
-	lock             *sync.Mutex
 	sess             *gorethink.Session
 	dbName           string
 	defaultPassAlias string
 	retriever        notary.PassRetriever
-	cachedKeys       map[string]data.PrivateKey
 	user             string
 	password         string
 }
@@ -88,15 +85,11 @@ func (g RDBPrivateKey) TableName() string {
 
 // NewRethinkDBKeyStore returns a new RethinkDBKeyStore backed by a RethinkDB database
 func NewRethinkDBKeyStore(dbName, username, password string, passphraseRetriever notary.PassRetriever, defaultPassAlias string, rethinkSession *gorethink.Session) *RethinkDBKeyStore {
-	cachedKeys := make(map[string]data.PrivateKey)
-
 	return &RethinkDBKeyStore{
-		lock:             &sync.Mutex{},
 		sess:             rethinkSession,
 		defaultPassAlias: defaultPassAlias,
 		dbName:           dbName,
 		retriever:        passphraseRetriever,
-		cachedKeys:       cachedKeys,
 		user:             username,
 		password:         password,
 	}
@@ -110,7 +103,6 @@ func (rdb *RethinkDBKeyStore) Name() string {
 // AddKey stores the contents of a private key. Both role and gun are ignored,
 // we always use Key IDs as name, and don't support aliases
 func (rdb *RethinkDBKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.PrivateKey) error {
-
 	passphrase, _, err := rdb.retriever(privKey.ID(), rdb.defaultPassAlias, false, 1)
 	if err != nil {
 		return err
@@ -141,23 +133,11 @@ func (rdb *RethinkDBKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.
 		return fmt.Errorf("failed to add private key to database: %s", privKey.ID())
 	}
 
-	// Add the private key to our cache
-	rdb.lock.Lock()
-	defer rdb.lock.Unlock()
-	rdb.cachedKeys[privKey.ID()] = privKey
-
 	return nil
 }
 
 // GetKey returns the PrivateKey given a KeyID
 func (rdb *RethinkDBKeyStore) GetKey(name string) (data.PrivateKey, string, error) {
-	rdb.lock.Lock()
-	defer rdb.lock.Unlock()
-	cachedKeyEntry, ok := rdb.cachedKeys[name]
-	if ok {
-		return cachedKeyEntry, "", nil
-	}
-
 	// Retrieve the RethinkDB private key from the database
 	dbPrivateKey := RDBPrivateKey{}
 	res, err := gorethink.DB(rdb.dbName).Table(dbPrivateKey.TableName()).Filter(gorethink.Row.Field("key_id").Eq(name)).Run(rdb.sess)
@@ -190,9 +170,6 @@ func (rdb *RethinkDBKeyStore) GetKey(name string) (data.PrivateKey, string, erro
 		return nil, "", err
 	}
 
-	// Add the key to cache
-	rdb.cachedKeys[privKey.ID()] = privKey
-
 	return privKey, "", nil
 }
 
@@ -208,11 +185,6 @@ func (rdb RethinkDBKeyStore) ListKeys() map[string]trustmanager.KeyInfo {
 
 // RemoveKey removes the key from the table
 func (rdb RethinkDBKeyStore) RemoveKey(keyID string) error {
-	rdb.lock.Lock()
-	defer rdb.lock.Unlock()
-
-	delete(rdb.cachedKeys, keyID)
-
 	// Delete the key from the database
 	dbPrivateKey := RDBPrivateKey{KeyID: keyID}
 	_, err := gorethink.DB(rdb.dbName).Table(dbPrivateKey.TableName()).Filter(gorethink.Row.Field("key_id").Eq(keyID)).Delete().RunWrite(rdb.sess)
