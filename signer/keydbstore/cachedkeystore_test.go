@@ -56,7 +56,7 @@ func (u unRemoveableKeyStore) RemoveKey(keyID string) error {
 
 // Getting a key, on succcess, populates the cache.
 func TestGetSuccessPopulatesCache(t *testing.T) {
-	underlying := trustmanager.NewKeyMemoryStore(retriever)
+	underlying := trustmanager.NewKeyMemoryStore(constRetriever)
 	cached := NewCachedKeyStore(underlying)
 
 	testKey, err := utils.GenerateECDSAKey(rand.Reader)
@@ -77,7 +77,7 @@ func TestGetSuccessPopulatesCache(t *testing.T) {
 // Creating a key, on succcess, populates the cache, but does not do so on failure
 func TestAddKeyPopulatesCacheIfSuccessful(t *testing.T) {
 	var underlying trustmanager.KeyStore
-	underlying = trustmanager.NewKeyMemoryStore(retriever)
+	underlying = trustmanager.NewKeyMemoryStore(constRetriever)
 	cached := NewCachedKeyStore(underlying)
 
 	testKeys := make([]data.PrivateKey, 2)
@@ -106,7 +106,7 @@ func TestAddKeyPopulatesCacheIfSuccessful(t *testing.T) {
 
 // Deleting a key, no matter whether we succeed in the underlying layer or not, evicts the cached key.
 func TestDeleteKeyRemovesKeyFromCache(t *testing.T) {
-	underlying := trustmanager.NewKeyMemoryStore(retriever)
+	underlying := trustmanager.NewKeyMemoryStore(constRetriever)
 	cached := NewCachedKeyStore(underlying)
 
 	testKey, err := utils.GenerateECDSAKey(rand.Reader)

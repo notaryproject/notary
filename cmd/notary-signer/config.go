@@ -149,7 +149,7 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string) (
 		if err != nil {
 			return nil, err
 		}
-		dbStore, err := keydbstore.NewKeyDBStore(
+		dbStore, err := keydbstore.NewSQLKeyDBStore(
 			passphraseRetriever, defaultAlias, storeConfig.Backend, storeConfig.Source)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a new keydbstore: %v", err)
