@@ -348,7 +348,7 @@ func TestAtomicUpdateValidationFailurePropagated(t *testing.T) {
 
 	rw := httptest.NewRecorder()
 
-	err = atomicUpdateHandler(getContext(state), rw, req, vars)
+	err = atomicUpdateHandler(getContext(state), rw, req, vars, true)
 	require.Error(t, err)
 	errorObj, ok := err.(errcode.Error)
 	require.True(t, ok, "Expected an errcode.Error, got %v", err)
@@ -391,7 +391,7 @@ func TestAtomicUpdateNonValidationFailureNotPropagated(t *testing.T) {
 
 	rw := httptest.NewRecorder()
 
-	err = atomicUpdateHandler(getContext(state), rw, req, vars)
+	err = atomicUpdateHandler(getContext(state), rw, req, vars, true)
 	require.Error(t, err)
 	errorObj, ok := err.(errcode.Error)
 	require.True(t, ok, "Expected an errcode.Error, got %v", err)
@@ -433,7 +433,7 @@ func TestAtomicUpdateVersionErrorPropagated(t *testing.T) {
 
 	rw := httptest.NewRecorder()
 
-	err = atomicUpdateHandler(getContext(state), rw, req, vars)
+	err = atomicUpdateHandler(getContext(state), rw, req, vars, true)
 	require.Error(t, err)
 	errorObj, ok := err.(errcode.Error)
 	require.True(t, ok, "Expected an errcode.Error, got %v", err)

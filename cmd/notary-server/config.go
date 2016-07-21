@@ -276,6 +276,7 @@ func parseServerConfig(configFilePath string, hRegister healthRegister) (context
 		Trust:                        trust,
 		AuthMethod:                   config.GetString("auth.type"),
 		AuthOpts:                     config.Get("auth.options"),
+		RequireAdminInit:             config.GetBool("requireAdminInit"),
 		RepoPrefixes:                 prefixes,
 		CurrentCacheControlConfig:    currentCache,
 		ConsistentCacheControlConfig: consistentCache,

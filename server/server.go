@@ -42,6 +42,7 @@ type Config struct {
 	AuthMethod                   string
 	AuthOpts                     interface{}
 	RepoPrefixes                 []string
+	RequireAdminInit             bool
 	ConsistentCacheControlConfig utils.CacheControlConfig
 	CurrentCacheControlConfig    utils.CacheControlConfig
 }

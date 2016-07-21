@@ -259,7 +259,7 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 	}
 	gun := args[0]
 
-	rt, err := getTransport(config, gun, readWrite)
+	rt, err := getTransport(config, gun, admin)
 	if err != nil {
 		return err
 	}
@@ -482,6 +482,19 @@ func (t *tufCommander) tufPublish(cmd *cobra.Command, args []string) error {
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
 	if err != nil {
 		return err
+	}
+
+	// Determine whether the repo exists, and if we error try to get the admin permission
+	if err = nRepo.Update(true); err != nil {
+		adminRT, err := getTransport(config, gun, readWrite)
+		if err != nil {
+			return err
+		}
+		nRepo, err = notaryclient.NewNotaryRepository(
+			config.GetString("trust_dir"), gun, getRemoteTrustServer(config), adminRT, t.retriever, trustPin)
+		if err != nil {
+			return err
+		}
 	}
 
 	if err = nRepo.Publish(); err != nil {

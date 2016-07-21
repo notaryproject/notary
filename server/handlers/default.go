@@ -40,7 +40,7 @@ func MainHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) er
 func AtomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	defer r.Body.Close()
 	vars := mux.Vars(r)
-	return atomicUpdateHandler(ctx, w, r, vars)
+	return atomicUpdateHandler(ctx, w, r, vars, false)
 }
 
 // AtomicInitHandler will accept multiple TUF files to initialize a new repo
@@ -48,10 +48,10 @@ func AtomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 func AtomicInitHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	defer r.Body.Close()
 	vars := mux.Vars(r)
-	return atomicUpdateHandler(ctx, w, r, vars)
+	return atomicUpdateHandler(ctx, w, r, vars, true)
 }
 
-func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string, isAdminInit bool) error {
 	gun := vars["imageName"]
 	s := ctx.Value("metaStore")
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
@@ -102,7 +102,8 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 			Data:    inBuf.Bytes(),
 		})
 	}
-	updates, err = validateUpdate(cryptoService, gun, updates, store)
+	initAdminOnly, _ := ctx.Value("requireAdminInit").(bool)
+	updates, err = validateUpdate(cryptoService, gun, updates, store, !initAdminOnly || isAdminInit)
 	if err != nil {
 		serializable, serializableError := validation.NewSerializableError(err)
 		if serializableError != nil {
