@@ -3,6 +3,7 @@ package keydbstore
 import (
 	"testing"
 
+	"github.com/dvsekhvalnov/jose2go"
 	"github.com/stretchr/testify/require"
 )
 
@@ -57,20 +58,42 @@ func TestSQLDBHealthCheckNoConnection(t *testing.T) {
 	require.Error(t, dbStore.HealthCheck())
 }
 
+func getSQLDBRows(t *testing.T, dbStore *SQLKeyDBStore) []GormPrivateKey {
+	var rows []GormPrivateKey
+	query := dbStore.db.Find(&rows)
+	require.NoError(t, query.Error)
+	return rows
+}
+
 func TestSQLKeyCanOnlyBeAddedOnce(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
-	testKeyCanOnlyBeAddedOnce(t, dbStore)
+	expectedKeys := testKeyCanOnlyBeAddedOnce(t, dbStore)
+
+	rows := getSQLDBRows(t, dbStore)
+	require.Len(t, rows, len(expectedKeys))
 }
 
 func TestSQLCreateDelete(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 	testCreateDelete(t, dbStore)
+
+	rows := getSQLDBRows(t, dbStore)
+	require.Len(t, rows, 0)
 }
 
 func TestSQLKeyRotation(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
-	testKeyRotation(t, dbStore, validAliases[1])
+	privKey := testKeyRotation(t, dbStore, validAliases[1])
+
+	rows := getSQLDBRows(t, dbStore)
+	require.Len(t, rows, 1)
+
+	// require that the key is encrypted with the new passphrase
+	require.Equal(t, validAliases[1], rows[0].PassphraseAlias)
+	decryptedKey, _, err := jose.Decode(string(rows[0].Private), validAliasesAndPasswds[validAliases[1]])
+	require.NoError(t, err)
+	require.Equal(t, string(privKey.Private()), decryptedKey)
 }

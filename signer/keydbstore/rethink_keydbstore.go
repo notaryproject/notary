@@ -9,7 +9,6 @@ import (
 	"github.com/docker/notary/storage/rethinkdb"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/utils"
 	jose "github.com/dvsekhvalnov/jose2go"
 	"gopkg.in/dancannon/gorethink.v2"
 )
@@ -32,8 +31,14 @@ type RDBPrivateKey struct {
 	KeywrapAlg      string `gorethink:"keywrap_alg"`
 	Algorithm       string `gorethink:"algorithm"`
 	PassphraseAlias string `gorethink:"passphrase_alias"`
-	Public          string `gorethink:"public"`
-	Private         string `gorethink:"private"`
+
+	// gorethink specifically supports binary types, and says to pass it in as
+	// a byteslice.  Currently our encryption method for the private key bytes
+	// produces a base64-encoded string, but for future compatibility in case
+	// we change how we encrypt, use a byteslace for the encrypted private key
+	// too
+	Public  []byte `gorethink:"public"`
+	Private []byte `gorethink:"private"`
 }
 
 // gorethink can't handle an UnmarshalJSON function (see https://github.com/dancannon/gorethink/issues/201),
@@ -48,8 +53,8 @@ func rdbPrivateKeyFromJSON(data []byte) (interface{}, error) {
 		KeywrapAlg      string    `json:"keywrap_alg"`
 		Algorithm       string    `json:"algorithm"`
 		PassphraseAlias string    `json:"passphrase_alias"`
-		Public          string    `json:"public"`
-		Private         string    `json:"private"`
+		Public          []byte    `json:"public"`
+		Private         []byte    `json:"private"`
 	}{}
 	if err := json.Unmarshal(data, &a); err != nil {
 		return RDBPrivateKey{}, err
@@ -74,7 +79,7 @@ func rdbPrivateKeyFromJSON(data []byte) (interface{}, error) {
 // PrivateKeysRethinkTable is the table definition for notary signer's key information
 var PrivateKeysRethinkTable = rethinkdb.Table{
 	Name:             RDBPrivateKey{}.TableName(),
-	PrimaryKey:       RDBPrivateKey{}.KeyID,
+	PrimaryKey:       "key_id",
 	JSONUnmarshaller: rdbPrivateKeyFromJSON,
 }
 
@@ -124,8 +129,9 @@ func (rdb *RethinkDBKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.
 		KeywrapAlg:      KeywrapAlg,
 		PassphraseAlias: rdb.defaultPassAlias,
 		Algorithm:       privKey.Algorithm(),
-		Public:          string(privKey.Public()),
-		Private:         encryptedKey}
+		Public:          privKey.Public(),
+		Private:         []byte(encryptedKey),
+	}
 
 	// Add encrypted private key to the database
 	_, err = gorethink.DB(rdb.dbName).Table(rethinkPrivKey.TableName()).Insert(rethinkPrivKey).RunWrite(rdb.sess)
@@ -136,13 +142,13 @@ func (rdb *RethinkDBKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.
 	return nil
 }
 
-// GetKey returns the PrivateKey given a KeyID
-func (rdb *RethinkDBKeyStore) GetKey(name string) (data.PrivateKey, string, error) {
+// getKeyBytes returns the RDBPrivateKey given a KeyID, as well as the decrypted private bytes
+func (rdb *RethinkDBKeyStore) getKey(keyID string) (*RDBPrivateKey, string, error) {
 	// Retrieve the RethinkDB private key from the database
 	dbPrivateKey := RDBPrivateKey{}
-	res, err := gorethink.DB(rdb.dbName).Table(dbPrivateKey.TableName()).Filter(gorethink.Row.Field("key_id").Eq(name)).Run(rdb.sess)
+	res, err := gorethink.DB(rdb.dbName).Table(dbPrivateKey.TableName()).Filter(gorethink.Row.Field("key_id").Eq(keyID)).Run(rdb.sess)
 	if err != nil {
-		return nil, "", trustmanager.ErrKeyNotFound{}
+		return nil, "", err
 	}
 	defer res.Close()
 
@@ -158,12 +164,23 @@ func (rdb *RethinkDBKeyStore) GetKey(name string) (data.PrivateKey, string, erro
 	}
 
 	// Decrypt private bytes from the gorm key
-	decryptedPrivKey, _, err := jose.Decode(dbPrivateKey.Private, passphrase)
+	decryptedPrivKey, _, err := jose.Decode(string(dbPrivateKey.Private), passphrase)
 	if err != nil {
 		return nil, "", err
 	}
 
-	pubKey := data.NewPublicKey(dbPrivateKey.Algorithm, []byte(dbPrivateKey.Public))
+	return &dbPrivateKey, decryptedPrivKey, nil
+}
+
+// GetKey returns the PrivateKey given a KeyID
+func (rdb *RethinkDBKeyStore) GetKey(keyID string) (data.PrivateKey, string, error) {
+	dbPrivateKey, decryptedPrivKey, err := rdb.getKey(keyID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	pubKey := data.NewPublicKey(dbPrivateKey.Algorithm, dbPrivateKey.Public)
+
 	// Create a new PrivateKey with unencrypted bytes
 	privKey, err := data.NewPrivateKey(pubKey, []byte(decryptedPrivKey))
 	if err != nil {
@@ -196,28 +213,8 @@ func (rdb RethinkDBKeyStore) RemoveKey(keyID string) error {
 }
 
 // RotateKeyPassphrase rotates the key-encryption-key
-func (rdb RethinkDBKeyStore) RotateKeyPassphrase(name, newPassphraseAlias string) error {
-	// Retrieve the RethinkDB private key from the database
-	dbPrivateKey := RDBPrivateKey{KeyID: name}
-	res, err := gorethink.DB(rdb.dbName).Table(dbPrivateKey.TableName()).Get(dbPrivateKey).Run(rdb.sess)
-	if err != nil {
-		return trustmanager.ErrKeyNotFound{}
-	}
-	defer res.Close()
-
-	err = res.One(&dbPrivateKey)
-	if err != nil {
-		return trustmanager.ErrKeyNotFound{}
-	}
-
-	// Get the current passphrase to use for this key
-	passphrase, _, err := rdb.retriever(dbPrivateKey.KeyID, dbPrivateKey.PassphraseAlias, false, 1)
-	if err != nil {
-		return err
-	}
-
-	// Decrypt private bytes from the rethinkDB key
-	decryptedPrivKey, _, err := jose.Decode(dbPrivateKey.Private, passphrase)
+func (rdb RethinkDBKeyStore) RotateKeyPassphrase(keyID, newPassphraseAlias string) error {
+	dbPrivateKey, decryptedPrivKey, err := rdb.getKey(keyID)
 	if err != nil {
 		return err
 	}
@@ -235,9 +232,9 @@ func (rdb RethinkDBKeyStore) RotateKeyPassphrase(name, newPassphraseAlias string
 	}
 
 	// Update the database object
-	dbPrivateKey.Private = newEncryptedKey
+	dbPrivateKey.Private = []byte(newEncryptedKey)
 	dbPrivateKey.PassphraseAlias = newPassphraseAlias
-	if _, err := gorethink.DB(rdb.dbName).Table(dbPrivateKey.TableName()).Get(RDBPrivateKey{KeyID: name}).Update(dbPrivateKey).RunWrite(rdb.sess); err != nil {
+	if _, err := gorethink.DB(rdb.dbName).Table(dbPrivateKey.TableName()).Get(keyID).Update(dbPrivateKey).RunWrite(rdb.sess); err != nil {
 		return err
 	}
 
@@ -256,17 +253,10 @@ func (rdb RethinkDBKeyStore) Bootstrap() error {
 
 // CheckHealth verifies that DB exists and is query-able
 func (rdb RethinkDBKeyStore) CheckHealth() error {
-	var tables []string
-	dbPrivateKey := RDBPrivateKey{}
-	res, err := gorethink.DB(rdb.dbName).TableList().Run(rdb.sess)
+	res, err := gorethink.DB(rdb.dbName).Table(PrivateKeysRethinkTable.Name).Info().Run(rdb.sess)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s is unavailable, or missing one or more tables, or permissions are incorrectly set", rdb.dbName)
 	}
 	defer res.Close()
-	err = res.All(&tables)
-	if err != nil || !utils.StrSliceContains(tables, dbPrivateKey.TableName()) {
-		return fmt.Errorf(
-			"Cannot access table: %s", dbPrivateKey.TableName())
-	}
 	return nil
 }
