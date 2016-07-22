@@ -31,6 +31,8 @@ type RDBPrivateKey struct {
 	KeywrapAlg      string `gorethink:"keywrap_alg"`
 	Algorithm       string `gorethink:"algorithm"`
 	PassphraseAlias string `gorethink:"passphrase_alias"`
+	Gun             string `gorethink:"gun"`
+	Role            string `gorethink:"role"`
 
 	// gorethink specifically supports binary types, and says to pass it in as
 	// a byteslice.  Currently our encryption method for the private key bytes
@@ -53,6 +55,8 @@ func rdbPrivateKeyFromJSON(data []byte) (interface{}, error) {
 		KeywrapAlg      string    `json:"keywrap_alg"`
 		Algorithm       string    `json:"algorithm"`
 		PassphraseAlias string    `json:"passphrase_alias"`
+		Gun             string    `json:"gun"`
+		Role            string    `json:"role"`
 		Public          []byte    `json:"public"`
 		Private         []byte    `json:"private"`
 	}{}
@@ -70,6 +74,8 @@ func rdbPrivateKeyFromJSON(data []byte) (interface{}, error) {
 		KeywrapAlg:      a.KeywrapAlg,
 		Algorithm:       a.Algorithm,
 		PassphraseAlias: a.PassphraseAlias,
+		Gun:             a.Gun,
+		Role:            a.Role,
 		Public:          a.Public,
 		Private:         a.Private,
 	}, nil
@@ -129,6 +135,8 @@ func (rdb *RethinkDBKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.
 		KeywrapAlg:      KeywrapAlg,
 		PassphraseAlias: rdb.defaultPassAlias,
 		Algorithm:       privKey.Algorithm(),
+		Gun:             keyInfo.Gun,
+		Role:            keyInfo.Role,
 		Public:          privKey.Public(),
 		Private:         []byte(encryptedKey),
 	}
@@ -187,7 +195,7 @@ func (rdb *RethinkDBKeyStore) GetKey(keyID string) (data.PrivateKey, string, err
 		return nil, "", err
 	}
 
-	return privKey, "", nil
+	return privKey, dbPrivateKey.Role, nil
 }
 
 // GetKeyInfo always returns empty and an error. This method is here to satisfy the KeyStore interface
