@@ -40,16 +40,15 @@ func configure(jsonConfig string) *viper.Viper {
 // error is propagated.
 func TestGetAddrAndTLSConfigInvalidTLS(t *testing.T) {
 	invalids := []string{
-		`{"server": {"http_addr": ":1234", "grpc_addr": ":2345"}}`,
+		`{"server": {"grpc_addr": ":2345"}}`,
 		`{"server": {
-				"http_addr": ":1234",
 				"grpc_addr": ":2345",
 				"tls_cert_file": "nope",
 				"tls_key_file": "nope"
 		}}`,
 	}
 	for _, configJSON := range invalids {
-		_, _, _, err := getAddrAndTLSConfig(configure(configJSON))
+		_, _, err := getAddrAndTLSConfig(configure(configJSON))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unable to set up TLS")
 	}
@@ -57,9 +56,8 @@ func TestGetAddrAndTLSConfigInvalidTLS(t *testing.T) {
 
 // If a GRPC address is not provided, an error is returned.
 func TestGetAddrAndTLSConfigNoGRPCAddr(t *testing.T) {
-	_, _, _, err := getAddrAndTLSConfig(configure(fmt.Sprintf(`{
+	_, _, err := getAddrAndTLSConfig(configure(fmt.Sprintf(`{
 		"server": {
-			"http_addr": ":1234",
 			"tls_cert_file": "%s",
 			"tls_key_file": "%s"
 		}
@@ -68,31 +66,16 @@ func TestGetAddrAndTLSConfigNoGRPCAddr(t *testing.T) {
 	require.Contains(t, err.Error(), "grpc listen address required for server")
 }
 
-// If an HTTP address is not provided, an error is returned.
-func TestGetAddrAndTLSConfigNoHTTPAddr(t *testing.T) {
-	_, _, _, err := getAddrAndTLSConfig(configure(fmt.Sprintf(`{
-		"server": {
-			"grpc_addr": ":1234",
-			"tls_cert_file": "%s",
-			"tls_key_file": "%s"
-		}
-	}`, Cert, Key)))
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "http listen address required for server")
-}
-
 // Success parsing a valid TLS config, HTTP address, and GRPC address.
 func TestGetAddrAndTLSConfigSuccess(t *testing.T) {
-	httpAddr, grpcAddr, tlsConf, err := getAddrAndTLSConfig(configure(fmt.Sprintf(`{
+	grpcAddr, tlsConf, err := getAddrAndTLSConfig(configure(fmt.Sprintf(`{
 		"server": {
-			"http_addr": ":2345",
 			"grpc_addr": ":1234",
 			"tls_cert_file": "%s",
 			"tls_key_file": "%s"
 		}
 	}`, Cert, Key)))
 	require.NoError(t, err)
-	require.Equal(t, ":2345", httpAddr)
 	require.Equal(t, ":1234", grpcAddr)
 	require.NotNil(t, tlsConf)
 }
@@ -239,12 +222,6 @@ func TestSetupCryptoServicesInvalidStore(t *testing.T) {
 		[]string{notary.SQLiteBackend, notary.MemoryBackend, notary.RethinkDBBackend})
 	require.Error(t, err)
 	require.Equal(t, err.Error(), fmt.Sprintf("%s is not an allowed backend, must be one of: %s", "invalid_backend", []string{notary.SQLiteBackend, notary.MemoryBackend, notary.RethinkDBBackend}))
-}
-
-func TestSetupHTTPServer(t *testing.T) {
-	httpServer := setupHTTPServer(":4443", nil, make(signer.CryptoServiceIndex))
-	require.Equal(t, ":4443", httpServer.Addr)
-	require.Nil(t, httpServer.TLSConfig)
 }
 
 func TestSetupGRPCServerInvalidAddress(t *testing.T) {

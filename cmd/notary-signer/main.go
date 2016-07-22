@@ -58,18 +58,11 @@ func main() {
 		logrus.Fatal(err.Error())
 	}
 
-	httpServer := setupHTTPServer(signerConfig.HTTPAddr, signerConfig.TLSConfig, signerConfig.CryptoServices)
-
 	if debug {
 		log.Println("RPC server listening on", signerConfig.GRPCAddr)
-		log.Println("HTTP server listening on", signerConfig.HTTPAddr)
 	}
 
-	go grpcServer.Serve(lis)
-	err = httpServer.ListenAndServeTLS("", "")
-	if err != nil {
-		log.Fatal("HTTPS server failed to start:", err)
-	}
+	grpcServer.Serve(lis)
 }
 
 func usage() {
