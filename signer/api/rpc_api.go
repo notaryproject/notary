@@ -28,19 +28,17 @@ type SignerServer struct {
 }
 
 //CreateKey returns a PublicKey created using KeyManagementServer's SigningService
-func (s *KeyManagementServer) CreateKey(ctx context.Context, algorithm *pb.Algorithm) (*pb.PublicKey, error) {
-	keyAlgo := algorithm.Algorithm
-
-	service := s.CryptoServices[keyAlgo]
+func (s *KeyManagementServer) CreateKey(ctx context.Context, req *pb.CreateKeyRequest) (*pb.PublicKey, error) {
+	service := s.CryptoServices[req.Algorithm]
 
 	logger := ctxu.GetLogger(ctx)
 
 	if service == nil {
-		logger.Error("CreateKey: unsupported algorithm: ", algorithm.Algorithm)
-		return nil, fmt.Errorf("algorithm %s not supported for create key", algorithm.Algorithm)
+		logger.Error("CreateKey: unsupported algorithm: ", req.Algorithm)
+		return nil, fmt.Errorf("algorithm %s not supported for create key", req.Algorithm)
 	}
 
-	tufKey, err := service.Create("", "", keyAlgo)
+	tufKey, err := service.Create(req.Role, req.Gun, req.Algorithm)
 	if err != nil {
 		logger.Error("CreateKey: failed to create key: ", err)
 		return nil, grpc.Errorf(codes.Internal, "Key creation failed")
@@ -57,24 +55,11 @@ func (s *KeyManagementServer) CreateKey(ctx context.Context, algorithm *pb.Algor
 
 //DeleteKey deletes they key associated with a KeyID
 func (s *KeyManagementServer) DeleteKey(ctx context.Context, keyID *pb.KeyID) (*pb.Void, error) {
-	_, service, err := FindKeyByID(s.CryptoServices, keyID)
-
 	logger := ctxu.GetLogger(ctx)
-
-	if err != nil {
-		logger.Debugf("DeleteKey: key %s not found", keyID.ID)
-		return &pb.Void{}, nil
-	}
-
-	err = service.RemoveKey(keyID.ID)
-	logger.Info("DeleteKey: Deleted KeyID ", keyID.ID)
-	if err != nil {
-		switch err.(type) {
-		case trustmanager.ErrKeyNotFound:
-			logger.Debugf("DeleteKey: key %s not found", keyID.ID)
-			return &pb.Void{}, nil
-		default:
-			logger.Error("DeleteKey: deleted key ", keyID.ID)
+	// delete key ID from all services
+	for _, service := range s.CryptoServices {
+		if err := service.RemoveKey(keyID.ID); err != nil {
+			logger.Errorf("Failed to delete key %s", keyID.ID)
 			return nil, grpc.Errorf(codes.Internal, "Key deletion for KeyID %s failed", keyID.ID)
 		}
 	}
@@ -83,8 +68,8 @@ func (s *KeyManagementServer) DeleteKey(ctx context.Context, keyID *pb.KeyID) (*
 }
 
 //GetKeyInfo returns they PublicKey associated with a KeyID
-func (s *KeyManagementServer) GetKeyInfo(ctx context.Context, keyID *pb.KeyID) (*pb.PublicKey, error) {
-	_, service, err := FindKeyByID(s.CryptoServices, keyID)
+func (s *KeyManagementServer) GetKeyInfo(ctx context.Context, keyID *pb.KeyID) (*pb.GetKeyInfoResponse, error) {
+	privKey, role, err := findKeyByID(s.CryptoServices, keyID)
 
 	logger := ctxu.GetLogger(ctx)
 
@@ -93,18 +78,14 @@ func (s *KeyManagementServer) GetKeyInfo(ctx context.Context, keyID *pb.KeyID) (
 		return nil, grpc.Errorf(codes.NotFound, "key %s not found", keyID.ID)
 	}
 
-	tufKey := service.GetKey(keyID.ID)
-	if tufKey == nil {
-		logger.Errorf("GetKeyInfo: key %s not found", keyID.ID)
-		return nil, grpc.Errorf(codes.NotFound, "key %s not found", keyID.ID)
-	}
 	logger.Debug("GetKeyInfo: Returning PublicKey for KeyID ", keyID.ID)
-	return &pb.PublicKey{
+	return &pb.GetKeyInfoResponse{
 		KeyInfo: &pb.KeyInfo{
-			KeyID:     &pb.KeyID{ID: tufKey.ID()},
-			Algorithm: &pb.Algorithm{Algorithm: tufKey.Algorithm()},
+			KeyID:     &pb.KeyID{ID: privKey.ID()},
+			Algorithm: &pb.Algorithm{Algorithm: privKey.Algorithm()},
 		},
-		PublicKey: tufKey.Public(),
+		PublicKey: privKey.Public(),
+		Role:      role,
 	}, nil
 }
 
@@ -117,20 +98,22 @@ func (s *KeyManagementServer) CheckHealth(ctx context.Context, v *pb.Void) (*pb.
 
 //Sign signs a message and returns the signature using a private key associate with the KeyID from the SignatureRequest
 func (s *SignerServer) Sign(ctx context.Context, sr *pb.SignatureRequest) (*pb.Signature, error) {
-	tufKey, service, err := FindKeyByID(s.CryptoServices, sr.KeyID)
+	privKey, _, err := findKeyByID(s.CryptoServices, sr.KeyID)
 
 	logger := ctxu.GetLogger(ctx)
 
-	if err != nil {
+	switch err.(type) {
+	case trustmanager.ErrKeyNotFound:
 		logger.Errorf("Sign: key %s not found", sr.KeyID.ID)
-		return nil, grpc.Errorf(codes.NotFound, "key %s not found", sr.KeyID.ID)
+		return nil, grpc.Errorf(codes.NotFound, err.Error())
+	case nil:
+		break
+	default:
+		logger.Errorf("Getting key %s failed: %s", sr.KeyID.ID, err.Error())
+		return nil, grpc.Errorf(codes.Internal, err.Error())
+
 	}
 
-	privKey, _, err := service.GetPrivateKey(tufKey.ID())
-	if err != nil {
-		logger.Errorf("Sign: key %s not found", sr.KeyID.ID)
-		return nil, grpc.Errorf(codes.NotFound, "key %s not found", sr.KeyID.ID)
-	}
 	sig, err := privKey.Sign(rand.Reader, sr.Content, nil)
 	if err != nil {
 		logger.Errorf("Sign: signing failed for KeyID %s on hash %s", sr.KeyID.ID, sr.Content)
@@ -141,8 +124,8 @@ func (s *SignerServer) Sign(ctx context.Context, sr *pb.SignatureRequest) (*pb.S
 
 	signature := &pb.Signature{
 		KeyInfo: &pb.KeyInfo{
-			KeyID:     &pb.KeyID{ID: tufKey.ID()},
-			Algorithm: &pb.Algorithm{Algorithm: tufKey.Algorithm()},
+			KeyID:     &pb.KeyID{ID: privKey.ID()},
+			Algorithm: &pb.Algorithm{Algorithm: privKey.Algorithm()},
 		},
 		Algorithm: &pb.Algorithm{Algorithm: privKey.SignatureAlgorithm().String()},
 		Content:   sig,
