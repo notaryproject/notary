@@ -63,7 +63,7 @@ type stubServer struct {
 	stubHealthFunc func() (map[string]string, error)
 }
 
-func (s stubServer) CreateKey(ctx context.Context, req *pb.Algorithm) (*pb.PublicKey, error) {
+func (s stubServer) CreateKey(ctx context.Context, req *pb.CreateKeyRequest) (*pb.PublicKey, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
@@ -71,7 +71,7 @@ func (s stubServer) DeleteKey(ctx context.Context, keyID *pb.KeyID) (*pb.Void, e
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (s stubServer) GetKeyInfo(ctx context.Context, keyID *pb.KeyID) (*pb.PublicKey, error) {
+func (s stubServer) GetKeyInfo(ctx context.Context, keyID *pb.KeyID) (*pb.GetKeyInfoResponse, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
@@ -125,7 +125,6 @@ func TestHealthCheckKMTimeout(t *testing.T) {
 
 	err := signerClient.CheckHealth(0 * time.Second)
 	require.Error(t, err)
-	fmt.Println(err)
 	require.True(t, strings.Contains(err.Error(), "Timed out"))
 }
 
@@ -187,8 +186,9 @@ func TestGetPrivateKeyAndSignWithExistingKey(t *testing.T) {
 	signerClient, _, cleanup := setUpSignerClient(t, setUpSignerServer(t, memStore))
 	defer cleanup()
 
-	privKey, _, err := signerClient.GetPrivateKey(key.ID())
+	privKey, role, err := signerClient.GetPrivateKey(key.ID())
 	require.NoError(t, err)
+	require.Equal(t, data.CanonicalTimestampRole, role)
 	require.NotNil(t, privKey)
 
 	msg := []byte("message!")
@@ -213,7 +213,8 @@ func TestCannotSignWithKeyThatDoesntExist(t *testing.T) {
 	msg := []byte("message!")
 	_, err = remotePrivKey.Sign(rand.Reader, msg, nil)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "not found")
+	// error translated into grpc error, so compare the text
+	require.Equal(t, trustmanager.ErrKeyNotFound{KeyID: key.ID()}.Error(), grpc.ErrorDesc(err))
 }
 
 // Signer conforms to the signed.CryptoService interface behavior
@@ -223,7 +224,7 @@ func TestCryptoSignerInterfaceBehavior(t *testing.T) {
 	defer cleanup()
 
 	interfaces.EmptyCryptoServiceInterfaceBehaviorTests(t, signerClient)
-	interfaces.CreateGetKeyCryptoServiceInterfaceBehaviorTests(t, signerClient, data.ECDSAKey, false)
+	interfaces.CreateGetKeyCryptoServiceInterfaceBehaviorTests(t, signerClient, data.ECDSAKey)
 	// can't test AddKey, because the signer does not support adding keys, and can't test listing
-	// keys because the signer doesn't support listing keys or keeping track of roles.
+	// keys because the signer doesn't support listing keys.
 }
