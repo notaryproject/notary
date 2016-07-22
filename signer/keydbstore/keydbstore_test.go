@@ -43,17 +43,16 @@ func testKeyCanOnlyBeAddedOnce(t *testing.T, dbStore trustmanager.KeyStore) []da
 	}
 
 	// Test writing new key in database alone, not cache
-	err := dbStore.AddKey(trustmanager.KeyInfo{Role: data.CanonicalTimestampRole, Gun: "gun/ignored"}, expectedKeys[0])
+	err := dbStore.AddKey(trustmanager.KeyInfo{Role: data.CanonicalTimestampRole, Gun: "gun"}, expectedKeys[0])
 	require.NoError(t, err)
-	// Currently we ignore roles
-	requireGetKeySuccess(t, dbStore, "", expectedKeys[0])
+	requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole, expectedKeys[0])
 
 	// Test writing the same key in the database. Should fail.
-	err = dbStore.AddKey(trustmanager.KeyInfo{Role: data.CanonicalTimestampRole, Gun: "gun/ignored"}, expectedKeys[0])
+	err = dbStore.AddKey(trustmanager.KeyInfo{Role: data.CanonicalTimestampRole, Gun: "gun"}, expectedKeys[0])
 	require.Error(t, err, "failed to add private key to database:")
 
 	// Test writing new key succeeds
-	err = dbStore.AddKey(trustmanager.KeyInfo{Role: data.CanonicalTimestampRole, Gun: "gun/ignored"}, expectedKeys[1])
+	err = dbStore.AddKey(trustmanager.KeyInfo{Role: data.CanonicalTimestampRole, Gun: "gun"}, expectedKeys[1])
 	require.NoError(t, err)
 
 	return expectedKeys
@@ -65,10 +64,10 @@ func testCreateDelete(t *testing.T, dbStore trustmanager.KeyStore) {
 	require.NoError(t, err)
 
 	// Add a key to the DB
-	err = dbStore.AddKey(trustmanager.KeyInfo{Role: "", Gun: ""}, testKey)
+	err = dbStore.AddKey(trustmanager.KeyInfo{Role: "myrole", Gun: "mygun"}, testKey)
 	require.NoError(t, err)
 	// Currently we ignore roles
-	requireGetKeySuccess(t, dbStore, "", testKey)
+	requireGetKeySuccess(t, dbStore, "myrole", testKey)
 
 	// Deleting the key should succeed
 	err = dbStore.RemoveKey(testKey.ID())
