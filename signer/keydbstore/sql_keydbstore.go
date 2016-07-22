@@ -32,6 +32,8 @@ type GormPrivateKey struct {
 	KeywrapAlg      string `sql:"type:varchar(255);not null"`
 	Algorithm       string `sql:"type:varchar(50);not null"`
 	PassphraseAlias string `sql:"type:varchar(50);not null"`
+	Gun             string `sql:"type:varchar(255);not null"`
+	Role            string `sql:"type:varchar(255);not null"`
 	Public          string `sql:"type:blob;not null"`
 	Private         string `sql:"type:blob;not null"`
 }
@@ -82,6 +84,8 @@ func (s *SQLKeyDBStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.Privat
 		KeywrapAlg:      KeywrapAlg,
 		PassphraseAlias: s.defaultPassAlias,
 		Algorithm:       privKey.Algorithm(),
+		Gun:             keyInfo.Gun,
+		Role:            keyInfo.Role,
 		Public:          string(privKey.Public()),
 		Private:         encryptedKey}
 
@@ -123,7 +127,7 @@ func (s *SQLKeyDBStore) GetKey(keyID string) (data.PrivateKey, string, error) {
 		return nil, "", err
 	}
 
-	return privKey, "", nil
+	return privKey, dbPrivateKey.Role, nil
 }
 
 // GetKeyInfo returns the PrivateKey's role and gun in a KeyInfo given a KeyID
