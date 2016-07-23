@@ -314,8 +314,6 @@ var _KeyManagement_serviceDesc = grpc.ServiceDesc{
 type SignerClient interface {
 	// Sign calculates a cryptographic signature using the Key associated with a KeyID and returns the signature
 	Sign(ctx context.Context, in *SignatureRequest, opts ...grpc.CallOption) (*Signature, error)
-	// CheckHealth returns the HealthStatus with the service
-	CheckHealth(ctx context.Context, in *Void, opts ...grpc.CallOption) (*HealthStatus, error)
 }
 
 type signerClient struct {
@@ -335,22 +333,11 @@ func (c *signerClient) Sign(ctx context.Context, in *SignatureRequest, opts ...g
 	return out, nil
 }
 
-func (c *signerClient) CheckHealth(ctx context.Context, in *Void, opts ...grpc.CallOption) (*HealthStatus, error) {
-	out := new(HealthStatus)
-	err := grpc.Invoke(ctx, "/proto.Signer/CheckHealth", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // Server API for Signer service
 
 type SignerServer interface {
 	// Sign calculates a cryptographic signature using the Key associated with a KeyID and returns the signature
 	Sign(context.Context, *SignatureRequest) (*Signature, error)
-	// CheckHealth returns the HealthStatus with the service
-	CheckHealth(context.Context, *Void) (*HealthStatus, error)
 }
 
 func RegisterSignerServer(s *grpc.Server, srv SignerServer) {
@@ -369,18 +356,6 @@ func _Signer_Sign_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return out, nil
 }
 
-func _Signer_CheckHealth_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error) (interface{}, error) {
-	in := new(Void)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	out, err := srv.(SignerServer).CheckHealth(ctx, in)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 var _Signer_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "proto.Signer",
 	HandlerType: (*SignerServer)(nil),
@@ -388,10 +363,6 @@ var _Signer_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Sign",
 			Handler:    _Signer_Sign_Handler,
-		},
-		{
-			MethodName: "CheckHealth",
-			Handler:    _Signer_CheckHealth_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{},

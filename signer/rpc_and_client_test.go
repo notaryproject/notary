@@ -118,15 +118,14 @@ func TestHealthCheckKMError(t *testing.T) {
 // CheckHealth does not succeed if the health check to the KM server times out
 func TestHealthCheckKMTimeout(t *testing.T) {
 	s := getStubbedHealthServer(func() (map[string]string, error) {
-		time.Sleep(time.Second * 30)
 		return nil, fmt.Errorf("this should should have failed by now")
 	})
 	signerClient, _, cleanup := setUpSignerClient(t, s)
 	defer cleanup()
-	require.Error(t, signerClient.CheckHealth(1*time.Second))
 
-	err := signerClient.CheckHealth(1 * time.Second)
+	err := signerClient.CheckHealth(0 * time.Second)
 	require.Error(t, err)
+	fmt.Println(err)
 	require.True(t, strings.Contains(err.Error(), "Timed out"))
 }
 
