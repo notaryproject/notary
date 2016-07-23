@@ -129,8 +129,16 @@ func getStore(configuration *viper.Viper, hRegister healthRegister) (
 	return store, nil
 }
 
-type signerFactory func(hostname, port string, tlsConfig *tls.Config) *client.NotarySigner
+type signerFactory func(hostname, port string, tlsConfig *tls.Config) (*client.NotarySigner, error)
 type healthRegister func(name string, duration time.Duration, check health.CheckFunc)
+
+func getNotarySigner(hostname, port string, tlsConfig *tls.Config) (*client.NotarySigner, error) {
+	conn, err := client.NewGRPCConnection(hostname, port, tlsConfig)
+	if err != nil {
+		return nil, err
+	}
+	return client.NewNotarySigner(conn), nil
+}
 
 // parses the configuration and determines which trust service and key algorithm
 // to return
@@ -160,11 +168,15 @@ func getTrustService(configuration *viper.Viper, sFactory signerFactory,
 
 	logrus.Info("Using remote signing service")
 
-	notarySigner := sFactory(
+	notarySigner, err := sFactory(
 		configuration.GetString("trust_service.hostname"),
 		configuration.GetString("trust_service.port"),
 		clientTLS,
 	)
+
+	if err != nil {
+		return nil, "", err
+	}
 
 	minute := 1 * time.Minute
 	hRegister(
@@ -248,7 +260,7 @@ func parseServerConfig(configFilePath string, hRegister healthRegister) (context
 	}
 	utils.SetUpBugsnag(bugsnagConf)
 
-	trust, keyAlgo, err := getTrustService(config, client.NewNotarySigner, hRegister)
+	trust, keyAlgo, err := getTrustService(config, getNotarySigner, hRegister)
 	if err != nil {
 		return nil, server.Config{}, err
 	}

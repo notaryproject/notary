@@ -116,7 +116,7 @@ func TestGetInvalidTrustService(t *testing.T) {
 
 	for _, config := range invalids {
 		_, _, err := getTrustService(configure(config),
-			client.NewNotarySigner, fakeRegisterer(&registerCalled))
+			getNotarySigner, fakeRegisterer(&registerCalled))
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
 			"must specify either a \"local\" or \"remote\" type for trust_service")
@@ -134,7 +134,7 @@ func TestGetLocalTrustService(t *testing.T) {
 	var registerCalled = 0
 
 	trust, algo, err := getTrustService(configure(localConfig),
-		client.NewNotarySigner, fakeRegisterer(&registerCalled))
+		getNotarySigner, fakeRegisterer(&registerCalled))
 	require.NoError(t, err)
 	require.IsType(t, &signed.Ed25519{}, trust)
 	require.Equal(t, data.ED25519Key, algo)
@@ -164,7 +164,7 @@ func TestGetTrustServiceInvalidKeyAlgorithm(t *testing.T) {
 
 	for _, config := range badKeyAlgos {
 		_, _, err := getTrustService(configure(config),
-			client.NewNotarySigner, fakeRegisterer(&registerCalled))
+			getNotarySigner, fakeRegisterer(&registerCalled))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid key algorithm")
 	}
@@ -196,7 +196,7 @@ func TestGetTrustServiceTLSMissingCertOrKey(t *testing.T) {
 	for _, clientTLSConfig := range configs {
 		jsonConfig := fmt.Sprintf(trustTLSConfigTemplate, clientTLSConfig)
 		config := configure(jsonConfig)
-		_, _, err := getTrustService(config, client.NewNotarySigner,
+		_, _, err := getTrustService(config, getNotarySigner,
 			fakeRegisterer(&registerCalled))
 		require.Error(t, err)
 		require.True(t,
@@ -220,9 +220,9 @@ func TestGetTrustServiceNoTLSConfig(t *testing.T) {
 	var registerCalled = 0
 
 	var tlsConfig *tls.Config
-	var fakeNewSigner = func(_, _ string, c *tls.Config) *client.NotarySigner {
+	var fakeNewSigner = func(_, _ string, c *tls.Config) (*client.NotarySigner, error) {
 		tlsConfig = c
-		return &client.NotarySigner{}
+		return &client.NotarySigner{}, nil
 	}
 
 	trust, algo, err := getTrustService(configure(config),
@@ -249,9 +249,9 @@ func TestGetTrustServiceTLSSuccess(t *testing.T) {
 	var registerCalled = 0
 
 	var tlsConfig *tls.Config
-	var fakeNewSigner = func(_, _ string, c *tls.Config) *client.NotarySigner {
+	var fakeNewSigner = func(_, _ string, c *tls.Config) (*client.NotarySigner, error) {
 		tlsConfig = c
-		return &client.NotarySigner{}
+		return &client.NotarySigner{}, nil
 	}
 
 	trust, algo, err := getTrustService(
@@ -277,7 +277,7 @@ func TestGetTrustServiceTLSFailure(t *testing.T) {
 
 	_, _, err := getTrustService(
 		configure(fmt.Sprintf(trustTLSConfigTemplate, tlspart)),
-		client.NewNotarySigner, fakeRegisterer(&registerCalled))
+		getNotarySigner, fakeRegisterer(&registerCalled))
 
 	require.Error(t, err)
 	require.True(t, strings.Contains(err.Error(),
