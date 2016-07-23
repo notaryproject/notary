@@ -12,7 +12,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	pb "github.com/docker/notary/proto"
 	"github.com/docker/notary/signer/keys"
 	"github.com/docker/notary/tuf/data"
@@ -108,17 +107,17 @@ type NotarySigner struct {
 	clientConn checkableConnectionState
 }
 
-// NewNotarySigner is a convenience method that returns NotarySigner
-func NewNotarySigner(hostname string, port string, tlsConfig *tls.Config) *NotarySigner {
+// NewGRPCConnection is a convenience method that returns GRPC Client Connection given a hostname, endpoint, and TLS options
+func NewGRPCConnection(hostname string, port string, tlsConfig *tls.Config) (*grpc.ClientConn, error) {
 	var opts []grpc.DialOption
 	netAddr := net.JoinHostPort(hostname, port)
 	creds := credentials.NewTLS(tlsConfig)
 	opts = append(opts, grpc.WithTransportCredentials(creds))
-	conn, err := grpc.Dial(netAddr, opts...)
+	return grpc.Dial(netAddr, opts...)
+}
 
-	if err != nil {
-		logrus.Fatal("fail to dial: ", err)
-	}
+// NewNotarySigner is a convenience method that returns NotarySigner given a GRPC connection
+func NewNotarySigner(conn *grpc.ClientConn) *NotarySigner {
 	kmClient := pb.NewKeyManagementClient(conn)
 	sClient := pb.NewSignerClient(conn)
 	return &NotarySigner{
