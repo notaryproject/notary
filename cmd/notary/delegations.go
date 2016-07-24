@@ -34,8 +34,8 @@ var cmdDelegationRemoveTemplate = usageTemplate{
 
 var cmdDelegationPurgeKeysTemplate = usageTemplate{
 	Use:   "purge [ GUN ]",
-	Short: "Remove KeyID(s) from all delegations it is found in.",
-	Long:  "Remove KeyID(s) from all delegations it is found in, for which the signing keys are available. Warnings will be printed for delegations that cannot be updated.",
+	Short: "Remove KeyID(s) from all delegation roles in the given GUN.",
+	Long:  "Remove KeyID(s) from all delegation roles in the given GUN, for which the signing keys are available. Warnings will be printed for delegations that cannot be updated.",
 }
 
 var cmdDelegationAddTemplate = usageTemplate{
@@ -59,7 +59,7 @@ func (d *delegationCommander) GetCommand() *cobra.Command {
 	cmd.AddCommand(cmdDelegationListTemplate.ToCommand(d.delegationsList))
 
 	cmdPurgeDelgKeys := cmdDelegationPurgeKeysTemplate.ToCommand(d.delegationPurgeKeys)
-	cmdPurgeDelgKeys.Flags().StringSliceVar(&d.keyIDs, "key", nil, "Delegation keys to be removed from the GUN")
+	cmdPurgeDelgKeys.Flags().StringSliceVar(&d.keyIDs, "key", nil, "Delegation key IDs to be removed from the GUN")
 	cmd.AddCommand(cmdPurgeDelgKeys)
 
 	cmdRemDelg := cmdDelegationRemoveTemplate.ToCommand(d.delegationRemove)
@@ -112,7 +112,7 @@ func (d *delegationCommander) delegationPurgeKeys(cmd *cobra.Command, args []str
 
 	err = nRepo.RemoveDelegationKeys("targets/*", d.keyIDs)
 	if err != nil {
-		return fmt.Errorf("failed to remove delegation: %v", err)
+		return fmt.Errorf("failed to remove keys from delegations: %v", err)
 	}
 	fmt.Printf(
 		"Removal of the following keys from all delegations in %s staged for next publish:\n\t- %s\n",

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"fmt"
 	"github.com/stretchr/testify/require"
 )
 
@@ -153,6 +154,9 @@ func TestIsWildDelegation(t *testing.T) {
 		path.Join(CanonicalTimestampRole, "*"):      f,
 		path.Join(CanonicalTargetsRole, "*", "foo"): f,
 		path.Join(CanonicalTargetsRole, "*", "*"):   f,
+		fmt.Sprintf("%s//*", CanonicalTargetsRole):  f,
+		fmt.Sprintf("%s/*//", CanonicalTargetsRole): f,
+		fmt.Sprintf("%s/*/", CanonicalTargetsRole):  f,
 
 		// true checks
 		path.Join(CanonicalTargetsRole, "*"):        tr,

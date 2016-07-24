@@ -40,7 +40,7 @@ func applyChangelist(repo *tuf.Repo, cl changelist.Changelist) error {
 		if err != nil {
 			return err
 		}
-		isDel := data.IsDelegation(c.Scope())
+		isDel := data.IsDelegation(c.Scope()) || data.IsWildDelegation(c.Scope())
 		switch {
 		case c.Scope() == changelist.ScopeTargets || isDel:
 			err = applyTargetsChange(repo, c)
