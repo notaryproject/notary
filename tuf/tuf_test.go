@@ -227,6 +227,10 @@ func TestPurgeDelegationsKeyFromTop(t *testing.T) {
 	role, err = repo.GetDelegationRole(carrot)
 	require.NoError(t, err)
 	require.Len(t, role.Keys, 0)
+
+	// we know id1 was successfully purged, try purging again and make sure it doesn't error
+	err = repo.PurgeDelegationKeys(targetsWild, []string{id1})
+	require.NoError(t, err)
 }
 
 func TestPurgeDelegationsKeyFromDeep(t *testing.T) {

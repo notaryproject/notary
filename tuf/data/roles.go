@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"path/filepath"
 )
 
 // Canonical base role names
@@ -102,9 +101,14 @@ func IsBaseRole(role string) bool {
 // The wildcard may only appear as the final part of the delegation and must
 // be a whole segment, i.e. targets/foo* is not a valid wildcard delegation.
 func IsWildDelegation(role string) bool {
-	base := filepath.Dir(role)
-	splat := filepath.Base(role)
-	return splat == "*" && (IsDelegation(base) || base == CanonicalTargetsRole)
+	if path.Clean(role) != role {
+		return false
+	}
+	base := path.Dir(role)
+	if !(IsDelegation(base) || base == CanonicalTargetsRole) {
+		return false
+	}
+	return role[len(role)-2:] == "/*"
 }
 
 // BaseRole is an internal representation of a root/targets/snapshot/timestamp role, with its public keys included

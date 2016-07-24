@@ -325,8 +325,7 @@ func delegationUpdateVisitor(roleName string, addKeys data.KeyList, removeKeys, 
 				break
 			}
 		}
-		// We didn't find the role earlier, so create it only if we have keys to add
-		// that are also sufficient to meet the threshold.
+		// We didn't find the role earlier, so create it.
 		if addKeys == nil {
 			addKeys = data.KeyList{} // initialize to empty list if necessary so calling .IDs() below won't panic
 		}
@@ -416,13 +415,9 @@ func (tr *Repo) PurgeDelegationKeys(role string, removeKeys []string) error {
 
 	purgeKeys := func(tgt *data.SignedTargets, validRole data.DelegationRole) interface{} {
 		var (
-			deleteCandidates    []string
-			err                 error
-			canSign             bool
-			needsUpdateCantSign bool
+			deleteCandidates []string
+			err              error
 		)
-		err = tr.VerifyCanSign(validRole.Name)
-		canSign = err == nil
 		for id, key := range tgt.Signed.Delegations.Keys {
 			var (
 				canonID string
@@ -431,21 +426,20 @@ func (tr *Repo) PurgeDelegationKeys(role string, removeKeys []string) error {
 			if canonID, ok = tufIDToCanon[id]; !ok {
 				canonID, err = utils.CanonicalKeyID(key)
 				if err != nil {
-					// TODO: should we return here or just log?
 					return err
 				}
 				tufIDToCanon[id] = canonID
 			}
 			if _, ok := removeIDs[canonID]; ok {
-				if !canSign {
-					needsUpdateCantSign = true
-					break
-				}
-				delete(tgt.Signed.Delegations.Keys, id)
 				deleteCandidates = append(deleteCandidates, id)
 			}
 		}
-		if needsUpdateCantSign {
+		if len(deleteCandidates) == 0 {
+			// none of the interesting keys were present. We're done with this role
+			return nil
+		}
+		// now we know there are changes, check if we'll be able to sign them in
+		if err := tr.VerifyCanSign(validRole.Name); err != nil {
 			logrus.Warnf(
 				"role %s contains keys being purged but you do not have the necessary keys present to sign it; keys will not be purged from %s or its immediate children",
 				validRole.Name,
@@ -453,11 +447,11 @@ func (tr *Repo) PurgeDelegationKeys(role string, removeKeys []string) error {
 			)
 			return nil
 		}
-		if len(deleteCandidates) == 0 {
-			// none of the interesting keys were present
-			return nil
+		// we know we can sign in the changes, delete the keys
+		for _, id := range deleteCandidates {
+			delete(tgt.Signed.Delegations.Keys, id)
 		}
-		// delete candidate keys from all roles. Keep only roles that still have keys
+		// delete candidate keys from all roles.
 		for _, role := range tgt.Signed.Delegations.Roles {
 			role.RemoveKeys(deleteCandidates)
 			if len(role.KeyIDs) < role.Threshold {
