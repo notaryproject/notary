@@ -37,7 +37,7 @@ const (
 	defaultAliasEnv = "DEFAULT_ALIAS"
 )
 
-func parseSignerConfig(configFilePath string) (signer.Config, error) {
+func parseSignerConfig(configFilePath string, doBootstrap bool) (signer.Config, error) {
 	config := viper.New()
 	utils.SetupViper(config, envPrefix)
 
@@ -67,7 +67,7 @@ func parseSignerConfig(configFilePath string) (signer.Config, error) {
 	}
 
 	// setup the cryptoservices
-	cryptoServices, err := setUpCryptoservices(config, []string{notary.MySQLBackend, notary.MemoryBackend, notary.RethinkDBBackend})
+	cryptoServices, err := setUpCryptoservices(config, []string{notary.MySQLBackend, notary.MemoryBackend, notary.RethinkDBBackend}, doBootstrap)
 	if err != nil {
 		return signer.Config{}, err
 	}
@@ -97,7 +97,7 @@ func passphraseRetriever(keyName, alias string, createNew bool, attempts int) (p
 
 // Reads the configuration file for storage setup, and sets up the cryptoservice
 // mapping
-func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string) (
+func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, doBootstrap bool) (
 	signer.CryptoServiceIndex, error) {
 	backend := configuration.GetString("storage.backend")
 

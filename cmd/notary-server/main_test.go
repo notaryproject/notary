@@ -293,7 +293,7 @@ func TestGetStoreInvalid(t *testing.T) {
 
 	var registerCalled = 0
 
-	_, err := getStore(configure(config), fakeRegisterer(&registerCalled))
+	_, err := getStore(configure(config), fakeRegisterer(&registerCalled), false)
 	require.Error(t, err)
 
 	// no health function ever registered
@@ -311,7 +311,7 @@ func TestGetStoreDBStore(t *testing.T) {
 
 	var registerCalled = 0
 
-	store, err := getStore(configure(config), fakeRegisterer(&registerCalled))
+	store, err := getStore(configure(config), fakeRegisterer(&registerCalled), false)
 	require.NoError(t, err)
 	_, ok := store.(storage.TUFMetaStorage)
 	require.True(t, ok)
@@ -335,7 +335,7 @@ func TestGetStoreRethinkDBStoreConnectionFails(t *testing.T) {
 
 	var registerCalled = 0
 
-	_, err := getStore(configure(config), fakeRegisterer(&registerCalled))
+	_, err := getStore(configure(config), fakeRegisterer(&registerCalled), false)
 	require.Error(t, err)
 }
 
@@ -343,7 +343,7 @@ func TestGetMemoryStore(t *testing.T) {
 	var registerCalled = 0
 
 	config := fmt.Sprintf(`{"storage": {"backend": "%s"}}`, notary.MemoryBackend)
-	store, err := getStore(configure(config), fakeRegisterer(&registerCalled))
+	store, err := getStore(configure(config), fakeRegisterer(&registerCalled), false)
 	require.NoError(t, err)
 	_, ok := store.(*storage.MemStorage)
 	require.True(t, ok)
@@ -409,7 +409,7 @@ func TestGetGUNPRefixes(t *testing.T) {
 // For sanity, make sure we can always parse the sample config
 func TestSampleConfig(t *testing.T) {
 	var registerCalled = 0
-	_, _, err := parseServerConfig("../../fixtures/server-config.json", fakeRegisterer(&registerCalled))
+	_, _, err := parseServerConfig("../../fixtures/server-config.json", fakeRegisterer(&registerCalled), false)
 	require.NoError(t, err)
 
 	// once for the DB, once for the trust service

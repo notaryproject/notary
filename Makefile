@@ -141,25 +141,20 @@ protos:
 # go get github.com/wadey/gocovmerge; go install github.com/wadey/gocovmerge
 #
 # be run first
-
-define gocover
-go test $(OPTS) $(TESTOPTS) -covermode="$(COVERMODE)" -coverprofile="$(COVERDIR)/$(subst /,-,$(1)).$(subst $(_space),.,$(NOTARY_BUILDTAGS)).coverage.txt" "$(1)" || exit 1;
-endef
-
+gen-cover:
 gen-cover:
 	@mkdir -p "$(COVERDIR)"
-	$(foreach PKG,$(PKGS),$(call gocover,$(PKG)))
+	python -u buildscripts/covertest.py --coverdir "$(COVERDIR)" --tags "$(NOTARY_BUILDTAGS)" --pkgs="$(PKGS)" --testopts="${TESTOPTS}"
 	rm -f "$(COVERDIR)"/*testutils*.coverage.txt
 
 # Generates the cover binaries and runs them all in serial, so this can be used
 # run all tests with a yubikey without any problems
-cover: OPTS = -tags "${NOTARY_BUILDTAGS}" -coverpkg "$(shell ./coverpkg.sh $(1) $(NOTARY_PKG))"
 cover: gen-cover covmerge
 	@go tool cover -html="$(COVERPROFILE)"
 
 # Generates the cover binaries and runs them all in serial, so this can be used
 # run all tests with a yubikey without any problems
-ci: OPTS = -tags "${NOTARY_BUILDTAGS}" -race -coverpkg "$(shell ./coverpkg.sh $(1) $(NOTARY_PKG))"
+ci: override TESTOPTS = -race
 # Codecov knows how to merge multiple coverage files, so covmerge is not needed
 ci: gen-cover
 
