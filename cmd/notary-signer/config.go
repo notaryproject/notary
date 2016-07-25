@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -62,7 +61,7 @@ func parseSignerConfig(configFilePath string) (signer.Config, error) {
 	utils.SetUpBugsnag(bugsnagConf)
 
 	// parse server config
-	httpAddr, grpcAddr, tlsConfig, err := getAddrAndTLSConfig(config)
+	grpcAddr, tlsConfig, err := getAddrAndTLSConfig(config)
 	if err != nil {
 		return signer.Config{}, err
 	}
@@ -74,7 +73,6 @@ func parseSignerConfig(configFilePath string) (signer.Config, error) {
 	}
 
 	return signer.Config{
-		HTTPAddr:       httpAddr,
 		GRPCAddr:       grpcAddr,
 		TLSConfig:      tlsConfig,
 		CryptoServices: cryptoServices,
@@ -213,33 +211,18 @@ func setupGRPCServer(grpcAddr string, tlsConfig *tls.Config,
 	return grpcServer, lis, nil
 }
 
-func setupHTTPServer(httpAddr string, tlsConfig *tls.Config,
-	cryptoServices signer.CryptoServiceIndex) *http.Server {
-
-	return &http.Server{
-		Addr:      httpAddr,
-		Handler:   api.Handlers(cryptoServices),
-		TLSConfig: tlsConfig,
-	}
-}
-
-func getAddrAndTLSConfig(configuration *viper.Viper) (string, string, *tls.Config, error) {
+func getAddrAndTLSConfig(configuration *viper.Viper) (string, *tls.Config, error) {
 	tlsConfig, err := utils.ParseServerTLS(configuration, true)
 	if err != nil {
-		return "", "", nil, fmt.Errorf("unable to set up TLS: %s", err.Error())
+		return "", nil, fmt.Errorf("unable to set up TLS: %s", err.Error())
 	}
 
 	grpcAddr := configuration.GetString("server.grpc_addr")
 	if grpcAddr == "" {
-		return "", "", nil, fmt.Errorf("grpc listen address required for server")
+		return "", nil, fmt.Errorf("grpc listen address required for server")
 	}
 
-	httpAddr := configuration.GetString("server.http_addr")
-	if httpAddr == "" {
-		return "", "", nil, fmt.Errorf("http listen address required for server")
-	}
-
-	return httpAddr, grpcAddr, tlsConfig, nil
+	return grpcAddr, tlsConfig, nil
 }
 
 func bootstrap(s interface{}) error {

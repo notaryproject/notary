@@ -38,7 +38,6 @@ type Signer interface {
 
 // Config tells how to configure a notary-signer
 type Config struct {
-	HTTPAddr       string
 	GRPCAddr       string
 	TLSConfig      *tls.Config
 	CryptoServices CryptoServiceIndex
