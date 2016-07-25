@@ -976,6 +976,7 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	require.NoError(t, os.Remove(filepath.Join(keyDir, targetKeyID+".key")))
 
 	// Note that we need to use the canonical key ID, followed by the base of the role here
+	// Since, for a delegation- the filename is the canonical key ID. We have no role header in the PEM
 	err = ioutil.WriteFile(filepath.Join(keyDir, canonicalKeyID+".key"), privKeyBytesNoRole, 0700)
 	require.NoError(t, err)
 

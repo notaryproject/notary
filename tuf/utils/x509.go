@@ -416,20 +416,10 @@ func KeyToPEM(privKey data.PrivateKey, role, gun string) ([]byte, error) {
 
 	headers := map[string]string{}
 	if role != "" {
-		headers = map[string]string{
-			"role": role,
-		}
+		headers["role"]= role
 	}
 	if gun != "" {
-		headers = map[string]string{
-			"gun": gun,
-		}
-	}
-	if role != "" && gun != "" {
-		headers = map[string]string{
-			"role": role,
-			"gun":  gun,
-		}
+		headers["gun"]= gun
 	}
 
 	block := &pem.Block{
