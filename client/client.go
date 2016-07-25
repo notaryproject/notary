@@ -20,7 +20,6 @@ import (
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf"
-	tufclient "github.com/docker/notary/tuf/client"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/utils"
@@ -85,6 +84,7 @@ type NotaryRepository struct {
 	fileStore     store.MetadataStore
 	CryptoService signed.CryptoService
 	tufRepo       *tuf.Repo
+	invalid       *tuf.Repo // known data that was parsable but deemed invalid
 	roundTrip     http.RoundTripper
 	trustPinning  trustpinning.TrustPinConfig
 }
@@ -616,7 +616,7 @@ func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 		}
 	}
 	// apply the changelist to the repo
-	if err := applyChangelist(r.tufRepo, cl); err != nil {
+	if err := applyChangelist(r.tufRepo, r.invalid, cl); err != nil {
 		logrus.Debug("Error applying changelist")
 		return err
 	}
@@ -714,7 +714,7 @@ func (r *NotaryRepository) bootstrapRepo() error {
 		}
 	}
 
-	tufRepo, err := b.Finish()
+	tufRepo, _, err := b.Finish()
 	if err == nil {
 		r.tufRepo = tufRepo
 	}
@@ -787,7 +787,7 @@ func (r *NotaryRepository) Update(forWrite bool) error {
 		}
 		return err
 	}
-	repo, err := c.Update()
+	repo, invalid, err := c.Update()
 	if err != nil {
 		// notFound.Resource may include a checksum so when the role is root,
 		// it will be root or root.<checksum>. Therefore best we can
@@ -800,6 +800,7 @@ func (r *NotaryRepository) Update(forWrite bool) error {
 	// we can be assured if we are at this stage that the repo we built is good
 	// no need to test the following function call for an error as it will always be fine should the repo be good- it is!
 	r.tufRepo = repo
+	r.invalid = invalid
 	warnRolesNearExpiry(repo)
 	return nil
 }
@@ -811,16 +812,16 @@ func (r *NotaryRepository) Update(forWrite bool) error {
 // and return an error if the remote repository errors.
 //
 // Populates a tuf.RepoBuilder with this root metadata (only use
-// tufclient.Client.Update to load the rest).
+// TUFClient.Update to load the rest).
 //
 // Fails if the remote server is reachable and does not know the repo
 // (i.e. before the first r.Publish()), in which case the error is
 // store.ErrMetaNotFound, or if the root metadata (from whichever source is used)
 // is not trusted.
 //
-// Returns a tufclient.Client for the remote server, which may not be actually
+// Returns a TUFClient for the remote server, which may not be actually
 // operational (if the URL is invalid but a root.json is cached).
-func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*tufclient.Client, error) {
+func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*TUFClient, error) {
 	minVersion := 1
 	// the old root on disk should not be validated against any trust pinning configuration
 	// because if we have an old root, it itself is the thing that pins trust
@@ -887,7 +888,7 @@ func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*tufclient.Cl
 		return nil, ErrRepoNotInitialized{}
 	}
 
-	return tufclient.NewClient(oldBuilder, newBuilder, remote, r.fileStore), nil
+	return NewTUFClient(oldBuilder, newBuilder, remote, r.fileStore), nil
 }
 
 // RotateKey removes all existing keys associated with the role, and either

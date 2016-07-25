@@ -29,7 +29,7 @@ func getRemoteStore(baseURL, gun string, rt http.RoundTripper) (store.RemoteStor
 	return s, err
 }
 
-func applyChangelist(repo *tuf.Repo, cl changelist.Changelist) error {
+func applyChangelist(repo *tuf.Repo, invalid *tuf.Repo, cl changelist.Changelist) error {
 	it, err := cl.NewIterator()
 	if err != nil {
 		return err
@@ -43,7 +43,7 @@ func applyChangelist(repo *tuf.Repo, cl changelist.Changelist) error {
 		isDel := data.IsDelegation(c.Scope()) || data.IsWildDelegation(c.Scope())
 		switch {
 		case c.Scope() == changelist.ScopeTargets || isDel:
-			err = applyTargetsChange(repo, c)
+			err = applyTargetsChange(repo, invalid, c)
 		case c.Scope() == changelist.ScopeRoot:
 			err = applyRootChange(repo, c)
 		default:
@@ -59,12 +59,14 @@ func applyChangelist(repo *tuf.Repo, cl changelist.Changelist) error {
 	return nil
 }
 
-func applyTargetsChange(repo *tuf.Repo, c changelist.Change) error {
+func applyTargetsChange(repo *tuf.Repo, invalid *tuf.Repo, c changelist.Change) error {
 	switch c.Type() {
 	case changelist.TypeTargetsTarget:
 		return changeTargetMeta(repo, c)
 	case changelist.TypeTargetsDelegation:
 		return changeTargetsDelegation(repo, c)
+	case changelist.TypeWitness:
+		return witnessTargets(repo, invalid, c.Scope())
 	default:
 		return fmt.Errorf("only target meta and delegations changes supported")
 	}
