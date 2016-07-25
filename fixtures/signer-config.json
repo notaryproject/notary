@@ -1,6 +1,5 @@
 {
 	"server": {
-		"http_addr": ":4444",
 		"grpc_addr": ":7899",
 		"tls_cert_file": "./notary-signer.crt",
 		"tls_key_file": "./notary-signer.key",

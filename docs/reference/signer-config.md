@@ -25,7 +25,6 @@ learn more about the configuration section corresponding to that key:
 
 <pre><code class="language-json">{
   <a href="#server-section-required">"server"</a>: {
-    "http_addr": ":4444",
     "grpc_addr": ":7899",
     "tls_cert_file": "./fixtures/notary-signer.crt",
     "tls_key_file": "./fixtures/notary-signer.key",
@@ -57,7 +56,6 @@ Example:
 
 ```json
 "server": {
-  "http_addr": ":4444",
   "grpc_addr": ":7899",
   "tls_cert_file": "./fixtures/notary-signer.crt",
   "tls_key_file": "./fixtures/notary-signer.key",
@@ -70,22 +68,6 @@ Example:
 		<th>Parameter</th>
 		<th>Required</th>
 		<th>Description</th>
-	</tr>
-	<tr>
-		<td valign="top"><code>http_addr</code></td>
-		<td valign="top">yes</td>
-		<td valign="top">The TCP address (IP and port) to listen for HTTP
-			traffic on.  Examples:
-			<ul>
-			<li><code>":4444"</code> means listen on port 4444 on all IPs (and
-				hence all interfaces, such as those listed when you run
-				<code>ifconfig</code>)</li>
-			<li><code>"127.0.0.1:4444"</code> means listen on port 4444 on
-				localhost only.  That means that the server will not be
-				accessible except locally (via SSH tunnel, or just on a local
-				terminal)</li>
-			</ul>
-		</td>
 	</tr>
 	<tr>
 		<td valign="top"><code>grpc_addr</code></td>
@@ -107,14 +89,14 @@ Example:
 		<td valign="top"><code>tls_key_file</code></td>
 		<td valign="top">yes</td>
 		<td valign="top">The path to the private key to use for
-			HTTPS. The path is relative to the directory of the
+			GRPC TLS. The path is relative to the directory of the
 			configuration file.</td>
 	</tr>
 	<tr>
 		<td valign="top"><code>tls_cert_file</code></td>
 		<td valign="top">yes</td>
 		<td valign="top">The path to the certificate to use for
-			HTTPS. The path is relative to the directory of the
+			GRPC TLS. The path is relative to the directory of the
 			configuration file.</td>
 	</tr>
 	<tr>
