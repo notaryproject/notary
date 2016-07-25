@@ -131,7 +131,7 @@ func Test0Dot1RepoFormat(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// We can read and publish from notary0.1 repos
+// We can read and publish from notary0.3 repos
 func Test0Dot3RepoFormat(t *testing.T) {
 	// make a temporary directory and copy the fixture into it, since updating
 	// and publishing will modify the files
@@ -198,6 +198,31 @@ func TestDownloading0Dot1RepoFormat(t *testing.T) {
 
 	metaCache, err := store.NewFilesystemStore(
 		filepath.Join("../fixtures/compatibility/notary0.1/tuf", filepath.FromSlash(gun)),
+		"metadata", "json")
+	require.NoError(t, err)
+
+	ts := readOnlyServer(t, metaCache, http.StatusNotFound, gun)
+	defer ts.Close()
+
+	repoDir, err := ioutil.TempDir("", "notary-backwards-compat-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(repoDir)
+
+	repo, err := NewNotaryRepository(repoDir, gun, ts.URL, http.DefaultTransport,
+		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
+	require.NoError(t, err, "error creating repo: %s", err)
+
+	err = repo.Update(true)
+	require.NoError(t, err, "error updating repo: %s", err)
+}
+
+// Ensures that the current client can download metadata that is published from notary 0.3 repos
+func TestDownloading0Dot3RepoFormat(t *testing.T) {
+	gun := "docker.com/notary0.3/samplerepo"
+	passwd := "randompass"
+
+	metaCache, err := store.NewFilesystemStore(
+		filepath.Join("../fixtures/compatibility/notary0.3/tuf", filepath.FromSlash(gun)),
 		"metadata", "json")
 	require.NoError(t, err)
 

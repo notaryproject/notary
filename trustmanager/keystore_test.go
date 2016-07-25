@@ -99,7 +99,7 @@ func TestKeyStoreInternalState(t *testing.T) {
 		require.NoError(t, err, "could not generate PEM")
 
 		// write the key file to the correct location
-		keyPath := filepath.Join(tempBaseDir, "private")
+		keyPath := filepath.Join(tempBaseDir, notary.PrivDir)
 		keyPath = filepath.Join(keyPath, privKey.ID())
 		require.NoError(t, os.MkdirAll(filepath.Dir(keyPath), 0755))
 		require.NoError(t, ioutil.WriteFile(keyPath+".key", privKeyPEM, 0755))
@@ -126,7 +126,7 @@ func TestKeyStoreInternalState(t *testing.T) {
 	// Try removing the targets key only by ID (no gun provided)
 	require.NoError(t, store.RemoveKey(roleToID[data.CanonicalTargetsRole]))
 	// The key file itself should have been removed
-	_, err = os.Stat(filepath.Join(tempBaseDir, "private", roleToID[data.CanonicalTargetsRole]+".key"))
+	_, err = os.Stat(filepath.Join(tempBaseDir, notary.PrivDir, roleToID[data.CanonicalTargetsRole]+".key"))
 	require.Error(t, err)
 	// The keyInfoMap should have also updated by deleting the key
 	_, ok := store.keyInfoMap[roleToID[data.CanonicalTargetsRole]]
@@ -135,7 +135,7 @@ func TestKeyStoreInternalState(t *testing.T) {
 	// Try removing the delegation key only by ID (no gun provided)
 	require.NoError(t, store.RemoveKey(roleToID["targets/delegation"]))
 	// The key file itself should have been removed
-	_, err = os.Stat(filepath.Join(tempBaseDir, "private", roleToID["targets/delegation"]+".key"))
+	_, err = os.Stat(filepath.Join(tempBaseDir, notary.PrivDir, roleToID["targets/delegation"]+".key"))
 	require.Error(t, err)
 	// The keyInfoMap should have also updated
 	_, ok = store.keyInfoMap[roleToID["targets/delegation"]]
@@ -144,7 +144,7 @@ func TestKeyStoreInternalState(t *testing.T) {
 	// Try removing the root key only by ID (no gun provided)
 	require.NoError(t, store.RemoveKey(roleToID[data.CanonicalRootRole]))
 	// The key file itself should have been removed
-	_, err = os.Stat(filepath.Join(tempBaseDir, "private", roleToID[data.CanonicalRootRole]+".key"))
+	_, err = os.Stat(filepath.Join(tempBaseDir, notary.PrivDir, roleToID[data.CanonicalRootRole]+".key"))
 	require.Error(t, err)
 	// The keyInfoMap should have also updated_
 	_, ok = store.keyInfoMap[roleToID[data.CanonicalRootRole]]
@@ -326,7 +326,7 @@ EMl3eFOJXjIch/wIesRSN+2dGOsl7neercjMh1i9RvpCwHDx/E0=
 	require.NoError(t, err, "failed to create new key filestore")
 
 	// Call the GetKey function
-	_, role, err := store.GetKey(testName)
+	_, role, err := store.GetKey(testAlias)
 	require.NoError(t, err, "failed to get key from store")
 	require.Equal(t, testAlias, role)
 }
