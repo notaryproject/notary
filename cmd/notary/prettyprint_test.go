@@ -205,7 +205,7 @@ func TestPrettyPrintSortedTargets(t *testing.T) {
 // are no roles.
 func TestPrettyPrintZeroRoles(t *testing.T) {
 	var b bytes.Buffer
-	prettyPrintRoles([]*data.Role{}, &b, "delegations")
+	prettyPrintRoles([]data.Role{}, &b, "delegations")
 	text, err := ioutil.ReadAll(&b)
 	require.NoError(t, err)
 
@@ -218,7 +218,7 @@ func TestPrettyPrintZeroRoles(t *testing.T) {
 func TestPrettyPrintSortedRoles(t *testing.T) {
 	var err error
 
-	unsorted := []*data.Role{
+	unsorted := []data.Role{
 		{Name: "targets/zebra", Paths: []string{"stripes", "black", "white"}, RootRole: data.RootRole{KeyIDs: []string{"101"}, Threshold: 1}},
 		{Name: "targets/aardvark/unicorn/pony", Paths: []string{"rainbows"}, RootRole: data.RootRole{KeyIDs: []string{"135"}, Threshold: 1}},
 		{Name: "targets/bee", Paths: []string{"honey"}, RootRole: data.RootRole{KeyIDs: []string{"246"}, Threshold: 1}},
