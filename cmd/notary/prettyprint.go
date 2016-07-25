@@ -140,7 +140,7 @@ func (t targetsSorter) Less(i, j int) bool {
 
 // --- pretty printing roles ---
 
-type roleSorter []*data.Role
+type roleSorter []data.Role
 
 func (r roleSorter) Len() int      { return len(r) }
 func (r roleSorter) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
@@ -173,7 +173,7 @@ func prettyPrintTargets(ts []*client.TargetWithRole, writer io.Writer) {
 }
 
 // Pretty-prints the list of provided Roles
-func prettyPrintRoles(rs []*data.Role, writer io.Writer, roleType string) {
+func prettyPrintRoles(rs []data.Role, writer io.Writer, roleType string) {
 	if len(rs) == 0 {
 		writer.Write([]byte(fmt.Sprintf("\nNo %s present in this repository.\n\n", roleType)))
 		return
