@@ -128,7 +128,7 @@ func TestBuilderStopsAcceptingOrProducingDataOnceDone(t *testing.T) {
 		require.True(t, builder.IsLoaded(roleName))
 	}
 
-	_, err := builder.Finish()
+	_, _, err := builder.Finish()
 	require.NoError(t, err)
 
 	err = builder.Load("targets/a", meta["targets/a"], 1, false)
@@ -143,7 +143,7 @@ func TestBuilderStopsAcceptingOrProducingDataOnceDone(t *testing.T) {
 	require.Equal(t, tuf.ErrBuildDone, err)
 
 	for _, b := range []tuf.RepoBuilder{builder, bootstrapped} {
-		_, err = b.Finish()
+		_, _, err = b.Finish()
 		require.Error(t, err)
 		require.Equal(t, tuf.ErrBuildDone, err)
 

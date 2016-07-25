@@ -77,11 +77,10 @@ type Repo struct {
 // If the Repo will only be used for reading, the CryptoService
 // can be nil.
 func NewRepo(cryptoService signed.CryptoService) *Repo {
-	repo := &Repo{
+	return &Repo{
 		Targets:       make(map[string]*data.SignedTargets),
 		cryptoService: cryptoService,
 	}
-	return repo
 }
 
 // AddBaseKeys is used to add keys to the role in root.json

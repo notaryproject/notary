@@ -59,7 +59,7 @@ type RepoBuilder interface {
 	Load(roleName string, content []byte, minVersion int, allowExpired bool) error
 	GenerateSnapshot(prev *data.SignedSnapshot) ([]byte, int, error)
 	GenerateTimestamp(prev *data.SignedTimestamp) ([]byte, int, error)
-	Finish() (*Repo, error)
+	Finish() (*Repo, *Repo, error)
 	BootstrapNewBuilder() RepoBuilder
 
 	// informative functions
@@ -80,7 +80,7 @@ func (f finishedBuilder) GenerateSnapshot(prev *data.SignedSnapshot) ([]byte, in
 func (f finishedBuilder) GenerateTimestamp(prev *data.SignedTimestamp) ([]byte, int, error) {
 	return nil, 0, ErrBuildDone
 }
-func (f finishedBuilder) Finish() (*Repo, error)               { return nil, ErrBuildDone }
+func (f finishedBuilder) Finish() (*Repo, *Repo, error)        { return nil, nil, ErrBuildDone }
 func (f finishedBuilder) BootstrapNewBuilder() RepoBuilder     { return f }
 func (f finishedBuilder) IsLoaded(roleName string) bool        { return false }
 func (f finishedBuilder) GetLoadedVersion(roleName string) int { return 0 }
@@ -90,12 +90,15 @@ func (f finishedBuilder) GetConsistentInfo(roleName string) ConsistentInfo {
 
 // NewRepoBuilder is the only way to get a pre-built RepoBuilder
 func NewRepoBuilder(gun string, cs signed.CryptoService, trustpin trustpinning.TrustPinConfig) RepoBuilder {
-	return &repoBuilderWrapper{RepoBuilder: &repoBuilder{
-		repo:                 NewRepo(cs),
-		gun:                  gun,
-		trustpin:             trustpin,
-		loadedNotChecksummed: make(map[string][]byte),
-	}}
+	return &repoBuilderWrapper{
+		RepoBuilder: &repoBuilder{
+			repo:                 NewRepo(cs),
+			invalidRoles:         NewRepo(nil),
+			gun:                  gun,
+			trustpin:             trustpin,
+			loadedNotChecksummed: make(map[string][]byte),
+		},
+	}
 }
 
 // repoBuilderWrapper embeds a repoBuilder, but once Finish is called, swaps
@@ -104,7 +107,7 @@ type repoBuilderWrapper struct {
 	RepoBuilder
 }
 
-func (rbw *repoBuilderWrapper) Finish() (*Repo, error) {
+func (rbw *repoBuilderWrapper) Finish() (*Repo, *Repo, error) {
 	switch rbw.RepoBuilder.(type) {
 	case finishedBuilder:
 		return rbw.RepoBuilder.Finish()
@@ -117,7 +120,8 @@ func (rbw *repoBuilderWrapper) Finish() (*Repo, error) {
 
 // repoBuilder actually builds a tuf.Repo
 type repoBuilder struct {
-	repo *Repo
+	repo         *Repo
+	invalidRoles *Repo
 
 	// needed for root trust pininng verification
 	gun      string
@@ -136,13 +140,14 @@ type repoBuilder struct {
 	nextRootChecksum *data.FileMeta
 }
 
-func (rb *repoBuilder) Finish() (*Repo, error) {
-	return rb.repo, nil
+func (rb *repoBuilder) Finish() (*Repo, *Repo, error) {
+	return rb.repo, rb.invalidRoles, nil
 }
 
 func (rb *repoBuilder) BootstrapNewBuilder() RepoBuilder {
 	return &repoBuilderWrapper{RepoBuilder: &repoBuilder{
 		repo:                 NewRepo(rb.repo.cryptoService),
+		invalidRoles:         NewRepo(nil),
 		gun:                  rb.gun,
 		loadedNotChecksummed: make(map[string][]byte),
 		trustpin:             rb.trustpin,
@@ -534,7 +539,7 @@ func (rb *repoBuilder) loadDelegation(roleName string, content []byte, minVersio
 		return err
 	}
 
-	signedObj, err := rb.bytesToSignedAndValidateSigs(delegationRole.BaseRole, content)
+	signedObj, err := rb.bytesToSigned(content, roleName)
 	if err != nil {
 		return err
 	}
@@ -543,13 +548,20 @@ func (rb *repoBuilder) loadDelegation(roleName string, content []byte, minVersio
 	if err != nil {
 		return err
 	}
+	// verify signature
+	if err := signed.VerifySignatures(signedObj, delegationRole.BaseRole); err != nil {
+		rb.invalidRoles.Targets[roleName] = signedTargets
+		return err
+	}
 
 	if err := signed.VerifyVersion(&(signedTargets.Signed.SignedCommon), minVersion); err != nil {
+		rb.invalidRoles.Targets[roleName] = signedTargets
 		return err
 	}
 
 	if !allowExpired { // check must go at the end because all other validation should pass
 		if err := signed.VerifyExpiry(&(signedTargets.Signed.SignedCommon), roleName); err != nil {
+			rb.invalidRoles.Targets[roleName] = signedTargets
 			return err
 		}
 	}

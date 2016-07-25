@@ -36,7 +36,7 @@ func TestApplyTargetsChange(t *testing.T) {
 		ChangePath: "latest",
 		Data:       fjson,
 	}
-	err = applyTargetsChange(repo, addChange)
+	err = applyTargetsChange(repo, nil, addChange)
 	require.NoError(t, err)
 	require.NotNil(t, repo.Targets["targets"].Signed.Targets["latest"])
 
@@ -47,7 +47,7 @@ func TestApplyTargetsChange(t *testing.T) {
 		ChangePath: "latest",
 		Data:       nil,
 	}
-	err = applyTargetsChange(repo, removeChange)
+	err = applyTargetsChange(repo, nil, removeChange)
 	require.NoError(t, err)
 	_, ok := repo.Targets["targets"].Signed.Targets["latest"]
 	require.False(t, ok)
@@ -85,11 +85,11 @@ func TestApplyAddTargetTwice(t *testing.T) {
 		Data:       fjson,
 	}))
 
-	require.NoError(t, applyChangelist(repo, cl))
+	require.NoError(t, applyChangelist(repo, nil, cl))
 	require.Len(t, repo.Targets["targets"].Signed.Targets, 1)
 	require.NotEmpty(t, repo.Targets["targets"].Signed.Targets["latest"])
 
-	require.NoError(t, applyTargetsChange(repo, &changelist.TUFChange{
+	require.NoError(t, applyTargetsChange(repo, nil, &changelist.TUFChange{
 		Actn:       changelist.ActionCreate,
 		Role:       changelist.ScopeTargets,
 		ChangeType: "target",
@@ -124,7 +124,7 @@ func TestApplyChangelist(t *testing.T) {
 		Data:       fjson,
 	}
 	cl.Add(addChange)
-	err = applyChangelist(repo, cl)
+	err = applyChangelist(repo, nil, cl)
 	require.NoError(t, err)
 	require.NotNil(t, repo.Targets["targets"].Signed.Targets["latest"])
 
@@ -138,7 +138,7 @@ func TestApplyChangelist(t *testing.T) {
 		Data:       nil,
 	}
 	cl.Add(removeChange)
-	err = applyChangelist(repo, cl)
+	err = applyChangelist(repo, nil, cl)
 	require.NoError(t, err)
 	_, ok := repo.Targets["targets"].Signed.Targets["latest"]
 	require.False(t, ok)
@@ -179,7 +179,7 @@ func TestApplyChangelistMulti(t *testing.T) {
 	cl.Add(addChange)
 	cl.Add(removeChange)
 
-	err = applyChangelist(repo, cl)
+	err = applyChangelist(repo, nil, cl)
 	require.NoError(t, err)
 	_, ok := repo.Targets["targets"].Signed.Targets["latest"]
 	require.False(t, ok)
@@ -211,7 +211,7 @@ func TestApplyTargetsDelegationCreateDelete(t *testing.T) {
 		tdJSON,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
 	tgts := repo.Targets[data.CanonicalTargetsRole]
@@ -242,7 +242,7 @@ func TestApplyTargetsDelegationCreateDelete(t *testing.T) {
 		tdJSON,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
 	require.Len(t, tgts.Signed.Delegations.Roles, 0)
@@ -275,7 +275,7 @@ func TestApplyTargetsDelegationCreate2SharedKey(t *testing.T) {
 		tdJSON,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
 	// create second delegation
@@ -297,7 +297,7 @@ func TestApplyTargetsDelegationCreate2SharedKey(t *testing.T) {
 		tdJSON,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
 	tgts := repo.Targets[data.CanonicalTargetsRole]
@@ -330,7 +330,7 @@ func TestApplyTargetsDelegationCreate2SharedKey(t *testing.T) {
 		tdJSON,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
 	require.Len(t, tgts.Signed.Delegations.Roles, 1)
@@ -345,7 +345,7 @@ func TestApplyTargetsDelegationCreate2SharedKey(t *testing.T) {
 		tdJSON,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
 	require.Len(t, tgts.Signed.Delegations.Roles, 0)
@@ -378,7 +378,7 @@ func TestApplyTargetsDelegationCreateEdit(t *testing.T) {
 		tdJSON,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
 	// edit delegation
@@ -403,7 +403,7 @@ func TestApplyTargetsDelegationCreateEdit(t *testing.T) {
 		tdJSON,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
 	tgts := repo.Targets[data.CanonicalTargetsRole]
@@ -446,7 +446,7 @@ func TestApplyTargetsDelegationEditNonExisting(t *testing.T) {
 		tdJSON,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.Error(t, err)
 	require.IsType(t, data.ErrInvalidRole{}, err)
 }
@@ -477,7 +477,7 @@ func TestApplyTargetsDelegationCreateAlreadyExisting(t *testing.T) {
 		tdJSON,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 	// we have sufficient checks elsewhere we don't need to confirm that
 	// creating fresh works here via more requires.
@@ -505,7 +505,7 @@ func TestApplyTargetsDelegationCreateAlreadyExisting(t *testing.T) {
 	)
 
 	// when attempting to create the same role again, check that we added a key
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 	delegation, err := repo.GetDelegationRole("targets/level1")
 	require.NoError(t, err)
@@ -539,7 +539,7 @@ func TestApplyTargetsDelegationAlreadyExistingMergePaths(t *testing.T) {
 		tdJSON,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 	// we have sufficient checks elsewhere we don't need to confirm that
 	// creating fresh works here via more requires.
@@ -560,7 +560,7 @@ func TestApplyTargetsDelegationAlreadyExistingMergePaths(t *testing.T) {
 
 	// when attempting to create the same role again, check that we
 	// merged with previous details
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 	delegation, err := repo.GetDelegationRole("targets/level1")
 	require.NoError(t, err)
@@ -595,7 +595,7 @@ func TestApplyTargetsDelegationInvalidRole(t *testing.T) {
 		tdJSON,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.Error(t, err)
 }
 
@@ -625,7 +625,7 @@ func TestApplyTargetsDelegationInvalidJSONContent(t *testing.T) {
 		tdJSON[1:],
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.Error(t, err)
 }
 
@@ -641,7 +641,7 @@ func TestApplyTargetsDelegationInvalidAction(t *testing.T) {
 		nil,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.Error(t, err)
 }
 
@@ -657,7 +657,7 @@ func TestApplyTargetsChangeInvalidType(t *testing.T) {
 		nil,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.Error(t, err)
 }
 
@@ -687,7 +687,7 @@ func TestApplyTargetsDelegationCreate2Deep(t *testing.T) {
 		tdJSON,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
 	tgts := repo.Targets[data.CanonicalTargetsRole]
@@ -724,7 +724,7 @@ func TestApplyTargetsDelegationCreate2Deep(t *testing.T) {
 		tdJSON,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
 	tgts = repo.Targets["targets/level1"]
@@ -772,7 +772,7 @@ func TestApplyTargetsDelegationParentDoesntExist(t *testing.T) {
 		tdJSON,
 	)
 
-	err = applyTargetsChange(repo, ch)
+	err = applyTargetsChange(repo, nil, ch)
 	require.Error(t, err)
 	require.IsType(t, data.ErrInvalidRole{}, err)
 }
@@ -809,7 +809,7 @@ func TestApplyChangelistCreatesDelegation(t *testing.T) {
 		Data:       fjson,
 	}))
 
-	require.NoError(t, applyChangelist(repo, cl))
+	require.NoError(t, applyChangelist(repo, nil, cl))
 	_, ok := repo.Targets["targets/level1"]
 	require.True(t, ok, "Failed to create the delegation target")
 	_, ok = repo.Targets["targets/level1"].Signed.Targets["latest"]
@@ -860,7 +860,7 @@ func TestApplyChangelistTargetsToMultipleRoles(t *testing.T) {
 		Data:       nil,
 	}))
 
-	require.NoError(t, applyChangelist(repo, cl))
+	require.NoError(t, applyChangelist(repo, nil, cl))
 	_, ok := repo.Targets["targets/level1"].Signed.Targets["latest"]
 	require.True(t, ok)
 	_, ok = repo.Targets["targets/level2"]
@@ -890,7 +890,7 @@ func TestApplyChangelistTargetsFailsNonexistentRole(t *testing.T) {
 		ChangePath: "latest",
 		Data:       fjson,
 	}))
-	err = applyChangelist(repo, cl)
+	err = applyChangelist(repo, nil, cl)
 	require.Error(t, err)
 	require.IsType(t, data.ErrInvalidRole{}, err)
 
@@ -904,7 +904,7 @@ func TestApplyChangelistTargetsFailsNonexistentRole(t *testing.T) {
 		Data:       nil,
 	}))
 
-	err = applyChangelist(repo, cl)
+	err = applyChangelist(repo, nil, cl)
 	require.Error(t, err)
 	require.IsType(t, data.ErrInvalidRole{}, err)
 }

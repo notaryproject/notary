@@ -175,9 +175,17 @@ func (t *tufCommander) tufWitness(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for _, role := range roles {
-		nRepo.Witness(role)
+	success, err := nRepo.Witness(roles...)
+	if err != nil {
+		cmd.Printf("Some roles have failed to be marked for witnessing: %s", err.Error())
 	}
+
+	cmd.Printf(
+		"The following roles were successfully marked for witnessing on the next publish:\n\t- %s\n",
+		strings.Join(success, "\n\t- "),
+	)
+
+	return nil
 }
 
 func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
