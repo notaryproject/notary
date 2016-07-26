@@ -13,7 +13,7 @@ import (
 	"time"
 
 	pb "github.com/docker/notary/proto"
-	"github.com/docker/notary/signer/keys"
+	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -162,7 +162,7 @@ func (trust *NotarySigner) GetKey(keyid string) data.PublicKey {
 func (trust *NotarySigner) GetPrivateKey(keyid string) (data.PrivateKey, string, error) {
 	pubKey := trust.GetKey(keyid)
 	if pubKey == nil {
-		return nil, "", keys.ErrInvalidKeyID
+		return nil, "", trustmanager.ErrKeyNotFound{KeyID: keyid}
 	}
 	return NewRemotePrivateKey(pubKey, trust.sClient), "", nil
 }
@@ -188,6 +188,8 @@ func (trust *NotarySigner) CheckHealth(timeout time.Duration) error {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	// the kmClient should point at the same server as the sClient, so a single
+	// healthcheck should suffice
 	status, err := trust.kmClient.CheckHealth(ctx, &pb.Void{})
 	defer cancel()
 	if err == nil && len(status.Status) > 0 {
