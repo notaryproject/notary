@@ -2,7 +2,7 @@ package api
 
 import (
 	"github.com/docker/notary/signer"
-	"github.com/docker/notary/signer/keys"
+	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 
@@ -22,5 +22,5 @@ func FindKeyByID(cryptoServices signer.CryptoServiceIndex, keyID *pb.KeyID) (dat
 		}
 	}
 
-	return nil, nil, keys.ErrInvalidKeyID
+	return nil, nil, trustmanager.ErrKeyNotFound{KeyID: keyID.ID}
 }

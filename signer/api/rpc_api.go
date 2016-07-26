@@ -6,7 +6,7 @@ import (
 
 	ctxu "github.com/docker/distribution/context"
 	"github.com/docker/notary/signer"
-	"github.com/docker/notary/signer/keys"
+	"github.com/docker/notary/trustmanager"
 	"golang.org/x/net/context"
 
 	"google.golang.org/grpc"
@@ -69,8 +69,8 @@ func (s *KeyManagementServer) DeleteKey(ctx context.Context, keyID *pb.KeyID) (*
 	err = service.RemoveKey(keyID.ID)
 	logger.Info("DeleteKey: Deleted KeyID ", keyID.ID)
 	if err != nil {
-		switch err {
-		case keys.ErrInvalidKeyID:
+		switch err.(type) {
+		case trustmanager.ErrKeyNotFound:
 			logger.Debugf("DeleteKey: key %s not found", keyID.ID)
 			return &pb.Void{}, nil
 		default:
