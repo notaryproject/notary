@@ -2,6 +2,7 @@ package keydbstore
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/docker/notary"
 	"github.com/docker/notary/trustmanager"
@@ -22,20 +23,22 @@ type SQLKeyDBStore struct {
 	dbType           string
 	defaultPassAlias string
 	retriever        notary.PassRetriever
+	nowFunc          func() time.Time
 }
 
 // GormPrivateKey represents a PrivateKey in the database
 type GormPrivateKey struct {
 	gorm.Model
-	KeyID           string `sql:"type:varchar(255);not null;unique;index:key_id_idx"`
-	EncryptionAlg   string `sql:"type:varchar(255);not null"`
-	KeywrapAlg      string `sql:"type:varchar(255);not null"`
-	Algorithm       string `sql:"type:varchar(50);not null"`
-	PassphraseAlias string `sql:"type:varchar(50);not null"`
-	Gun             string `sql:"type:varchar(255);not null"`
-	Role            string `sql:"type:varchar(255);not null"`
-	Public          string `sql:"type:blob;not null"`
-	Private         string `sql:"type:blob;not null"`
+	KeyID           string    `sql:"type:varchar(255);not null;unique;index:key_id_idx"`
+	EncryptionAlg   string    `sql:"type:varchar(255);not null"`
+	KeywrapAlg      string    `sql:"type:varchar(255);not null"`
+	Algorithm       string    `sql:"type:varchar(50);not null"`
+	PassphraseAlias string    `sql:"type:varchar(50);not null"`
+	Gun             string    `sql:"type:varchar(255);not null"`
+	Role            string    `sql:"type:varchar(255);not null"`
+	Public          string    `sql:"type:blob;not null"`
+	Private         string    `sql:"type:blob;not null"`
+	LastUsed        time.Time `sql:"type:timestamp"`
 }
 
 // TableName sets a specific table name for our GormPrivateKey
@@ -57,6 +60,7 @@ func NewSQLKeyDBStore(passphraseRetriever notary.PassRetriever, defaultPassAlias
 		dbType:           dbDialect,
 		defaultPassAlias: defaultPassAlias,
 		retriever:        passphraseRetriever,
+		nowFunc:          time.Now,
 	}, nil
 }
 
@@ -87,7 +91,8 @@ func (s *SQLKeyDBStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.Privat
 		Gun:             keyInfo.Gun,
 		Role:            keyInfo.Role,
 		Public:          string(privKey.Public()),
-		Private:         encryptedKey}
+		Private:         encryptedKey,
+	}
 
 	// Add encrypted private key to the database
 	s.db.Create(&gormPrivKey)
@@ -100,8 +105,7 @@ func (s *SQLKeyDBStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.Privat
 	return nil
 }
 
-// GetKey returns the PrivateKey given a KeyID
-func (s *SQLKeyDBStore) GetKey(keyID string) (data.PrivateKey, string, error) {
+func (s *SQLKeyDBStore) getKey(keyID string, markActive bool) (*GormPrivateKey, string, error) {
 	// Retrieve the GORM private key from the database
 	dbPrivateKey := GormPrivateKey{}
 	if s.db.Where(&GormPrivateKey{KeyID: keyID}).First(&dbPrivateKey).RecordNotFound() {
@@ -116,6 +120,17 @@ func (s *SQLKeyDBStore) GetKey(keyID string) (data.PrivateKey, string, error) {
 
 	// Decrypt private bytes from the gorm key
 	decryptedPrivKey, _, err := jose.Decode(dbPrivateKey.Private, passphrase)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &dbPrivateKey, decryptedPrivKey, nil
+}
+
+// GetKey returns the PrivateKey given a KeyID
+func (s *SQLKeyDBStore) GetKey(keyID string) (data.PrivateKey, string, error) {
+	// Retrieve the GORM private key from the database
+	dbPrivateKey, decryptedPrivKey, err := s.getKey(keyID, true)
 	if err != nil {
 		return nil, "", err
 	}
@@ -151,19 +166,7 @@ func (s *SQLKeyDBStore) RemoveKey(keyID string) error {
 // RotateKeyPassphrase rotates the key-encryption-key
 func (s *SQLKeyDBStore) RotateKeyPassphrase(keyID, newPassphraseAlias string) error {
 	// Retrieve the GORM private key from the database
-	dbPrivateKey := GormPrivateKey{}
-	if s.db.Where(&GormPrivateKey{KeyID: keyID}).First(&dbPrivateKey).RecordNotFound() {
-		return trustmanager.ErrKeyNotFound{KeyID: keyID}
-	}
-
-	// Get the current passphrase to use for this key
-	passphrase, _, err := s.retriever(dbPrivateKey.KeyID, dbPrivateKey.PassphraseAlias, false, 1)
-	if err != nil {
-		return err
-	}
-
-	// Decrypt private bytes from the gorm key
-	decryptedPrivKey, _, err := jose.Decode(dbPrivateKey.Private, passphrase)
+	dbPrivateKey, decryptedPrivKey, err := s.getKey(keyID, false)
 	if err != nil {
 		return err
 	}
@@ -180,12 +183,18 @@ func (s *SQLKeyDBStore) RotateKeyPassphrase(keyID, newPassphraseAlias string) er
 		return err
 	}
 
-	// Update the database object
-	dbPrivateKey.Private = newEncryptedKey
-	dbPrivateKey.PassphraseAlias = newPassphraseAlias
-	s.db.Save(dbPrivateKey)
+	// want to only update 2 fields, not save the whole row - we have to use the where clause because key_id is not
+	// the primary key
+	return s.db.Model(GormPrivateKey{}).Where("key_id = ?", keyID).Updates(GormPrivateKey{
+		Private:         newEncryptedKey,
+		PassphraseAlias: newPassphraseAlias,
+	}).Error
+}
 
-	return nil
+// MarkActive marks a particular key as active
+func (s *SQLKeyDBStore) MarkActive(keyID string) error {
+	// we have to use the where clause because key_id is not the primary key
+	return s.db.Model(GormPrivateKey{}).Where("key_id = ?", keyID).Updates(GormPrivateKey{LastUsed: s.nowFunc()}).Error
 }
 
 // HealthCheck verifies that DB exists and is query-able

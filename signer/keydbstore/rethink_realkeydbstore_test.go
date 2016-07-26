@@ -7,16 +7,19 @@ package keydbstore
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/notary/storage/rethinkdb"
 	"github.com/docker/notary/trustmanager"
+	"github.com/docker/notary/tuf/data"
 	"github.com/dvsekhvalnov/jose2go"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/dancannon/gorethink.v2"
 )
 
 var tlsOpts = tlsconfig.Options{InsecureSkipVerify: true}
+var rdbNow = time.Date(2016, 12, 31, 1, 1, 1, 0, time.UTC)
 
 func rethinkSessionSetup(t *testing.T) (*gorethink.Session, string) {
 	// Get the Rethink connection string from an environment variable
@@ -40,6 +43,8 @@ func rethinkDBSetup(t *testing.T, dbName string) (*RethinkDBKeyStore, func()) {
 
 	dbStore := NewRethinkDBKeyStore(dbName, "", "", multiAliasRetriever, validAliases[0], session)
 	require.Equal(t, "RethinkDB", dbStore.Name())
+
+	dbStore.nowFunc = func() time.Time { return rdbNow }
 
 	return dbStore, cleanup
 }
@@ -82,47 +87,90 @@ func TestRethinkBootstrapSetsUsernamePassword(t *testing.T) {
 	require.NoError(t, s.CheckHealth())
 }
 
-func getRethinkDBRows(t *testing.T, dbStore *RethinkDBKeyStore) []RDBPrivateKey {
+// Checks that the DB contains the expected keys, and returns a map of the GormPrivateKey object by key ID
+func requireExpectedRDBKeys(t *testing.T, dbStore *RethinkDBKeyStore, expectedKeys []data.PrivateKey) map[string]RDBPrivateKey {
 	res, err := gorethink.DB(dbStore.dbName).Table(PrivateKeysRethinkTable.Name).Run(dbStore.sess)
 	require.NoError(t, err)
 
 	var rows []RDBPrivateKey
 	require.NoError(t, res.All(&rows))
 
-	return rows
+	require.Len(t, rows, len(expectedKeys))
+	result := make(map[string]RDBPrivateKey)
+
+	for _, rdbKey := range rows {
+		result[rdbKey.KeyID] = rdbKey
+	}
+
+	for _, key := range expectedKeys {
+		rdbKey, ok := result[key.ID()]
+		require.True(t, ok)
+		require.NotNil(t, rdbKey)
+		require.Equal(t, key.Public(), rdbKey.Public)
+		require.Equal(t, key.Algorithm(), rdbKey.Algorithm)
+
+		// because we have to manually set the created and modified times
+		require.True(t, rdbKey.CreatedAt.Equal(rdbNow))
+		require.True(t, rdbKey.UpdatedAt.Equal(rdbNow))
+		require.True(t, rdbKey.DeletedAt.Equal(time.Time{}))
+	}
+
+	return result
 }
 
 func TestRethinkKeyCanOnlyBeAddedOnce(t *testing.T) {
 	dbStore, cleanup := rethinkDBSetup(t, "signerAddTests")
 	defer cleanup()
+
 	expectedKeys := testKeyCanOnlyBeAddedOnce(t, dbStore)
 
-	rows := getRethinkDBRows(t, dbStore)
-	require.Len(t, rows, len(expectedKeys))
+	rdbKeys := requireExpectedRDBKeys(t, dbStore, expectedKeys)
+
+	// none of these keys are active, since they have not been activated
+	for _, rdbKey := range rdbKeys {
+		require.True(t, rdbKey.LastUsed.Equal(time.Time{}))
+	}
 }
 
 func TestRethinkCreateDelete(t *testing.T) {
 	dbStore, cleanup := rethinkDBSetup(t, "signerDeleteTests")
 	defer cleanup()
-	testCreateDelete(t, dbStore)
+	expectedKeys := testCreateDelete(t, dbStore)
 
-	rows := getRethinkDBRows(t, dbStore)
-	require.Len(t, rows, 0)
+	rdbKeys := requireExpectedRDBKeys(t, dbStore, expectedKeys)
+
+	// none of these keys are active, since they have not been activated
+	for _, rdbKey := range rdbKeys {
+		require.True(t, rdbKey.LastUsed.Equal(time.Time{}))
+	}
 }
 
 func TestRethinkKeyRotation(t *testing.T) {
 	dbStore, cleanup := rethinkDBSetup(t, "signerRotationTests")
 	defer cleanup()
-	privKey := testKeyRotation(t, dbStore, validAliases[1])
 
-	rows := getRethinkDBRows(t, dbStore)
-	require.Len(t, rows, 1)
+	rotatedKey, nonRotatedKey := testKeyRotation(t, dbStore, validAliases[1])
 
-	// require that the key is encrypted with the new passphrase
-	require.Equal(t, validAliases[1], rows[0].PassphraseAlias)
-	decryptedKey, _, err := jose.Decode(string(rows[0].Private), validAliasesAndPasswds[validAliases[1]])
+	rdbKeys := requireExpectedRDBKeys(t, dbStore, []data.PrivateKey{rotatedKey, nonRotatedKey})
+
+	// none of these keys are active, since they have not been activated
+	for _, rdbKey := range rdbKeys {
+		require.True(t, rdbKey.LastUsed.Equal(time.Time{}))
+	}
+
+	// require that the rotated key is encrypted with the new passphrase
+	rotatedRDBKey := rdbKeys[rotatedKey.ID()]
+	require.Equal(t, validAliases[1], rotatedRDBKey.PassphraseAlias)
+	decryptedKey, _, err := jose.Decode(string(rotatedRDBKey.Private), validAliasesAndPasswds[validAliases[1]])
 	require.NoError(t, err)
-	require.Equal(t, string(privKey.Private()), decryptedKey)
+	require.Equal(t, string(rotatedKey.Private()), decryptedKey)
+
+	// require that the nonrotated key is encrypted with the old passphrase
+	nonRotatedRDBKey := rdbKeys[nonRotatedKey.ID()]
+	require.Equal(t, validAliases[0], nonRotatedRDBKey.PassphraseAlias)
+	decryptedKey, _, err = jose.Decode(string(nonRotatedRDBKey.Private), validAliasesAndPasswds[validAliases[0]])
+	require.NoError(t, err)
+	require.Equal(t, string(nonRotatedKey.Private()), decryptedKey)
 }
 
 func TestRethinkCheckHealth(t *testing.T) {
@@ -147,4 +195,17 @@ func TestRethinkCheckHealth(t *testing.T) {
 	// No DB, health check fails
 	cleanup()
 	require.Error(t, dbStore.CheckHealth())
+}
+
+func TestRethinkMarkKeyActive(t *testing.T) {
+	dbStore, cleanup := rethinkDBSetup(t, "signerActivationTests")
+	defer cleanup()
+
+	activeKey, nonActiveKey := testMarkKeyActive(t, dbStore)
+
+	rdbKeys := requireExpectedRDBKeys(t, dbStore, []data.PrivateKey{activeKey, nonActiveKey})
+
+	// check that activation updates the activated key but not the unactivated key
+	require.True(t, rdbKeys[activeKey.ID()].LastUsed.Equal(rdbNow))
+	require.True(t, rdbKeys[nonActiveKey.ID()].LastUsed.Equal(time.Time{}))
 }
