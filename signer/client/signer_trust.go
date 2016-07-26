@@ -12,9 +12,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	pb "github.com/docker/notary/proto"
-	"github.com/docker/notary/signer/keys"
+	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -108,17 +107,17 @@ type NotarySigner struct {
 	clientConn checkableConnectionState
 }
 
-// NewNotarySigner is a convenience method that returns NotarySigner
-func NewNotarySigner(hostname string, port string, tlsConfig *tls.Config) *NotarySigner {
+// NewGRPCConnection is a convenience method that returns GRPC Client Connection given a hostname, endpoint, and TLS options
+func NewGRPCConnection(hostname string, port string, tlsConfig *tls.Config) (*grpc.ClientConn, error) {
 	var opts []grpc.DialOption
 	netAddr := net.JoinHostPort(hostname, port)
 	creds := credentials.NewTLS(tlsConfig)
 	opts = append(opts, grpc.WithTransportCredentials(creds))
-	conn, err := grpc.Dial(netAddr, opts...)
+	return grpc.Dial(netAddr, opts...)
+}
 
-	if err != nil {
-		logrus.Fatal("fail to dial: ", err)
-	}
+// NewNotarySigner is a convenience method that returns NotarySigner given a GRPC connection
+func NewNotarySigner(conn *grpc.ClientConn) *NotarySigner {
 	kmClient := pb.NewKeyManagementClient(conn)
 	sClient := pb.NewSignerClient(conn)
 	return &NotarySigner{
@@ -163,7 +162,7 @@ func (trust *NotarySigner) GetKey(keyid string) data.PublicKey {
 func (trust *NotarySigner) GetPrivateKey(keyid string) (data.PrivateKey, string, error) {
 	pubKey := trust.GetKey(keyid)
 	if pubKey == nil {
-		return nil, "", keys.ErrInvalidKeyID
+		return nil, "", trustmanager.ErrKeyNotFound{KeyID: keyid}
 	}
 	return NewRemotePrivateKey(pubKey, trust.sClient), "", nil
 }
@@ -189,6 +188,8 @@ func (trust *NotarySigner) CheckHealth(timeout time.Duration) error {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	// the kmClient should point at the same server as the sClient, so a single
+	// healthcheck should suffice
 	status, err := trust.kmClient.CheckHealth(ctx, &pb.Void{})
 	defer cancel()
 	if err == nil && len(status.Status) > 0 {
