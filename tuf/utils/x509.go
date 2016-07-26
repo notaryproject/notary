@@ -416,10 +416,10 @@ func KeyToPEM(privKey data.PrivateKey, role, gun string) ([]byte, error) {
 
 	headers := map[string]string{}
 	if role != "" {
-		headers["role"]= role
+		headers["role"] = role
 	}
 	if gun != "" {
-		headers["gun"]= gun
+		headers["gun"] = gun
 	}
 
 	block := &pem.Block{
@@ -454,7 +454,9 @@ func EncryptPrivateKey(key data.PrivateKey, role, gun, passphrase string) ([]byt
 	if encryptedPEMBlock.Headers == nil {
 		return nil, fmt.Errorf("unable to encrypt key - invalid PEM file produced")
 	}
-	encryptedPEMBlock.Headers["role"] = role
+	if role != "" {
+		encryptedPEMBlock.Headers["role"] = role
+	}
 	if gun != "" {
 		encryptedPEMBlock.Headers["gun"] = gun
 	}
