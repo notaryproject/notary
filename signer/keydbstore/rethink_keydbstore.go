@@ -21,6 +21,7 @@ type RethinkDBKeyStore struct {
 	retriever        notary.PassRetriever
 	user             string
 	password         string
+	nowFunc          func() time.Time
 }
 
 // RDBPrivateKey represents a PrivateKey in the rethink database
@@ -41,6 +42,9 @@ type RDBPrivateKey struct {
 	// too
 	Public  []byte `gorethink:"public"`
 	Private []byte `gorethink:"private"`
+
+	// whether this key is active or not
+	LastUsed time.Time `gorethink:"last_used"`
 }
 
 // gorethink can't handle an UnmarshalJSON function (see https://github.com/dancannon/gorethink/issues/201),
@@ -59,6 +63,7 @@ func rdbPrivateKeyFromJSON(data []byte) (interface{}, error) {
 		Role            string    `json:"role"`
 		Public          []byte    `json:"public"`
 		Private         []byte    `json:"private"`
+		LastUsed        time.Time `json:"last_used"`
 	}{}
 	if err := json.Unmarshal(data, &a); err != nil {
 		return RDBPrivateKey{}, err
@@ -78,6 +83,7 @@ func rdbPrivateKeyFromJSON(data []byte) (interface{}, error) {
 		Role:            a.Role,
 		Public:          a.Public,
 		Private:         a.Private,
+		LastUsed:        a.LastUsed,
 	}, nil
 
 }
@@ -103,6 +109,7 @@ func NewRethinkDBKeyStore(dbName, username, password string, passphraseRetriever
 		retriever:        passphraseRetriever,
 		user:             username,
 		password:         password,
+		nowFunc:          time.Now,
 	}
 }
 
@@ -124,7 +131,7 @@ func (rdb *RethinkDBKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.
 		return err
 	}
 
-	now := time.Now()
+	now := rdb.nowFunc()
 	rethinkPrivKey := RDBPrivateKey{
 		Timing: rethinkdb.Timing{
 			CreatedAt: now,
@@ -247,6 +254,14 @@ func (rdb RethinkDBKeyStore) RotateKeyPassphrase(keyID, newPassphraseAlias strin
 	}
 
 	return nil
+}
+
+// MarkActive marks a particular key as active
+func (rdb RethinkDBKeyStore) MarkActive(keyID string) error {
+	_, err := gorethink.DB(rdb.dbName).Table(PrivateKeysRethinkTable.Name).Get(keyID).Update(map[string]interface{}{
+		"last_used": rdb.nowFunc(),
+	}).RunWrite(rdb.sess)
+	return err
 }
 
 // Bootstrap sets up the database and tables, also creating the notary signer user with appropriate db permission
