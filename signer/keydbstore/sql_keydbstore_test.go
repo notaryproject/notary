@@ -1,15 +1,23 @@
+// !build rethinkdb
+
 package keydbstore
 
 import (
 	"testing"
+	"time"
 
+	"github.com/docker/notary/tuf/data"
 	"github.com/dvsekhvalnov/jose2go"
 	"github.com/stretchr/testify/require"
 )
 
+// not to the nanosecond scale because mysql timestamps ignore nanoseconds
+var gormActiveTime = time.Date(2016, 12, 31, 1, 1, 1, 0, time.UTC)
+
 func SetupSQLDB(t *testing.T, dbtype, dburl string) *SQLKeyDBStore {
 	dbStore, err := NewSQLKeyDBStore(multiAliasRetriever, validAliases[0], dbtype, dburl)
 	require.NoError(t, err)
+	dbStore.nowFunc = func() time.Time { return gormActiveTime }
 
 	// Create the DB tables if they don't exist
 	dbStore.db.CreateTable(&GormPrivateKey{})
@@ -58,42 +66,94 @@ func TestSQLDBHealthCheckNoConnection(t *testing.T) {
 	require.Error(t, dbStore.HealthCheck())
 }
 
-func getSQLDBRows(t *testing.T, dbStore *SQLKeyDBStore) []GormPrivateKey {
+// Checks that the DB contains the expected keys, and returns a map of the GormPrivateKey object by key ID
+func requireExpectedGORMKeys(t *testing.T, dbStore *SQLKeyDBStore, expectedKeys []data.PrivateKey) map[string]GormPrivateKey {
 	var rows []GormPrivateKey
 	query := dbStore.db.Find(&rows)
 	require.NoError(t, query.Error)
-	return rows
+
+	require.Len(t, rows, len(expectedKeys))
+	result := make(map[string]GormPrivateKey)
+
+	for _, gormKey := range rows {
+		result[gormKey.KeyID] = gormKey
+	}
+
+	for _, key := range expectedKeys {
+		gormKey, ok := result[key.ID()]
+		require.True(t, ok)
+		require.NotNil(t, gormKey)
+		require.Equal(t, string(key.Public()), gormKey.Public)
+		require.Equal(t, key.Algorithm(), gormKey.Algorithm)
+	}
+
+	return result
 }
 
 func TestSQLKeyCanOnlyBeAddedOnce(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
+
 	expectedKeys := testKeyCanOnlyBeAddedOnce(t, dbStore)
 
-	rows := getSQLDBRows(t, dbStore)
-	require.Len(t, rows, len(expectedKeys))
+	gormKeys := requireExpectedGORMKeys(t, dbStore, expectedKeys)
+
+	// none of these keys are active, since they have not been activated
+	for _, gormKey := range gormKeys {
+		require.True(t, gormKey.LastUsed.Equal(time.Time{}))
+	}
 }
 
 func TestSQLCreateDelete(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
-	testCreateDelete(t, dbStore)
+	expectedKeys := testCreateDelete(t, dbStore)
 
-	rows := getSQLDBRows(t, dbStore)
-	require.Len(t, rows, 0)
+	gormKeys := requireExpectedGORMKeys(t, dbStore, expectedKeys)
+
+	// none of these keys are active, since they have not been activated
+	for _, gormKey := range gormKeys {
+		require.True(t, gormKey.LastUsed.Equal(time.Time{}))
+	}
 }
 
 func TestSQLKeyRotation(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
-	privKey := testKeyRotation(t, dbStore, validAliases[1])
 
-	rows := getSQLDBRows(t, dbStore)
-	require.Len(t, rows, 1)
+	rotatedKey, nonRotatedKey := testKeyRotation(t, dbStore, validAliases[1])
 
-	// require that the key is encrypted with the new passphrase
-	require.Equal(t, validAliases[1], rows[0].PassphraseAlias)
-	decryptedKey, _, err := jose.Decode(string(rows[0].Private), validAliasesAndPasswds[validAliases[1]])
+	gormKeys := requireExpectedGORMKeys(t, dbStore, []data.PrivateKey{rotatedKey, nonRotatedKey})
+
+	// none of these keys are active, since they have not been activated
+	for _, gormKey := range gormKeys {
+		require.True(t, gormKey.LastUsed.Equal(time.Time{}))
+	}
+
+	// require that the rotated key is encrypted with the new passphrase
+	rotatedGormKey := gormKeys[rotatedKey.ID()]
+	require.Equal(t, validAliases[1], rotatedGormKey.PassphraseAlias)
+	decryptedKey, _, err := jose.Decode(string(rotatedGormKey.Private), validAliasesAndPasswds[validAliases[1]])
 	require.NoError(t, err)
-	require.Equal(t, string(privKey.Private()), decryptedKey)
+	require.Equal(t, string(rotatedKey.Private()), decryptedKey)
+
+	// require that the nonrotated key is encrypted with the old passphrase
+	nonRotatedGormKey := gormKeys[nonRotatedKey.ID()]
+	require.Equal(t, validAliases[0], nonRotatedGormKey.PassphraseAlias)
+	decryptedKey, _, err = jose.Decode(string(nonRotatedGormKey.Private), validAliasesAndPasswds[validAliases[0]])
+	require.NoError(t, err)
+	require.Equal(t, string(nonRotatedKey.Private()), decryptedKey)
+}
+
+func TestSQLMarkKeyActive(t *testing.T) {
+	dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
+
+	activeKey, nonActiveKey := testMarkKeyActive(t, dbStore)
+
+	gormKeys := requireExpectedGORMKeys(t, dbStore, []data.PrivateKey{activeKey, nonActiveKey})
+
+	// check that activation updates the activated key but not the unactivated key
+	require.True(t, gormKeys[activeKey.ID()].LastUsed.Equal(gormActiveTime))
+	require.True(t, gormKeys[nonActiveKey.ID()].LastUsed.Equal(time.Time{}))
 }
