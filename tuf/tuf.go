@@ -655,7 +655,7 @@ func (tr *Repo) WalkTargets(targetPath, rolePath string, visitTargets walkVisito
 		}
 
 		// Determine whether to visit this role or not:
-		// If the paths validate against the specified targetPath and the rolePath is empty or is in the subtree
+		// If the paths validate against the specified targetPath and the rolePath is empty or is in the subtree.
 		// Also check if we are choosing to skip visiting this role on this walk (see ListTargets and GetTargetByName priority)
 		if isValidPath(targetPath, role) && isAncestorRole(role.Name, rolePath) && !utils.StrSliceContains(skipRoles, role.Name) {
 			// If we had matching path or role name, visit this target and determine whether or not to keep walking
