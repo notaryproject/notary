@@ -7,12 +7,12 @@ import (
 	"strings"
 	"sync"
 
+	"bytes"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
 	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
-	"bytes"
 	"os"
 )
 
@@ -42,8 +42,8 @@ func NewKeyFileStore(baseDir string, p notary.PassRetriever) (*GenericKeyStore, 
 	if err != nil {
 		return nil, err
 	}
+	migrateTo0Dot4(fileStore)
 	store := NewGenericKeyStore(fileStore, p)
-	migrateTo0Dot4(store.store)
 	return store, nil
 }
 
@@ -54,18 +54,18 @@ func migrateTo0Dot4(s Storage) {
 		d, _ := s.Get(file)
 		block, _ := pem.Decode(d)
 		if block == nil {
-			logrus.Warn("Key data for ",file," may have been tampered with/ is invalid. The key has not been migrated and may not be available")
+			logrus.Warn("Key data for ", file, " may have been tampered with/ is invalid. The key has not been migrated and may not be available")
 			continue
 		}
-		if strings.HasPrefix(fileDir, "root_keys") {
-			fileDir = strings.TrimPrefix(fileDir, "root_keys")
+		if strings.HasPrefix(fileDir, notary.RootKeysSubdir) {
+			fileDir = strings.TrimPrefix(fileDir, notary.RootKeysSubdir)
 			if strings.Contains(keyID, "_") {
 				role := strings.Split(keyID, "_")[1]
 				keyID = strings.TrimSuffix(keyID, "_"+role)
 				block.Headers["role"] = role
 			}
-		} else if strings.HasPrefix(fileDir, "tuf_keys"){
-			fileDir = strings.TrimPrefix(fileDir, "tuf_keys")
+		} else if strings.HasPrefix(fileDir, notary.NonRootKeysSubdir) {
+			fileDir = strings.TrimPrefix(fileDir, notary.NonRootKeysSubdir)
 			block.Headers["gun"] = fileDir[1:]
 			if strings.Contains(keyID, "_") {
 				role := strings.Split(keyID, "_")[1]
@@ -77,8 +77,8 @@ func migrateTo0Dot4(s Storage) {
 		_ = pem.Encode(&keyPEM, block)
 		s.Set(keyID, keyPEM.Bytes())
 	}
-	os.RemoveAll(filepath.Join(s.Location(),"root_keys"))
-	os.RemoveAll(filepath.Join(s.Location(),"tuf_keys"))
+	os.RemoveAll(filepath.Join(s.Location(), notary.RootKeysSubdir))
+	os.RemoveAll(filepath.Join(s.Location(), notary.NonRootKeysSubdir))
 	os.RemoveAll(filepath.Join(s.Location(), "trusted_certificates"))
 }
 
@@ -117,38 +117,6 @@ func generateKeyInfoMap(s Storage) map[string]KeyInfo {
 		keyInfoMap[keyID] = keyInfo
 	}
 	return keyInfoMap
-}
-
-func inferKeyInfoFromKeyPath(keyPath string) (string, string, string) {
-	var keyID, role, gun string
-	keyID = filepath.Base(keyPath)
-	underscoreIndex := strings.LastIndex(keyID, "_")
-
-	// This is the legacy KEYID_ROLE filename
-	// The keyID is the first part of the keyname
-	// The keyRole is the second part of the keyname
-	// in a key named abcde_root, abcde is the keyID and root is the KeyAlias
-	if underscoreIndex != -1 {
-		role = keyID[underscoreIndex+1:]
-		keyID = keyID[:underscoreIndex]
-	}
-
-	if filepath.HasPrefix(keyPath, notary.RootKeysSubdir+"/") {
-		return keyID, data.CanonicalRootRole, ""
-	}
-
-	keyPath = strings.TrimPrefix(keyPath, notary.NonRootKeysSubdir+"/")
-	gun = getGunFromFullID(keyPath)
-	return keyID, role, gun
-}
-
-func getGunFromFullID(fullKeyID string) string {
-	keyGun := filepath.Dir(fullKeyID)
-	// If the gun is empty, Dir will return .
-	if keyGun == "." {
-		keyGun = ""
-	}
-	return keyGun
 }
 
 func (s *GenericKeyStore) loadKeyInfo() {
@@ -216,18 +184,9 @@ func (s *GenericKeyStore) GetKey(name string) (data.PrivateKey, string, error) {
 		return cachedKeyEntry.key, cachedKeyEntry.alias, nil
 	}
 
-	role, legacy, notary03, err := getKeyRole(s.store, name)
+	role, err := getKeyRole(s.store, name)
 	if err != nil {
 		return nil, "", err
-	}
-
-	if legacy {
-		name = name + "_" + role
-		name = filepath.Join(getSubdir(role), s.keyInfoMap[name].Gun, name)
-	}
-
-	if notary03 {
-		name = filepath.Join(getSubdir(role), s.keyInfoMap[name].Gun, name)
 	}
 
 	keyBytes, err := s.store.Get(name)
@@ -256,32 +215,14 @@ func (s *GenericKeyStore) ListKeys() map[string]KeyInfo {
 func (s *GenericKeyStore) RemoveKey(keyID string) error {
 	s.Lock()
 	defer s.Unlock()
-	role, legacy, notary03, err := getKeyRole(s.store, keyID)
-	if err != nil {
-		return err
-	}
-
 	delete(s.cachedKeys, keyID)
 
-	name := keyID
-	if legacy {
-		name = keyID + "_" + role
-		name = filepath.Join(getSubdir(role), s.keyInfoMap[name].Gun, name)
-	}
-
-	if notary03 {
-		name = filepath.Join(getSubdir(role), s.keyInfoMap[name].Gun, name)
-	}
-
 	// being in a subdirectory is for backwards compatibliity
-	err = s.store.Remove(name)
+	err := s.store.Remove(keyID)
 	if err != nil {
 		return err
 	}
-	// Remove this key from our keyInfo map if we removed from our filesystem
-	if legacy {
-		keyID = keyID + "_" + role
-	}
+
 	delete(s.keyInfoMap, filepath.Base(keyID))
 	return nil
 }
@@ -303,7 +244,8 @@ func copyKeyInfoMap(keyInfoMap map[string]KeyInfo) map[string]KeyInfo {
 
 // KeyInfoFromPEM attempts to get a keyID and KeyInfo from the filename and PEM bytes of a key
 func KeyInfoFromPEM(pemBytes []byte, filename string) (string, KeyInfo, error) {
-	keyID, role, gun := inferKeyInfoFromKeyPath(filename)
+	//keyID, role, gun := inferKeyInfoFromKeyPath(filename)
+	var keyID, role, gun string
 	keyID = filepath.Base(filename)
 	block, _ := pem.Decode(pemBytes)
 	if block == nil {
@@ -322,7 +264,7 @@ func KeyInfoFromPEM(pemBytes []byte, filename string) (string, KeyInfo, error) {
 // both in the newer format PEM headers, and also in the legacy filename
 // format. It returns: the role, whether it was found in the legacy(0.1) format
 // (true == legacy),  whether it was found in a notary0.3 format (true == notary0.3) and an error
-func getKeyRole(s Storage, keyID string) (string, bool, bool, error) {
+func getKeyRole(s Storage, keyID string) (string, error) {
 	name := strings.TrimSpace(strings.TrimSuffix(filepath.Base(keyID), filepath.Ext(keyID)))
 
 	for _, file := range s.ListFiles() {
@@ -330,33 +272,15 @@ func getKeyRole(s Storage, keyID string) (string, bool, bool, error) {
 		if strings.HasPrefix(filename, name) {
 			d, err := s.Get(file)
 			if err != nil {
-				return "", false, false, err
+				return "", err
 			}
 			block, _ := pem.Decode(d)
 			if block != nil {
-				if role, ok := block.Headers["role"]; ok {
-					if strings.Contains(file, "root_keys") || strings.Contains(file, "tuf_keys") {
-						return role, false, true, nil
-					}
-					return role, false, false, nil
-				}
+				return block.Headers["role"], nil
 			}
-			if strings.Contains(filename, "_") {
-				role := strings.TrimPrefix(filename, name+"_")
-				return role, true, false, nil
-			}
-			return "", false, false, nil
 		}
 	}
-
-	return "", false, false, ErrKeyNotFound{KeyID: keyID}
-}
-
-func getSubdir(alias string) string {
-	if alias == data.CanonicalRootRole {
-		return notary.RootKeysSubdir
-	}
-	return notary.NonRootKeysSubdir
+	return "", ErrKeyNotFound{KeyID: keyID}
 }
 
 // GetPasswdDecryptBytes gets the password to decrypt the given pem bytes.
