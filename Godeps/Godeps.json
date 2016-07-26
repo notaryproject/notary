@@ -504,18 +504,6 @@
 			"Rev": "f368244301305f414206f889b1735a54cfc8bde8"
 		},
 		{
-			"ImportPath": "github.com/spf13/cobra/cobra",
-			"Rev": "8e91712f174ced10270cf66615e0a9127e7c4de5"
-		},
-		{
-			"ImportPath": "github.com/spf13/cobra/cobra/cmd",
-			"Rev": "8e91712f174ced10270cf66615e0a9127e7c4de5"
-		},
-		{
-			"ImportPath": "github.com/spf13/cobra/doc",
-			"Rev": "f368244301305f414206f889b1735a54cfc8bde8"
-		},
-		{
 			"ImportPath": "github.com/spf13/jwalterweatherman",
 			"Rev": "3d60171a64319ef63c78bd45bd60e6eab1e75f8b"
 		},
