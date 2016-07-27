@@ -184,7 +184,7 @@ func TestYubiAddKeyFailureIfNoMoreSlots(t *testing.T) {
 	require.NoError(t, err)
 
 	// The key should not be in the original store, in the new clean store, or
-	// in teh backup store.
+	// in the backup store.
 	for _, store := range []trustmanager.KeyStore{store, cleanStore, backup} {
 		// the key that wasn't created should not appear in ListKeys or GetKey
 		_, _, err := store.GetKey(badKey.ID())

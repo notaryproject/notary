@@ -1003,7 +1003,7 @@ func TestGetDelegationRolesInvalidName(t *testing.T) {
 		require.Error(t, err)
 		require.IsType(t, data.ErrInvalidRole{}, err)
 	}
-	_, err = repo.GetDelegationRole("targets/doesnt_exist")
+	_, err = repo.GetDelegationRole("targets/does_not_exist")
 	require.Error(t, err)
 	require.IsType(t, data.ErrInvalidRole{}, err)
 }
