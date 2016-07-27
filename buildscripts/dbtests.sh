@@ -52,5 +52,5 @@ trap cleanup SIGINT SIGTERM EXIT
 docker-compose -p "${project}_${db}" -f "${composeFile}" run --no-deps -d ${dbContainerOpts}
 docker-compose -p "${project}_${db}" -f "${composeFile}" run --no-deps \
     -e NOTARY_BUILDTAGS="${db}db" -e DBURL="${DBURL}" \
-    -e PKGS="github.com/docker/notary/server/storage" \
+    -e PKGS="github.com/docker/notary/server/storage github.com/docker/notary/signer/keydbstore" \
     client bash -c "${clientCmd}"
