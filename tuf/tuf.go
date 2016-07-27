@@ -948,7 +948,7 @@ func (tr *Repo) SignTargets(role string, expires time.Time) (*data.Signed, error
 	if _, ok := tr.Targets[role]; !ok {
 		return nil, data.ErrInvalidRole{
 			Role:   role,
-			Reason: "SignTargets called with non-existant targets role",
+			Reason: "SignTargets called with non-existent targets role",
 		}
 	}
 	tr.Targets[role].Signed.Expires = expires
