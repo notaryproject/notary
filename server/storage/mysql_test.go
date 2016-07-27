@@ -33,7 +33,7 @@ func init() {
 		if i == 29 {
 			logrus.Fatalf("Unable to connect to %s after 60 seconds", dburl)
 		}
-		time.Sleep(2)
+		time.Sleep(2 * time.Second)
 	}
 
 	sqldbSetup = func(t *testing.T) (*SQLStorage, func()) {
