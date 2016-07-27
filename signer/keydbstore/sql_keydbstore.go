@@ -2,7 +2,6 @@ package keydbstore
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/docker/notary"
 	"github.com/docker/notary/trustmanager"
@@ -17,25 +16,24 @@ const (
 	KeywrapAlg    = jose.PBES2_HS256_A128KW
 )
 
-// KeyDBStore persists and manages private keys on a SQL database
-type KeyDBStore struct {
-	sync.Mutex
+// SQLKeyDBStore persists and manages private keys on a SQL database
+type SQLKeyDBStore struct {
 	db               gorm.DB
+	dbType           string
 	defaultPassAlias string
 	retriever        notary.PassRetriever
-	cachedKeys       map[string]data.PrivateKey
 }
 
 // GormPrivateKey represents a PrivateKey in the database
 type GormPrivateKey struct {
 	gorm.Model
-	KeyID           string `sql:"not null;unique;index:key_id_idx"`
-	EncryptionAlg   string `sql:"not null"`
-	KeywrapAlg      string `sql:"not null"`
-	Algorithm       string `sql:"not null"`
-	PassphraseAlias string `sql:"not null"`
-	Public          string `sql:"not null"`
-	Private         string `sql:"not null"`
+	KeyID           string `sql:"type:varchar(255);not null;unique;index:key_id_idx"`
+	EncryptionAlg   string `sql:"type:varchar(255);not null"`
+	KeywrapAlg      string `sql:"type:varchar(255);not null"`
+	Algorithm       string `sql:"type:varchar(50);not null"`
+	PassphraseAlias string `sql:"type:varchar(50);not null"`
+	Public          string `sql:"type:blob;not null"`
+	Private         string `sql:"type:blob;not null"`
 }
 
 // TableName sets a specific table name for our GormPrivateKey
@@ -43,32 +41,31 @@ func (g GormPrivateKey) TableName() string {
 	return "private_keys"
 }
 
-// NewKeyDBStore returns a new KeyDBStore backed by a SQL database
-func NewKeyDBStore(passphraseRetriever notary.PassRetriever, defaultPassAlias string,
-	dbDialect string, dbArgs ...interface{}) (*KeyDBStore, error) {
-	cachedKeys := make(map[string]data.PrivateKey)
+// NewSQLKeyDBStore returns a new SQLKeyDBStore backed by a SQL database
+func NewSQLKeyDBStore(passphraseRetriever notary.PassRetriever, defaultPassAlias string,
+	dbDialect string, dbArgs ...interface{}) (*SQLKeyDBStore, error) {
 
 	db, err := gorm.Open(dbDialect, dbArgs...)
 	if err != nil {
 		return nil, err
 	}
 
-	return &KeyDBStore{
+	return &SQLKeyDBStore{
 		db:               db,
+		dbType:           dbDialect,
 		defaultPassAlias: defaultPassAlias,
 		retriever:        passphraseRetriever,
-		cachedKeys:       cachedKeys}, nil
+	}, nil
 }
 
 // Name returns a user friendly name for the storage location
-func (s *KeyDBStore) Name() string {
-	return "database"
+func (s *SQLKeyDBStore) Name() string {
+	return s.dbType
 }
 
 // AddKey stores the contents of a private key. Both role and gun are ignored,
 // we always use Key IDs as name, and don't support aliases
-func (s *KeyDBStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.PrivateKey) error {
-
+func (s *SQLKeyDBStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.PrivateKey) error {
 	passphrase, _, err := s.retriever(privKey.ID(), s.defaultPassAlias, false, 1)
 	if err != nil {
 		return err
@@ -96,23 +93,11 @@ func (s *KeyDBStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.PrivateKe
 		return fmt.Errorf("failed to add private key to database: %s", privKey.ID())
 	}
 
-	// Add the private key to our cache
-	s.Lock()
-	defer s.Unlock()
-	s.cachedKeys[privKey.ID()] = privKey
-
 	return nil
 }
 
 // GetKey returns the PrivateKey given a KeyID
-func (s *KeyDBStore) GetKey(keyID string) (data.PrivateKey, string, error) {
-	s.Lock()
-	defer s.Unlock()
-	cachedKeyEntry, ok := s.cachedKeys[keyID]
-	if ok {
-		return cachedKeyEntry, "", nil
-	}
-
+func (s *SQLKeyDBStore) GetKey(keyID string) (data.PrivateKey, string, error) {
 	// Retrieve the GORM private key from the database
 	dbPrivateKey := GormPrivateKey{}
 	if s.db.Where(&GormPrivateKey{KeyID: keyID}).First(&dbPrivateKey).RecordNotFound() {
@@ -138,43 +123,29 @@ func (s *KeyDBStore) GetKey(keyID string) (data.PrivateKey, string, error) {
 		return nil, "", err
 	}
 
-	// Add the key to cache
-	s.cachedKeys[privKey.ID()] = privKey
-
 	return privKey, "", nil
 }
 
 // GetKeyInfo returns the PrivateKey's role and gun in a KeyInfo given a KeyID
-func (s *KeyDBStore) GetKeyInfo(keyID string) (trustmanager.KeyInfo, error) {
-	return trustmanager.KeyInfo{}, fmt.Errorf("GetKeyInfo currently not supported for KeyDBStore, as it does not track roles or GUNs")
+func (s *SQLKeyDBStore) GetKeyInfo(keyID string) (trustmanager.KeyInfo, error) {
+	return trustmanager.KeyInfo{}, fmt.Errorf("GetKeyInfo currently not supported for SQLKeyDBStore, as it does not track roles or GUNs")
 }
 
 // ListKeys always returns nil. This method is here to satisfy the KeyStore interface
-func (s *KeyDBStore) ListKeys() map[string]trustmanager.KeyInfo {
+func (s *SQLKeyDBStore) ListKeys() map[string]trustmanager.KeyInfo {
 	return nil
 }
 
 // RemoveKey removes the key from the keyfilestore
-func (s *KeyDBStore) RemoveKey(keyID string) error {
-	s.Lock()
-	defer s.Unlock()
-
-	delete(s.cachedKeys, keyID)
-
-	// Retrieve the GORM private key from the database
-	dbPrivateKey := GormPrivateKey{}
-	if s.db.Where(&GormPrivateKey{KeyID: keyID}).First(&dbPrivateKey).RecordNotFound() {
-		return trustmanager.ErrKeyNotFound{KeyID: keyID}
-	}
-
+func (s *SQLKeyDBStore) RemoveKey(keyID string) error {
 	// Delete the key from the database
-	s.db.Delete(&dbPrivateKey)
+	s.db.Where(&GormPrivateKey{KeyID: keyID}).Delete(&GormPrivateKey{})
 
 	return nil
 }
 
 // RotateKeyPassphrase rotates the key-encryption-key
-func (s *KeyDBStore) RotateKeyPassphrase(keyID, newPassphraseAlias string) error {
+func (s *SQLKeyDBStore) RotateKeyPassphrase(keyID, newPassphraseAlias string) error {
 	// Retrieve the GORM private key from the database
 	dbPrivateKey := GormPrivateKey{}
 	if s.db.Where(&GormPrivateKey{KeyID: keyID}).First(&dbPrivateKey).RecordNotFound() {
@@ -214,7 +185,7 @@ func (s *KeyDBStore) RotateKeyPassphrase(keyID, newPassphraseAlias string) error
 }
 
 // HealthCheck verifies that DB exists and is query-able
-func (s *KeyDBStore) HealthCheck() error {
+func (s *SQLKeyDBStore) HealthCheck() error {
 	dbPrivateKey := GormPrivateKey{}
 	tableOk := s.db.HasTable(&dbPrivateKey)
 	switch {

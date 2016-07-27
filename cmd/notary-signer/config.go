@@ -135,7 +135,11 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string) (
 		}
 		s := keydbstore.NewRethinkDBKeyStore(storeConfig.DBName, storeConfig.Username, storeConfig.Password, passphraseRetriever, defaultAlias, sess)
 		health.RegisterPeriodicFunc("DB operational", time.Minute, s.CheckHealth)
-		keyStore = s
+		if doBootstrap {
+			keyStore = s
+		} else {
+			keyStore = keydbstore.NewCachedKeyStore(s)
+		}
 	case notary.MySQLBackend, notary.SQLiteBackend:
 		storeConfig, err := utils.ParseSQLStorage(configuration)
 		if err != nil {
@@ -145,7 +149,7 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string) (
 		if err != nil {
 			return nil, err
 		}
-		dbStore, err := keydbstore.NewKeyDBStore(
+		dbStore, err := keydbstore.NewSQLKeyDBStore(
 			passphraseRetriever, defaultAlias, storeConfig.Backend, storeConfig.Source)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a new keydbstore: %v", err)
@@ -153,7 +157,7 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string) (
 
 		health.RegisterPeriodicFunc(
 			"DB operational", time.Minute, dbStore.HealthCheck)
-		keyStore = dbStore
+		keyStore = keydbstore.NewCachedKeyStore(dbStore)
 	}
 
 	if doBootstrap {

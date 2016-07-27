@@ -2,7 +2,7 @@
 
 // Initializes a MySQL DB for testing purposes
 
-package storage
+package keydbstore
 
 import (
 	"os"
@@ -36,19 +36,21 @@ func init() {
 		time.Sleep(2)
 	}
 
-	sqldbSetup = func(t *testing.T) (*SQLStorage, func()) {
+	sqldbSetup = func(t *testing.T) (*SQLKeyDBStore, func()) {
 		var cleanup1 = func() {
 			gormDB, err := gorm.Open("mysql", dburl)
 			require.NoError(t, err)
 
 			// drop all tables, if they exist
-			gormDB.DropTable(&TUFFile{})
-			gormDB.DropTable(&Key{})
+			gormDB.DropTable(&GormPrivateKey{})
 		}
 		cleanup1()
 		dbStore := SetupSQLDB(t, "mysql", dburl)
+
+		require.Equal(t, "mysql", dbStore.Name())
+
 		return dbStore, func() {
-			dbStore.DB.Close()
+			dbStore.db.Close()
 			cleanup1()
 		}
 	}
