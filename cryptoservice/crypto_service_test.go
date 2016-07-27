@@ -285,7 +285,7 @@ func (c CryptoServiceTester) TestListFromMultipleKeystores(t *testing.T) {
 	keyList := cryptoService.ListKeys("root")
 	require.Len(t, keyList, 4,
 		c.errorMsg(
-			"ListKeys should have 4 keys (not necesarily unique) but does not: %v", keyList))
+			"ListKeys should have 4 keys (not necessarily unique) but does not: %v", keyList))
 	for _, k := range keyList {
 		_, ok := expectedKeysIDs[k]
 		require.True(t, ok, c.errorMsg("Unexpected key %s", k))
