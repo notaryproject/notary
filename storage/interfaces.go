@@ -16,6 +16,7 @@ type MetadataStore interface {
 // PublicKeyStore must be implemented by a key service
 type PublicKeyStore interface {
 	GetKey(role string) ([]byte, error)
+	RotateKey(role string) ([]byte, error)
 }
 
 // RemoteStore is similar to LocalStore with the added expectation that it should

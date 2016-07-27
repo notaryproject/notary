@@ -45,8 +45,9 @@ func TestGetTimestampKey(t *testing.T) {
 
 	require.Nil(t, err, "Expected nil error")
 
-	// trying to get the same key again should return the same value
-	require.Equal(t, k, k2, "Did not receive same key when attempting to recreate.")
+	// NOTE(riyazdf): this is one place (and on rotate) that we have to rate-limit
+	// trying to get the same key again should return a different value until we've published metadata for the repo
+	require.NotEqual(t, k, k2, "Received same key when attempting to recreate.")
 	require.NotNil(t, k2, "Key should not be nil")
 }
 

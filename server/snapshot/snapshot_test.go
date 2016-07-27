@@ -46,18 +46,28 @@ func TestGetSnapshotKeyCreate(t *testing.T) {
 
 	require.Nil(t, err, "Expected nil error")
 
-	// trying to get the same key again should return the same value
-	require.Equal(t, k, k2, "Did not receive same key when attempting to recreate.")
+	// trying to get the key for the same gun and role will create a new key unless we have existing TUF metadata
+	require.NotEqual(t, k, k2, "Did not receive same key when attempting to recreate.")
 	require.NotNil(t, k2, "Key should not be nil")
 }
 
 func TestGetSnapshotKeyExisting(t *testing.T) {
+
+	repo, crypto, err := testutils.EmptyRepo("gun")
+	require.NoError(t, err)
+
+	sgnd, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	require.NoError(t, err)
+	rootJSON, err := json.Marshal(sgnd)
+	require.NoError(t, err)
 	store := storage.NewMemStorage()
-	crypto := signed.NewEd25519()
-	key, err := crypto.Create(data.CanonicalSnapshotRole, "gun", data.ED25519Key)
-	require.NoError(t, err)
+	require.NoError(t,
+		store.UpdateCurrent("gun", storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0, Data: rootJSON}))
 
-	store.SetKey("gun", data.CanonicalSnapshotRole, data.ED25519Key, key.Public())
+	snapshotRole, err := repo.Root.BuildBaseRole(data.CanonicalSnapshotRole)
+	require.NoError(t, err)
+	key, ok := snapshotRole.Keys[repo.Root.Signed.Roles[data.CanonicalSnapshotRole].KeyIDs[0]]
+	require.True(t, ok)
 
 	k, err := GetOrCreateSnapshotKey("gun", store, crypto, data.ED25519Key)
 	require.Nil(t, err, "Expected nil error")
@@ -69,49 +79,6 @@ func TestGetSnapshotKeyExisting(t *testing.T) {
 
 	require.Nil(t, err, "Expected nil error")
 
-	// trying to get the same key again should return the same value
-	require.Equal(t, k, k2, "Did not receive same key when attempting to recreate.")
-	require.NotNil(t, k2, "Key should not be nil")
-}
-
-type keyStore struct {
-	getCalled bool
-	k         data.PublicKey
-}
-
-func (ks *keyStore) GetKey(gun, role string) (string, []byte, error) {
-	defer func() { ks.getCalled = true }()
-	if ks.getCalled {
-		return ks.k.Algorithm(), ks.k.Public(), nil
-	}
-	return "", nil, &storage.ErrNoKey{}
-}
-
-func (ks keyStore) SetKey(gun, role, algorithm string, public []byte) error {
-	return &storage.ErrKeyExists{}
-}
-
-// Tests the race condition where the server is being asked to generate a new key
-// by 2 parallel requests and the second insert to be executed by the DB fails
-// due to duplicate key (gun + role). It should then return the key added by the
-// first insert.
-func TestGetSnapshotKeyExistsOnSet(t *testing.T) {
-	crypto := signed.NewEd25519()
-	key, err := crypto.Create(data.CanonicalSnapshotRole, "gun", data.ED25519Key)
-	require.NoError(t, err)
-	store := &keyStore{k: key}
-
-	k, err := GetOrCreateSnapshotKey("gun", store, crypto, data.ED25519Key)
-	require.Nil(t, err, "Expected nil error")
-	require.NotNil(t, k, "Key should not be nil")
-	require.Equal(t, key, k, "Did not receive same key when attempting to recreate.")
-	require.NotNil(t, k, "Key should not be nil")
-
-	k2, err := GetOrCreateSnapshotKey("gun", store, crypto, data.ED25519Key)
-
-	require.Nil(t, err, "Expected nil error")
-
-	// trying to get the same key again should return the same value
 	require.Equal(t, k, k2, "Did not receive same key when attempting to recreate.")
 	require.NotNil(t, k2, "Key should not be nil")
 }

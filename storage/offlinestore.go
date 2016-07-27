@@ -38,6 +38,11 @@ func (es OfflineStore) GetKey(role string) ([]byte, error) {
 	return nil, err
 }
 
+// RotateKey returns ErrOffline
+func (es OfflineStore) RotateKey(role string) ([]byte, error) {
+	return nil, err
+}
+
 // RemoveAll return ErrOffline
 func (es OfflineStore) RemoveAll() error {
 	return err

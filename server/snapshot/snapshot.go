@@ -16,33 +16,51 @@ import (
 // GetOrCreateSnapshotKey either creates a new snapshot key, or returns
 // the existing one. Only the PublicKey is returned. The private part
 // is held by the CryptoService.
-func GetOrCreateSnapshotKey(gun string, store storage.KeyStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
-	keyAlgorithm, public, err := store.GetKey(gun, data.CanonicalSnapshotRole)
-	if err == nil {
-		return data.NewPublicKey(keyAlgorithm, public), nil
-	}
-
-	if _, ok := err.(*storage.ErrNoKey); ok {
+func GetOrCreateSnapshotKey(gun string, store storage.MetaStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
+	_, rootJSON, err := store.GetCurrent(gun, data.CanonicalRootRole)
+	if err != nil {
+		// If the error indicates we couldn't find the root, create a new key
+		if _, ok := err.(storage.ErrNotFound); !ok {
+			logrus.Errorf("Error when retrieving root role for GUN %s: %v", gun, err)
+			return nil, err
+		}
 		key, err := crypto.Create(data.CanonicalSnapshotRole, gun, createAlgorithm)
 		if err != nil {
 			return nil, err
 		}
-		logrus.Debug("Creating new snapshot key for ", gun, ". With algo: ", key.Algorithm())
-		err = store.SetKey(gun, data.CanonicalSnapshotRole, key.Algorithm(), key.Public())
-		if err == nil {
-			return key, nil
-		}
+		return key, nil
+	}
 
-		if _, ok := err.(*storage.ErrKeyExists); ok {
-			keyAlgorithm, public, err = store.GetKey(gun, data.CanonicalSnapshotRole)
-			if err != nil {
-				return nil, err
-			}
-			return data.NewPublicKey(keyAlgorithm, public), nil
-		}
+	// If we have a current root, parse out the public key ID for the snapshot role and get it from the underlying cryptoservice
+	repoSignedRoot := new(data.SignedRoot)
+	if err := json.Unmarshal(rootJSON, repoSignedRoot); err != nil {
+		logrus.Errorf("Failed to unmarshal existing root for GUN %s to retrieve snapshot key ID", gun)
 		return nil, err
 	}
+
+	snapshotRole, err := repoSignedRoot.BuildBaseRole(data.CanonicalSnapshotRole)
+	if err != nil {
+		logrus.Errorf("Failed to extract snapshot role from root for GUN %s", gun)
+		return nil, err
+	}
+
+	// We currently only support single keys for snapshot and timestamp, so we can return the first and only key in the map
+	for _, pubKey := range snapshotRole.Keys {
+		return pubKey, nil
+	}
+	logrus.Errorf("Failed to find any snapshot keys in saved root for GUN %s", gun)
 	return nil, err
+}
+
+// RotateSnapshotKey attempts to rotate a snapshot key in the signer, but might be rate-limited by the signer
+func RotateSnapshotKey(gun string, store storage.KeyStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
+	// Always attempt to create a new key, but this might be rate-limited
+	key, err := crypto.Create(data.CanonicalSnapshotRole, gun, createAlgorithm)
+	if err != nil {
+		return nil, err
+	}
+	logrus.Debug("Created new pending snapshot key to rotate to for ", gun, ". With algo: ", key.Algorithm())
+	return key, nil
 }
 
 // GetOrCreateSnapshot either returns the existing latest snapshot, or uses

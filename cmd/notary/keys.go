@@ -202,7 +202,7 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 	gun := args[0]
 	rotateKeyRole := args[1]
 
-	rt, err := getTransport(config, gun, readWrite)
+	rt, err := getTransport(config, gun, admin)
 	if err != nil {
 		return err
 	}

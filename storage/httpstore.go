@@ -309,6 +309,31 @@ func (s HTTPStore) GetKey(role string) ([]byte, error) {
 	return body, nil
 }
 
+// RotateKey rotates a private key and returns the public component from the remote server
+func (s HTTPStore) RotateKey(role string) ([]byte, error) {
+	url, err := s.buildKeyURL(role)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("POST", url.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := s.roundTrip.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if err := translateStatusToError(resp, role+" key"); err != nil {
+		return nil, err
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
 // Location returns a human readable name for the storage location
 func (s HTTPStore) Location() string {
 	return s.baseURL.String()
