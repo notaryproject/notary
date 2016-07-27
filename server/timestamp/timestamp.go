@@ -22,32 +22,50 @@ import (
 // create the key at the same time by simply querying the store a second time if it
 // receives a conflict when writing.
 func GetOrCreateTimestampKey(gun string, store storage.MetaStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
-	keyAlgorithm, public, err := store.GetKey(gun, data.CanonicalTimestampRole)
-	if err == nil {
-		return data.NewPublicKey(keyAlgorithm, public), nil
-	}
-
-	if _, ok := err.(*storage.ErrNoKey); ok {
-		key, err := crypto.Create("timestamp", gun, createAlgorithm)
+	_, rootJSON, err := store.GetCurrent(gun, data.CanonicalRootRole)
+	if err != nil {
+		// If the error indicates we couldn't find the root, create a new key
+		if _, ok := err.(storage.ErrNotFound); !ok {
+			logrus.Errorf("Error when retrieving root role for GUN %s: %v", gun, err)
+			return nil, err
+		}
+		key, err := crypto.Create(data.CanonicalTimestampRole, gun, createAlgorithm)
 		if err != nil {
 			return nil, err
 		}
-		logrus.Debug("Creating new timestamp key for ", gun, ". With algo: ", key.Algorithm())
-		err = store.SetKey(gun, data.CanonicalTimestampRole, key.Algorithm(), key.Public())
-		if err == nil {
-			return key, nil
-		}
+		return key, nil
+	}
 
-		if _, ok := err.(*storage.ErrKeyExists); ok {
-			keyAlgorithm, public, err = store.GetKey(gun, data.CanonicalTimestampRole)
-			if err != nil {
-				return nil, err
-			}
-			return data.NewPublicKey(keyAlgorithm, public), nil
-		}
+	// If we have a current root, parse out the public key ID for the snapshot role and get it from the underlying cryptoservice
+	repoSignedRoot := new(data.SignedRoot)
+	if err := json.Unmarshal(rootJSON, repoSignedRoot); err != nil {
+		logrus.Errorf("Failed to unmarshal existing root for GUN %s to retrieve timestamp key ID", gun)
 		return nil, err
 	}
+
+	timestampRole, err := repoSignedRoot.BuildBaseRole(data.CanonicalTimestampRole)
+	if err != nil {
+		logrus.Errorf("Failed to extract timestamp role from root for GUN %s", gun)
+		return nil, err
+	}
+
+	// We currently only support single keys for snapshot and timestamp, so we can return the first and only key in the map
+	for _, pubKey := range timestampRole.Keys {
+		return pubKey, nil
+	}
+	logrus.Errorf("Failed to find any timestamp keys in saved root for GUN %s", gun)
 	return nil, err
+}
+
+// RotateTimestampKey TODO(riyazdf)
+func RotateTimestampKey(gun string, store storage.KeyStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
+	// Always attempt to create a new key, but this might be rate-limited
+	key, err := crypto.Create(data.CanonicalTimestampRole, gun, createAlgorithm)
+	if err != nil {
+		return nil, err
+	}
+	logrus.Debug("Created new pending timestamp key to rotate to for ", gun, ". With algo: ", key.Algorithm())
+	return key, nil
 }
 
 // GetOrCreateTimestamp returns the current timestamp for the gun. This may mean

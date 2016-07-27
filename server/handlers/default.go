@@ -245,6 +245,75 @@ func getKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 	return nil
 }
 
+// RotateKeyHandler rotates the remote key for the specified role, returning the public key
+func RotateKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	defer r.Body.Close()
+	vars := mux.Vars(r)
+	return rotateKeyHandler(ctx, w, r, vars)
+}
+
+func rotateKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	gun, ok := vars["imageName"]
+	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
+	if !ok || gun == "" {
+		logger.Info("400 POST no gun in request")
+		return errors.ErrUnknown.WithDetail("no gun")
+	}
+
+	role, ok := vars["tufRole"]
+	if !ok || role == "" {
+		logger.Info("400 POST no role in request")
+		return errors.ErrUnknown.WithDetail("no role")
+	}
+
+	s := ctx.Value("metaStore")
+	store, ok := s.(storage.MetaStore)
+	if !ok || store == nil {
+		logger.Error("500 POST storage not configured")
+		return errors.ErrNoStorage.WithDetail(nil)
+	}
+	c := ctx.Value("cryptoService")
+	crypto, ok := c.(signed.CryptoService)
+	if !ok || crypto == nil {
+		logger.Error("500 POST crypto service not configured")
+		return errors.ErrNoCryptoService.WithDetail(nil)
+	}
+	algo := ctx.Value("keyAlgorithm")
+	keyAlgo, ok := algo.(string)
+	if !ok || keyAlgo == "" {
+		logger.Error("500 POST key algorithm not configured")
+		return errors.ErrNoKeyAlgorithm.WithDetail(nil)
+	}
+	keyAlgorithm := keyAlgo
+
+	var (
+		key data.PublicKey
+		err error
+	)
+	switch role {
+	case data.CanonicalTimestampRole:
+		key, err = timestamp.RotateTimestampKey(gun, store, crypto, keyAlgorithm)
+	case data.CanonicalSnapshotRole:
+		key, err = snapshot.RotateSnapshotKey(gun, store, crypto, keyAlgorithm)
+	default:
+		logger.Infof("400 POST %s key: %v", role, err)
+		return errors.ErrInvalidRole.WithDetail(role)
+	}
+	if err != nil {
+		logger.Errorf("500 POST %s key: %v", role, err)
+		return errors.ErrUnknown.WithDetail(err)
+	}
+
+	out, err := json.Marshal(key)
+	if err != nil {
+		logger.Errorf("500 POST %s key", role)
+		return errors.ErrUnknown.WithDetail(err)
+	}
+	logger.Debugf("200 POST %s key", role)
+	w.Write(out)
+	return nil
+}
+
 // NotFoundHandler is used as a generic catch all handler to return the ErrMetadataNotFound
 // 404 response
 func NotFoundHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {

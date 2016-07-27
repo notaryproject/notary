@@ -92,5 +92,11 @@ var (
 		Description:    "The server does not support actions on images of this name",
 		HTTPStatusCode: http.StatusBadRequest,
 	})
+	ErrKeyRotationLimited = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "ROTATE_KEY_RATE_LIMITED",
+		Message:        "Cannot rotate, last key rotation too recent.",
+		Description:    "Cannot rotate key because the last key rotation was too recent",
+		HTTPStatusCode: http.StatusTooManyRequests,
+	})
 	ErrUnknown = errcode.ErrorCodeUnknown
 )

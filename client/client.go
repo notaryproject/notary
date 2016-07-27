@@ -929,7 +929,7 @@ func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool) error {
 	)
 	switch serverManagesKey {
 	case true:
-		pubKey, err = getRemoteKey(r.baseURL, r.gun, role, r.roundTrip)
+		pubKey, err = rotateRemoteKey(r.baseURL, r.gun, role, r.roundTrip)
 		errFmtMsg = "unable to rotate remote key: %s"
 	default:
 		pubKey, err = r.CryptoService.Create(role, r.gun, data.ECDSAKey)
