@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/docker/notary/tuf/data"
 	"github.com/stretchr/testify/require"
@@ -43,18 +44,32 @@ func MakeUpdate(tufObj StoredTUFMeta) MetaUpdate {
 
 func assertExpectedTUFMetaInStore(t *testing.T, s MetaStore, expected []StoredTUFMeta, current bool) {
 	for _, tufObj := range expected {
+		var prevTime *time.Time
 		if current {
-			_, tufdata, err := s.GetCurrent(tufObj.Gun, tufObj.Role)
+			cDate, tufdata, err := s.GetCurrent(tufObj.Gun, tufObj.Role)
 			require.NoError(t, err)
 			require.Equal(t, tufObj.Data, tufdata)
+
+			// the update date was sometime wthin the last minute
+			require.True(t, cDate.After(time.Now().Add(-1*time.Minute)))
+			require.True(t, cDate.Before(time.Now().Add(5*time.Second)))
+			prevTime = cDate
 		}
 
 		checksumBytes := sha256.Sum256(tufObj.Data)
 		checksum := hex.EncodeToString(checksumBytes[:])
 
-		_, tufdata, err := s.GetChecksum(tufObj.Gun, tufObj.Role, checksum)
+		cDate, tufdata, err := s.GetChecksum(tufObj.Gun, tufObj.Role, checksum)
 		require.NoError(t, err)
 		require.Equal(t, tufObj.Data, tufdata)
+
+		if current {
+			require.True(t, prevTime.Equal(*cDate), "%s should be equal to %s", prevTime, cDate)
+		} else {
+			// the update date was sometime wthin the last minute
+			require.True(t, cDate.After(time.Now().Add(-1*time.Minute)))
+			require.True(t, cDate.Before(time.Now().Add(5*time.Second)))
+		}
 	}
 }
 
@@ -76,8 +91,9 @@ func testUpdateCurrentEmptyStore(t *testing.T, s MetaStore) []StoredTUFMeta {
 }
 
 // UpdateCurrent will successfully add a new (higher) version of an existing TUF file,
-// but will return an error if there is an older version of a TUF file.
-func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore) []StoredTUFMeta {
+// but will return an error if there is an older version of a TUF file.  oldVersionExists
+// specifies whether the older version should already exist in the DB or not.
+func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore, oldVersionExists bool) []StoredTUFMeta {
 	role, gun := data.CanonicalRootRole, "testGUN"
 
 	expected := []StoredTUFMeta{
@@ -94,13 +110,16 @@ func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore) []StoredTUFMeta {
 	require.NoError(t, s.UpdateCurrent(gun, MakeUpdate(expected[2])))
 
 	// Inserting a version that already exists, or that is lower than the current version, will fail
-	for _, version := range []int{3, 4} {
-		tufObj := SampleCustomTUFObj(gun, role, version, nil)
-		err := s.UpdateCurrent(gun, MakeUpdate(tufObj))
-		require.Error(t, err, "Error should not be nil")
-		require.IsType(t, &ErrOldVersion{}, err,
-			"Expected ErrOldVersion error type, got: %v", err)
+	version := 3
+	if oldVersionExists {
+		version = 4
 	}
+
+	tufObj := SampleCustomTUFObj(gun, role, version, nil)
+	err := s.UpdateCurrent(gun, MakeUpdate(tufObj))
+	require.Error(t, err, "Error should not be nil")
+	require.IsType(t, &ErrOldVersion{}, err,
+		"Expected ErrOldVersion error type, got: %v", err)
 
 	assertExpectedTUFMetaInStore(t, s, expected[:2], false)
 	assertExpectedTUFMetaInStore(t, s, expected[2:], true)
@@ -212,14 +231,17 @@ func testDeleteSuccess(t *testing.T, s MetaStore) {
 	// If there is data in the DB, all versions are deleted
 	unexpected := make([]StoredTUFMeta, 0, 10)
 	updates := make([]MetaUpdate, 0, 10)
-	for _, role := range append(data.BaseRoles, "targets/a") {
-		for version := 1; version < 3; version++ {
+	for version := 1; version < 3; version++ {
+		for _, role := range append(data.BaseRoles, "targets/a") {
 			tufObj := SampleCustomTUFObj(gun, role, version, nil)
 			unexpected = append(unexpected, tufObj)
 			updates = append(updates, MakeUpdate(tufObj))
 		}
 	}
 	require.NoError(t, s.UpdateMany(gun, updates))
+	assertExpectedTUFMetaInStore(t, s, unexpected[:5], false)
+	assertExpectedTUFMetaInStore(t, s, unexpected[5:], true)
+
 	require.NoError(t, s.Delete(gun))
 
 	for _, tufObj := range unexpected {
@@ -233,4 +255,12 @@ func testDeleteSuccess(t *testing.T, s MetaStore) {
 		require.Error(t, err)
 		require.IsType(t, ErrNotFound{}, err)
 	}
+
+	// We can now write the same files without conflicts to the DB
+	require.NoError(t, s.UpdateMany(gun, updates))
+	assertExpectedTUFMetaInStore(t, s, unexpected[:5], false)
+	assertExpectedTUFMetaInStore(t, s, unexpected[5:], true)
+
+	// And delete them again successfully
+	require.NoError(t, s.Delete(gun))
 }

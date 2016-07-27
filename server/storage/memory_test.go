@@ -34,10 +34,19 @@ func TestMemoryUpdateCurrentEmpty(t *testing.T) {
 }
 
 // UpdateCurrent will successfully add a new (higher) version of an existing TUF file,
-// but will return an error if there is an older version of a TUF file.
-func TestMemoryUpdateCurrentVersionCheck(t *testing.T) {
+// but will return an error if the to-be-added version already exists in the DB.
+func TestMemoryUpdateCurrentVersionCheckOldVersionExists(t *testing.T) {
 	s := NewMemStorage()
-	expected := testUpdateCurrentVersionCheck(t, s)
+	expected := testUpdateCurrentVersionCheck(t, s, true)
+	assertExpectedMemoryTUFMeta(t, expected, s)
+}
+
+// UpdateCurrent will successfully add a new (higher) version of an existing TUF file,
+// but will return an error if the to-be-added version does not exist in the DB, but
+// is older than an existing version in the DB.
+func TestMemoryUpdateCurrentVersionCheckOldVersionNotExist(t *testing.T) {
+	s := NewMemStorage()
+	expected := testUpdateCurrentVersionCheck(t, s, false)
 	assertExpectedMemoryTUFMeta(t, expected, s)
 }
 

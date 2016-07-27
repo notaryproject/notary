@@ -1,10 +1,11 @@
+// +build !rethinkdb
+
 package storage
 
 import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
@@ -37,32 +38,6 @@ func SetupSQLDB(t *testing.T, dbtype, dburl string) *SQLStorage {
 type sqldbSetupFunc func(*testing.T) (*SQLStorage, func())
 
 var sqldbSetup sqldbSetupFunc
-
-// SampleTUF returns a sample TUFFile with the given Version (ID will have
-// to be set independently)
-func SampleTUF(version int) TUFFile {
-	return SampleCustomTUF(data.CanonicalRootRole, "testGUN", []byte("1"), version)
-}
-
-func SampleCustomTUF(role, gun string, data []byte, version int) TUFFile {
-	checksum := sha256.Sum256(data)
-	hexChecksum := hex.EncodeToString(checksum[:])
-	return TUFFile{
-		Gun:     gun,
-		Role:    role,
-		Version: version,
-		Sha256:  hexChecksum,
-		Data:    data,
-	}
-}
-
-func SampleUpdate(version int) MetaUpdate {
-	return MetaUpdate{
-		Role:    "root",
-		Version: version,
-		Data:    []byte("1"),
-	}
-}
 
 func assertExpectedGormTUFMeta(t *testing.T, expected []StoredTUFMeta, gormDB gorm.DB) {
 	expectedGorm := make([]TUFFile, len(expected))
@@ -101,14 +76,27 @@ func TestSQLUpdateCurrentEmpty(t *testing.T) {
 	dbStore.DB.Close()
 }
 
-// TestSQLUpdateCurrentNewVersion asserts that UpdateCurrent will add a
+// TestSQLUpdateCurrentVersionCheckOldVersionExists asserts that UpdateCurrent will add a
 // new (higher) version of an existing TUF file, and that an error is raised if
-// trying to update to an older version of a TUF file.
-func TestSQLUpdateCurrentNewVersion(t *testing.T) {
+// trying to update to an older version of a TUF file that already exists.
+func TestSQLUpdateCurrentVersionCheckOldVersionExists(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
-	expected := testUpdateCurrentVersionCheck(t, dbStore)
+	expected := testUpdateCurrentVersionCheck(t, dbStore, true)
+	assertExpectedGormTUFMeta(t, expected, dbStore.DB)
+
+	dbStore.DB.Close()
+}
+
+// TestSQLUpdateCurrentVersionCheckOldVersionNotExist asserts that UpdateCurrent will add a
+// new (higher) version of an existing TUF file, and that an error is raised if
+// trying to update to an older version of a TUF file that doesn't exist in the DB.
+func TestSQLUpdateCurrentVersionCheckOldVersionNotExist(t *testing.T) {
+	dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
+
+	expected := testUpdateCurrentVersionCheck(t, dbStore, false)
 	assertExpectedGormTUFMeta(t, expected, dbStore.DB)
 
 	dbStore.DB.Close()
@@ -147,30 +135,6 @@ func TestSQLDelete(t *testing.T) {
 
 	testDeleteSuccess(t, dbStore)
 	assertExpectedGormTUFMeta(t, nil, dbStore.DB)
-
-	dbStore.DB.Close()
-}
-
-func TestSQLGetCurrent(t *testing.T) {
-	dbStore, cleanup := sqldbSetup(t)
-	defer cleanup()
-
-	_, byt, err := dbStore.GetCurrent("testGUN", "root")
-	require.Nil(t, byt)
-	require.Error(t, err, "There should be an error Getting an empty table")
-	require.IsType(t, ErrNotFound{}, err, "Should get a not found error")
-
-	tuf := SampleTUF(0)
-	query := dbStore.DB.Create(&tuf)
-	require.NoError(t, query.Error, "Creating a row in an empty DB failed.")
-
-	cDate, byt, err := dbStore.GetCurrent("testGUN", "root")
-	require.NoError(t, err, "There should not be any errors getting.")
-	require.Equal(t, []byte("1"), byt, "Returned data was incorrect")
-	// the update date was sometime wthin the last minute
-	fmt.Println(cDate)
-	require.True(t, cDate.After(time.Now().Add(-1*time.Minute)))
-	require.True(t, cDate.Before(time.Now().Add(5*time.Second)))
 
 	dbStore.DB.Close()
 }
@@ -295,9 +259,9 @@ func TestSQLSetKeySameRoleGun(t *testing.T) {
 	dbStore.DB.Close()
 }
 
-// TestDBCheckHealthTableMissing asserts that the health check fails if one or
+// TestSQLDBCheckHealthTableMissing asserts that the health check fails if one or
 // both the tables are missing.
-func TestDBCheckHealthTableMissing(t *testing.T) {
+func TestSQLDBCheckHealthTableMissing(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
@@ -319,9 +283,9 @@ func TestDBCheckHealthTableMissing(t *testing.T) {
 	require.Error(t, err, "Cannot access table:")
 }
 
-// TestDBCheckHealthDBCOnnection asserts that if the DB is not connectable, the
+// TestSQLDBCheckHealthDBConnection asserts that if the DB is not connectable, the
 // health check fails.
-func TestDBCheckHealthDBConnectionFail(t *testing.T) {
+func TestSQLDBCheckHealthDBConnectionFail(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
@@ -332,9 +296,9 @@ func TestDBCheckHealthDBConnectionFail(t *testing.T) {
 	require.Error(t, err, "Cannot access table:")
 }
 
-// TestDBCheckHealthSuceeds asserts that if the DB is connectable and both
+// TestSQLDBCheckHealthSuceeds asserts that if the DB is connectable and both
 // tables exist, the health check succeeds.
-func TestDBCheckHealthSucceeds(t *testing.T) {
+func TestSQLDBCheckHealthSucceeds(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
@@ -342,7 +306,7 @@ func TestDBCheckHealthSucceeds(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestDBGetChecksum(t *testing.T) {
+func TestSQLDBGetChecksum(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
@@ -398,11 +362,18 @@ func TestDBGetChecksum(t *testing.T) {
 	require.True(t, cDate.Before(time.Now().Add(5*time.Second)))
 }
 
-func TestDBGetChecksumNotFound(t *testing.T) {
+func TestSQLDBGetChecksumNotFound(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	_, _, err := dbStore.GetChecksum("gun", data.CanonicalTimestampRole, "12345")
 	require.Error(t, err)
 	require.IsType(t, ErrNotFound{}, err)
+}
+
+func TestSQLTUFMetaStoreGetCurrent(t *testing.T) {
+	dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
+
+	testTUFMetaStoreGetCurrent(t, dbStore)
 }
