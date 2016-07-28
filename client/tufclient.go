@@ -2,7 +2,6 @@ package client
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
@@ -11,15 +10,6 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 )
-
-// ErrCorruptedCache - local data is incorrect
-type ErrCorruptedCache struct {
-	file string
-}
-
-func (e ErrCorruptedCache) Error() string {
-	return fmt.Sprintf("cache is corrupted: %s", e.file)
-}
 
 // TUFClient is a usability wrapper around a raw TUF repo
 type TUFClient struct {
@@ -158,6 +148,7 @@ func (c *TUFClient) downloadTargets() error {
 		BaseRole: data.BaseRole{Name: data.CanonicalTargetsRole},
 		Paths:    []string{""},
 	}}
+
 	for len(toDownload) > 0 {
 		role := toDownload[0]
 		toDownload = toDownload[1:]

@@ -90,9 +90,15 @@ func (f finishedBuilder) GetConsistentInfo(roleName string) ConsistentInfo {
 
 // NewRepoBuilder is the only way to get a pre-built RepoBuilder
 func NewRepoBuilder(gun string, cs signed.CryptoService, trustpin trustpinning.TrustPinConfig) RepoBuilder {
+	return NewBuilderFromRepo(gun, NewRepo(cs), trustpin)
+}
+
+// NewBuilderFromRepo allows us to bootstrap a builder given existing repo data.
+// YOU PROBABLY SHOULDN'T BE USING THIS OUTSIDE OF TESTING CODE!!!
+func NewBuilderFromRepo(gun string, repo *Repo, trustpin trustpinning.TrustPinConfig) RepoBuilder {
 	return &repoBuilderWrapper{
 		RepoBuilder: &repoBuilder{
-			repo:                 NewRepo(cs),
+			repo:                 repo,
 			invalidRoles:         NewRepo(nil),
 			gun:                  gun,
 			trustpin:             trustpin,
@@ -539,6 +545,7 @@ func (rb *repoBuilder) loadDelegation(roleName string, content []byte, minVersio
 		return err
 	}
 
+	// bytesToSigned checks checksum
 	signedObj, err := rb.bytesToSigned(content, roleName)
 	if err != nil {
 		return err
@@ -548,13 +555,14 @@ func (rb *repoBuilder) loadDelegation(roleName string, content []byte, minVersio
 	if err != nil {
 		return err
 	}
-	// verify signature
-	if err := signed.VerifySignatures(signedObj, delegationRole.BaseRole); err != nil {
-		rb.invalidRoles.Targets[roleName] = signedTargets
+
+	if err := signed.VerifyVersion(&(signedTargets.Signed.SignedCommon), minVersion); err != nil {
+		// don't capture in invalidRoles because the role we received is a rollback
 		return err
 	}
 
-	if err := signed.VerifyVersion(&(signedTargets.Signed.SignedCommon), minVersion); err != nil {
+	// verify signature
+	if err := signed.VerifySignatures(signedObj, delegationRole.BaseRole); err != nil {
 		rb.invalidRoles.Targets[roleName] = signedTargets
 		return err
 	}

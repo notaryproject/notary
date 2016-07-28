@@ -86,7 +86,7 @@ var cmdTUFVerifyTemplate = usageTemplate{
 var cmdWitnessTemplate = usageTemplate{
 	Use:   "witness [ GUN ] <role> ...",
 	Short: "Marks roles to be re-signed the next time they're published",
-	Long:  "Marks roles to be re-signed the next time they're published. If the role has no currently valid signatures, or is otherwise invalid, a new version is published. If a role has some valid signatures and is not otherwise invalid, new signatures are added without modifying the signed role data.",
+	Long:  "Marks roles to be re-signed the next time they're published. Currently will always bump version and expiry for role. N.B. behaviour may change when thresholding is introduced.",
 }
 
 type tufCommander struct {
