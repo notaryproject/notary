@@ -145,7 +145,6 @@ gen-cover:
 gen-cover:
 	@mkdir -p "$(COVERDIR)"
 	python -u buildscripts/covertest.py --coverdir "$(COVERDIR)" --tags "$(NOTARY_BUILDTAGS)" --pkgs="$(PKGS)" --testopts="${TESTOPTS}"
-	rm -f "$(COVERDIR)"/*testutils*.coverage.txt
 
 # Generates the cover binaries and runs them all in serial, so this can be used
 # run all tests with a yubikey without any problems
