@@ -20,12 +20,28 @@ Relevant information for repositories:
 
 - `notary0.3`
 	- GUN: `docker.com/notary0.3/samplerepo`
+	- delegations: targets/releases
 	- key passwords: "randompass"
 	- targets:
 
 		```
-		   NAME                                  DIGEST                                SIZE (BYTES)
-		---------------------------------------------------------------------------------------------
-		  LICENSE   9395bac6fccb26bcb55efb083d1b4b0fe72a1c25f959f056c016120b3bb56a62   11309
+		NAME                                  DIGEST                                SIZE (BYTES)         ROLE        
+        ----------------------------------------------------------------------------------------------------------------
+          LICENSE   9395bac6fccb26bcb55efb083d1b4b0fe72a1c25f959f056c016120b3bb56a62   11309          targets           
+          change    e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855   0              targets           
+          hello     e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855   0              targets/releases
   		```
-  	- It also has a changelist to add a `change` target (an empty file), that hasn't been published to testing publish success.
+    - Has a delegation key in the targets/releases role and a corresponding key imported
+    - It also has a changelist to add a `MAINTAINERS` target, that hasn't been published to testing publish success.
+    - It also has a changelist to add a `Dockerfile` target (an empty file) in the targets/releases role, that hasn't been published to testing publish success with a delegation.
+    - unpublished changes:
+    
+        ```
+        Unpublished changes for docker.com/notary0.3/tst:
+        
+        action    scope     type        path
+        ----------------------------------------------------
+        create    targets   target      MAINTAINERS
+        create    targets/releasestarget      Dockerfile
+        ```
+    

@@ -66,7 +66,9 @@ func migrateTo0Dot4(s Storage) {
 			}
 		} else if strings.HasPrefix(fileDir, notary.NonRootKeysSubdir) {
 			fileDir = strings.TrimPrefix(fileDir, notary.NonRootKeysSubdir)
-			block.Headers["gun"] = fileDir[1:]
+			if fileDir != "" {
+				block.Headers["gun"] = fileDir[1:]
+			}
 			if strings.Contains(keyID, "_") {
 				role := strings.Split(keyID, "_")[1]
 				keyID = strings.TrimSuffix(keyID, "_"+role)
