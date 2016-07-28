@@ -140,8 +140,8 @@ func Test0Dot3RepoFormat(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, recursiveCopy("../fixtures/compatibility/notary0.3", tmpDir))
 
-	gun := "docker.com/notary0.3/samplerepo"
-	passwd := "randompass"
+	gun := "docker.com/notary0.3/tst"
+	passwd := "password"
 
 	ts := fullTestServer(t)
 	defer ts.Close()
@@ -153,8 +153,7 @@ func Test0Dot3RepoFormat(t *testing.T) {
 	// targets should have 1 target, and it should be readable offline
 	targets, err := repo.ListTargets()
 	require.NoError(t, err)
-	require.Len(t, targets, 1)
-	require.Equal(t, "LICENSE", targets[0].Name)
+	require.Len(t, targets, 3)
 
 	// ok, now that everything has been loaded, verify that the fixture is valid
 	requireValidFixture(t, repo)
@@ -171,7 +170,12 @@ func Test0Dot3RepoFormat(t *testing.T) {
 
 	targets, err = repo.ListTargets()
 	require.NoError(t, err)
-	require.Len(t, targets, 2)
+	require.Len(t, targets, 5)
+	// the changelist target/releases delegation will get published with the above publish
+	delegations, err := repo.GetDelegationRoles()
+	require.NoError(t, err)
+	require.Len(t, delegations, 1)
+	require.Equal(t, "targets/releases", delegations[0].Name)
 
 	// Also check that we can add/remove keys by rotating keys
 	oldTargetsKeys := repo.CryptoService.ListKeys(data.CanonicalTargetsRole)
@@ -218,7 +222,7 @@ func TestDownloading0Dot1RepoFormat(t *testing.T) {
 
 // Ensures that the current client can download metadata that is published from notary 0.3 repos
 func TestDownloading0Dot3RepoFormat(t *testing.T) {
-	gun := "docker.com/notary0.3/samplerepo"
+	gun := "docker.com/notary0.3/tst"
 	passwd := "randompass"
 
 	metaCache, err := store.NewFilesystemStore(
