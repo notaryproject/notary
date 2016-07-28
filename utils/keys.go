@@ -93,7 +93,7 @@ func ExportKeys(to io.Writer, s Exporter, from string) error {
 // Each block is written to the subpath indicated in the "path" PEM
 // header. If the file already exists, the file is truncated. Multiple
 // adjacent PEMs with the same "path" header are appended together.
-func ImportKeys(from io.Reader, to []Importer) error {
+func ImportKeys(from io.Reader, to []Importer, role string) error {
 	data, err := ioutil.ReadAll(from)
 	if err != nil {
 		return err
@@ -103,6 +103,9 @@ func ImportKeys(from io.Reader, to []Importer) error {
 		toWrite []byte
 	)
 	for block, rest := pem.Decode(data); block != nil; block, rest = pem.Decode(rest) {
+		if role != "" {
+			block.Headers["role"] = role
+		}
 		loc, ok := block.Headers["path"]
 		if !ok || loc == "" {
 			logrus.Info("failed to import key to store: PEM headers did not contain import path")
