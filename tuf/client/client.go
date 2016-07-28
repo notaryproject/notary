@@ -8,6 +8,7 @@ import (
 	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/tuf"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/signed"
 )
 
 // Client is a usability wrapper around a raw TUF repo
@@ -158,16 +159,18 @@ func (c *Client) downloadTargets() error {
 		}
 
 		children, err := c.getTargetsFile(role, consistentInfo)
-		if err != nil {
-			if _, ok := err.(data.ErrMissingMeta); ok && role.Name != data.CanonicalTargetsRole {
-				// if the role meta hasn't been published,
-				// that's ok, continue
-				continue
+		switch err.(type) {
+		case signed.ErrExpired, signed.ErrRoleThreshold:
+			if role.Name == data.CanonicalTargetsRole {
+				return err
 			}
-			logrus.Debugf("Error getting %s: %s", role.Name, err)
+			logrus.Warnf("Error getting %s: %s", role.Name, err)
+			break
+		case nil:
+			toDownload = append(children, toDownload...)
+		default:
 			return err
 		}
-		toDownload = append(children, toDownload...)
 	}
 	return nil
 }

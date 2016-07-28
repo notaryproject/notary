@@ -993,16 +993,27 @@ func TestUpdateNonRootRemoteCorruptedNoLocalCache(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
+
+	acceptDelgAnyway := map[string]struct{}{
+		"insufficient signatures":  struct{}{},
+		"expired metadata":         struct{}{},
+		"invalid signatures":       struct{}{},
+		"meta signed by wrong key": struct{}{},
+	}
+
 	for _, role := range append(data.BaseRoles, delegationsWithNonEmptyMetadata...) {
 		if role == data.CanonicalRootRole {
 			continue
 		}
 		for _, testData := range waysToMessUpServer {
+			_, delgShouldSucceed := acceptDelgAnyway[testData.desc]
+
 			testUpdateRemoteCorruptValidChecksum(t, updateOpts{
 				role: role,
-			}, testData, true)
+			}, testData, !data.IsDelegation(role) || !delgShouldSucceed)
 		}
 	}
+
 	for role, expectations := range waysToMessUpServerNonRootPerRole(t) {
 		for _, testData := range expectations {
 			switch role {
@@ -1038,6 +1049,7 @@ func TestUpdateNonRootRemoteCorruptedCanUseLocalCache(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
+
 	for _, role := range append(data.BaseRoles, delegationsWithNonEmptyMetadata...) {
 		if role == data.CanonicalRootRole {
 			continue
@@ -1087,6 +1099,14 @@ func TestUpdateNonRootRemoteCorruptedCannotUseLocalCache(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
+
+	acceptDelgAnyway := map[string]struct{}{
+		"insufficient signatures":  struct{}{},
+		"expired metadata":         struct{}{},
+		"invalid signatures":       struct{}{},
+		"meta signed by wrong key": struct{}{},
+	}
+
 	for _, role := range append(data.BaseRoles, delegationsWithNonEmptyMetadata...) {
 		if role == data.CanonicalRootRole {
 			continue
@@ -1097,7 +1117,16 @@ func TestUpdateNonRootRemoteCorruptedCannotUseLocalCache(t *testing.T) {
 			// previous root.  But the root hash doesn't match.  So we download a new root and
 			// try the update again.  In this case, both the old and new timestamps won't have enough
 			// signatures.
-			shouldFail := role != data.CanonicalTimestampRole || testData.desc == "insufficient signatures"
+			shouldFail := true
+			if role == data.CanonicalTimestampRole {
+				shouldFail = testData.desc == "insufficient signatures"
+			}
+
+			if data.IsDelegation(role) {
+				_, delgShouldSucceed := acceptDelgAnyway[testData.desc]
+				shouldFail = !delgShouldSucceed
+			}
+
 			testUpdateRemoteCorruptValidChecksum(t, updateOpts{
 				serverHasNewData: true,
 				localCache:       true,
@@ -1323,6 +1352,10 @@ func testUpdateRemoteKeyRotated(t *testing.T, role string) {
 	msg := fmt.Sprintf("swizzling %s remotely to rotate key (forWrite: false)", role)
 
 	err = repo.Update(false)
+	if data.IsDelegation(role) {
+		require.NoError(t, err)
+		return
+	}
 	require.Error(t, err, "expected failure updating when %s", msg)
 	switch role {
 	case data.CanonicalRootRole:
