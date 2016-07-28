@@ -3,10 +3,11 @@ package client
 import (
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/tuf"
+	"github.com/docker/notary/tuf/data"
 	"path/filepath"
 )
 
-// Witness creates change objects to witness (i.e. resign) the given
+// Witness creates change objects to witness (i.e. re-sign) the given
 // roles on the next publish. One change is created per role
 func (r *NotaryRepository) Witness(roles ...string) ([]string, error) {
 	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
@@ -40,14 +41,17 @@ func witnessTargets(repo *tuf.Repo, invalid *tuf.Repo, role string) error {
 		r.Dirty = true
 		return nil
 	}
-	if invalid == nil {
-		// role isn't recognized, even as invalid
-		return ErrInvalidLocalRole{Role: role}
+	if invalid != nil {
+		if r, ok := invalid.Targets[role]; ok {
+			// role is recognized but invalid, move to valid data and mark for re-signing
+			repo.Targets[role] = r
+			r.Dirty = true
+			return nil
+		}
 	}
-	if r, ok := invalid.Targets[role]; ok {
-		// role is recognized but invalid, move to valid data and mark for re-signing
-		repo.Targets[role] = r
-		r.Dirty = true
+	// role isn't recognized, even as invalid
+	return data.ErrInvalidRole{
+		Role:   role,
+		Reason: "this role is not known",
 	}
-	return nil
 }

@@ -47,7 +47,7 @@ func applyChangelist(repo *tuf.Repo, invalid *tuf.Repo, cl changelist.Changelist
 		case c.Scope() == changelist.ScopeRoot:
 			err = applyRootChange(repo, c)
 		default:
-			logrus.Debug("scope not supported: ", c.Scope())
+			return fmt.Errorf("scope not supported: %s", c.Scope())
 		}
 		if err != nil {
 			logrus.Debugf("error attempting to apply change #%d: %s, on scope: %s path: %s type: %s", index, c.Action(), c.Scope(), c.Path(), c.Type())
@@ -157,7 +157,7 @@ func changeTargetMeta(repo *tuf.Repo, c changelist.Change) error {
 		}
 
 	default:
-		logrus.Debug("action not yet supported: ", c.Action())
+		err = fmt.Errorf("action not yet supported: %s", c.Action())
 	}
 	return err
 }
@@ -168,7 +168,7 @@ func applyRootChange(repo *tuf.Repo, c changelist.Change) error {
 	case changelist.TypeRootRole:
 		err = applyRootRoleChange(repo, c)
 	default:
-		logrus.Debug("type of root change not yet supported: ", c.Type())
+		err = fmt.Errorf("type of root change not yet supported: %s", c.Type())
 	}
 	return err // might be nil
 }
@@ -187,7 +187,7 @@ func applyRootRoleChange(repo *tuf.Repo, c changelist.Change) error {
 			return err
 		}
 	default:
-		logrus.Debug("action not yet supported for root: ", c.Action())
+		return fmt.Errorf("action not yet supported for root: %s", c.Action())
 	}
 	return nil
 }
