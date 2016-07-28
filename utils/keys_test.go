@@ -232,7 +232,7 @@ func TestImportKeys(t *testing.T) {
 
 	in := bytes.NewBuffer(byt)
 
-	err := ImportKeys(in, []Importer{s})
+	err := ImportKeys(in, []Importer{s}, "")
 	require.NoError(t, err)
 
 	bFinal, bRest := pem.Decode(s.data["ankh"])
@@ -259,7 +259,7 @@ func TestImportNoPath(t *testing.T) {
 
 	in := bytes.NewBuffer(bBytes)
 
-	err := ImportKeys(in, []Importer{s})
+	err := ImportKeys(in, []Importer{s}, "")
 	require.NoError(t, err)
 
 	require.Len(t, s.data, 0)
@@ -298,7 +298,7 @@ func TestImportKeys2InOneFile(t *testing.T) {
 
 	in := bytes.NewBuffer(byt)
 
-	err := ImportKeys(in, []Importer{s})
+	err := ImportKeys(in, []Importer{s}, "")
 	require.NoError(t, err)
 
 	bFinal, bRest := pem.Decode(s.data["ankh"])
