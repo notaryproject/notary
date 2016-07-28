@@ -56,7 +56,7 @@ def run_test_with_coverage(buildtags="", coverdir=".cover", pkgs=None, opts="", 
             # we are trying to generate coverage reports for everything in the base package, and some may not be
             # actually exercised in the test.  So ignore this particular warning.  Also, we want to pretty-print
             # the test success/failure results
-            if not line.startswith("warning: no packages being tested depend"):
+            if not line.startswith("warning: no packages being tested depend on github.com/docker/notary"):
                 line = line.replace(allpkg_string, "<all packages>").replace(pkg, pkg.ljust(longest_pkg_len))
                 sys.stdout.write(line)
 

@@ -3,6 +3,7 @@ codecov:
     # 2 builds on circleci, 1 jenkins build
     after_n_builds: 3
 coverage:
+  range: "50...100"
   status:
     # project will give us the diff in the total code coverage between a commit
     # and its parent

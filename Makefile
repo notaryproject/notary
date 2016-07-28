@@ -197,5 +197,5 @@ cross: notary-dockerfile
 
 clean:
 	@echo "+ $@"
-	@rm -rf "$(COVERDIR)"
+	@rm -rf "$(COVERDIR)" cross
 	@rm -rf "${PREFIX}/bin/notary-server" "${PREFIX}/bin/notary" "${PREFIX}/bin/notary-signer"
