@@ -7,6 +7,7 @@ import (
 	ctxu "github.com/docker/distribution/context"
 	"github.com/docker/notary/signer"
 	"github.com/docker/notary/trustmanager"
+	"github.com/docker/notary/tuf/data"
 	"golang.org/x/net/context"
 
 	"google.golang.org/grpc"
@@ -19,6 +20,7 @@ import (
 type KeyManagementServer struct {
 	CryptoServices signer.CryptoServiceIndex
 	HealthChecker  func() map[string]string
+	PendingKeyFunc func(string, string) (data.PublicKey, error)
 }
 
 //SignerServer implements the SignerServer grpc interface
@@ -38,12 +40,20 @@ func (s *KeyManagementServer) CreateKey(ctx context.Context, req *pb.CreateKeyRe
 		return nil, fmt.Errorf("algorithm %s not supported for create key", req.Algorithm)
 	}
 
-	tufKey, err := service.Create(req.Role, req.Gun, req.Algorithm)
-	if err != nil {
-		logger.Error("CreateKey: failed to create key: ", err)
-		return nil, grpc.Errorf(codes.Internal, "Key creation failed")
+	var tufKey data.PublicKey
+	var err error
+
+	if tufKey, err = s.PendingKeyFunc(req.Gun, req.Role); err == nil {
+		logger.Debugf("CreateKey: found pending key for role %s GUN %s that will be used", req.Role, req.Gun)
+	} else {
+		tufKey, err = service.Create(req.Role, req.Gun, req.Algorithm)
+		if err != nil {
+			logger.Error("CreateKey: failed to create key: ", err)
+			return nil, grpc.Errorf(codes.Internal, "Key creation failed")
+		}
+		logger.Info("CreateKey: Created KeyID ", tufKey.ID())
 	}
-	logger.Info("CreateKey: Created KeyID ", tufKey.ID())
+
 	return &pb.PublicKey{
 		KeyInfo: &pb.KeyInfo{
 			KeyID:     &pb.KeyID{ID: tufKey.ID()},

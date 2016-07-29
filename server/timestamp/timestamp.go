@@ -57,7 +57,7 @@ func GetOrCreateTimestampKey(gun string, store storage.MetaStore, crypto signed.
 	return nil, err
 }
 
-// RotateTimestampKey TODO(riyazdf)
+// RotateTimestampKey attempts to rotate a timestamp key in the signer, but might be rate-limited by the signer
 func RotateTimestampKey(gun string, store storage.MetaStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
 	// Always attempt to create a new key, but this might be rate-limited
 	key, err := crypto.Create(data.CanonicalTimestampRole, gun, createAlgorithm)

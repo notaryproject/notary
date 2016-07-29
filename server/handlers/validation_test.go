@@ -670,7 +670,7 @@ func TestValidateSnapshotMissingNoSnapshotKey(t *testing.T) {
 	require.IsType(t, validation.ErrBadHierarchy{}, err)
 }
 
-// TODO(riyazdf): translate these tests
+// TODO(riyazdf): Need to update these tests with the new behavior
 //func TestValidateSnapshotGenerateNoPrev(t *testing.T) {
 //	gun := "docker.com/notary"
 //	repo, cs, err := testutils.EmptyRepo(gun)

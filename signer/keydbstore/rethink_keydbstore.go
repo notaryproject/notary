@@ -264,6 +264,23 @@ func (rdb RethinkDBKeyStore) markActive(keyID string) error {
 	return err
 }
 
+// GetPendingKey gets the public key component of a key that was created but never used for signing a given gun and role
+func (rdb RethinkDBKeyStore) GetPendingKey(gun, role string) (data.PublicKey, error) {
+	dbPrivateKey := RDBPrivateKey{}
+	res, err := gorethink.DB(rdb.dbName).Table(dbPrivateKey.TableName()).Filter(gorethink.Row.Field("gun").Eq(gun)).Filter(gorethink.Row.Field("role").Eq(role)).Filter(gorethink.Row.Field("last_used").Eq(time.Time{})).Run(rdb.sess)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Close()
+
+	err = res.One(&dbPrivateKey)
+	if err != nil {
+		return nil, trustmanager.ErrKeyNotFound{}
+	}
+
+	return data.NewPublicKey(dbPrivateKey.Algorithm, dbPrivateKey.Public), nil
+}
+
 // Bootstrap sets up the database and tables, also creating the notary signer user with appropriate db permission
 func (rdb RethinkDBKeyStore) Bootstrap() error {
 	if err := rethinkdb.SetupDB(rdb.sess, rdb.dbName, []rethinkdb.Table{

@@ -162,12 +162,14 @@ func setUpSignerServer(t *testing.T, store trustmanager.KeyStore) *grpc.Server {
 	}
 
 	fakeHealth := func() map[string]string { return nil }
+	fakePendingCheck := func(string, string) (data.PublicKey, error) { return nil, fmt.Errorf("none pending") }
 
 	//server setup
 	grpcServer := grpc.NewServer()
 	pb.RegisterKeyManagementServer(grpcServer, &api.KeyManagementServer{
 		CryptoServices: cryptoServices,
 		HealthChecker:  fakeHealth,
+		PendingKeyFunc: fakePendingCheck,
 	})
 	pb.RegisterSignerServer(grpcServer, &api.SignerServer{
 		CryptoServices: cryptoServices,
