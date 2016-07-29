@@ -315,7 +315,7 @@ func addChange(cl *changelist.FileChangelist, c changelist.Change, roles ...stri
 	for _, role := range roles {
 		// Ensure we can only add targets to the CanonicalTargetsRole,
 		// or a Delegation role (which is <CanonicalTargetsRole>/something else)
-		if role != data.CanonicalTargetsRole && !data.IsDelegation(role) {
+		if role != data.CanonicalTargetsRole && !data.IsDelegation(role) && !data.IsWildDelegation(role) {
 			return data.ErrInvalidRole{
 				Role:   role,
 				Reason: "cannot add targets to this role",

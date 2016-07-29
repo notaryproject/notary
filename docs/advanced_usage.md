@@ -188,8 +188,8 @@ Forced removal (including all keys and paths) of delegation role targets/release
 
 You can remove individual keys and/or paths by passing keys as arguments, and/or
 paths under the `--paths` flag. Use `--all-paths` to clear all paths for this
-role. If you specify all key IDs currently in the delegation role, you will
-delete the role entirely.
+role. If you specify all key IDs currently in the delegation role, you will be left
+with a role that is unusable as it will not have enough valid signatures.
 
 To add targets to a specified delegation role, we can use the `notary add`
 command with the `--roles` flag.

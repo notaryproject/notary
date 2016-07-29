@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -41,7 +40,7 @@ func applyChangelist(repo *tuf.Repo, cl changelist.Changelist) error {
 		if err != nil {
 			return err
 		}
-		isDel := data.IsDelegation(c.Scope())
+		isDel := data.IsDelegation(c.Scope()) || data.IsWildDelegation(c.Scope())
 		switch {
 		case c.Scope() == changelist.ScopeTargets || isDel:
 			err = applyTargetsChange(repo, c)
@@ -92,6 +91,10 @@ func changeTargetsDelegation(repo *tuf.Repo, c changelist.Change) error {
 		if err != nil {
 			return err
 		}
+		if data.IsWildDelegation(c.Scope()) {
+			return repo.PurgeDelegationKeys(c.Scope(), td.RemoveKeys)
+		}
+
 		delgRole, err := repo.GetDelegationRole(c.Scope())
 		if err != nil {
 			return err
@@ -112,10 +115,6 @@ func changeTargetsDelegation(repo *tuf.Repo, c changelist.Change) error {
 			removeTUFKeyIDs = append(removeTUFKeyIDs, canonicalToTUFID[canonID])
 		}
 
-		// If we specify the only keys left delete the role, else just delete specified keys
-		if strings.Join(delgRole.ListKeyIDs(), ";") == strings.Join(removeTUFKeyIDs, ";") && len(td.AddKeys) == 0 {
-			return repo.DeleteDelegation(c.Scope())
-		}
 		err = repo.UpdateDelegationKeys(c.Scope(), td.AddKeys, removeTUFKeyIDs, td.NewThreshold)
 		if err != nil {
 			return err
