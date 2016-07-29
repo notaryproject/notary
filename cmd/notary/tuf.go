@@ -115,6 +115,8 @@ type tufCommander struct {
 	archiveChangelist string
 
 	deleteRemote bool
+
+	autoPublish bool
 }
 
 func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
@@ -137,6 +139,7 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 
 	cmdTUFAdd := cmdTUFAddTemplate.ToCommand(t.tufAdd)
 	cmdTUFAdd.Flags().StringSliceVarP(&t.roles, "roles", "r", nil, "Delegation roles to add this target to")
+	cmdTUFAdd.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, "Automatically attempt to publish after adding the change. Will also publish those pre-generated changelists.")
 	cmd.AddCommand(cmdTUFAdd)
 
 	cmdTUFRemove := cmdTUFRemoveTemplate.ToCommand(t.tufRemove)
@@ -307,9 +310,17 @@ func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 	if err = nRepo.AddTarget(target, t.roles...); err != nil {
 		return err
 	}
-	cmd.Printf(
-		"Addition of target \"%s\" to repository \"%s\" staged for next publish.\n",
-		targetName, gun)
+
+	cmd.Printf("Addition of target \"%s\" to repository \"%s\" staged for next publish.\n", targetName, gun)
+
+	// Auto publish the local trusted collection to remote.
+	if t.autoPublish == true {
+		c := cobra.Command{
+			RunE: t.tufPublish,
+		}
+		return t.tufPublish(&c, []string{gun})
+	}
+
 	return nil
 }
 
