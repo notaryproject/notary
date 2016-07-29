@@ -14,23 +14,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testTrustDir = "trust_dir"
-
-func setup() *delegationCommander {
+func setup(trustDir string) *delegationCommander {
 	return &delegationCommander{
 		configGetter: func() (*viper.Viper, error) {
 			mainViper := viper.New()
-			mainViper.Set("trust_dir", testTrustDir)
+			mainViper.Set("trust_dir", trustDir)
 			return mainViper, nil
 		},
 		retriever: nil,
 	}
 }
 
-func TestAddInvalidDelegationName(t *testing.T) {
-	// Cleanup after test
-	defer os.RemoveAll(testTrustDir)
+func TestPurgeDelegationKeys(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
 
+	cmdr := setup(tmpDir)
+	cmd := cmdr.GetCommand()
+	err = cmdr.delegationPurgeKeys(cmd, []string{})
+	require.Error(t, err)
+
+	err = cmdr.delegationPurgeKeys(cmd, []string{"gun"})
+	require.Error(t, err)
+
+	cmdr.keyIDs = []string{"abc"}
+	err = cmdr.delegationPurgeKeys(cmd, []string{"gun"})
+	require.NoError(t, err)
+}
+
+func TestAddInvalidDelegationName(t *testing.T) {
 	// Setup certificate
 	tempFile, err := ioutil.TempFile("/tmp", "pemfile")
 	require.NoError(t, err)
@@ -41,7 +54,10 @@ func TestAddInvalidDelegationName(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	// Setup commander
-	commander := setup()
+	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+	commander := setup(tmpDir)
 
 	// Should error due to invalid delegation name (should be prefixed by "targets/")
 	err = commander.delegationAdd(commander.GetCommand(), []string{"gun", "INVALID_NAME", tempFile.Name()})
@@ -49,9 +65,6 @@ func TestAddInvalidDelegationName(t *testing.T) {
 }
 
 func TestAddInvalidDelegationCert(t *testing.T) {
-	// Cleanup after test
-	defer os.RemoveAll(testTrustDir)
-
 	// Setup certificate
 	tempFile, err := ioutil.TempFile("/tmp", "pemfile")
 	require.NoError(t, err)
@@ -62,7 +75,10 @@ func TestAddInvalidDelegationCert(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	// Setup commander
-	commander := setup()
+	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+	commander := setup(tmpDir)
 
 	// Should error due to expired cert
 	err = commander.delegationAdd(commander.GetCommand(), []string{"gun", "targets/delegation", tempFile.Name(), "--paths", "path"})
@@ -70,9 +86,6 @@ func TestAddInvalidDelegationCert(t *testing.T) {
 }
 
 func TestAddInvalidShortPubkeyCert(t *testing.T) {
-	// Cleanup after test
-	defer os.RemoveAll(testTrustDir)
-
 	// Setup certificate
 	tempFile, err := ioutil.TempFile("/tmp", "pemfile")
 	require.NoError(t, err)
@@ -83,7 +96,10 @@ func TestAddInvalidShortPubkeyCert(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	// Setup commander
-	commander := setup()
+	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+	commander := setup(tmpDir)
 
 	// Should error due to short RSA key
 	err = commander.delegationAdd(commander.GetCommand(), []string{"gun", "targets/delegation", tempFile.Name(), "--paths", "path"})
@@ -91,53 +107,62 @@ func TestAddInvalidShortPubkeyCert(t *testing.T) {
 }
 
 func TestRemoveInvalidDelegationName(t *testing.T) {
-	// Cleanup after test
-	defer os.RemoveAll(testTrustDir)
-
 	// Setup commander
-	commander := setup()
+	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+	commander := setup(tmpDir)
 
 	// Should error due to invalid delegation name (should be prefixed by "targets/")
-	err := commander.delegationRemove(commander.GetCommand(), []string{"gun", "INVALID_NAME", "fake_key_id1", "fake_key_id2"})
+	err = commander.delegationRemove(commander.GetCommand(), []string{"gun", "INVALID_NAME", "fake_key_id1", "fake_key_id2"})
 	require.Error(t, err)
 }
 
 func TestRemoveAllInvalidDelegationName(t *testing.T) {
-	// Cleanup after test
-	defer os.RemoveAll(testTrustDir)
-
 	// Setup commander
-	commander := setup()
+	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+	commander := setup(tmpDir)
 
 	// Should error due to invalid delegation name (should be prefixed by "targets/")
-	err := commander.delegationRemove(commander.GetCommand(), []string{"gun", "INVALID_NAME"})
+	err = commander.delegationRemove(commander.GetCommand(), []string{"gun", "INVALID_NAME"})
 	require.Error(t, err)
 }
 
 func TestAddInvalidNumArgs(t *testing.T) {
 	// Setup commander
-	commander := setup()
+	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+	commander := setup(tmpDir)
 
 	// Should error due to invalid number of args (2 instead of 3)
-	err := commander.delegationAdd(commander.GetCommand(), []string{"not", "enough"})
+	err = commander.delegationAdd(commander.GetCommand(), []string{"not", "enough"})
 	require.Error(t, err)
 }
 
 func TestListInvalidNumArgs(t *testing.T) {
 	// Setup commander
-	commander := setup()
+	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+	commander := setup(tmpDir)
 
 	// Should error due to invalid number of args (0 instead of 1)
-	err := commander.delegationsList(commander.GetCommand(), []string{})
+	err = commander.delegationsList(commander.GetCommand(), []string{})
 	require.Error(t, err)
 }
 
 func TestRemoveInvalidNumArgs(t *testing.T) {
 	// Setup commander
-	commander := setup()
+	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+	commander := setup(tmpDir)
 
 	// Should error due to invalid number of args (1 instead of 2)
-	err := commander.delegationRemove(commander.GetCommand(), []string{"notenough"})
+	err = commander.delegationRemove(commander.GetCommand(), []string{"notenough"})
 	require.Error(t, err)
 }
 

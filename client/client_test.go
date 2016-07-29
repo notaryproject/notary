@@ -3041,7 +3041,7 @@ func TestRemoveDelegationChangefileApplicable(t *testing.T) {
 	require.NoError(t, applyTargetsChange(repo.tufRepo, changes[2]))
 
 	targetRole = repo.tufRepo.Targets[data.CanonicalTargetsRole]
-	require.Empty(t, targetRole.Signed.Delegations.Roles)
+	require.Len(t, targetRole.Signed.Delegations.Roles, 1)
 	require.Empty(t, targetRole.Signed.Delegations.Keys)
 }
 
