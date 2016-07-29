@@ -104,6 +104,8 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 		return nil, &ErrValidationFail{Reason: "unable to retrieve valid leaf certificates"}
 	}
 
+	logrus.Debugf("found %d leaf certs, of which %d are valid leaf certs for %s", len(allLeafCerts), len(certsFromRoot), gun)
+
 	// If we have a previous root, let's try to use it to validate that this new root is valid.
 	if prevRoot != nil {
 		// Retrieve all the trusted certificates from our previous root
@@ -137,7 +139,9 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 
 		validPinnedCerts := map[string]*x509.Certificate{}
 		for id, cert := range certsFromRoot {
+			logrus.Debugf("checking trust-pinning for cert: %s", id)
 			if ok := trustPinCheckFunc(cert, allIntCerts[id]); !ok {
+				logrus.Debugf("trust-pinning check failed for cert: %s", id)
 				continue
 			}
 			validPinnedCerts[id] = cert
@@ -158,7 +162,7 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 		return nil, &ErrValidationFail{Reason: "failed to validate integrity of roots"}
 	}
 
-	logrus.Debugf("Root validation succeeded for %s", gun)
+	logrus.Debugf("root validation succeeded for %s", gun)
 	return signedRoot, nil
 }
 

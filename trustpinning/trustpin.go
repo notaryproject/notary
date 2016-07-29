@@ -31,11 +31,14 @@ func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string) (CertChecker,
 	t := trustPinChecker{gun: gun, config: trustPinConfig}
 	// Determine the mode, and if it's even valid
 	if pinnedCerts, ok := trustPinConfig.Certs[gun]; ok {
+		logrus.Debugf("trust-pinning using Cert IDs")
 		t.pinnedCertIDs = pinnedCerts
 		return t.certsCheck, nil
 	}
 
 	if caFilepath, err := getPinnedCAFilepathByPrefix(gun, trustPinConfig); err == nil {
+		logrus.Debugf("trust-pinning using root CA bundle at: %s", caFilepath)
+
 		// Try to add the CA certs from its bundle file to our certificate store,
 		// and use it to validate certs in the root.json later
 		caCerts, err := utils.LoadCertBundleFromFile(caFilepath)
@@ -46,6 +49,7 @@ func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string) (CertChecker,
 		caRootPool := x509.NewCertPool()
 		for _, caCert := range caCerts {
 			if err = utils.ValidateCertificate(caCert); err != nil {
+				logrus.Debugf("ignoring root CA certificate with CN %s in bundle: %s", caCert.Subject.CommonName, err)
 				continue
 			}
 			caRootPool.AddCert(caCert)
@@ -59,9 +63,10 @@ func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string) (CertChecker,
 	}
 
 	if !trustPinConfig.DisableTOFU {
+		logrus.Debugf("trust-pinning: using TOFU")
 		return t.tofusCheck, nil
 	}
-	return nil, fmt.Errorf("invalid trust pinning specified")
+	return nil, fmt.Errorf("invalid trust-pinning specified")
 }
 
 func (t trustPinChecker) certsCheck(leafCert *x509.Certificate, intCerts []*x509.Certificate) bool {
@@ -83,9 +88,11 @@ func (t trustPinChecker) caCheck(leafCert *x509.Certificate, intCerts []*x509.Ce
 	}
 	// Attempt to find a valid certificate chain from the leaf cert to CA root
 	// Use this certificate if such a valid chain exists (possibly using intermediates)
-	if _, err := leafCert.Verify(x509.VerifyOptions{Roots: t.pinnedCAPool, Intermediates: caIntPool}); err == nil {
+	var err error
+	if _, err = leafCert.Verify(x509.VerifyOptions{Roots: t.pinnedCAPool, Intermediates: caIntPool}); err == nil {
 		return true
 	}
+	logrus.Debugf("unable to find a valid certificate chain from leaf cert to CA root: %s", err)
 	return false
 }
 
