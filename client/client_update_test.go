@@ -347,6 +347,8 @@ type updateOpts struct {
 	localCache       bool   // whether the repo should have a local cache before updating
 	forWrite         bool   // whether the update is for writing or not (force check remote root.json)
 	role             string // the role to mess up on the server
+
+	checkRepo func(*NotaryRepository, *testutils.MetadataSwizzler) // a callback that can examine the repo at the end
 }
 
 // If there's no local cache, we go immediately to check the remote server for
@@ -783,9 +785,7 @@ func testUpdateRemoteFileChecksumWrong(t *testing.T, opts updateOpts, errExpecte
 // --- these tests below assume the checksums are correct (since the server can sign snapshots and
 // timestamps, so can be malicious) ---
 
-// this does not include delete, which is tested separately so we can try to get
-// 404s and 503s
-var waysToMessUpServer = []swizzleExpectations{
+var waysToMessUpServerBadMeta = []swizzleExpectations{
 	{desc: "invalid JSON", expectErrs: []interface{}{&trustpinning.ErrValidationFail{}, &json.SyntaxError{}},
 		swizzle: (*testutils.MetadataSwizzler).SetInvalidJSON},
 
@@ -797,13 +797,20 @@ var waysToMessUpServer = []swizzleExpectations{
 		expectErrs: []interface{}{&trustpinning.ErrValidationFail{}, &json.UnmarshalTypeError{}, &time.ParseError{}},
 		swizzle:    (*testutils.MetadataSwizzler).SetInvalidSignedMeta},
 
-	// for the errors below, when we bootstrap root, we get cert.ErrValidationFail failures
 	// for everything else, the errors come from tuf/signed
 
 	{desc: "invalid SignedMeta Type", expectErrs: []interface{}{
 		&trustpinning.ErrValidationFail{}, signed.ErrWrongType, data.ErrInvalidMetadata{}},
 		swizzle: (*testutils.MetadataSwizzler).SetInvalidMetadataType},
 
+	{desc: "lower metadata version", expectErrs: []interface{}{
+		&trustpinning.ErrValidationFail{}, signed.ErrLowVersion{}, data.ErrInvalidMetadata{}},
+		swizzle: func(s *testutils.MetadataSwizzler, role string) error {
+			return s.OffsetMetadataVersion(role, -3)
+		}},
+}
+
+var waysToMessUpServerBadSigs = []swizzleExpectations{
 	{desc: "invalid signatures", expectErrs: []interface{}{
 		&trustpinning.ErrValidationFail{}, signed.ErrRoleThreshold{}, &trustpinning.ErrRootRotationFail{}},
 		swizzle: (*testutils.MetadataSwizzler).InvalidateMetadataSignatures},
@@ -812,22 +819,22 @@ var waysToMessUpServer = []swizzleExpectations{
 		&trustpinning.ErrValidationFail{}, signed.ErrRoleThreshold{}, &trustpinning.ErrRootRotationFail{}},
 		swizzle: (*testutils.MetadataSwizzler).SignMetadataWithInvalidKey},
 
-	{desc: "expired metadata", expectErrs: []interface{}{
-		&trustpinning.ErrValidationFail{}, signed.ErrExpired{}},
-		swizzle: (*testutils.MetadataSwizzler).ExpireMetadata},
-
-	{desc: "lower metadata version", expectErrs: []interface{}{
-		&trustpinning.ErrValidationFail{}, signed.ErrLowVersion{}, data.ErrInvalidMetadata{}},
-		swizzle: func(s *testutils.MetadataSwizzler, role string) error {
-			return s.OffsetMetadataVersion(role, -3)
-		}},
-
 	{desc: "insufficient signatures", expectErrs: []interface{}{
 		&trustpinning.ErrValidationFail{}, signed.ErrRoleThreshold{}},
 		swizzle: func(s *testutils.MetadataSwizzler, role string) error {
 			return s.SetThreshold(role, 2)
 		}},
 }
+
+var wayToMessUpServerBadExpiry = swizzleExpectations{
+	desc: "expired metadata", expectErrs: []interface{}{
+		&trustpinning.ErrValidationFail{}, signed.ErrExpired{}},
+	swizzle: (*testutils.MetadataSwizzler).ExpireMetadata,
+}
+
+// this does not include delete, which is tested separately so we can try to get
+// 404s and 503s
+var waysToMessUpServer = append(waysToMessUpServerBadMeta, append(waysToMessUpServerBadSigs, wayToMessUpServerBadExpiry)...)
 
 var _waysToMessUpServerRoot []swizzleExpectations
 
@@ -994,23 +1001,31 @@ func TestUpdateNonRootRemoteCorruptedNoLocalCache(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
-	acceptDelgAnyway := map[string]struct{}{
-		"insufficient signatures":  struct{}{},
-		"expired metadata":         struct{}{},
-		"invalid signatures":       struct{}{},
-		"meta signed by wrong key": struct{}{},
+	for _, role := range append(data.BaseRoles) {
+		switch role {
+		case data.CanonicalRootRole:
+			break
+		default:
+			for _, testData := range waysToMessUpServer {
+				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
+					role: role,
+				}, testData, true)
+			}
+		}
 	}
 
-	for _, role := range append(data.BaseRoles, delegationsWithNonEmptyMetadata...) {
-		if role == data.CanonicalRootRole {
-			continue
-		}
-		for _, testData := range waysToMessUpServer {
-			_, delgShouldSucceed := acceptDelgAnyway[testData.desc]
-
+	for _, role := range delegationsWithNonEmptyMetadata {
+		for _, testData := range waysToMessUpServerBadMeta {
 			testUpdateRemoteCorruptValidChecksum(t, updateOpts{
 				role: role,
-			}, testData, !data.IsDelegation(role) || !delgShouldSucceed)
+			}, testData, true)
+		}
+
+		for _, testData := range append(waysToMessUpServerBadSigs, wayToMessUpServerBadExpiry) {
+			testUpdateRemoteCorruptValidChecksum(t, updateOpts{
+				role:      role,
+				checkRepo: checkBadDelegationRoleSkipped(t, role),
+			}, testData, false)
 		}
 	}
 
@@ -1090,6 +1105,24 @@ func TestUpdateNonRootRemoteCorruptedCanUseLocalCache(t *testing.T) {
 	}
 }
 
+// requires that a delegation role and its descendants were not accepted as a valid part of the
+// TUF repo, but everything else was
+func checkBadDelegationRoleSkipped(t *testing.T, delgRoleName string) func(*NotaryRepository, *testutils.MetadataSwizzler) {
+	return func(repo *NotaryRepository, s *testutils.MetadataSwizzler) {
+		for _, roleName := range s.Roles {
+			if roleName != data.CanonicalTargetsRole && !data.IsDelegation(roleName) {
+				continue
+			}
+			_, hasTarget := repo.tufRepo.Targets[roleName]
+			require.Equal(t, !strings.HasPrefix(roleName, delgRoleName), hasTarget)
+		}
+
+		require.NotNil(t, repo.tufRepo.Root)
+		require.NotNil(t, repo.tufRepo.Snapshot)
+		require.NotNil(t, repo.tufRepo.Timestamp)
+	}
+}
+
 // Having a local cache, if the server has all new data (some being corrupt),
 // and update should fail in all cases (except if we modify the timestamp)
 // because the metadata is re-downloaded.
@@ -1100,38 +1133,50 @@ func TestUpdateNonRootRemoteCorruptedCannotUseLocalCache(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
-	acceptDelgAnyway := map[string]struct{}{
-		"insufficient signatures":  struct{}{},
-		"expired metadata":         struct{}{},
-		"invalid signatures":       struct{}{},
-		"meta signed by wrong key": struct{}{},
+	for _, role := range data.BaseRoles {
+		switch role {
+		case data.CanonicalRootRole:
+			break
+		case data.CanonicalTimestampRole:
+			for _, testData := range waysToMessUpServer {
+				// in general the cached timsestamp will always succeed, but if the threshold has been
+				// increased, it fails because when we download the new timestamp, it validates as per our
+				// previous root.  But the root hash doesn't match.  So we download a new root and
+				// try the update again.  In this case, both the old and new timestamps won't have enough
+				// signatures.
+				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
+					serverHasNewData: true,
+					localCache:       true,
+					role:             role,
+				}, testData, testData.desc == "insufficient signatures")
+			}
+		default:
+			for _, testData := range waysToMessUpServer {
+				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
+					serverHasNewData: true,
+					localCache:       true,
+					role:             role,
+				}, testData, true)
+			}
+		}
 	}
 
-	for _, role := range append(data.BaseRoles, delegationsWithNonEmptyMetadata...) {
-		if role == data.CanonicalRootRole {
-			continue
-		}
-		for _, testData := range waysToMessUpServer {
-			// in general the cached timsestamp will always succeed, but if the threshold has been
-			// increased, it fails because when we download the new timestamp, it validates as per our
-			// previous root.  But the root hash doesn't match.  So we download a new root and
-			// try the update again.  In this case, both the old and new timestamps won't have enough
-			// signatures.
-			shouldFail := true
-			if role == data.CanonicalTimestampRole {
-				shouldFail = testData.desc == "insufficient signatures"
-			}
-
-			if data.IsDelegation(role) {
-				_, delgShouldSucceed := acceptDelgAnyway[testData.desc]
-				shouldFail = !delgShouldSucceed
-			}
-
+	for _, role := range delegationsWithNonEmptyMetadata {
+		for _, testData := range waysToMessUpServerBadMeta {
 			testUpdateRemoteCorruptValidChecksum(t, updateOpts{
 				serverHasNewData: true,
 				localCache:       true,
 				role:             role,
-			}, testData, shouldFail)
+			}, testData, true)
+		}
+
+		for _, testData := range append(waysToMessUpServerBadSigs, wayToMessUpServerBadExpiry) {
+			testUpdateRemoteCorruptValidChecksum(t, updateOpts{
+				serverHasNewData: true,
+				localCache:       true,
+				role:             role,
+				checkRepo:        checkBadDelegationRoleSkipped(t, role),
+			}, testData, false)
 		}
 	}
 
@@ -1231,6 +1276,10 @@ func testUpdateRemoteCorruptValidChecksum(t *testing.T, opts updateOpts, expt sw
 
 	} else {
 		require.NoError(t, err, "expected no failure updating when %s", msg)
+	}
+
+	if opts.checkRepo != nil {
+		opts.checkRepo(repo, serverSwizzler)
 	}
 }
 
@@ -1352,8 +1401,10 @@ func testUpdateRemoteKeyRotated(t *testing.T, role string) {
 	msg := fmt.Sprintf("swizzling %s remotely to rotate key (forWrite: false)", role)
 
 	err = repo.Update(false)
+	// invalid signatures are ok - the delegation is just skipped
 	if data.IsDelegation(role) {
 		require.NoError(t, err)
+		checkBadDelegationRoleSkipped(t, role)(repo, serverSwizzler)
 		return
 	}
 	require.Error(t, err, "expected failure updating when %s", msg)
