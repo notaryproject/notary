@@ -39,6 +39,4 @@ type MetaStore interface {
 	// Delete removes all metadata for a given GUN.  It does not return an
 	// error if no metadata exists for the given GUN.
 	Delete(gun string) error
-
-	KeyStore
 }

@@ -43,7 +43,6 @@ func init() {
 
 			// drop all tables, if they exist
 			gormDB.DropTable(&TUFFile{})
-			gormDB.DropTable(&Key{})
 		}
 		cleanup1()
 		dbStore := SetupSQLDB(t, "mysql", dburl)

@@ -36,7 +36,6 @@ func rethinkDBSetup(t *testing.T) (RethinkDB, func()) {
 	cleanup()
 	require.NoError(t, rethinkdb.SetupDB(session, dbName, []rethinkdb.Table{
 		TUFFilesRethinkTable,
-		PubKeysRethinkTable,
 	}))
 	return NewRethinkDBStorage(dbName, "", "", session), cleanup
 }
@@ -96,10 +95,6 @@ func TestRethinkCheckHealth(t *testing.T) {
 
 	// only one table existing causes health check to fail
 	require.NoError(t, gorethink.DB(dbStore.dbName).TableDrop(TUFFilesRethinkTable.Name).Exec(dbStore.sess))
-	require.Error(t, dbStore.CheckHealth())
-
-	// No tables, health check fails
-	require.NoError(t, gorethink.DB(dbStore.dbName).TableDrop(PubKeysRethinkTable.Name).Exec(dbStore.sess))
 	require.Error(t, dbStore.CheckHealth())
 
 	// No DB, health check fails

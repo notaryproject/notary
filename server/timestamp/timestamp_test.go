@@ -77,11 +77,6 @@ func TestGetTimestampNoPreviousTimestamp(t *testing.T) {
 					storage.MetaUpdate{Role: data.CanonicalTimestampRole, Version: 0, Data: timestampJSON}))
 		}
 
-		// create a key to be used by GetOrCreateTimestamp
-		key, err := crypto.Create(data.CanonicalTimestampRole, "gun", data.ECDSAKey)
-		require.NoError(t, err)
-		require.NoError(t, store.SetKey("gun", data.CanonicalTimestampRole, key.Algorithm(), key.Public()))
-
 		_, _, err = GetOrCreateTimestamp("gun", store, crypto)
 		require.Error(t, err, "GetTimestamp should have failed")
 		if timestampJSON == nil {

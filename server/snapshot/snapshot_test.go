@@ -107,11 +107,6 @@ func TestGetSnapshotNoPreviousSnapshot(t *testing.T) {
 					storage.MetaUpdate{Role: data.CanonicalSnapshotRole, Version: 0, Data: snapshotJSON}))
 		}
 
-		// create a key to be used by GetOrCreateSnapshot
-		key, err := crypto.Create(data.CanonicalSnapshotRole, "gun", data.ECDSAKey)
-		require.NoError(t, err)
-		require.NoError(t, store.SetKey("gun", data.CanonicalSnapshotRole, key.Algorithm(), key.Public()))
-
 		hashBytes := sha256.Sum256(snapshotJSON)
 		hashHex := hex.EncodeToString(hashBytes[:])
 

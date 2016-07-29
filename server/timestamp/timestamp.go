@@ -58,7 +58,7 @@ func GetOrCreateTimestampKey(gun string, store storage.MetaStore, crypto signed.
 }
 
 // RotateTimestampKey TODO(riyazdf)
-func RotateTimestampKey(gun string, store storage.KeyStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
+func RotateTimestampKey(gun string, store storage.MetaStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
 	// Always attempt to create a new key, but this might be rate-limited
 	key, err := crypto.Create(data.CanonicalTimestampRole, gun, createAlgorithm)
 	if err != nil {
