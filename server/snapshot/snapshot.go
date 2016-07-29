@@ -53,7 +53,7 @@ func GetOrCreateSnapshotKey(gun string, store storage.MetaStore, crypto signed.C
 }
 
 // RotateSnapshotKey attempts to rotate a snapshot key in the signer, but might be rate-limited by the signer
-func RotateSnapshotKey(gun string, store storage.KeyStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
+func RotateSnapshotKey(gun string, store storage.MetaStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
 	// Always attempt to create a new key, but this might be rate-limited
 	key, err := crypto.Create(data.CanonicalSnapshotRole, gun, createAlgorithm)
 	if err != nil {

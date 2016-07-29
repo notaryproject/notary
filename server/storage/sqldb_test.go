@@ -22,12 +22,9 @@ func SetupSQLDB(t *testing.T, dbtype, dburl string) *SQLStorage {
 	err = CreateTUFTable(dbStore.DB)
 	require.NoError(t, err)
 
-	err = CreateKeyTable(dbStore.DB)
-	require.NoError(t, err)
-
 	// verify that the tables are empty
 	var count int
-	for _, model := range [2]interface{}{&TUFFile{}, &Key{}} {
+	for _, model := range [1]interface{}{&TUFFile{}} {
 		query := dbStore.DB.Model(model).Count(&count)
 		require.NoError(t, query.Error)
 		require.Equal(t, 0, count)
@@ -139,147 +136,15 @@ func TestSQLDelete(t *testing.T) {
 	dbStore.DB.Close()
 }
 
-func TestSQLGetKeyNoKey(t *testing.T) {
-	dbStore, cleanup := sqldbSetup(t)
-	defer cleanup()
-
-	cipher, public, err := dbStore.GetKey("testGUN", data.CanonicalTimestampRole)
-	require.Equal(t, "", cipher)
-	require.Nil(t, public)
-	require.IsType(t, &ErrNoKey{}, err,
-		"Expected ErrNoKey from GetKey")
-
-	query := dbStore.DB.Create(&Key{
-		Gun:    "testGUN",
-		Role:   data.CanonicalTimestampRole,
-		Cipher: "testCipher",
-		Public: []byte("1"),
-	})
-	require.NoError(
-		t, query.Error, "Inserting timestamp into empty DB should succeed")
-
-	cipher, public, err = dbStore.GetKey("testGUN", data.CanonicalTimestampRole)
-	require.NoError(t, err)
-	require.Equal(t, "testCipher", cipher,
-		"Returned cipher was incorrect")
-	require.Equal(t, []byte("1"), public, "Returned pubkey was incorrect")
-}
-
-func TestSQLSetKeyExists(t *testing.T) {
-	dbStore, cleanup := sqldbSetup(t)
-	defer cleanup()
-
-	err := dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
-	require.NoError(t, err, "Inserting timestamp into empty DB should succeed")
-
-	err = dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
-	require.Error(t, err)
-	require.IsType(t, &ErrKeyExists{}, err,
-		"Expected ErrKeyExists from SetKey")
-
-	var rows []Key
-	query := dbStore.DB.Select("id, gun, cipher, public").Find(&rows)
-	require.NoError(t, query.Error)
-
-	expected := Key{Gun: "testGUN", Cipher: "testCipher",
-		Public: []byte("1")}
-	expected.Model = gorm.Model{ID: 1}
-
-	require.Equal(t, []Key{expected}, rows)
-
-	dbStore.DB.Close()
-}
-
-func TestSQLSetKeyMultipleRoles(t *testing.T) {
-	dbStore, cleanup := sqldbSetup(t)
-	defer cleanup()
-
-	err := dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
-	require.NoError(t, err, "Inserting timestamp into empty DB should succeed")
-
-	err = dbStore.SetKey("testGUN", data.CanonicalSnapshotRole, "testCipher", []byte("1"))
-	require.NoError(t, err, "Inserting snapshot key into DB with timestamp key should succeed")
-
-	var rows []Key
-	query := dbStore.DB.Select("id, gun, role, cipher, public").Find(&rows)
-	require.NoError(t, query.Error)
-
-	expectedTS := Key{Gun: "testGUN", Role: "timestamp", Cipher: "testCipher",
-		Public: []byte("1")}
-	expectedTS.Model = gorm.Model{ID: 1}
-
-	expectedSN := Key{Gun: "testGUN", Role: "snapshot", Cipher: "testCipher",
-		Public: []byte("1")}
-	expectedSN.Model = gorm.Model{ID: 2}
-
-	require.Equal(t, []Key{expectedTS, expectedSN}, rows)
-
-	dbStore.DB.Close()
-}
-
-func TestSQLSetKeyMultipleGuns(t *testing.T) {
-	dbStore, cleanup := sqldbSetup(t)
-	defer cleanup()
-
-	err := dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
-	require.NoError(t, err, "Inserting timestamp into empty DB should succeed")
-
-	err = dbStore.SetKey("testAnotherGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
-	require.NoError(t, err, "Inserting snapshot key into DB with timestamp key should succeed")
-
-	var rows []Key
-	query := dbStore.DB.Select("id, gun, role, cipher, public").Find(&rows)
-	require.NoError(t, query.Error)
-
-	expected1 := Key{Gun: "testGUN", Role: "timestamp", Cipher: "testCipher",
-		Public: []byte("1")}
-	expected1.Model = gorm.Model{ID: 1}
-
-	expected2 := Key{Gun: "testAnotherGUN", Role: "timestamp", Cipher: "testCipher",
-		Public: []byte("1")}
-	expected2.Model = gorm.Model{ID: 2}
-
-	require.Equal(t, []Key{expected1, expected2}, rows)
-
-	dbStore.DB.Close()
-}
-
-func TestSQLSetKeySameRoleGun(t *testing.T) {
-	dbStore, cleanup := sqldbSetup(t)
-	defer cleanup()
-
-	err := dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("1"))
-	require.NoError(t, err, "Inserting timestamp into empty DB should succeed")
-
-	err = dbStore.SetKey("testGUN", data.CanonicalTimestampRole, "testCipher", []byte("2"))
-	require.Error(t, err)
-	require.IsType(t, &ErrKeyExists{}, err,
-		"Expected ErrKeyExists from SetKey")
-
-	dbStore.DB.Close()
-}
-
-// TestSQLDBCheckHealthTableMissing asserts that the health check fails if one or
-// both the tables are missing.
+// TestSQLDBCheckHealthTableMissing asserts that the health check fails if the table is missing
 func TestSQLDBCheckHealthTableMissing(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
 	dbStore.DropTable(&TUFFile{})
-	dbStore.DropTable(&Key{})
 
 	// No tables, health check fails
 	err := dbStore.CheckHealth()
-	require.Error(t, err, "Cannot access table:")
-
-	// only one table existing causes health check to fail
-	CreateTUFTable(dbStore.DB)
-	err = dbStore.CheckHealth()
-	require.Error(t, err, "Cannot access table:")
-	dbStore.DropTable(&TUFFile{})
-
-	CreateKeyTable(dbStore.DB)
-	err = dbStore.CheckHealth()
 	require.Error(t, err, "Cannot access table:")
 }
 

@@ -5,7 +5,6 @@ package storage
 import (
 	"testing"
 
-	"github.com/docker/notary/tuf/data"
 	"github.com/stretchr/testify/require"
 )
 
@@ -83,60 +82,6 @@ func TestGetCurrent(t *testing.T) {
 	_, d, err := s.GetCurrent("gun", "role")
 	require.Nil(t, err, "Expected error to be nil")
 	require.Equal(t, []byte("test"), d, "Data was incorrect")
-}
-
-func TestGetTimestampKey(t *testing.T) {
-	s := NewMemStorage()
-
-	s.SetKey("gun", data.CanonicalTimestampRole, data.RSAKey, []byte("test"))
-
-	c, k, err := s.GetKey("gun", data.CanonicalTimestampRole)
-	require.Nil(t, err, "Expected error to be nil")
-	require.Equal(t, data.RSAKey, c, "Expected algorithm rsa, received %s", c)
-	require.Equal(t, []byte("test"), k, "Key data was wrong")
-}
-
-func TestSetKey(t *testing.T) {
-	s := NewMemStorage()
-	err := s.SetKey("gun", data.CanonicalTimestampRole, data.RSAKey, []byte("test"))
-	require.NoError(t, err)
-
-	k := s.keys["gun"][data.CanonicalTimestampRole]
-	require.Equal(t, data.RSAKey, k.algorithm, "Expected algorithm to be rsa, received %s", k.algorithm)
-	require.Equal(t, []byte("test"), k.public, "Public key did not match expected")
-
-}
-
-func TestSetKeyMultipleRoles(t *testing.T) {
-	s := NewMemStorage()
-	err := s.SetKey("gun", data.CanonicalTimestampRole, data.RSAKey, []byte("test"))
-	require.NoError(t, err)
-
-	err = s.SetKey("gun", data.CanonicalSnapshotRole, data.RSAKey, []byte("test"))
-	require.NoError(t, err)
-
-	k := s.keys["gun"][data.CanonicalTimestampRole]
-	require.Equal(t, data.RSAKey, k.algorithm, "Expected algorithm to be rsa, received %s", k.algorithm)
-	require.Equal(t, []byte("test"), k.public, "Public key did not match expected")
-
-	k = s.keys["gun"][data.CanonicalSnapshotRole]
-	require.Equal(t, data.RSAKey, k.algorithm, "Expected algorithm to be rsa, received %s", k.algorithm)
-	require.Equal(t, []byte("test"), k.public, "Public key did not match expected")
-}
-
-func TestSetKeySameRoleGun(t *testing.T) {
-	s := NewMemStorage()
-	err := s.SetKey("gun", data.CanonicalTimestampRole, data.RSAKey, []byte("test"))
-	require.NoError(t, err)
-
-	// set diff algo and bytes so we can confirm data didn't get replaced
-	err = s.SetKey("gun", data.CanonicalTimestampRole, data.ECDSAKey, []byte("test2"))
-	require.IsType(t, &ErrKeyExists{}, err, "Expected err to be ErrKeyExists")
-
-	k := s.keys["gun"][data.CanonicalTimestampRole]
-	require.Equal(t, data.RSAKey, k.algorithm, "Expected algorithm to be rsa, received %s", k.algorithm)
-	require.Equal(t, []byte("test"), k.public, "Public key did not match expected")
-
 }
 
 func TestGetChecksumNotFound(t *testing.T) {

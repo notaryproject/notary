@@ -31,20 +31,6 @@ func (r RDBTUFFile) TableName() string {
 	return "tuf_files"
 }
 
-// RDBKey is the public key record
-type RDBKey struct {
-	rethinkdb.Timing
-	Gun    string `gorethink:"gun"`
-	Role   string `gorethink:"role"`
-	Cipher string `gorethink:"cipher"`
-	Public []byte `gorethink:"public"`
-}
-
-// TableName returns the table name for the record type
-func (r RDBKey) TableName() string {
-	return "tuf_keys"
-}
-
 // gorethink can't handle an UnmarshalJSON function (see https://github.com/dancannon/gorethink/issues/201),
 // so do this here in an anonymous struct
 func rdbTUFFileFromJSON(data []byte) (interface{}, error) {
@@ -78,14 +64,6 @@ func rdbTUFFileFromJSON(data []byte) (interface{}, error) {
 	}, nil
 }
 
-func rdbKeyFromJSON(data []byte) (interface{}, error) {
-	rdb := RDBKey{}
-	if err := json.Unmarshal(data, &rdb); err != nil {
-		return RDBKey{}, err
-	}
-	return rdb, nil
-}
-
 // RethinkDB implements a MetaStore against the Rethink Database
 type RethinkDB struct {
 	dbName   string
@@ -102,42 +80,6 @@ func NewRethinkDBStorage(dbName, user, password string, sess *gorethink.Session)
 		user:     user,
 		password: password,
 	}
-}
-
-// GetKey returns the cipher and public key for the given GUN and role.
-// If the GUN+role don't exist, returns an error.
-func (rdb RethinkDB) GetKey(gun, role string) (cipher string, public []byte, err error) {
-	var key RDBKey
-	res, err := gorethink.DB(rdb.dbName).Table(key.TableName()).GetAllByIndex(
-		rdbGunRoleIdx, []string{gun, role},
-	).Run(rdb.sess)
-	if err != nil {
-		return "", nil, err
-	}
-	defer res.Close()
-	err = res.One(&key)
-	if err == gorethink.ErrEmptyResult {
-		return "", nil, &ErrNoKey{gun: gun}
-	}
-	return key.Cipher, key.Public, err
-}
-
-// SetKey sets the cipher and public key for the given GUN and role if
-// it doesn't already exist.  Otherwise an error is returned.
-func (rdb RethinkDB) SetKey(gun, role, cipher string, public []byte) error {
-	now := time.Now()
-	key := RDBKey{
-		Timing: rethinkdb.Timing{
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-		Gun:    gun,
-		Role:   role,
-		Cipher: cipher,
-		Public: public,
-	}
-	_, err := gorethink.DB(rdb.dbName).Table(key.TableName()).Insert(key).RunWrite(rdb.sess)
-	return err
 }
 
 // UpdateCurrent adds new metadata version for the given GUN if and only
@@ -317,7 +259,6 @@ func (rdb RethinkDB) deleteByTSChecksum(tsChecksum string) error {
 func (rdb RethinkDB) Bootstrap() error {
 	if err := rethinkdb.SetupDB(rdb.sess, rdb.dbName, []rethinkdb.Table{
 		TUFFilesRethinkTable,
-		PubKeysRethinkTable,
 	}); err != nil {
 		return err
 	}
@@ -326,7 +267,7 @@ func (rdb RethinkDB) Bootstrap() error {
 
 // CheckHealth checks that all tables and databases exist and are query-able
 func (rdb RethinkDB) CheckHealth() error {
-	for _, table := range []string{TUFFilesRethinkTable.Name, PubKeysRethinkTable.Name} {
+	for _, table := range []string{TUFFilesRethinkTable.Name} {
 		res, err := gorethink.DB(rdb.dbName).Table(table).Info().Run(rdb.sess)
 		if err != nil {
 			return fmt.Errorf("%s is unavailable, or missing one or more tables, or permissions are incorrectly set", rdb.dbName)
