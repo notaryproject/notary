@@ -45,8 +45,8 @@ func TestGetTimestampKey(t *testing.T) {
 
 	require.Nil(t, err, "Expected nil error")
 
-	// NOTE(riyazdf): this is one place (and on rotate) that we have to rate-limit
-	// trying to get the same key again should return a different value until we've published metadata for the repo
+	// Note that this cryptoservice does not perform any rate-limiting, unlike the notary-signer,
+	// so we get a different key until we've published valid TUF metadata in the store
 	require.NotEqual(t, k, k2, "Received same key when attempting to recreate.")
 	require.NotNil(t, k2, "Key should not be nil")
 }

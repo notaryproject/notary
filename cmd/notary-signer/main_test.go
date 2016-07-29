@@ -87,7 +87,7 @@ func TestSetupCryptoServicesDBStoreNoDefaultAlias(t *testing.T) {
 	tmpFile.Close()
 	defer os.Remove(tmpFile.Name())
 
-	_, err = setUpCryptoservices(
+	_, _, err = setUpCryptoservices(
 		configure(fmt.Sprintf(
 			`{"storage": {"backend": "%s", "db_url": "%s"}}`,
 			notary.SQLiteBackend, tmpFile.Name())),
@@ -99,7 +99,7 @@ func TestSetupCryptoServicesDBStoreNoDefaultAlias(t *testing.T) {
 
 // If a default alias is not provided to a rethinkdb backend, an error is returned.
 func TestSetupCryptoServicesRethinkDBStoreNoDefaultAlias(t *testing.T) {
-	_, err := setUpCryptoservices(
+	_, _, err := setUpCryptoservices(
 		configure(fmt.Sprintf(
 			`{"storage": {
 				"backend": "%s",
@@ -120,7 +120,7 @@ func TestSetupCryptoServicesRethinkDBStoreNoDefaultAlias(t *testing.T) {
 
 func TestSetupCryptoServicesRethinkDBStoreConnectionFails(t *testing.T) {
 	// We don't have a rethink instance up, so the Connection() call will fail
-	_, err := setUpCryptoservices(
+	_, _, err := setUpCryptoservices(
 		configure(fmt.Sprintf(
 			`{"storage": {
 				"backend": "%s",
@@ -161,7 +161,7 @@ func TestSetupCryptoServicesDBStoreSuccess(t *testing.T) {
 	db.Model(&gormKey).Count(&count)
 	require.Equal(t, 0, count)
 
-	cryptoServices, err := setUpCryptoservices(
+	cryptoServices, _, err := setUpCryptoservices(
 		configure(fmt.Sprintf(
 			`{"storage": {"backend": "%s", "db_url": "%s"},
 			"default_alias": "timestamp"}`,
@@ -194,7 +194,7 @@ func TestSetupCryptoServicesDBStoreSuccess(t *testing.T) {
 func TestSetupCryptoServicesMemoryStore(t *testing.T) {
 	config := configure(fmt.Sprintf(`{"storage": {"backend": "%s"}}`,
 		notary.MemoryBackend))
-	cryptoServices, err := setUpCryptoservices(config,
+	cryptoServices, _, err := setUpCryptoservices(config,
 		[]string{notary.SQLiteBackend, notary.MemoryBackend}, false)
 	require.NoError(t, err)
 	require.Len(t, cryptoServices, 2)
@@ -219,7 +219,7 @@ func TestSetupCryptoServicesMemoryStore(t *testing.T) {
 func TestSetupCryptoServicesInvalidStore(t *testing.T) {
 	config := configure(fmt.Sprintf(`{"storage": {"backend": "%s"}}`,
 		"invalid_backend"))
-	_, err := setUpCryptoservices(config,
+	_, _, err := setUpCryptoservices(config,
 		[]string{notary.SQLiteBackend, notary.MemoryBackend, notary.RethinkDBBackend}, false)
 	require.Error(t, err)
 	require.Equal(t, err.Error(), fmt.Sprintf("%s is not an allowed backend, must be one of: %s", "invalid_backend", []string{notary.SQLiteBackend, notary.MemoryBackend, notary.RethinkDBBackend}))

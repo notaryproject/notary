@@ -197,6 +197,17 @@ func (s *SQLKeyDBStore) markActive(keyID string) error {
 	return s.db.Model(GormPrivateKey{}).Where("key_id = ?", keyID).Updates(GormPrivateKey{LastUsed: s.nowFunc()}).Error
 }
 
+// GetPendingKey gets the public key component of a key that was created but never used for signing a given gun and role
+func (s *SQLKeyDBStore) GetPendingKey(gun, role string) (data.PublicKey, error) {
+	// Retrieve the GORM private key from the database
+	dbPrivateKey := GormPrivateKey{}
+	if s.db.Where(&GormPrivateKey{Gun: gun, Role: role, LastUsed: time.Time{}}).First(&dbPrivateKey).RecordNotFound() {
+		return nil, trustmanager.ErrKeyNotFound{}
+	}
+	// Just return the public key component if we found one
+	return data.NewPublicKey(dbPrivateKey.Algorithm, []byte(dbPrivateKey.Public)), nil
+}
+
 // HealthCheck verifies that DB exists and is query-able
 func (s *SQLKeyDBStore) HealthCheck() error {
 	dbPrivateKey := GormPrivateKey{}
