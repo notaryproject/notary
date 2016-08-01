@@ -79,10 +79,10 @@ func (s *routeGuideServer) GetFeature(ctx context.Context, point *pb.Point) (*pb
 		}
 	}
 	// No feature was found, return an unnamed feature
-	return &pb.Feature{"", point}, nil
+	return &pb.Feature{Location: point}, nil
 }
 
-// ListFeatures lists all features comtained within the given bounding Rectangle.
+// ListFeatures lists all features contained within the given bounding Rectangle.
 func (s *routeGuideServer) ListFeatures(rect *pb.Rectangle, stream pb.RouteGuide_ListFeaturesServer) error {
 	for _, feature := range s.savedFeatures {
 		if inRange(feature.Location, rect) {
