@@ -96,7 +96,7 @@ func passphraseRetriever(keyName, alias string, createNew bool, attempts int) (p
 	return passphrase, false, nil
 }
 
-type pendingKeyFunc func(string, string) (data.PublicKey, error)
+type pendingKeyFunc func(trustmanager.KeyInfo) (data.PublicKey, error)
 
 // Reads the configuration file for storage setup, and sets up the cryptoservice
 // mapping
@@ -109,7 +109,7 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, d
 	}
 
 	var keyStore trustmanager.KeyStore
-	var pendingKeyFunc = func(string, string) (data.PublicKey, error) { return nil, fmt.Errorf("no pending key") }
+	var pendingKeyFunc = func(trustmanager.KeyInfo) (data.PublicKey, error) { return nil, fmt.Errorf("no pending key") }
 	switch backend {
 	case notary.MemoryBackend:
 		keyStore = trustmanager.NewKeyMemoryStore(

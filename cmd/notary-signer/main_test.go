@@ -194,10 +194,11 @@ func TestSetupCryptoServicesDBStoreSuccess(t *testing.T) {
 func TestSetupCryptoServicesMemoryStore(t *testing.T) {
 	config := configure(fmt.Sprintf(`{"storage": {"backend": "%s"}}`,
 		notary.MemoryBackend))
-	cryptoServices, _, err := setUpCryptoservices(config,
+	cryptoServices, pendingKeyFunc, err := setUpCryptoservices(config,
 		[]string{notary.SQLiteBackend, notary.MemoryBackend}, false)
 	require.NoError(t, err)
 	require.Len(t, cryptoServices, 2)
+	require.NotNil(t, pendingKeyFunc)
 
 	edService, ok := cryptoServices[data.ED25519Key]
 	require.True(t, ok)

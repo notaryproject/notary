@@ -265,9 +265,9 @@ func (rdb RethinkDBKeyStore) markActive(keyID string) error {
 }
 
 // GetPendingKey gets the public key component of a key that was created but never used for signing a given gun and role
-func (rdb RethinkDBKeyStore) GetPendingKey(gun, role string) (data.PublicKey, error) {
+func (rdb RethinkDBKeyStore) GetPendingKey(keyInfo trustmanager.KeyInfo) (data.PublicKey, error) {
 	dbPrivateKey := RDBPrivateKey{}
-	res, err := gorethink.DB(rdb.dbName).Table(dbPrivateKey.TableName()).Filter(gorethink.Row.Field("gun").Eq(gun)).Filter(gorethink.Row.Field("role").Eq(role)).Filter(gorethink.Row.Field("last_used").Eq(time.Time{})).Run(rdb.sess)
+	res, err := gorethink.DB(rdb.dbName).Table(dbPrivateKey.TableName()).Filter(gorethink.Row.Field("gun").Eq(keyInfo.Gun)).Filter(gorethink.Row.Field("role").Eq(keyInfo.Role)).Filter(gorethink.Row.Field("last_used").Eq(time.Time{})).Run(rdb.sess)
 	if err != nil {
 		return nil, err
 	}

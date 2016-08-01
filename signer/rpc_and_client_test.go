@@ -162,7 +162,7 @@ func setUpSignerServer(t *testing.T, store trustmanager.KeyStore) *grpc.Server {
 	}
 
 	fakeHealth := func() map[string]string { return nil }
-	fakePendingCheck := func(string, string) (data.PublicKey, error) { return nil, fmt.Errorf("none pending") }
+	fakePendingCheck := func(trustmanager.KeyInfo) (data.PublicKey, error) { return nil, fmt.Errorf("none pending") }
 
 	//server setup
 	grpcServer := grpc.NewServer()
