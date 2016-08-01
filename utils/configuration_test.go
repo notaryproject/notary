@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/bugsnag/bugsnag-go"
@@ -49,6 +50,98 @@ func cleanupEnvironmentVariables(t *testing.T, vars map[string]string) {
 		require.NoError(t, err)
 	}
 
+}
+
+func TestNoNotificationEndpoints(t *testing.T) {
+	endpoints, err := ParseNotificationEndpoints(configure(`{}`))
+	require.NoError(t, err)
+	require.Empty(t, endpoints, "Blank config should return no endpoints")
+}
+
+func TestParseEndpointsInvalidDisabled(t *testing.T) {
+	// disabled should be boolean, not string
+	_, err := ParseNotificationEndpoints(configure(`{"server": {"notification_endpoints": {"endpoint1": {"disabled":"true"}}}}`))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "disabled must be a boolean value")
+}
+
+func TestParseEndpointsInvalidHeaders(t *testing.T) {
+	// headers should be a map
+	_, err := ParseNotificationEndpoints(configure(`{"server": {"notification_endpoints": {"endpoint1": {"headers":"true"}}}}`))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "headers must be a map")
+
+	// headers values should be strings
+	_, err = ParseNotificationEndpoints(configure(`{"server": {"notification_endpoints": {"endpoint1": {"headers":{"h1":true}}}}}`))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "header value must be a string")
+}
+
+func TestParseEndpointsInvalidURL(t *testing.T) {
+	// url should be a string
+	_, err := ParseNotificationEndpoints(configure(`{"server": {"notification_endpoints": {"endpoint1": {"url":true}}}}`))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "url must be a string")
+}
+
+func TestParseEndpointsInvalidTimeout(t *testing.T) {
+	// timeout should be an integer
+	_, err := ParseNotificationEndpoints(configure(`{"server": {"notification_endpoints": {"endpoint1": {"timeout":"1"}}}}`))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "timeout must be a number")
+}
+
+func TestParseEndpointsInvalidThreshold(t *testing.T) {
+	// threshold should be an integer
+	_, err := ParseNotificationEndpoints(configure(`{"server": {"notification_endpoints": {"endpoint1": {"threshold":"1"}}}}`))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "threshold must be a number")
+}
+
+func TestParseEndpointsInvalidBackoff(t *testing.T) {
+	// backoff should be an integer
+	_, err := ParseNotificationEndpoints(configure(`{"server": {"notification_endpoints": {"endpoint1": {"backoff":"1"}}}}`))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "backoff must be a number")
+}
+
+func TestParseEndpointsInvalidCA(t *testing.T) {
+	// ca should be a string
+	_, err := ParseNotificationEndpoints(configure(`{"server": {"notification_endpoints": {"endpoint1": {"ca":1}}}}`))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ca must be a string")
+}
+
+func TestParseEndpointsAllValid(t *testing.T) {
+	endpoints, err := ParseNotificationEndpoints(configure(`
+	{
+		"server": {
+			"notification_endpoints": {
+				"endpoint1": {
+					"disabled": true,
+					"headers": {
+						"h1": "v1"
+					},
+					"url": "localhost",
+					"timeout": 3,
+					"threshold": 5,
+					"backoff": 2,
+					"ca": "some ca"
+				}
+			}
+		}
+	}
+	`))
+	require.NoError(t, err)
+	require.Len(t, endpoints, 1)
+	endpoint := endpoints[0]
+	require.Equal(t, endpoint.Disabled, true)
+	require.Equal(t, endpoint.Headers.Get("h1"), "v1")
+	require.Equal(t, endpoint.URL, "localhost")
+	require.Equal(t, endpoint.Timeout, time.Duration(3)*time.Second)
+	require.Equal(t, endpoint.Threshold, 5)
+	require.Equal(t, endpoint.Backoff, time.Duration(2)*time.Second)
+	require.Equal(t, endpoint.CA, "some ca")
 }
 
 // An error is returned if the log level is not parsable

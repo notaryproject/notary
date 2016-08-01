@@ -19,6 +19,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
+	dNotifications "github.com/docker/distribution/notifications"
 	"github.com/docker/go/canonical/json"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
@@ -140,7 +141,7 @@ func fullTestServer(t *testing.T) *httptest.Server {
 	ctx = ctxu.WithLogger(ctx, logrus.NewEntry(l))
 
 	cryptoService := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(passphraseRetriever))
-	return httptest.NewServer(server.RootHandler(nil, ctx, cryptoService, nil, nil, nil))
+	return httptest.NewServer(server.RootHandler(nil, ctx, cryptoService, nil, nil, nil, dNotifications.NewBroadcaster(), dNotifications.SourceRecord{}))
 }
 
 // server that returns some particular error code all the time

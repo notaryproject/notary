@@ -5,8 +5,10 @@ package utils
 import (
 	"crypto/tls"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	bugsnag_hook "github.com/Shopify/logrus-bugsnag"
 	"github.com/Sirupsen/logrus"
@@ -15,6 +17,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/docker/notary"
+	"github.com/docker/notary/notifications"
 )
 
 // Storage is a configuration about what storage backend a server should use
@@ -73,6 +76,90 @@ func ParseServerTLS(configuration *viper.Viper, tlsRequired bool) (*tls.Config, 
 	}
 
 	return tlsconfig.Server(tlsOpts)
+}
+
+// ParseNotificationEndpoints tries to parse out valid notification endpoints from a Viper.
+func ParseNotificationEndpoints(configuration *viper.Viper) ([]notifications.Endpoint, error) {
+	var endpoints []notifications.Endpoint
+	configMap := configuration.GetStringMap("server.notification_endpoints")
+	for name, config := range configMap {
+		valuesMap, ok := config.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("notification_endpoints should be a map from name to config options")
+		}
+
+		disabled := false
+		if val, ok := valuesMap["disabled"]; ok {
+			if disabled, ok = val.(bool); !ok {
+				return nil, fmt.Errorf("disabled must be a boolean value")
+			}
+		}
+
+		headers := http.Header{}
+		if val, ok := valuesMap["headers"]; ok {
+			headerMap, ok := val.(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("headers must be a map")
+			}
+
+			for k, v := range headerMap {
+				vstr, ok := v.(string)
+				if !ok {
+					return nil, fmt.Errorf("header value must be a string, check key: %s", k)
+				}
+				headers.Add(k, vstr)
+			}
+		}
+
+		url := ""
+		if val, ok := valuesMap["url"]; ok {
+			if url, ok = val.(string); !ok {
+				return nil, fmt.Errorf("url must be a string")
+			}
+		}
+
+		var timeout float64
+		if val, ok := valuesMap["timeout"]; ok {
+			if timeout, ok = val.(float64); !ok {
+				return nil, fmt.Errorf("timeout must be a number")
+			}
+		}
+
+		var threshold float64
+		if val, ok := valuesMap["threshold"]; ok {
+			if threshold, ok = val.(float64); !ok {
+				return nil, fmt.Errorf("threshold must be a number")
+			}
+		}
+
+		var backoff float64
+		if val, ok := valuesMap["backoff"]; ok {
+			if backoff, ok = val.(float64); !ok {
+				return nil, fmt.Errorf("backoff must be a number")
+			}
+		}
+
+		ca := ""
+		if val, ok := valuesMap["ca"]; ok {
+			if ca, ok = val.(string); !ok {
+				return nil, fmt.Errorf("ca must be a string")
+			}
+		}
+
+		endpoint := notifications.Endpoint{
+			Name:      name,
+			Disabled:  disabled,
+			URL:       url,
+			Headers:   headers,
+			Timeout:   time.Duration(timeout) * time.Second,
+			Threshold: int(threshold),
+			Backoff:   time.Duration(backoff) * time.Second,
+			CA:        ca,
+		}
+
+		endpoints = append(endpoints, endpoint)
+	}
+	return endpoints, nil
 }
 
 // ParseLogLevel tries to parse out a log level from a Viper.  If there is no

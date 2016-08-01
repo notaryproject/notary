@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	dNotifications "github.com/docker/distribution/notifications"
 	"github.com/docker/notary/server/storage"
 	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/tuf/data"
@@ -24,7 +25,7 @@ func TestValidationErrorFormat(t *testing.T) {
 		context.Background(), "metaStore", storage.NewMemStorage())
 	ctx = context.WithValue(ctx, "keyAlgorithm", data.ED25519Key)
 
-	handler := RootHandler(nil, ctx, signed.NewEd25519(), nil, nil, nil)
+	handler := RootHandler(nil, ctx, signed.NewEd25519(), nil, nil, nil, dNotifications.NewBroadcaster(), dNotifications.SourceRecord{})
 	server := httptest.NewServer(handler)
 	defer server.Close()
 

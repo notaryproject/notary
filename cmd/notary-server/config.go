@@ -17,6 +17,7 @@ import (
 	_ "github.com/docker/distribution/registry/auth/token"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/notary"
+	"github.com/docker/notary/notifications"
 	"github.com/docker/notary/server"
 	"github.com/docker/notary/server/storage"
 	"github.com/docker/notary/signer/client"
@@ -56,6 +57,10 @@ func getAddrAndTLSConfig(configuration *viper.Viper) (string, *tls.Config, error
 		return "", nil, fmt.Errorf(err.Error())
 	}
 	return httpAddr, tlsConfig, nil
+}
+
+func getNotificationEndpoints(configuration *viper.Viper) ([]notifications.Endpoint, error) {
+	return utils.ParseNotificationEndpoints(configuration)
 }
 
 // sets up TLS for the GRPC connection to notary-signer
@@ -282,6 +287,11 @@ func parseServerConfig(configFilePath string, hRegister healthRegister, doBootst
 		return nil, server.Config{}, err
 	}
 
+	notificationEndpoints, err := getNotificationEndpoints(config)
+	if err != nil {
+		return nil, server.Config{}, err
+	}
+
 	return ctx, server.Config{
 		Addr:                         httpAddr,
 		TLSConfig:                    tlsConfig,
@@ -291,6 +301,7 @@ func parseServerConfig(configFilePath string, hRegister healthRegister, doBootst
 		RepoPrefixes:                 prefixes,
 		CurrentCacheControlConfig:    currentCache,
 		ConsistentCacheControlConfig: consistentCache,
+		NotificationEndpoints:        notificationEndpoints,
 	}, nil
 }
 

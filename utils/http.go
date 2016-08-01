@@ -6,6 +6,7 @@ import (
 	"time"
 
 	ctxu "github.com/docker/distribution/context"
+	"github.com/docker/distribution/notifications"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/auth"
 	"github.com/docker/notary/tuf/signed"
@@ -20,11 +21,13 @@ type ContextHandler func(ctx context.Context, w http.ResponseWriter, r *http.Req
 // rootHandler is an implementation of an HTTP request handler which handles
 // authorization and calling out to the defined alternate http handler.
 type rootHandler struct {
-	handler ContextHandler
-	auth    auth.AccessController
-	actions []string
-	context context.Context
-	trust   signed.CryptoService
+	handler      ContextHandler
+	auth         auth.AccessController
+	actions      []string
+	context      context.Context
+	trust        signed.CryptoService
+	broadcaster  *notifications.Broadcaster
+	sourceRecord notifications.SourceRecord
 	//cachePool redis.Pool
 }
 
@@ -32,14 +35,16 @@ type rootHandler struct {
 // Context creator and authorizer.  The returned factory allows creating
 // new rootHandlers from the alternate http handler contextHandler and
 // a scope.
-func RootHandlerFactory(auth auth.AccessController, ctx context.Context, trust signed.CryptoService) func(ContextHandler, ...string) *rootHandler {
+func RootHandlerFactory(auth auth.AccessController, ctx context.Context, trust signed.CryptoService, broadcaster *notifications.Broadcaster, sourceRecord notifications.SourceRecord) func(ContextHandler, ...string) *rootHandler {
 	return func(handler ContextHandler, actions ...string) *rootHandler {
 		return &rootHandler{
-			handler: handler,
-			auth:    auth,
-			actions: actions,
-			context: ctx,
-			trust:   trust,
+			handler:      handler,
+			auth:         auth,
+			actions:      actions,
+			context:      ctx,
+			trust:        trust,
+			broadcaster:  broadcaster,
+			sourceRecord: sourceRecord,
 		}
 	}
 }
@@ -53,6 +58,8 @@ func (root *rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx = ctxu.WithLogger(ctx, log)
 	ctx = context.WithValue(ctx, "repo", vars["imageName"])
 	ctx = context.WithValue(ctx, "cryptoService", root.trust)
+	ctx = context.WithValue(ctx, "broadcaster", root.broadcaster)
+	ctx = context.WithValue(ctx, "sourceRecord", root.sourceRecord)
 
 	defer func() {
 		ctxu.GetResponseLogger(ctx).Info("response completed")

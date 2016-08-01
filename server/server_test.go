@@ -10,11 +10,15 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
+	dNotifications "github.com/docker/distribution/notifications"
 	_ "github.com/docker/distribution/registry/auth/silly"
 	"github.com/docker/notary"
+	"github.com/docker/notary/notifications"
 	"github.com/docker/notary/server/storage"
 	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/tuf/data"
@@ -58,6 +62,52 @@ func TestRunReservedPort(t *testing.T) {
 	)
 }
 
+func TestConfigureEvents(t *testing.T) {
+	name := "testEndpoint"
+	disabled := false
+	url := "sampleurl.com:423"
+	header := http.Header{}
+	header.Add("h1", "v1")
+	timeout := 4 * time.Second
+	threshold := 3
+	backoff := 2 * time.Second
+	ca, err := ioutil.ReadFile("../fixtures/root-ca.crt")
+	if err != nil {
+		t.Fatalf("Could not load cert: %s", err.Error())
+	}
+	cfg := Config{
+		NotificationEndpoints: []notifications.Endpoint{
+			{
+				Name:      name,
+				Disabled:  disabled,
+				URL:       url,
+				Headers:   header,
+				Timeout:   timeout,
+				Threshold: threshold,
+				Backoff:   backoff,
+				CA:        string(ca),
+			},
+			{
+				Name:      name,
+				Disabled:  true,
+				URL:       url,
+				Headers:   header,
+				Timeout:   timeout,
+				Threshold: threshold,
+				Backoff:   backoff,
+				CA:        string(ca),
+			},
+		},
+	}
+
+	// cant really verify the broadcaster sinks because they are unexported
+	_, sourceRecord, err := configureEvents(cfg)
+	require.NoError(t, err)
+	hostname, err := os.Hostname()
+	require.NoError(t, err)
+	require.Equal(t, hostname, sourceRecord.Addr)
+}
+
 func TestRepoPrefixMatches(t *testing.T) {
 	gun := "docker.io/notary"
 	meta, cs, err := testutils.NewRepoMetadata(gun)
@@ -69,7 +119,7 @@ func TestRepoPrefixMatches(t *testing.T) {
 	snChecksumBytes := sha256.Sum256(meta[data.CanonicalSnapshotRole])
 
 	// successful gets
-	handler := RootHandler(nil, ctx, cs, nil, nil, []string{"docker.io"})
+	handler := RootHandler(nil, ctx, cs, nil, nil, []string{"docker.io"}, dNotifications.NewBroadcaster(), dNotifications.SourceRecord{})
 	ts := httptest.NewServer(handler)
 
 	url := fmt.Sprintf("%s/v2/%s/_trust/tuf/", ts.URL, gun)
@@ -110,7 +160,7 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 	snChecksumBytes := sha256.Sum256(meta[data.CanonicalSnapshotRole])
 
 	// successful gets
-	handler := RootHandler(nil, ctx, cs, nil, nil, []string{"nope"})
+	handler := RootHandler(nil, ctx, cs, nil, nil, []string{"nope"}, dNotifications.NewBroadcaster(), dNotifications.SourceRecord{})
 	ts := httptest.NewServer(handler)
 
 	url := fmt.Sprintf("%s/v2/%s/_trust/tuf/", ts.URL, gun)
@@ -149,7 +199,7 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 
 func TestMetricsEndpoint(t *testing.T) {
 	handler := RootHandler(nil, context.Background(), signed.NewEd25519(),
-		nil, nil, nil)
+		nil, nil, nil, dNotifications.NewBroadcaster(), dNotifications.SourceRecord{})
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
@@ -164,7 +214,7 @@ func TestGetKeysEndpoint(t *testing.T) {
 		context.Background(), "metaStore", storage.NewMemStorage())
 	ctx = context.WithValue(ctx, "keyAlgorithm", data.ED25519Key)
 
-	handler := RootHandler(nil, ctx, signed.NewEd25519(), nil, nil, nil)
+	handler := RootHandler(nil, ctx, signed.NewEd25519(), nil, nil, nil, dNotifications.NewBroadcaster(), dNotifications.SourceRecord{})
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
@@ -236,7 +286,7 @@ func TestGetRoleByHash(t *testing.T) {
 	ctx = context.WithValue(ctx, "keyAlgorithm", data.ED25519Key)
 
 	ccc := utils.NewCacheControlConfig(10, false)
-	handler := RootHandler(nil, ctx, signed.NewEd25519(), ccc, ccc, nil)
+	handler := RootHandler(nil, ctx, signed.NewEd25519(), ccc, ccc, nil, dNotifications.NewBroadcaster(), dNotifications.SourceRecord{})
 	serv := httptest.NewServer(handler)
 	defer serv.Close()
 
@@ -280,7 +330,7 @@ func TestGetCurrentRole(t *testing.T) {
 	ctx = context.WithValue(ctx, "keyAlgorithm", data.ED25519Key)
 
 	ccc := utils.NewCacheControlConfig(10, false)
-	handler := RootHandler(nil, ctx, signed.NewEd25519(), ccc, ccc, nil)
+	handler := RootHandler(nil, ctx, signed.NewEd25519(), ccc, ccc, nil, dNotifications.NewBroadcaster(), dNotifications.SourceRecord{})
 	serv := httptest.NewServer(handler)
 	defer serv.Close()
 

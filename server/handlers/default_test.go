@@ -13,6 +13,7 @@ import (
 	"golang.org/x/net/context"
 
 	ctxu "github.com/docker/distribution/context"
+	dNotifications "github.com/docker/distribution/notifications"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/notary/server/errors"
 	"github.com/docker/notary/server/storage"
@@ -50,7 +51,7 @@ func getContext(h handlerState) context.Context {
 }
 
 func TestMainHandlerGet(t *testing.T) {
-	hand := utils.RootHandlerFactory(nil, context.Background(), &signed.Ed25519{})
+	hand := utils.RootHandlerFactory(nil, context.Background(), &signed.Ed25519{}, dNotifications.NewBroadcaster(), dNotifications.SourceRecord{})
 	handler := hand(MainHandler)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
@@ -62,7 +63,7 @@ func TestMainHandlerGet(t *testing.T) {
 }
 
 func TestMainHandlerNotGet(t *testing.T) {
-	hand := utils.RootHandlerFactory(nil, context.Background(), &signed.Ed25519{})
+	hand := utils.RootHandlerFactory(nil, context.Background(), &signed.Ed25519{}, dNotifications.NewBroadcaster(), dNotifications.SourceRecord{})
 	handler := hand(MainHandler)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
