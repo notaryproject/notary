@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
+	"github.com/docker/notary/tuf/utils"
 	"io"
 	"io/ioutil"
 	"path/filepath"
@@ -93,7 +94,7 @@ func ExportKeys(to io.Writer, s Exporter, from string) error {
 // Each block is written to the subpath indicated in the "path" PEM
 // header. If the file already exists, the file is truncated. Multiple
 // adjacent PEMs with the same "path" header are appended together.
-func ImportKeys(from io.Reader, to []Importer, role string) error {
+func ImportKeys(from io.Reader, to []Importer, role string, gun string) error {
 	data, err := ioutil.ReadAll(from)
 	if err != nil {
 		return err
@@ -103,13 +104,43 @@ func ImportKeys(from io.Reader, to []Importer, role string) error {
 		toWrite []byte
 	)
 	for block, rest := pem.Decode(data); block != nil; block, rest = pem.Decode(rest) {
-		if role != "" {
+		if block.Headers["role"] == "" {
+			// no worries about if check as for GUN here because empty roles will get a role:notary.DefaultImportRole
 			block.Headers["role"] = role
 		}
+		if block.Headers["gun"] == "" {
+			if gun!= "" {
+				block.Headers["gun"] = gun
+			}
+		}
 		loc, ok := block.Headers["path"]
+		// only if the path isn't specified do we get into this parsing path logic
 		if !ok || loc == "" {
-			logrus.Info("failed to import key to store: PEM headers did not contain import path")
-			continue // don't know where to copy this key. Skip it.
+			if block.Headers["role"] == "" {
+				// now we have no clue where to copy this key so we skip it since we have no path or role
+				logrus.Info("failed to import key to store: PEM headers did not contain import path")
+				continue
+			}
+			// if the path isn't specified, we will try to infer the path rel to trust dir from the role (and then gun)
+
+			decodedKey, err := utils.ParsePEMPrivateKey(data, "")
+			if err!=nil {
+				logrus.Info("failed to import key to store: Invalid key generated")
+				continue
+			}
+			keyID := decodedKey.ID()
+
+			if block.Headers["role"] == "root" {
+				// doesn’t make sense for root keys to have GUNs, so import it without the GUN
+				loc = filepath.Join(notary.RootKeysSubdir, keyID)
+			} else {
+				// additional path inference from gun
+				loc = filepath.Join(notary.NonRootKeysSubdir, block.Headers["gun"], keyID)
+			}
+		}
+		// this is the path + no-role case where we assume the key is a delegation key
+		if block.Headers["role"] == "" {
+			block.Headers["role"] = notary.DefaultImportRole
 		}
 		if loc != writeTo {
 			// next location is different from previous one. We've finished aggregating

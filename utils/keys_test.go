@@ -232,17 +232,17 @@ func TestImportKeys(t *testing.T) {
 
 	in := bytes.NewBuffer(byt)
 
-	err := ImportKeys(in, []Importer{s}, "")
+	err := ImportKeys(in, []Importer{s}, "", "")
 	require.NoError(t, err)
 
 	bFinal, bRest := pem.Decode(s.data["ankh"])
 	require.Equal(t, b.Bytes, bFinal.Bytes)
-	require.Len(t, bFinal.Headers, 0) // path header is stripped during import
+	require.Equal(t, "", bFinal.Headers["path"]) // path header is stripped during import
 	require.Len(t, bRest, 0)
 
 	cFinal, cRest := pem.Decode(s.data["morpork"])
 	require.Equal(t, c.Bytes, cFinal.Bytes)
-	require.Len(t, cFinal.Headers, 0)
+	require.Equal(t, "", bFinal.Headers["path"])
 	require.Len(t, cRest, 0)
 }
 
@@ -259,7 +259,7 @@ func TestImportNoPath(t *testing.T) {
 
 	in := bytes.NewBuffer(bBytes)
 
-	err := ImportKeys(in, []Importer{s}, "")
+	err := ImportKeys(in, []Importer{s}, "", "")
 	require.NoError(t, err)
 
 	require.Len(t, s.data, 0)
@@ -298,20 +298,20 @@ func TestImportKeys2InOneFile(t *testing.T) {
 
 	in := bytes.NewBuffer(byt)
 
-	err := ImportKeys(in, []Importer{s}, "")
+	err := ImportKeys(in, []Importer{s}, "", "")
 	require.NoError(t, err)
 
 	bFinal, bRest := pem.Decode(s.data["ankh"])
 	require.Equal(t, b.Bytes, bFinal.Bytes)
-	require.Len(t, bFinal.Headers, 0) // path header is stripped during import
+	require.Equal(t, "", bFinal.Headers["path"]) // path header is stripped during import
 
 	b2Final, b2Rest := pem.Decode(bRest)
 	require.Equal(t, b2.Bytes, b2Final.Bytes)
-	require.Len(t, b2Final.Headers, 0) // path header is stripped during import
+	require.Equal(t, "", b2Final.Headers["path"]) // path header is stripped during import
 	require.Len(t, b2Rest, 0)
 
 	cFinal, cRest := pem.Decode(s.data["morpork"])
 	require.Equal(t, c.Bytes, cFinal.Bytes)
-	require.Len(t, cFinal.Headers, 0)
+	require.Equal(t, "", bFinal.Headers["path"])
 	require.Len(t, cRest, 0)
 }
