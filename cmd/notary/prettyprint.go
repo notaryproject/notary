@@ -13,7 +13,10 @@ import (
 	"github.com/docker/notary/tuf/data"
 )
 
-const fourItemRow = "%s\t%s\t%s\t%s\n"
+const (
+	fourItemRow = "%s\t%s\t%s\t%s\n"
+	fiveItemRow = "%s\t%s\t%s\t%s\t%s\n"
+)
 
 func initTabWriter(columns []string, writer io.Writer) *tabwriter.Writer {
 	tw := tabwriter.NewWriter(writer, 4, 4, 4, ' ', 0)
