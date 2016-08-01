@@ -80,6 +80,7 @@ type keyCommander struct {
 	input io.Reader
 
 	keysImportRole string
+	keysImportGUN string
 	exportGUNs     []string
 	exportKeyIDs   []string
 	outFile        string
@@ -100,7 +101,9 @@ func (k *keyCommander) GetCommand() *cobra.Command {
 
 	cmdKeysImport := cmdKeyImportTemplate.ToCommand(k.importKeys)
 	cmdKeysImport.Flags().StringVarP(
-		&k.keysImportRole, "role", "r", "", "Role to import key to (if not in PEM headers)")
+		&k.keysImportRole, "role", "r", "", "Role to import key with - Notary uses this to infer the path to store the key")
+	cmdKeysImport.Flags().StringVarP(
+		&k.keysImportGUN, "gun", "g", "", "Gun to import key with - Notary uses this to infer the path to store the key")
 	cmd.AddCommand(cmdKeysImport)
 	cmdExport := cmdKeyExportTemplate.ToCommand(k.exportKeys)
 	cmdExport.Flags().StringSliceVar(
@@ -412,8 +415,7 @@ func (k *keyCommander) importKeys(cmd *cobra.Command, args []string) error {
 	for _, file := range args {
 		from, err := os.OpenFile(file, os.O_RDONLY, notary.PrivKeyPerms)
 		defer from.Close()
-
-		if err = utils.ImportKeys(from, importers, k.keysImportRole); err != nil {
+		if err = utils.ImportKeys(from, importers, k.keysImportRole, k.keysImportGUN); err != nil {
 			return err
 		}
 	}
