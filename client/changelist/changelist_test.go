@@ -64,3 +64,26 @@ func TestMemChangeIterator(t *testing.T) {
 	var iterError IteratorBoundsError
 	require.IsType(t, iterError, err, "IteratorBoundsError type")
 }
+
+func TestMemChangelistRemove(t *testing.T) {
+	cl := memChangelist{}
+	it, err := cl.NewIterator()
+	require.Nil(t, err, "Non-nil error from NewIterator")
+	require.False(t, it.HasNext(), "HasNext returns false for empty ChangeList")
+
+	c1 := NewTUFChange(ActionCreate, "t1", "target1", "test/targ1", []byte{1})
+	cl.Add(c1)
+
+	c2 := NewTUFChange(ActionUpdate, "t2", "target2", "test/targ2", []byte{2})
+	cl.Add(c2)
+
+	c3 := NewTUFChange(ActionUpdate, "t3", "target3", "test/targ3", []byte{3})
+	cl.Add(c3)
+
+	err = cl.Remove([]int{0, 1})
+	require.NoError(t, err)
+
+	chs := cl.List()
+	require.Len(t, chs, 1)
+	require.Equal(t, "t3", chs[0].Scope())
+}
