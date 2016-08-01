@@ -35,6 +35,11 @@ type keyRotator interface {
 	RotateKeyPassphrase(keyID, newPassphraseAlias string) error
 }
 
+type keyActivator interface {
+	trustmanager.KeyStore
+	GetPendingKey(trustmanager.KeyInfo) (data.PublicKey, error)
+}
+
 // A key can only be added to the DB once.  Returns a list of expected keys, and which keys are expected to exist.
 func testKeyCanOnlyBeAddedOnce(t *testing.T, dbStore trustmanager.KeyStore) []data.PrivateKey {
 	expectedKeys := make([]data.PrivateKey, 2)
@@ -162,4 +167,39 @@ func testSigningWithKeyMarksAsActive(t *testing.T, dbStore trustmanager.KeyStore
 		data.PublicKeyFromPrivate(testKeys[2]), sig, msg))
 
 	return testKeys[0], testKeys[1] // testKeys[2] should no longer exist in the DB
+}
+
+func testGetPendingKey(t *testing.T, dbStore keyActivator) (data.PrivateKey, data.PrivateKey) {
+	// Create a test key and add it to the db such that it will be pending (never marked active)
+	keyInfo := trustmanager.KeyInfo{Role: data.CanonicalSnapshotRole, Gun: "gun"}
+	pendingTestKey, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+	requireGetKeyFailure(t, dbStore, pendingTestKey.ID())
+	err = dbStore.AddKey(keyInfo, pendingTestKey)
+	require.NoError(t, err)
+	requireGetKeySuccess(t, dbStore, data.CanonicalSnapshotRole, pendingTestKey)
+
+	retrievedKey, err := dbStore.GetPendingKey(keyInfo)
+	require.NoError(t, err)
+	require.Equal(t, pendingTestKey.Public(), retrievedKey.Public())
+
+	// Now create an active key with the same keyInfo
+	activeTestKey, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+	requireGetKeyFailure(t, dbStore, activeTestKey.ID())
+	err = dbStore.AddKey(keyInfo, activeTestKey)
+	require.NoError(t, err)
+	requireGetKeySuccess(t, dbStore, data.CanonicalSnapshotRole, activeTestKey)
+
+	// Mark as active by signing
+	_, err = activeTestKey.Sign(rand.Reader, []byte("msg"), nil)
+	require.NoError(t, err)
+
+	// We should still get back the original pending key on GetPendingKey
+	retrievedKey, err = dbStore.GetPendingKey(keyInfo)
+	require.NoError(t, err)
+	require.NotEqual(t, activeTestKey.Public(), retrievedKey.Public())
+	require.Equal(t, pendingTestKey.Public(), retrievedKey.Public())
+
+	return pendingTestKey, activeTestKey
 }

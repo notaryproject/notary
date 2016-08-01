@@ -87,7 +87,7 @@ subsection.
 
 ### Rotate keys
 
-In case of potential compromise, notary provides a CLI command for rotating keys. Currently, you can use the `notary key rotate` command to rotate the targets or snapshot keys.
+In case of potential compromise, notary provides a CLI command for rotating keys. Currently, you can use the `notary key rotate` command to rotate the root, targets, snapshot, or timestamp keys.
 
 While the snapshot key is managed by the notary client by default, use the `notary key
 rotate snapshot -r` command to rotate the snapshot key to the server, such that the
@@ -98,7 +98,8 @@ snapshot key to push their updates to the collection.
 Note that new collections created by a Docker 1.11 Engine client will have the server manage the snapshot key by default.
 To reclaim control of the snapshot key on the client, use the `notary key rotate` command without the `-r` flag.
 
-The targets key must be locally managed - to rotate the targets key, for instance in case of compromise, use the `notary key rotate targets` command without the `-r` flag.
+The root and targets key must be locally managed - to rotate either the root or targets key, for instance in case of compromise, use the `notary key rotate` command without the `-r` flag.
+The timestamp key must be remotely managed - to rotate the timestamp key use the `notary key rotate <GUN> timestamp -r` command.
 
 ### Use a Yubikey
 

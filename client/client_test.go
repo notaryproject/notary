@@ -2580,8 +2580,16 @@ func TestRotateKeyInvalidRole(t *testing.T) {
 	require.Error(t, repo.RotateKey("targets/releases", false),
 		"Rotating a delegation key should fail")
 
+	// rotating a delegation key to the server also fails
+	require.Error(t, repo.RotateKey("targets/releases", true),
+		"Rotating a delegation key should fail")
+
 	// rotating a not a real role key fails
 	require.Error(t, repo.RotateKey("nope", false),
+		"Rotating a non-real role key should fail")
+
+	// rotating a not a real role key to the server also fails
+	require.Error(t, repo.RotateKey("nope", true),
 		"Rotating a non-real role key should fail")
 }
 
@@ -2595,9 +2603,59 @@ func TestRemoteRotationError(t *testing.T) {
 	ts.Close()
 
 	// server has died, so this should fail
+	for _, role := range []string{data.CanonicalSnapshotRole, data.CanonicalTimestampRole} {
+		err := repo.RotateKey(role, true)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unable to rotate remote key")
+	}
+}
+
+// If remotely rotating key fails for any reason, fail the rotation entirely
+func TestRemoteRotationEndpointError(t *testing.T) {
+	ts, _, _ := simpleTestServer(t)
+	defer ts.Close()
+	repo, _ := initializeRepo(t, data.ECDSAKey, "docker.com/notary", ts.URL, true)
+	defer os.RemoveAll(repo.baseDir)
+
+	// simpleTestServer has no rotate key endpoint, so this should fail
+	for _, role := range []string{data.CanonicalSnapshotRole, data.CanonicalTimestampRole} {
+		err := repo.RotateKey(role, true)
+		require.Error(t, err)
+		require.IsType(t, store.ErrMetaNotFound{}, err)
+	}
+}
+
+// The rotator is not the owner of the repository, they cannot rotate the remote
+// key
+func TestRemoteRotationNoRootKey(t *testing.T) {
+	ts := fullTestServer(t)
+	defer ts.Close()
+
+	repo, _ := initializeRepo(t, data.ECDSAKey, "docker.com/notary", ts.URL, true)
+	defer os.RemoveAll(repo.baseDir)
+	require.NoError(t, repo.Publish())
+
+	newRepo, _ := newRepoToTestRepo(t, repo, true)
+	defer os.RemoveAll(newRepo.baseDir)
+	_, err := newRepo.ListTargets()
+	require.NoError(t, err)
+
+	err = newRepo.RotateKey(data.CanonicalSnapshotRole, true)
+	require.Error(t, err)
+	require.IsType(t, signed.ErrInsufficientSignatures{}, err)
+}
+
+// The repo hasn't been initialized, so we can't rotate
+func TestRemoteRotationNonexistentRepo(t *testing.T) {
+	ts, _, _ := simpleTestServer(t)
+	defer ts.Close()
+
+	repo := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(repo.baseDir)
+
 	err := repo.RotateKey(data.CanonicalTimestampRole, true)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "unable to rotate remote key")
+	require.IsType(t, ErrRepoNotInitialized{}, err)
 }
 
 // Rotates the keys.  After the rotation, downloading the latest metadata
@@ -2731,6 +2789,14 @@ func TestRotateKeyAfterPublishServerManagementChange(t *testing.T) {
 		data.CanonicalSnapshotRole: true,
 		data.CanonicalTargetsRole:  false,
 		data.CanonicalRootRole:     false,
+	})
+	// check that the snapshot remote rotation creates new keys
+	testRotateKeySuccess(t, false, map[string]bool{
+		data.CanonicalSnapshotRole: true,
+	})
+	// check that the timestamp remote rotation creates new keys
+	testRotateKeySuccess(t, false, map[string]bool{
+		data.CanonicalTimestampRole: true,
 	})
 	// reclaim snapshot key management from the server
 	testRotateKeySuccess(t, true, map[string]bool{
