@@ -131,7 +131,7 @@ func ImportKeys(from io.Reader, to []Importer, role string, gun string) error {
 			keyID := decodedKey.ID()
 
 			if block.Headers["role"] == "root" {
-				// doesn’t make sense for root keys to have GUNs, so import it without the GUN
+				// does not make sense for root keys to have GUNs, so import it without the GUN even if specified
 				loc = filepath.Join(notary.RootKeysSubdir, keyID)
 			} else {
 				// additional path inference from gun

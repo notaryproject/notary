@@ -8,6 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"testing"
+	"github.com/docker/notary"
+	"os"
+	"path/filepath"
 )
 
 type TestImportStore struct {
@@ -238,6 +241,7 @@ func TestImportKeys(t *testing.T) {
 	bFinal, bRest := pem.Decode(s.data["ankh"])
 	require.Equal(t, b.Bytes, bFinal.Bytes)
 	require.Equal(t, "", bFinal.Headers["path"]) // path header is stripped during import
+	require.Equal(t, notary.DefaultImportRole, bFinal.Headers["role"]) // if no role is specified we assume it is a delegation key
 	require.Len(t, bRest, 0)
 
 	cFinal, cRest := pem.Decode(s.data["morpork"])
@@ -252,17 +256,66 @@ func TestImportNoPath(t *testing.T) {
 	b := &pem.Block{
 		Headers: make(map[string]string),
 	}
-	b.Bytes = make([]byte, 1000)
-	rand.Read(b.Bytes)
+	from, _ := os.OpenFile("test.key", os.O_RDONLY, notary.PrivKeyPerms)
+	defer from.Close()
+	b.Bytes, _ = ioutil.ReadAll(from)
 
-	bBytes := pem.EncodeToMemory(b)
+	in := bytes.NewBuffer(b.Bytes)
 
-	in := bytes.NewBuffer(bBytes)
-
-	err := ImportKeys(in, []Importer{s}, "", "")
+	err := ImportKeys(in, []Importer{s}, "root", "")
 	require.NoError(t, err)
 
-	require.Len(t, s.data, 0)
+	for key := range s.data {
+		// no path but role included should work
+		require.Equal(t, key, filepath.Join(notary.RootKeysSubdir,"7baafcc9e5100ab062d886f06468f6c76e70b54b90e5d38537dadc6299c976d9"))
+	}
+
+	err = ImportKeys(in, []Importer{s}, "", "")
+	require.NoError(t, err)
+
+	require.Len(t, s.data, 1) // no path and no role should not work
+}
+
+func TestNonRootPathInference(t *testing.T) {
+	s := NewTestImportStore()
+
+	b := &pem.Block{
+		Headers: make(map[string]string),
+	}
+	from, _ := os.OpenFile("test.key", os.O_RDONLY, notary.PrivKeyPerms)
+	defer from.Close()
+	b.Bytes, _ = ioutil.ReadAll(from)
+
+	in := bytes.NewBuffer(b.Bytes)
+
+	err := ImportKeys(in, []Importer{s}, "somerole", "somegun")
+	require.NoError(t, err)
+
+	for key := range s.data {
+		// no path but role included should work
+		require.Equal(t, key, filepath.Join(notary.NonRootKeysSubdir, "somegun", "7baafcc9e5100ab062d886f06468f6c76e70b54b90e5d38537dadc6299c976d9"))
+	}
+}
+
+func TestBlockHeaderPrecedence(t *testing.T) {
+	s := NewTestImportStore()
+
+	b := &pem.Block{
+		Headers: make(map[string]string),
+	}
+	from, _ := os.OpenFile("testprecedence.key", os.O_RDONLY, notary.PrivKeyPerms)
+	defer from.Close()
+	b.Bytes, _ = ioutil.ReadAll(from)
+
+	in := bytes.NewBuffer(b.Bytes)
+
+	err := ImportKeys(in, []Importer{s}, "somerole", "somegun")
+	require.NoError(t, err)
+
+	for key := range s.data {
+		// block header role should take precedence over command line flag
+		require.Equal(t, key, filepath.Join(notary.RootKeysSubdir, "7baafcc9e5100ab062d886f06468f6c76e70b54b90e5d38537dadc6299c976d9"))
+	}
 }
 
 func TestImportKeys2InOneFile(t *testing.T) {
