@@ -3,8 +3,11 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
 
@@ -117,4 +120,65 @@ func TestAdminTokenAuthNon200Non401Status(t *testing.T) {
 	auth, err := tokenAuth(s.URL, baseTransport, gun, admin)
 	require.NoError(t, err)
 	require.Nil(t, auth)
+}
+
+func TestStatusUnstageAndReset(t *testing.T) {
+	setUp(t)
+	tempBaseDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempBaseDir)
+
+	tc := &tufCommander{
+		configGetter: func() (*viper.Viper, error) {
+			v := viper.New()
+			v.SetDefault("trust_dir", tempBaseDir)
+			return v, nil
+		},
+	}
+
+	tc.reset = true
+
+	// run a reset with an empty changelist and make sure it succeeds
+	err := tc.tufStatus(&cobra.Command{}, []string{"gun"})
+	require.NoError(t, err)
+
+	// add some targets
+	tc.sha256 = "88b76b34ab83a9e4d5abe3697950fb73f940aab1aa5b534f80cf9de9708942be"
+	err = tc.tufAddByHash(&cobra.Command{}, []string{"gun", "test1", "100"})
+	require.NoError(t, err)
+	tc.sha256 = "4a7c203ce63b036a1999ea74eebd307c338368eb2b32218b722de6c5fdc7f016"
+	err = tc.tufAddByHash(&cobra.Command{}, []string{"gun", "test2", "100"})
+	require.NoError(t, err)
+	tc.sha256 = "64bd0565907a6a55fc66fd828a71dbadd976fa875d0a3869f53d02eb8710ecb4"
+	err = tc.tufAddByHash(&cobra.Command{}, []string{"gun", "test3", "100"})
+	require.NoError(t, err)
+	tc.sha256 = "9d9e890af64dd0f44b8a1538ff5fa0511cc31bf1ab89f3a3522a9a581a70fad8"
+	err = tc.tufAddByHash(&cobra.Command{}, []string{"gun", "test4", "100"})
+	require.NoError(t, err)
+
+	out, err := runCommand(t, tempBaseDir, "status", "gun")
+	require.NoError(t, err)
+	require.Contains(t, out, "test1")
+	require.Contains(t, out, "test2")
+	require.Contains(t, out, "test3")
+	require.Contains(t, out, "test4")
+
+	_, err = runCommand(t, tempBaseDir, "status", "gun", "--unstage", "-1,1,3,10")
+
+	out, err = runCommand(t, tempBaseDir, "status", "gun")
+	require.NoError(t, err)
+	require.Contains(t, out, "test1")
+	require.NotContains(t, out, "test2")
+	require.Contains(t, out, "test3")
+	require.NotContains(t, out, "test4")
+
+	_, err = runCommand(t, tempBaseDir, "status", "gun", "--reset")
+	require.NoError(t, err)
+
+	out, err = runCommand(t, tempBaseDir, "status", "gun")
+	require.NoError(t, err)
+	require.NotContains(t, out, "test1")
+	require.NotContains(t, out, "test2")
+	require.NotContains(t, out, "test3")
+	require.NotContains(t, out, "test4")
+
 }
