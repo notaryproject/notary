@@ -76,9 +76,11 @@ func TestMainHandlerNotGet(t *testing.T) {
 	}
 }
 
-// GetKeyHandler needs to have access to a metadata store and cryptoservice,
+type simplerHandler func(context.Context, http.ResponseWriter, *http.Request, map[string]string) error
+
+// GetKeyHandler and RotateKeyHandler needs to have access to a metadata store and cryptoservice,
 // a key algorithm
-func TestGetKeyHandlerInvalidConfiguration(t *testing.T) {
+func TestKeyHandlersInvalidConfiguration(t *testing.T) {
 	noStore := defaultState()
 	noStore.store = nil
 
@@ -108,38 +110,41 @@ func TestGetKeyHandlerInvalidConfiguration(t *testing.T) {
 		"tufRole":   data.CanonicalTimestampRole,
 	}
 	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
-	for errString, states := range invalidStates {
-		for _, s := range states {
-			err := getKeyHandler(getContext(s), httptest.NewRecorder(), req, vars)
-			require.Error(t, err)
-			require.Contains(t, err.Error(), errString)
+	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
+		for errString, states := range invalidStates {
+			for _, s := range states {
+				err := keyHandler(getContext(s), httptest.NewRecorder(), req, vars)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), errString)
+			}
 		}
 	}
 }
 
-// GetKeyHandler needs to be set up such that an imageName and tufRole are both
+// GetKeyHandler and RotateKeyHandler need to be set up such that an imageName and tufRole are both
 // provided and non-empty.
-func TestGetKeyHandlerNoRoleOrRepo(t *testing.T) {
+func TestKeyHandlersNoRoleOrRepo(t *testing.T) {
 	state := defaultState()
 	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
+	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
+		for _, key := range []string{"imageName", "tufRole"} {
+			vars := map[string]string{
+				"imageName": "gun",
+				"tufRole":   data.CanonicalTimestampRole,
+			}
 
-	for _, key := range []string{"imageName", "tufRole"} {
-		vars := map[string]string{
-			"imageName": "gun",
-			"tufRole":   data.CanonicalTimestampRole,
+			// not provided
+			delete(vars, key)
+			err := keyHandler(getContext(state), httptest.NewRecorder(), req, vars)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "unknown")
+
+			// empty
+			vars[key] = ""
+			err = keyHandler(getContext(state), httptest.NewRecorder(), req, vars)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "unknown")
 		}
-
-		// not provided
-		delete(vars, key)
-		err := getKeyHandler(getContext(state), httptest.NewRecorder(), req, vars)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "unknown")
-
-		// empty
-		vars[key] = ""
-		err = getKeyHandler(getContext(state), httptest.NewRecorder(), req, vars)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "unknown")
 	}
 }
 
@@ -167,6 +172,55 @@ func TestGetKeyHandlerCreatesOnce(t *testing.T) {
 		vars := map[string]string{"imageName": "gun", "tufRole": role}
 		recorder := httptest.NewRecorder()
 		err := getKeyHandler(getContext(state), recorder, req, vars)
+		require.NoError(t, err)
+		require.True(t, len(recorder.Body.String()) > 0)
+	}
+}
+
+// Rotating a key for a non-supported role results in a 400.
+func TestRotateKeyHandlerInvalidRole(t *testing.T) {
+	state := defaultState()
+	for _, role := range []string{data.CanonicalRootRole, data.CanonicalTargetsRole, "targets/a", "invalidrole"} {
+		vars := map[string]string{
+			"imageName": "gun",
+			"tufRole":   role,
+		}
+		req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
+
+		err := rotateKeyHandler(getContext(state), httptest.NewRecorder(), req, vars)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid role")
+	}
+}
+
+// Rotating the key fails if we don't pass a valid key algorithm, or if it isn't Ed25519
+func TestRotateKeyHandlerNonED25519(t *testing.T) {
+	roles := []string{data.CanonicalTimestampRole, data.CanonicalSnapshotRole}
+	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
+
+	for _, role := range roles {
+		vars := map[string]string{"imageName": "gun", "tufRole": role}
+		recorder := httptest.NewRecorder()
+		invalidKeyAlgoState := defaultState()
+		invalidKeyAlgoState.keyAlgo = "notactuallyakeyalgorithm"
+		err := rotateKeyHandler(getContext(invalidKeyAlgoState), recorder, req, vars)
+		require.Error(t, err)
+		invalidKeyAlgoState.keyAlgo = data.ECDSAKey
+		err = rotateKeyHandler(getContext(invalidKeyAlgoState), recorder, req, vars)
+		require.Error(t, err)
+	}
+}
+
+// Rotating the key for a valid role and gun succeeds
+func TestRotateKeyHandlerSuccessfulRotation(t *testing.T) {
+	state := defaultState()
+	roles := []string{data.CanonicalTimestampRole, data.CanonicalSnapshotRole}
+	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
+
+	for _, role := range roles {
+		vars := map[string]string{"imageName": "gun", "tufRole": role}
+		recorder := httptest.NewRecorder()
+		err := rotateKeyHandler(getContext(state), recorder, req, vars)
 		require.NoError(t, err)
 		require.True(t, len(recorder.Body.String()) > 0)
 	}

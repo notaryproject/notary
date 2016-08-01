@@ -168,3 +168,16 @@ func TestSQLSigningMarksKeyActive(t *testing.T) {
 	require.NoError(t, signed.Verifiers[data.ECDSASignature].Verify(
 		data.PublicKeyFromPrivate(nonActiveKey), sig, msg))
 }
+
+func TestSQLGetPendingKey(t *testing.T) {
+	dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
+
+	pendingKey, activeKey := testGetPendingKey(t, dbStore)
+
+	gormKeys := requireExpectedGORMKeys(t, dbStore, []data.PrivateKey{pendingKey, activeKey})
+
+	// check that activation updates the activated key but not the pending key
+	require.True(t, gormKeys[activeKey.ID()].LastUsed.Equal(gormActiveTime))
+	require.True(t, gormKeys[pendingKey.ID()].LastUsed.Equal(time.Time{}))
+}

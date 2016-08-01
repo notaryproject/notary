@@ -304,3 +304,32 @@ func verifyGetResponse(t *testing.T, r *http.Response, expectedBytes []byte) {
 	require.NotEqual(t, "", r.Header.Get("Last-Modified"))
 	require.Equal(t, "", r.Header.Get("Pragma"))
 }
+
+// RotateKey supports only timestamp and snapshot key rotation
+func TestRotateKeyEndpoint(t *testing.T) {
+	ctx := context.WithValue(
+		context.Background(), "metaStore", storage.NewMemStorage())
+	ctx = context.WithValue(ctx, "keyAlgorithm", data.ED25519Key)
+
+	ccc := utils.NewCacheControlConfig(10, false)
+	handler := RootHandler(nil, ctx, signed.NewEd25519(), ccc, ccc, nil)
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	rolesToStatus := map[string]int{
+		data.CanonicalTimestampRole: http.StatusOK, // just returning same as GetKey endpoint right now
+		data.CanonicalSnapshotRole:  http.StatusOK, // just returning same as GetKey endpoint right now
+		data.CanonicalTargetsRole:   http.StatusNotFound,
+		data.CanonicalRootRole:      http.StatusNotFound,
+		"targets/delegation":        http.StatusNotFound,
+		"somerandomrole":            http.StatusNotFound,
+	}
+	var buf bytes.Buffer
+	for role, expectedStatus := range rolesToStatus {
+		res, err := http.Post(
+			fmt.Sprintf("%s/v2/gun/_trust/tuf/%s.key", ts.URL, role),
+			"text/plain", &buf)
+		require.NoError(t, err)
+		require.Equal(t, expectedStatus, res.StatusCode)
+	}
+}

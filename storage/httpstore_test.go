@@ -206,6 +206,20 @@ func TestHTTPStoreRemoveAll(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestHTTPStoreRotateKey(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(testRootKey))
+	}
+	server := httptest.NewServer(http.HandlerFunc(handler))
+	defer server.Close()
+	store, err := NewHTTPStore(server.URL, "metadata", "json", "key", http.DefaultTransport)
+	require.NoError(t, err)
+
+	pubKeyBytes, err := store.RotateKey(data.CanonicalSnapshotRole)
+	require.NoError(t, err)
+	require.Equal(t, pubKeyBytes, []byte(testRootKey))
+}
+
 func TestHTTPOffline(t *testing.T) {
 	s, err := NewHTTPStore("https://localhost/", "", "", "", nil)
 	require.NoError(t, err)

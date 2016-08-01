@@ -74,7 +74,7 @@ func TestGetSuccessPopulatesCache(t *testing.T) {
 	requireGetKeySuccessFromCache(t, cached, underlying, data.CanonicalTimestampRole, testKey)
 }
 
-// Creating a key, on succcess, populates the cache, but does not do so on failure
+// Creating a key, on success, populates the cache, but does not do so on failure
 func TestAddKeyPopulatesCacheIfSuccessful(t *testing.T) {
 	var underlying trustmanager.KeyStore
 	underlying = trustmanager.NewKeyMemoryStore(constRetriever)
