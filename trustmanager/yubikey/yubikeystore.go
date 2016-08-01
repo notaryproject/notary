@@ -654,7 +654,7 @@ func (s *YubiStore) ListKeys() map[string]trustmanager.KeyInfo {
 	}
 	ctx, session, err := SetupHSMEnv(pkcs11Lib, s.libLoader)
 	if err != nil {
-		logrus.Debugf("Failed to initialize PKCS11 environment: %s", err.Error())
+		logrus.Debugf("No yubikey found, using alternative key storage: %s", err.Error())
 		return nil
 	}
 	defer cleanup(ctx, session)
@@ -698,7 +698,7 @@ func (s *YubiStore) addKey(keyID, role string, privKey data.PrivateKey) (
 
 	ctx, session, err := SetupHSMEnv(pkcs11Lib, s.libLoader)
 	if err != nil {
-		logrus.Debugf("Failed to initialize PKCS11 environment: %s", err.Error())
+		logrus.Debugf("No yubikey found, using alternative key storage: %s", err.Error())
 		return false, err
 	}
 	defer cleanup(ctx, session)
@@ -736,7 +736,7 @@ func (s *YubiStore) addKey(keyID, role string, privKey data.PrivateKey) (
 func (s *YubiStore) GetKey(keyID string) (data.PrivateKey, string, error) {
 	ctx, session, err := SetupHSMEnv(pkcs11Lib, s.libLoader)
 	if err != nil {
-		logrus.Debugf("Failed to initialize PKCS11 environment: %s", err.Error())
+		logrus.Debugf("No yubikey found, using alternative key storage: %s", err.Error())
 		if _, ok := err.(errHSMNotPresent); ok {
 			err = trustmanager.ErrKeyNotFound{KeyID: keyID}
 		}
@@ -771,7 +771,7 @@ func (s *YubiStore) GetKey(keyID string) (data.PrivateKey, string, error) {
 func (s *YubiStore) RemoveKey(keyID string) error {
 	ctx, session, err := SetupHSMEnv(pkcs11Lib, s.libLoader)
 	if err != nil {
-		logrus.Debugf("Failed to initialize PKCS11 environment: %s", err.Error())
+		logrus.Debugf("No yubikey found, using alternative key storage: %s", err.Error())
 		return nil
 	}
 	defer cleanup(ctx, session)
