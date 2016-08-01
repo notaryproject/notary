@@ -98,8 +98,8 @@ type tufCommander struct {
 	output string
 	quiet  bool
 
-	changes           []int
-	resetStatus       bool
+	deleteIdx         []int
+	reset             bool
 	archiveChangelist string
 }
 
@@ -109,8 +109,8 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmd.AddCommand(cmdTUFInit)
 
 	cmdStatus := cmdTUFStatusTemplate.ToCommand(t.tufStatus)
-	cmdStatus.Flags().IntSliceVarP(&t.changes, "unstage", "u", nil, "Numbers of changes to delete, as show in status list")
-	cmdStatus.Flags().BoolVar(&t.resetStatus, "reset", false, "Reset the changelist for the GUN by deleting all pending changes")
+	cmdStatus.Flags().IntSliceVarP(&t.deleteIdx, "unstage", "u", nil, "Numbers of changes to delete, as shown in status list")
+	cmdStatus.Flags().BoolVar(&t.reset, "reset", false, "Reset the changelist for the GUN by deleting all pending changes")
 	cmd.AddCommand(cmdStatus)
 
 	cmd.AddCommand(cmdTUFPublishTemplate.ToCommand(t.tufPublish))
@@ -448,12 +448,12 @@ func (t *tufCommander) tufStatus(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if t.resetStatus {
+	if t.reset {
 		return cl.Clear(t.archiveChangelist)
 	}
 
-	if len(t.changes) > 0 {
-		return cl.Remove(t.changes)
+	if len(t.deleteIdx) > 0 {
+		return cl.Remove(t.deleteIdx)
 	}
 
 	if len(cl.List()) == 0 {

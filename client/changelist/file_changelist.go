@@ -46,6 +46,7 @@ func getFileNames(dirName string) ([]os.FileInfo, error) {
 		}
 		fileInfos = append(fileInfos, f)
 	}
+	sort.Sort(fileChanges(fileInfos))
 	return fileInfos, nil
 }
 
@@ -70,7 +71,6 @@ func (cl FileChangelist) List() []Change {
 	if err != nil {
 		return changes
 	}
-	sort.Sort(fileChanges(fileInfos))
 	for _, f := range fileInfos {
 		c, err := unmarshalFile(cl.dir, f)
 		if err != nil {
@@ -98,7 +98,6 @@ func (cl FileChangelist) Remove(idxs []int) error {
 	if err != nil {
 		return err
 	}
-	sort.Sort(fileChanges(fileInfos))
 	remove := make(map[int]struct{})
 	for _, i := range idxs {
 		remove[i] = struct{}{}
@@ -115,6 +114,7 @@ func (cl FileChangelist) Remove(idxs []int) error {
 }
 
 // Clear clears the change list
+// N.B. archiving not currently implemented
 func (cl FileChangelist) Clear(archive string) error {
 	dir, err := os.Open(cl.dir)
 	if err != nil {
@@ -143,7 +143,6 @@ func (cl FileChangelist) NewIterator() (ChangeIterator, error) {
 	if err != nil {
 		return &FileChangeListIterator{}, err
 	}
-	sort.Sort(fileChanges(fileInfos))
 	return &FileChangeListIterator{dirname: cl.dir, collection: fileInfos}, nil
 }
 
