@@ -38,7 +38,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
-	"fmt"
 )
 
 var testPassphrase = "passphrase"
@@ -1155,7 +1154,7 @@ func getUniqueKeys(t *testing.T, tempDir string) ([]string, []string) {
 			placeToGo, keyID = rootMap, parts[1]
 		} else {
 			// gun comes between role and key ID
-			if len(parts)==3 {
+			if len(parts) == 3 {
 				// gun is empty as this may be a delegation key
 				placeToGo, keyID = nonrootMap, parts[1]
 			} else {

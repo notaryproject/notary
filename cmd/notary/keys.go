@@ -80,7 +80,7 @@ type keyCommander struct {
 	input io.Reader
 
 	keysImportRole string
-	keysImportGUN string
+	keysImportGUN  string
 	exportGUNs     []string
 	exportKeyIDs   []string
 	outFile        string
@@ -415,7 +415,8 @@ func (k *keyCommander) importKeys(cmd *cobra.Command, args []string) error {
 	for _, file := range args {
 		from, err := os.OpenFile(file, os.O_RDONLY, notary.PrivKeyPerms)
 		defer from.Close()
-		if err = utils.ImportKeys(from, importers, k.keysImportRole, k.keysImportGUN); err != nil {
+		passRetreiver := k.getRetriever()
+		if err = utils.ImportKeys(from, importers, k.keysImportRole, k.keysImportGUN, passRetreiver); err != nil {
 			return err
 		}
 	}

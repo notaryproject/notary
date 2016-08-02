@@ -27,7 +27,7 @@ type Importer interface {
 // ExportKeysByGUN exports all keys filtered to a GUN
 func ExportKeysByGUN(to io.Writer, s Exporter, gun string) error {
 	keys := s.ListFiles()
-	sort.Strings(keys) // ensure consistenct. ListFiles has no order guarantee
+	sort.Strings(keys) // ensure consistent. ListFiles has no order guarantee
 	for _, k := range keys {
 		dir := filepath.Dir(k)
 		if dir == gun { // must be full GUN match
@@ -94,7 +94,7 @@ func ExportKeys(to io.Writer, s Exporter, from string) error {
 // Each block is written to the subpath indicated in the "path" PEM
 // header. If the file already exists, the file is truncated. Multiple
 // adjacent PEMs with the same "path" header are appended together.
-func ImportKeys(from io.Reader, to []Importer, role string, gun string) error {
+func ImportKeys(from io.Reader, to []Importer, role string, gun string, passRet notary.PassRetriever) error {
 	data, err := ioutil.ReadAll(from)
 	if err != nil {
 		return err
@@ -109,7 +109,7 @@ func ImportKeys(from io.Reader, to []Importer, role string, gun string) error {
 			block.Headers["role"] = role
 		}
 		if block.Headers["gun"] == "" {
-			if gun!= "" {
+			if gun != "" {
 				block.Headers["gun"] = gun
 			}
 		}
@@ -123,8 +123,8 @@ func ImportKeys(from io.Reader, to []Importer, role string, gun string) error {
 			}
 			// if the path isn't specified, we will try to infer the path rel to trust dir from the role (and then gun)
 
-			decodedKey, err := utils.ParsePEMPrivateKey(data, "")
-			if err!=nil {
+			decodedKey, err := utils.ParsePEMPrivateKey(pem.EncodeToMemory(block), "")
+			if err != nil {
 				logrus.Info("failed to import key to store: Invalid key generated, key may be encrypted and not contains path header")
 				continue
 			}
@@ -157,7 +157,27 @@ func ImportKeys(from io.Reader, to []Importer, role string, gun string) error {
 			writeTo = loc
 		}
 		delete(block.Headers, "path")
-		toWrite = append(toWrite, pem.EncodeToMemory(block)...)
+
+		// check if a key is not encrypted- if it isn't then ask for a passphrase and encrypt it
+		toSave := pem.EncodeToMemory(block)
+		if privKey, err := utils.ParsePEMPrivateKey(toSave, ""); err == nil {
+			// Key is not encrypted- ask for a passphrase and encrypt this key
+			var chosenPassphrase string
+			for attempts := 0; ; attempts++ {
+				var giveup bool
+				chosenPassphrase, giveup, err = passRet(loc, block.Headers["role"], true, attempts)
+				if err != nil {
+					continue
+				}
+				if giveup || attempts > 10 {
+					fmt.Println("exceeded attempts")
+				}
+				break
+			}
+			toSave, _ = utils.EncryptPrivateKey(privKey, block.Headers["role"], chosenPassphrase)
+		}
+
+		toWrite = append(toWrite, toSave...)
 	}
 	if toWrite != nil { // close out final iteration if there's data left
 		return importToStores(to, writeTo, toWrite)
