@@ -184,43 +184,12 @@ func GetKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 }
 
 func getKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	gun, ok := vars["imageName"]
+	role, gun, keyAlgorithm, store, crypto, err := setupKeyHandler(ctx, w, r, vars, http.MethodGet)
+	if err != nil {
+		return err
+	}
+	var key data.PublicKey
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
-	if !ok || gun == "" {
-		logger.Info("400 GET no gun in request")
-		return errors.ErrUnknown.WithDetail("no gun")
-	}
-
-	role, ok := vars["tufRole"]
-	if !ok || role == "" {
-		logger.Info("400 GET no role in request")
-		return errors.ErrUnknown.WithDetail("no role")
-	}
-
-	s := ctx.Value("metaStore")
-	store, ok := s.(storage.MetaStore)
-	if !ok || store == nil {
-		logger.Error("500 GET storage not configured")
-		return errors.ErrNoStorage.WithDetail(nil)
-	}
-	c := ctx.Value("cryptoService")
-	crypto, ok := c.(signed.CryptoService)
-	if !ok || crypto == nil {
-		logger.Error("500 GET crypto service not configured")
-		return errors.ErrNoCryptoService.WithDetail(nil)
-	}
-	algo := ctx.Value("keyAlgorithm")
-	keyAlgo, ok := algo.(string)
-	if !ok || keyAlgo == "" {
-		logger.Error("500 GET key algorithm not configured")
-		return errors.ErrNoKeyAlgorithm.WithDetail(nil)
-	}
-	keyAlgorithm := keyAlgo
-
-	var (
-		key data.PublicKey
-		err error
-	)
 	switch role {
 	case data.CanonicalTimestampRole:
 		key, err = timestamp.GetOrCreateTimestampKey(gun, store, crypto, keyAlgorithm)
@@ -253,43 +222,12 @@ func RotateKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Reques
 }
 
 func rotateKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	gun, ok := vars["imageName"]
+	role, gun, keyAlgorithm, store, crypto, err := setupKeyHandler(ctx, w, r, vars, http.MethodPost)
+	if err != nil {
+		return err
+	}
+	var key data.PublicKey
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
-	if !ok || gun == "" {
-		logger.Info("400 POST no gun in request")
-		return errors.ErrUnknown.WithDetail("no gun")
-	}
-
-	role, ok := vars["tufRole"]
-	if !ok || role == "" {
-		logger.Info("400 POST no role in request")
-		return errors.ErrUnknown.WithDetail("no role")
-	}
-
-	s := ctx.Value("metaStore")
-	store, ok := s.(storage.MetaStore)
-	if !ok || store == nil {
-		logger.Error("500 POST storage not configured")
-		return errors.ErrNoStorage.WithDetail(nil)
-	}
-	c := ctx.Value("cryptoService")
-	crypto, ok := c.(signed.CryptoService)
-	if !ok || crypto == nil {
-		logger.Error("500 POST crypto service not configured")
-		return errors.ErrNoCryptoService.WithDetail(nil)
-	}
-	algo := ctx.Value("keyAlgorithm")
-	keyAlgo, ok := algo.(string)
-	if !ok || keyAlgo == "" {
-		logger.Error("500 POST key algorithm not configured")
-		return errors.ErrNoKeyAlgorithm.WithDetail(nil)
-	}
-	keyAlgorithm := keyAlgo
-
-	var (
-		key data.PublicKey
-		err error
-	)
 	switch role {
 	case data.CanonicalTimestampRole:
 		key, err = timestamp.RotateTimestampKey(gun, store, crypto, keyAlgorithm)
@@ -312,6 +250,43 @@ func rotateKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Reques
 	logger.Debugf("200 POST %s key", role)
 	w.Write(out)
 	return nil
+}
+
+// To be called before getKeyHandler or rotateKeyHandler
+func setupKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string, actionVerb string) (string, string, string, storage.MetaStore, signed.CryptoService, error) {
+	gun, ok := vars["imageName"]
+	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
+	if !ok || gun == "" {
+		logger.Infof("400 %s no gun in request", actionVerb)
+		return "", "", "", nil, nil, errors.ErrUnknown.WithDetail("no gun")
+	}
+
+	role, ok := vars["tufRole"]
+	if !ok || role == "" {
+		logger.Infof("400 %s no role in request", actionVerb)
+		return "", "", "", nil, nil, errors.ErrUnknown.WithDetail("no role")
+	}
+
+	s := ctx.Value("metaStore")
+	store, ok := s.(storage.MetaStore)
+	if !ok || store == nil {
+		logger.Errorf("500 %s storage not configured", actionVerb)
+		return "", "", "", nil, nil, errors.ErrNoStorage.WithDetail(nil)
+	}
+	c := ctx.Value("cryptoService")
+	crypto, ok := c.(signed.CryptoService)
+	if !ok || crypto == nil {
+		logger.Errorf("500 %s crypto service not configured", actionVerb)
+		return "", "", "", nil, nil, errors.ErrNoCryptoService.WithDetail(nil)
+	}
+	algo := ctx.Value("keyAlgorithm")
+	keyAlgo, ok := algo.(string)
+	if !ok || keyAlgo == "" {
+		logger.Errorf("500 %s key algorithm not configured", actionVerb)
+		return "", "", "", nil, nil, errors.ErrNoKeyAlgorithm.WithDetail(nil)
+	}
+
+	return role, gun, keyAlgo, store, crypto, nil
 }
 
 // NotFoundHandler is used as a generic catch all handler to return the ErrMetadataNotFound

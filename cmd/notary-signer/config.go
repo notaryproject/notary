@@ -105,7 +105,7 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, d
 	backend := configuration.GetString("storage.backend")
 
 	if !tufutils.StrSliceContains(allowedBackends, backend) {
-		return nil, nil, nil, fmt.Errorf("%s is not an allowed backend, must be one of: %s", backend, allowedBackends)
+		return nil, nil, fmt.Errorf("%s is not an allowed backend, must be one of: %s", backend, allowedBackends)
 	}
 
 	var keyStore trustmanager.KeyStore

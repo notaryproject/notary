@@ -193,8 +193,8 @@ func TestRotateKeyHandlerInvalidRole(t *testing.T) {
 	}
 }
 
-// Rotating the key fails if we don't pass a valid key algorithm, or if it isn't Ed25519
-func TestRotateKeyHandlerNonED25519(t *testing.T) {
+// Rotating the key fails if we don't pass a valid key algorithm
+func TestRotateKeyHandlerInvalidKeyAlgo(t *testing.T) {
 	roles := []string{data.CanonicalTimestampRole, data.CanonicalSnapshotRole}
 	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 
@@ -204,9 +204,6 @@ func TestRotateKeyHandlerNonED25519(t *testing.T) {
 		invalidKeyAlgoState := defaultState()
 		invalidKeyAlgoState.keyAlgo = "notactuallyakeyalgorithm"
 		err := rotateKeyHandler(getContext(invalidKeyAlgoState), recorder, req, vars)
-		require.Error(t, err)
-		invalidKeyAlgoState.keyAlgo = data.ECDSAKey
-		err = rotateKeyHandler(getContext(invalidKeyAlgoState), recorder, req, vars)
 		require.Error(t, err)
 	}
 }

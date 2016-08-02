@@ -172,14 +172,23 @@ func testSigningWithKeyMarksAsActive(t *testing.T, dbStore trustmanager.KeyStore
 func testGetPendingKey(t *testing.T, dbStore keyActivator) (data.PrivateKey, data.PrivateKey) {
 	// Create a test key and add it to the db such that it will be pending (never marked active)
 	keyInfo := trustmanager.KeyInfo{Role: data.CanonicalSnapshotRole, Gun: "gun"}
+
+	// There should be no keys to start
+	retrievedKey, err := dbStore.GetPendingKey(keyInfo)
+	require.Error(t, err)
+	require.Nil(t, retrievedKey)
+
 	pendingTestKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 	requireGetKeyFailure(t, dbStore, pendingTestKey.ID())
 	err = dbStore.AddKey(keyInfo, pendingTestKey)
 	require.NoError(t, err)
 	requireGetKeySuccess(t, dbStore, data.CanonicalSnapshotRole, pendingTestKey)
+	// explicitly get the key from the underlying DB
+	pendingTestKey, _, err = dbStore.GetKey(pendingTestKey.ID())
+	require.NoError(t, err)
 
-	retrievedKey, err := dbStore.GetPendingKey(keyInfo)
+	retrievedKey, err = dbStore.GetPendingKey(keyInfo)
 	require.NoError(t, err)
 	require.Equal(t, pendingTestKey.Public(), retrievedKey.Public())
 
@@ -190,6 +199,9 @@ func testGetPendingKey(t *testing.T, dbStore keyActivator) (data.PrivateKey, dat
 	err = dbStore.AddKey(keyInfo, activeTestKey)
 	require.NoError(t, err)
 	requireGetKeySuccess(t, dbStore, data.CanonicalSnapshotRole, activeTestKey)
+	// explicitly get the key from the underlying DB
+	activeTestKey, _, err = dbStore.GetKey(activeTestKey.ID())
+	require.NoError(t, err)
 
 	// Mark as active by signing
 	_, err = activeTestKey.Sign(rand.Reader, []byte("msg"), nil)

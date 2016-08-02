@@ -2,16 +2,16 @@ package timestamp
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/docker/go/canonical/json"
+	"github.com/docker/notary/server/storage"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/testutils"
 	"github.com/stretchr/testify/require"
-
-	"github.com/docker/notary/server/storage"
 )
 
 func TestTimestampExpired(t *testing.T) {
@@ -225,4 +225,44 @@ func TestCreateTimestampNoKeyInCrypto(t *testing.T) {
 	_, _, err = GetOrCreateTimestamp("gun", store, signed.NewEd25519())
 	require.Error(t, err)
 	require.IsType(t, signed.ErrInsufficientSignatures{}, err)
+}
+
+type FailingStore struct {
+	*storage.MemStorage
+}
+
+func (f FailingStore) GetCurrent(role, gun string) (*time.Time, []byte, error) {
+	return nil, nil, fmt.Errorf("failing store failed")
+}
+
+func TestGetTimestampKeyCreateWithFailingStore(t *testing.T) {
+	store := FailingStore{storage.NewMemStorage()}
+	crypto := signed.NewEd25519()
+	k, err := GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
+	require.Error(t, err, "Expected error")
+	require.Nil(t, k, "Key should be nil")
+}
+
+type CorruptedStore struct {
+	*storage.MemStorage
+}
+
+func (c CorruptedStore) GetCurrent(role, gun string) (*time.Time, []byte, error) {
+	return &time.Time{}, []byte("junk"), nil
+}
+
+func TestGetTimestampKeyCreateWithCorruptedStore(t *testing.T) {
+	store := CorruptedStore{storage.NewMemStorage()}
+	crypto := signed.NewEd25519()
+	k, err := GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
+	require.Error(t, err, "Expected error")
+	require.Nil(t, k, "Key should be nil")
+}
+
+func TestGetSnapshotKeyCreateWithInvalidAlgo(t *testing.T) {
+	store := storage.NewMemStorage()
+	crypto := signed.NewEd25519()
+	k, err := GetOrCreateTimestampKey("gun", store, crypto, "notactuallyanalgorithm")
+	require.Error(t, err, "Expected error")
+	require.Nil(t, k, "Key should be nil")
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
+	"net/http"
 	"testing"
 	"time"
 
@@ -1018,4 +1019,16 @@ func TestAllNotNearExpiry(t *testing.T) {
 	require.NotContains(t, a.String(), "root is nearing expiry, you should re-sign the role metadata", "Root should not show near expiry")
 	require.NotContains(t, a.String(), "snapshot is nearing expiry, you should re-sign the role metadata", "Snapshot should not show near expiry")
 	require.NotContains(t, a.String(), "timestamp", "there should be no logrus warnings pertaining to timestamp")
+}
+
+func TestRotateRemoteKeyOffline(t *testing.T) {
+	// without a valid roundtripper, rotation should fail since we cannot initialize a HTTPStore
+	key, err := rotateRemoteKey("invalidURL", "gun", data.CanonicalSnapshotRole, nil)
+	require.Error(t, err)
+	require.Nil(t, key)
+
+	// if the underlying remote store is faulty and cannot rotate keys, we should get back the error
+	key, err = rotateRemoteKey("https://notary-server", "gun", data.CanonicalSnapshotRole, http.DefaultTransport)
+	require.Error(t, err)
+	require.Nil(t, key)
 }

@@ -159,21 +159,15 @@ func (db *SQLStorage) Delete(gun string) error {
 	return db.Unscoped().Where(&TUFFile{Gun: gun}).Delete(TUFFile{}).Error
 }
 
-// CheckHealth asserts that both required tables are present
+// CheckHealth asserts that the tuf_files table is present
 func (db *SQLStorage) CheckHealth() error {
-	interfaces := []interface {
-		TableName() string
-	}{&TUFFile{}}
-
-	for _, model := range interfaces {
-		tableOk := db.HasTable(model)
-		if db.Error != nil {
-			return db.Error
-		}
-		if !tableOk {
-			return fmt.Errorf(
-				"Cannot access table: %s", model.TableName())
-		}
+	tableOk := db.HasTable(&TUFFile{})
+	if db.Error != nil {
+		return db.Error
+	}
+	if !tableOk {
+		return fmt.Errorf(
+			"Cannot access table: %s", TUFFile{}.TableName())
 	}
 	return nil
 }
