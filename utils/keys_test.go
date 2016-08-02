@@ -5,13 +5,23 @@ import (
 	"crypto/rand"
 	"encoding/pem"
 	"errors"
+	"github.com/docker/notary"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
-	"testing"
-	"github.com/docker/notary"
 	"os"
 	"path/filepath"
+	"testing"
 )
+
+const cannedPassphrase = "passphrase"
+
+var passphraseRetriever = func(keyID string, alias string, createNew bool, numAttempts int) (string, bool, error) {
+	if numAttempts > 5 {
+		giveup := true
+		return "", giveup, errors.New("passPhraseRetriever failed after too many requests")
+	}
+	return cannedPassphrase, false, nil
+}
 
 type TestImportStore struct {
 	data map[string][]byte
@@ -236,12 +246,12 @@ func TestImportKeys(t *testing.T) {
 
 	in := bytes.NewBuffer(byt)
 
-	err := ImportKeys(in, []Importer{s}, "", "")
+	err := ImportKeys(in, []Importer{s}, "", "", passphraseRetriever)
 	require.NoError(t, err)
 
 	bFinal, bRest := pem.Decode(s.data["ankh"])
 	require.Equal(t, b.Bytes, bFinal.Bytes)
-	require.Equal(t, "", bFinal.Headers["path"]) // path header is stripped during import
+	require.Equal(t, "", bFinal.Headers["path"])                       // path header is stripped during import
 	require.Equal(t, notary.DefaultImportRole, bFinal.Headers["role"]) // if no role is specified we assume it is a delegation key
 	require.Len(t, bRest, 0)
 
@@ -263,15 +273,15 @@ func TestImportNoPath(t *testing.T) {
 
 	in := bytes.NewBuffer(b.Bytes)
 
-	err := ImportKeys(in, []Importer{s}, "root", "")
+	err := ImportKeys(in, []Importer{s}, "root", "", passphraseRetriever)
 	require.NoError(t, err)
 
 	for key := range s.data {
 		// no path but role included should work
-		require.Equal(t, key, filepath.Join(notary.RootKeysSubdir,"7baafcc9e5100ab062d886f06468f6c76e70b54b90e5d38537dadc6299c976d9"))
+		require.Equal(t, key, filepath.Join(notary.RootKeysSubdir, "7baafcc9e5100ab062d886f06468f6c76e70b54b90e5d38537dadc6299c976d9"))
 	}
 
-	err = ImportKeys(in, []Importer{s}, "", "")
+	err = ImportKeys(in, []Importer{s}, "", "", passphraseRetriever)
 	require.NoError(t, err)
 
 	require.Len(t, s.data, 1) // no path and no role should not work
@@ -289,7 +299,7 @@ func TestNonRootPathInference(t *testing.T) {
 
 	in := bytes.NewBuffer(b.Bytes)
 
-	err := ImportKeys(in, []Importer{s}, "somerole", "somegun")
+	err := ImportKeys(in, []Importer{s}, "somerole", "somegun", passphraseRetriever)
 	require.NoError(t, err)
 
 	for key := range s.data {
@@ -310,7 +320,7 @@ func TestBlockHeaderPrecedence(t *testing.T) {
 
 	in := bytes.NewBuffer(b.Bytes)
 
-	err := ImportKeys(in, []Importer{s}, "somerole", "somegun")
+	err := ImportKeys(in, []Importer{s}, "somerole", "somegun", passphraseRetriever)
 	require.NoError(t, err)
 
 	for key := range s.data {
@@ -352,7 +362,7 @@ func TestImportKeys2InOneFile(t *testing.T) {
 
 	in := bytes.NewBuffer(byt)
 
-	err := ImportKeys(in, []Importer{s}, "", "")
+	err := ImportKeys(in, []Importer{s}, "", "", passphraseRetriever)
 	require.NoError(t, err)
 
 	bFinal, bRest := pem.Decode(s.data["ankh"])
@@ -368,4 +378,58 @@ func TestImportKeys2InOneFile(t *testing.T) {
 	require.Equal(t, c.Bytes, cFinal.Bytes)
 	require.Equal(t, "", bFinal.Headers["path"])
 	require.Len(t, cRest, 0)
+}
+
+func TestImportKeys2InOneFileNoPath(t *testing.T) {
+	s := NewTestImportStore()
+
+	b := &pem.Block{
+		Headers: make(map[string]string),
+	}
+	from, _ := os.OpenFile("test.key", os.O_RDONLY, notary.PrivKeyPerms)
+	b.Bytes, _ = ioutil.ReadAll(from)
+	rand.Read(b.Bytes)
+	b.Headers["path"] = "ankh"
+
+	b2 := &pem.Block{
+		Headers: make(map[string]string),
+	}
+	b2.Bytes, _ = ioutil.ReadAll(from)
+	rand.Read(b2.Bytes)
+	b2.Headers["path"] = "ankh"
+
+	c := &pem.Block{
+		Headers: make(map[string]string),
+	}
+	c.Bytes, _ = ioutil.ReadAll(from)
+	rand.Read(c.Bytes)
+	c.Headers["path"] = "morpork"
+
+	bBytes := pem.EncodeToMemory(b)
+	b2Bytes := pem.EncodeToMemory(b2)
+	bBytes = append(bBytes, b2Bytes...)
+	cBytes := pem.EncodeToMemory(c)
+
+	byt := append(bBytes, cBytes...)
+
+	in := bytes.NewBuffer(byt)
+
+	err := ImportKeys(in, []Importer{s}, "", "", passphraseRetriever)
+	require.NoError(t, err)
+
+	bFinal, bRest := pem.Decode(s.data["ankh"])
+	require.Equal(t, b.Bytes, bFinal.Bytes)
+	require.Equal(t, "", bFinal.Headers["path"]) // path header is stripped during import
+
+	b2Final, b2Rest := pem.Decode(bRest)
+	require.Equal(t, b2.Bytes, b2Final.Bytes)
+	require.Equal(t, "", b2Final.Headers["path"]) // path header is stripped during import
+	require.Len(t, b2Rest, 0)
+
+	cFinal, cRest := pem.Decode(s.data["morpork"])
+	require.Equal(t, c.Bytes, cFinal.Bytes)
+	require.Equal(t, "", bFinal.Headers["path"])
+	require.Len(t, cRest, 0)
+
+	require.Len(t, s.data, 2)
 }
