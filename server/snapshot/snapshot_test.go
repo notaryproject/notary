@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"testing"
 	"time"
 
@@ -49,6 +50,46 @@ func TestGetSnapshotKeyCreate(t *testing.T) {
 	// trying to get the key for the same gun and role will create a new key unless we have existing TUF metadata
 	require.NotEqual(t, k, k2, "Did not receive same key when attempting to recreate.")
 	require.NotNil(t, k2, "Key should not be nil")
+}
+
+type FailingStore struct {
+	*storage.MemStorage
+}
+
+func (f FailingStore) GetCurrent(role, gun string) (*time.Time, []byte, error) {
+	return nil, nil, fmt.Errorf("failing store failed")
+}
+
+func TestGetSnapshotKeyCreateWithFailingStore(t *testing.T) {
+	store := FailingStore{storage.NewMemStorage()}
+	crypto := signed.NewEd25519()
+	k, err := GetOrCreateSnapshotKey("gun", store, crypto, data.ED25519Key)
+	require.Error(t, err, "Expected error")
+	require.Nil(t, k, "Key should be nil")
+}
+
+type CorruptedStore struct {
+	*storage.MemStorage
+}
+
+func (c CorruptedStore) GetCurrent(role, gun string) (*time.Time, []byte, error) {
+	return &time.Time{}, []byte("junk"), nil
+}
+
+func TestGetSnapshotKeyCreateWithCorruptedStore(t *testing.T) {
+	store := CorruptedStore{storage.NewMemStorage()}
+	crypto := signed.NewEd25519()
+	k, err := GetOrCreateSnapshotKey("gun", store, crypto, data.ED25519Key)
+	require.Error(t, err, "Expected error")
+	require.Nil(t, k, "Key should be nil")
+}
+
+func TestGetSnapshotKeyCreateWithInvalidAlgo(t *testing.T) {
+	store := storage.NewMemStorage()
+	crypto := signed.NewEd25519()
+	k, err := GetOrCreateSnapshotKey("gun", store, crypto, "notactuallyanalgorithm")
+	require.Error(t, err, "Expected error")
+	require.Nil(t, k, "Key should be nil")
 }
 
 func TestGetSnapshotKeyExisting(t *testing.T) {

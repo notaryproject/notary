@@ -31,7 +31,7 @@ func GetOrCreateSnapshotKey(gun string, store storage.MetaStore, crypto signed.C
 		return key, nil
 	}
 
-	// If we have a current root, parse out the public key ID for the snapshot role and get it from the underlying cryptoservice
+	// If we have a current root, parse out the public key for the snapshot role, and return it
 	repoSignedRoot := new(data.SignedRoot)
 	if err := json.Unmarshal(rootJSON, repoSignedRoot); err != nil {
 		logrus.Errorf("Failed to unmarshal existing root for GUN %s to retrieve snapshot key ID", gun)

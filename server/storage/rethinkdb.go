@@ -267,12 +267,10 @@ func (rdb RethinkDB) Bootstrap() error {
 
 // CheckHealth checks that all tables and databases exist and are query-able
 func (rdb RethinkDB) CheckHealth() error {
-	for _, table := range []string{TUFFilesRethinkTable.Name} {
-		res, err := gorethink.DB(rdb.dbName).Table(table).Info().Run(rdb.sess)
-		if err != nil {
-			return fmt.Errorf("%s is unavailable, or missing one or more tables, or permissions are incorrectly set", rdb.dbName)
-		}
-		defer res.Close()
+	res, err := gorethink.DB(rdb.dbName).Table(TUFFilesRethinkTable.Name).Info().Run(rdb.sess)
+	if err != nil {
+		return fmt.Errorf("%s is unavailable, or missing one or more tables, or permissions are incorrectly set", rdb.dbName)
 	}
+	defer res.Close()
 	return nil
 }

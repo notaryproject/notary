@@ -24,11 +24,9 @@ func SetupSQLDB(t *testing.T, dbtype, dburl string) *SQLStorage {
 
 	// verify that the tables are empty
 	var count int
-	for _, model := range [1]interface{}{&TUFFile{}} {
-		query := dbStore.DB.Model(model).Count(&count)
-		require.NoError(t, query.Error)
-		require.Equal(t, 0, count)
-	}
+	query := dbStore.DB.Model(&TUFFile{}).Count(&count)
+	require.NoError(t, query.Error)
+	require.Equal(t, 0, count)
 	return dbStore
 }
 
