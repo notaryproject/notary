@@ -24,10 +24,12 @@ import (
 	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
 	"github.com/docker/notary"
+	"github.com/docker/notary/client"
 	"github.com/docker/notary/cryptoservice"
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/server"
 	"github.com/docker/notary/server/storage"
+	notaryStorage "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
@@ -243,6 +245,156 @@ func TestClientTUFInteraction(t *testing.T) {
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
 	require.NoError(t, err)
 	require.False(t, strings.Contains(string(output), target))
+}
+
+func TestClientDeleteTUFInteraction(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	tempFile, err := ioutil.TempFile("", "targetfile")
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	// Setup certificate
+	certFile, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
+	startTime := time.Now()
+	endTime := startTime.AddDate(10, 0, 0)
+	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
+	require.NoError(t, err)
+
+	_, err = certFile.Write(utils.CertToPEM(cert))
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(certFile.Name())
+
+	var (
+		output string
+		target = "helloIamanotarytarget"
+	)
+	// -- tests --
+
+	// init repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun")
+	require.NoError(t, err)
+
+	// add a target
+	_, err = runCommand(t, tempDir, "add", "gun", target, tempFile.Name())
+	require.NoError(t, err)
+
+	// check status - see target
+	output, err = runCommand(t, tempDir, "status", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(output, target))
+
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// list repo - see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(output), target))
+
+	// add a delegation and publish
+	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", certFile.Name())
+	require.NoError(t, err)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// list delegations - see role
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(output), "targets/delegation"))
+
+	// Delete the repo metadata locally, so no need for server URL
+	output, err = runCommand(t, tempDir, "delete", "gun")
+	require.NoError(t, err)
+	assertLocalMetadataForGun(t, tempDir, "gun", false)
+
+	// list repo - see target still because remote data exists
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(output), target))
+
+	// list delegations - see role because remote data still exists
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(output), "targets/delegation"))
+
+	// Trying to delete the repo with the remote flag fails if it's given a badly formed URL
+	output, err = runCommand(t, tempDir, "-s", "//invalidURLType", "delete", "gun", "--remote")
+	require.Error(t, err)
+	// since the connection fails to parse the URL before we can delete anything, local data should exist
+	assertLocalMetadataForGun(t, tempDir, "gun", true)
+
+	// Trying to delete the repo with the remote flag fails if it's given a well-formed URL that doesn't point to a server
+	output, err = runCommand(t, tempDir, "-s", "https://invalid-server", "delete", "gun", "--remote")
+	require.Error(t, err)
+	require.IsType(t, notaryStorage.ErrOffline{}, err)
+	// In this case, local notary metadata does not exist since local deletion operates first if we have a valid transport
+	assertLocalMetadataForGun(t, tempDir, "gun", false)
+
+	// Delete the repo remotely and locally, pointing to the correct server
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delete", "gun", "--remote")
+	require.NoError(t, err)
+	assertLocalMetadataForGun(t, tempDir, "gun", false)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.Error(t, err)
+	require.IsType(t, client.ErrRepositoryNotExist{}, err)
+
+	// Silent success on extraneous deletes
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delete", "gun", "--remote")
+	require.NoError(t, err)
+	assertLocalMetadataForGun(t, tempDir, "gun", false)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.Error(t, err)
+	require.IsType(t, client.ErrRepositoryNotExist{}, err)
+
+	// Now check that we can re-publish the same repo
+	// init repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun")
+	require.NoError(t, err)
+
+	// add a target
+	_, err = runCommand(t, tempDir, "add", "gun", target, tempFile.Name())
+	require.NoError(t, err)
+
+	// check status - see target
+	output, err = runCommand(t, tempDir, "status", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(output, target))
+
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// list repo - see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(output), target))
+}
+
+func assertLocalMetadataForGun(t *testing.T, configDir, gun string, shouldExist bool) {
+	for _, role := range data.BaseRoles {
+		fileInfo, err := os.Stat(filepath.Join(configDir, "tuf", gun, "metadata", role+".json"))
+		if shouldExist {
+			require.NoError(t, err)
+			require.NotNil(t, fileInfo)
+		} else {
+			require.Error(t, err)
+			require.Nil(t, fileInfo)
+		}
+	}
 }
 
 // Initializes a repo, adds a target, publishes the target by hash, lists the target,
@@ -1169,21 +1321,6 @@ func TestClientKeyGenerationRotation(t *testing.T) {
 		t, tempDir, server.URL, "gun", target+"2", tempfiles[1])
 	// assert that the previous target is sitll there
 	require.True(t, strings.Contains(string(output), target))
-}
-
-// Helper method to get the subdirectory for TUF keys
-func getKeySubdir(role, gun string) string {
-	subdir := notary.PrivDir
-	switch role {
-	case data.CanonicalRootRole:
-		return filepath.Join(subdir, notary.RootKeysSubdir)
-	case data.CanonicalTargetsRole:
-		return filepath.Join(subdir, notary.NonRootKeysSubdir, gun)
-	case data.CanonicalSnapshotRole:
-		return filepath.Join(subdir, notary.NonRootKeysSubdir, gun)
-	default:
-		return filepath.Join(subdir, notary.NonRootKeysSubdir)
-	}
 }
 
 // Tests default root key generation
