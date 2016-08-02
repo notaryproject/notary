@@ -125,7 +125,7 @@ func ImportKeys(from io.Reader, to []Importer, role string, gun string) error {
 
 			decodedKey, err := utils.ParsePEMPrivateKey(data, "")
 			if err!=nil {
-				logrus.Info("failed to import key to store: Invalid key generated")
+				logrus.Info("failed to import key to store: Invalid key generated, key may be encrypted and not contains path header")
 				continue
 			}
 			keyID := decodedKey.ID()
@@ -142,6 +142,7 @@ func ImportKeys(from io.Reader, to []Importer, role string, gun string) error {
 		if block.Headers["role"] == "" {
 			block.Headers["role"] = notary.DefaultImportRole
 		}
+
 		if loc != writeTo {
 			// next location is different from previous one. We've finished aggregating
 			// data for the previous file. If we have data, write the previous file,
