@@ -139,7 +139,7 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 
 	cmdTUFAdd := cmdTUFAddTemplate.ToCommand(t.tufAdd)
 	cmdTUFAdd.Flags().StringSliceVarP(&t.roles, "roles", "r", nil, "Delegation roles to add this target to")
-	cmdTUFAdd.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, "Automatically attempt to publish after adding the change. Will also publish those pre-generated changelists.")
+	cmdTUFAdd.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, "Automatically attempt to publish after staging the change. Will also publish existing staged changes.")
 	cmd.AddCommand(cmdTUFAdd)
 
 	cmdTUFRemove := cmdTUFRemoveTemplate.ToCommand(t.tufRemove)
@@ -314,11 +314,22 @@ func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 	cmd.Printf("Addition of target \"%s\" to repository \"%s\" staged for next publish.\n", targetName, gun)
 
 	// Auto publish the local trusted collection to remote.
-	if t.autoPublish == true {
-		c := cobra.Command{
-			RunE: t.tufPublish,
+	if t.autoPublish {
+
+		// We need to set up a http RoundTripper when publishing
+		rt, err := getTransport(config, gun, readWrite)
+		if err != nil {
+			return err
 		}
-		return t.tufPublish(&c, []string{gun})
+
+		nRepo, err := notaryclient.NewNotaryRepository(
+			config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
+		if err != nil {
+			return err
+		}
+
+		cmd.Println("Auto-publishing changes to", gun)
+		return nRepo.Publish()
 	}
 
 	return nil
