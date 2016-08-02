@@ -214,17 +214,18 @@ func TestExport2InOneFile(t *testing.T) {
 func TestImportKeys(t *testing.T) {
 	s := NewTestImportStore()
 
+	from, _ := os.OpenFile("test.key", os.O_RDONLY, notary.PrivKeyPerms)
 	b := &pem.Block{
 		Headers: make(map[string]string),
 	}
-	b.Bytes = make([]byte, 1000)
+	b.Bytes, _ = ioutil.ReadAll(from)
 	rand.Read(b.Bytes)
 	b.Headers["path"] = "ankh"
 
 	c := &pem.Block{
 		Headers: make(map[string]string),
 	}
-	c.Bytes = make([]byte, 1000)
+	c.Bytes, _ = ioutil.ReadAll(from)
 	rand.Read(c.Bytes)
 	c.Headers["path"] = "morpork"
 

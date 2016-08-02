@@ -101,9 +101,9 @@ func (k *keyCommander) GetCommand() *cobra.Command {
 
 	cmdKeysImport := cmdKeyImportTemplate.ToCommand(k.importKeys)
 	cmdKeysImport.Flags().StringVarP(
-		&k.keysImportRole, "role", "r", "", "Role to import key with - Notary uses this to infer the path to store the key")
+		&k.keysImportRole, "role", "r", "", "Role to import key with - Notary can use this to infer the path to store the key. A specified path will take precedence")
 	cmdKeysImport.Flags().StringVarP(
-		&k.keysImportGUN, "gun", "g", "", "Gun to import key with - Notary uses this to infer the path to store the key")
+		&k.keysImportGUN, "gun", "g", "", "Gun to import key with - Notary can use this to infer the path to store the key. A specified path will take precedence")
 	cmd.AddCommand(cmdKeysImport)
 	cmdExport := cmdKeyExportTemplate.ToCommand(k.exportKeys)
 	cmdExport.Flags().StringSliceVar(
