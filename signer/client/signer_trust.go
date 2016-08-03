@@ -21,11 +21,6 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-// The only thing needed from grpc.ClientConn is it's state.
-type checkableConnectionState interface {
-	State() grpc.ConnectivityState
-}
-
 // RemotePrivateKey is a key that is on a remote service, so no private
 // key bytes are available
 type RemotePrivateKey struct {
@@ -102,9 +97,8 @@ func (pk *RemotePrivateKey) CryptoSigner() crypto.Signer {
 
 // NotarySigner implements a RPC based Trust service that calls the Notary-signer Service
 type NotarySigner struct {
-	kmClient   pb.KeyManagementClient
-	sClient    pb.SignerClient
-	clientConn checkableConnectionState
+	kmClient pb.KeyManagementClient
+	sClient  pb.SignerClient
 }
 
 // NewGRPCConnection is a convenience method that returns GRPC Client Connection given a hostname, endpoint, and TLS options
@@ -121,9 +115,8 @@ func NewNotarySigner(conn *grpc.ClientConn) *NotarySigner {
 	kmClient := pb.NewKeyManagementClient(conn)
 	sClient := pb.NewSignerClient(conn)
 	return &NotarySigner{
-		kmClient:   kmClient,
-		sClient:    sClient,
-		clientConn: conn,
+		kmClient: kmClient,
+		sClient:  sClient,
 	}
 }
 
@@ -180,16 +173,7 @@ func (trust *NotarySigner) ListAllKeys() map[string]string {
 // CheckHealth checks the health of one of the clients, since both clients run
 // from the same GRPC server.
 func (trust *NotarySigner) CheckHealth(timeout time.Duration) error {
-
-	// Do not bother starting checking at all if the connection is broken.
-	if trust.clientConn.State() != grpc.Idle &&
-		trust.clientConn.State() != grpc.Ready {
-		return fmt.Errorf("Not currently connected to trust server.")
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	// the kmClient should point at the same server as the sClient, so a single
-	// healthcheck should suffice
 	status, err := trust.kmClient.CheckHealth(ctx, &pb.Void{})
 	defer cancel()
 	if err == nil && len(status.Status) > 0 {
