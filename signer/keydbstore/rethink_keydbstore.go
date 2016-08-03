@@ -202,7 +202,7 @@ func (rdb *RethinkDBKeyStore) GetKey(keyID string) (data.PrivateKey, string, err
 		return nil, "", err
 	}
 
-	return privKey, dbPrivateKey.Role, nil
+	return activatingPrivateKey{PrivateKey: privKey, activationFunc: rdb.markActive}, dbPrivateKey.Role, nil
 }
 
 // GetKeyInfo always returns empty and an error. This method is here to satisfy the KeyStore interface
@@ -256,8 +256,8 @@ func (rdb RethinkDBKeyStore) RotateKeyPassphrase(keyID, newPassphraseAlias strin
 	return nil
 }
 
-// MarkActive marks a particular key as active
-func (rdb RethinkDBKeyStore) MarkActive(keyID string) error {
+// markActive marks a particular key as active
+func (rdb RethinkDBKeyStore) markActive(keyID string) error {
 	_, err := gorethink.DB(rdb.dbName).Table(PrivateKeysRethinkTable.Name).Get(keyID).Update(map[string]interface{}{
 		"last_used": rdb.nowFunc(),
 	}).RunWrite(rdb.sess)

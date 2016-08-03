@@ -3,10 +3,12 @@
 package keydbstore
 
 import (
+	"crypto/rand"
 	"testing"
 	"time"
 
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/signed"
 	"github.com/dvsekhvalnov/jose2go"
 	"github.com/stretchr/testify/require"
 )
@@ -145,15 +147,24 @@ func TestSQLKeyRotation(t *testing.T) {
 	require.Equal(t, string(nonRotatedKey.Private()), decryptedKey)
 }
 
-func TestSQLMarkKeyActive(t *testing.T) {
+func TestSQLSigningMarksKeyActive(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
-	activeKey, nonActiveKey := testMarkKeyActive(t, dbStore)
+	activeKey, nonActiveKey := testSigningWithKeyMarksAsActive(t, dbStore)
 
 	gormKeys := requireExpectedGORMKeys(t, dbStore, []data.PrivateKey{activeKey, nonActiveKey})
 
 	// check that activation updates the activated key but not the unactivated key
 	require.True(t, gormKeys[activeKey.ID()].LastUsed.Equal(gormActiveTime))
 	require.True(t, gormKeys[nonActiveKey.ID()].LastUsed.Equal(time.Time{}))
+
+	// check that signing succeeds even if the DB connection is closed and hence
+	// mark as active errors
+	dbStore.db.Close()
+	msg := []byte("successful, db closed")
+	sig, err := nonActiveKey.Sign(rand.Reader, msg, nil)
+	require.NoError(t, err)
+	require.NoError(t, signed.Verifiers[data.ECDSASignature].Verify(
+		data.PublicKeyFromPrivate(nonActiveKey), sig, msg))
 }
