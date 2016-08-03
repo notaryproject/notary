@@ -31,7 +31,7 @@ import (
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/server"
 	"github.com/docker/notary/server/storage"
-	notaryStorage "github.com/docker/notary/storage"
+	nstorage "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
@@ -334,7 +334,7 @@ func TestClientDeleteTUFInteraction(t *testing.T) {
 	// Trying to delete the repo with the remote flag fails if it's given a well-formed URL that doesn't point to a server
 	output, err = runCommand(t, tempDir, "-s", "https://invalid-server", "delete", "gun", "--remote")
 	require.Error(t, err)
-	require.IsType(t, notaryStorage.ErrOffline{}, err)
+	require.IsType(t, nstorage.ErrOffline{}, err)
 	// In this case, local notary metadata does not exist since local deletion operates first if we have a valid transport
 	assertLocalMetadataForGun(t, tempDir, "gun", false)
 
@@ -1626,4 +1626,160 @@ func generateCertPrivKeyPair(t *testing.T, gun, keyAlgorithm string) (*x509.Cert
 	keyID, err := utils.CanonicalKeyID(parsedPubKey)
 	require.NoError(t, err)
 	return cert, privKey, keyID
+}
+
+func TestClientTUFInitWithAutoPublish(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	tempFile, err := ioutil.TempFile("", "targetfile")
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	var (
+		output       string = ""
+		gun          string = "MistsOfPandaria"
+		gunNoPublish string = "Legion"
+
+		// This might be changed via the implementation, please be careful.
+		emptyList string = "\nNo targets present in this repository.\n\n"
+	)
+	// -- tests --
+
+	// init repo with auto publish being enabled
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "-p", gun)
+	require.NoError(t, err)
+	// list repo - exepect empty list
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
+	require.NoError(t, err)
+	require.Equal(t, output, emptyList)
+
+	// init repo without auto publish being enabled
+	//
+	// Use this test to guarantee that we won't break the normal init process.
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", gunNoPublish)
+	require.NoError(t, err)
+	// list repo - exepect error
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gunNoPublish)
+	require.NotNil(t, err)
+	require.Equal(t, err, nstorage.ErrMetaNotFound{Resource: "root"})
+}
+
+func TestClientTUFAddWithAutoPublish(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	tempFile, err := ioutil.TempFile("", "targetfile")
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	var (
+		output          string = ""
+		target          string = "ShangXi"
+		targetNoPublish string = "Shen-zinSu"
+		gun             string = "MistsOfPandaria"
+	)
+	// -- tests --
+
+	// init repo with auto publish being enabled
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "-p", gun)
+	require.NoError(t, err)
+	// add a target with auto publish being enabled
+	_, err = runCommand(t, tempDir, "-s", server.URL, "add", "-p", gun, target, tempFile.Name())
+	require.NoError(t, err)
+	// list repo - expect target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
+	require.NoError(t, err)
+	require.True(t, strings.Contains(output, target))
+
+	// add a target without auto publish being enabled
+	//
+	// Use this test to guarantee that we won't break the normal add process.
+	_, err = runCommand(t, tempDir, "add", gun, targetNoPublish, tempFile.Name())
+	require.NoError(t, err)
+	// check status - expect the targetNoPublish
+	output, err = runCommand(t, tempDir, "status", gun)
+	require.NoError(t, err)
+	require.True(t, strings.Contains(output, targetNoPublish))
+	// list repo - expect only the target, not the targetNoPublish
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
+	require.NoError(t, err)
+	require.True(t, strings.Contains(output, target))
+	require.False(t, strings.Contains(output, targetNoPublish))
+}
+
+func TestClientTUFRemoveWithAutoPublish(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	tempFile, err := ioutil.TempFile("", "targetfile")
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	var (
+		output              string = ""
+		target              string = "ShangXi"
+		targetWillBeRemoved string = "Shen-zinSu"
+		gun                 string = "MistsOfPandaria"
+	)
+	// -- tests --
+
+	// init repo with auto publish being enabled
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "-p", gun)
+	require.NoError(t, err)
+	// add a target with auto publish being enabled
+	_, err = runCommand(t, tempDir, "add", "-s", server.URL, "-p", gun, target, tempFile.Name())
+	require.NoError(t, err)
+	_, err = runCommand(t, tempDir, "add", "-s", server.URL, "-p", gun, targetWillBeRemoved, tempFile.Name())
+	require.NoError(t, err)
+	// remove a target with auto publish being enabled
+	_, err = runCommand(t, tempDir, "remove", "-s", server.URL, "-p", gun, targetWillBeRemoved, tempFile.Name())
+	require.NoError(t, err)
+	// list repo - expect target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
+	require.NoError(t, err)
+	require.True(t, strings.Contains(output, target))
+	require.False(t, strings.Contains(output, targetWillBeRemoved))
+
+	// remove a target without auto publish being enabled
+	//
+	// Use this test to guarantee that we won't break the normal remove process.
+	_, err = runCommand(t, tempDir, "add", "-s", server.URL, "-p", gun, targetWillBeRemoved, tempFile.Name())
+	require.NoError(t, err)
+	// remove the targetWillBeRemoved without auto publish being enabled
+	_, err = runCommand(t, tempDir, "remove", gun, targetWillBeRemoved, tempFile.Name())
+	require.NoError(t, err)
+	// check status - expect the targetWillBeRemoved
+	output, err = runCommand(t, tempDir, "status", gun)
+	require.NoError(t, err)
+	require.True(t, strings.Contains(output, targetWillBeRemoved))
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", gun)
+	require.NoError(t, err)
+	// list repo - expect only the target, not the targetWillBeRemoved
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
+	require.NoError(t, err)
+	require.True(t, strings.Contains(output, target))
+	require.False(t, strings.Contains(output, targetWillBeRemoved))
 }
