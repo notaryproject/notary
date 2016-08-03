@@ -41,5 +41,4 @@ type Config struct {
 	GRPCAddr       string
 	TLSConfig      *tls.Config
 	CryptoServices CryptoServiceIndex
-	MarkKeyActive  func(string) error
 }
