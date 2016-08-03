@@ -480,18 +480,19 @@ func (r *NotaryRepository) GetTargetByName(name string, roles ...string) (*Targe
 
 // TargetSignedStruct is a struct that contains information about the Target and the list of signatures
 type TargetSignedStruct struct {
+	Role       data.DelegationRole
 	Target     Target
 	Signatures []data.Signature
 }
 
 // GetAllTargetMetadataByName searches the entire delegation role tree to find the specified target by name for all
-// roles, and returns a map of role strings to Target structs for each time it finds the specified target.
-func (r *NotaryRepository) GetAllTargetMetadataByName(name string) (map[string]TargetSignedStruct, error) {
+// roles, and returns a map of role strings to TargetSignedStructs for each time it finds the specified target.
+func (r *NotaryRepository) GetAllTargetMetadataByName(name string) ([]TargetSignedStruct, error) {
 	if err := r.Update(false); err != nil {
 		return nil, err
 	}
 
-	targetInfoMap := make(map[string]TargetSignedStruct)
+	var targetInfoList []TargetSignedStruct
 
 	// Define a visitor function to find the specified target
 	getAllTargetInfoByNameVisitorFunc := func(tgt *data.SignedTargets, validRole data.DelegationRole) interface{} {
@@ -501,10 +502,12 @@ func (r *NotaryRepository) GetAllTargetMetadataByName(name string) (map[string]T
 		// We found the target and validated path compatibility in our walk,
 		// so add it to our list
 		if resultMeta, foundTarget := tgt.Signed.Targets[name]; foundTarget {
-			targetInfoMap[validRole.Name] = TargetSignedStruct{
-				Target{Name: name, Hashes: resultMeta.Hashes, Length: resultMeta.Length},
-				tgt.Signatures,
+			targetInfo := TargetSignedStruct{
+				Role:       validRole,
+				Target:     Target{Name: name, Hashes: resultMeta.Hashes, Length: resultMeta.Length},
+				Signatures: tgt.Signatures,
 			}
+			targetInfoList = append(targetInfoList, targetInfo)
 		}
 		// continue walking to all child roles
 		return nil
@@ -514,10 +517,10 @@ func (r *NotaryRepository) GetAllTargetMetadataByName(name string) (map[string]T
 	if err := r.tufRepo.WalkTargets(name, "", getAllTargetInfoByNameVisitorFunc); err != nil {
 		return nil, err
 	}
-	if len(targetInfoMap) == 0 {
+	if len(targetInfoList) == 0 {
 		return nil, fmt.Errorf("No trust data for %s", name)
 	}
-	return targetInfoMap, nil
+	return targetInfoList, nil
 }
 
 // GetChangelist returns the list of the repository's unpublished changes
