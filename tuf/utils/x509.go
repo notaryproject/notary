@@ -432,7 +432,7 @@ func KeyToPEM(privKey data.PrivateKey, role string) ([]byte, error) {
 
 // EncryptPrivateKey returns an encrypted PEM key given a Privatekey
 // and a passphrase
-func EncryptPrivateKey(key data.PrivateKey, role, passphrase string) ([]byte, error) {
+func EncryptPrivateKey(key data.PrivateKey, role, gun, passphrase string) ([]byte, error) {
 	bt, err := blockType(key)
 	if err != nil {
 		return nil, err
@@ -454,6 +454,9 @@ func EncryptPrivateKey(key data.PrivateKey, role, passphrase string) ([]byte, er
 		return nil, fmt.Errorf("unable to encrypt key - invalid PEM file produced")
 	}
 	encryptedPEMBlock.Headers["role"] = role
+	if gun != "" {
+		encryptedPEMBlock.Headers["gun"] = gun
+	}
 
 	return pem.EncodeToMemory(encryptedPEMBlock), nil
 }

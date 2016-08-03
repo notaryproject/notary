@@ -125,15 +125,15 @@ func TestKeyOperations(t *testing.T) {
 	require.Equal(t, rsaKey.Private(), decodedRSAKey.Private())
 
 	// Encrypt our ED Key
-	encryptedEDKey, err := EncryptPrivateKey(edKey, "root", "ponies")
+	encryptedEDKey, err := EncryptPrivateKey(edKey, "root", "", "ponies")
 	require.NoError(t, err)
 
 	// Encrypt our EC Key
-	encryptedECKey, err := EncryptPrivateKey(ecKey, "root", "ponies")
+	encryptedECKey, err := EncryptPrivateKey(ecKey, "root", "", "ponies")
 	require.NoError(t, err)
 
 	// Encrypt our RSA Key
-	encryptedRSAKey, err := EncryptPrivateKey(rsaKey, "root", "ponies")
+	encryptedRSAKey, err := EncryptPrivateKey(rsaKey, "root", "", "ponies")
 	require.NoError(t, err)
 
 	// Check to see if ED key it is encrypted

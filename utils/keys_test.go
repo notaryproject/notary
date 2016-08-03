@@ -224,7 +224,7 @@ func TestExport2InOneFile(t *testing.T) {
 func TestImportKeys(t *testing.T) {
 	s := NewTestImportStore()
 
-	from, _ := os.OpenFile("test.key", os.O_RDONLY, notary.PrivKeyPerms)
+	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivKeyPerms)
 	b := &pem.Block{
 		Headers: make(map[string]string),
 	}
@@ -251,13 +251,15 @@ func TestImportKeys(t *testing.T) {
 
 	bFinal, bRest := pem.Decode(s.data["ankh"])
 	require.Equal(t, b.Bytes, bFinal.Bytes)
-	require.Equal(t, "", bFinal.Headers["path"])                       // path header is stripped during import
+	_, ok := bFinal.Headers["path"]
+	require.False(t, ok, "expected no path header, should have been removed at import")
 	require.Equal(t, notary.DefaultImportRole, bFinal.Headers["role"]) // if no role is specified we assume it is a delegation key
 	require.Len(t, bRest, 0)
 
 	cFinal, cRest := pem.Decode(s.data["morpork"])
 	require.Equal(t, c.Bytes, cFinal.Bytes)
-	require.Equal(t, "", bFinal.Headers["path"])
+	_, ok = cFinal.Headers["path"]
+	require.False(t, ok, "expected no path header, should have been removed at import")
 	require.Len(t, cRest, 0)
 }
 
@@ -267,7 +269,7 @@ func TestImportNoPath(t *testing.T) {
 	b := &pem.Block{
 		Headers: make(map[string]string),
 	}
-	from, _ := os.OpenFile("test.key", os.O_RDONLY, notary.PrivKeyPerms)
+	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivKeyPerms)
 	defer from.Close()
 	b.Bytes, _ = ioutil.ReadAll(from)
 
@@ -278,7 +280,7 @@ func TestImportNoPath(t *testing.T) {
 
 	for key := range s.data {
 		// no path but role included should work
-		require.Equal(t, key, filepath.Join(notary.RootKeysSubdir, "7baafcc9e5100ab062d886f06468f6c76e70b54b90e5d38537dadc6299c976d9"))
+		require.Equal(t, key, filepath.Join(notary.RootKeysSubdir, "12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497"))
 	}
 
 	err = ImportKeys(in, []Importer{s}, "", "", passphraseRetriever)
@@ -293,7 +295,7 @@ func TestNonRootPathInference(t *testing.T) {
 	b := &pem.Block{
 		Headers: make(map[string]string),
 	}
-	from, _ := os.OpenFile("test.key", os.O_RDONLY, notary.PrivKeyPerms)
+	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivKeyPerms)
 	defer from.Close()
 	b.Bytes, _ = ioutil.ReadAll(from)
 
@@ -304,7 +306,7 @@ func TestNonRootPathInference(t *testing.T) {
 
 	for key := range s.data {
 		// no path but role included should work
-		require.Equal(t, key, filepath.Join(notary.NonRootKeysSubdir, "somegun", "7baafcc9e5100ab062d886f06468f6c76e70b54b90e5d38537dadc6299c976d9"))
+		require.Equal(t, key, filepath.Join(notary.NonRootKeysSubdir, "somegun", "12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497"))
 	}
 }
 
@@ -314,7 +316,7 @@ func TestBlockHeaderPrecedence(t *testing.T) {
 	b := &pem.Block{
 		Headers: make(map[string]string),
 	}
-	from, _ := os.OpenFile("testprecedence.key", os.O_RDONLY, notary.PrivKeyPerms)
+	from, _ := os.OpenFile("../fixtures/precedence.example.com.key", os.O_RDONLY, notary.PrivKeyPerms)
 	defer from.Close()
 	b.Bytes, _ = ioutil.ReadAll(from)
 
@@ -325,7 +327,7 @@ func TestBlockHeaderPrecedence(t *testing.T) {
 
 	for key := range s.data {
 		// block header role should take precedence over command line flag
-		require.Equal(t, key, filepath.Join(notary.RootKeysSubdir, "7baafcc9e5100ab062d886f06468f6c76e70b54b90e5d38537dadc6299c976d9"))
+		require.Equal(t, key, filepath.Join(notary.RootKeysSubdir, "12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497"))
 	}
 }
 
@@ -367,16 +369,19 @@ func TestImportKeys2InOneFile(t *testing.T) {
 
 	bFinal, bRest := pem.Decode(s.data["ankh"])
 	require.Equal(t, b.Bytes, bFinal.Bytes)
-	require.Equal(t, "", bFinal.Headers["path"]) // path header is stripped during import
+	_, ok := bFinal.Headers["path"]
+	require.False(t, ok, "expected no path header, should have been removed at import")
 
 	b2Final, b2Rest := pem.Decode(bRest)
 	require.Equal(t, b2.Bytes, b2Final.Bytes)
-	require.Equal(t, "", b2Final.Headers["path"]) // path header is stripped during import
+	_, ok = b2Final.Headers["path"]
+	require.False(t, ok, "expected no path header, should have been removed at import")
 	require.Len(t, b2Rest, 0)
 
 	cFinal, cRest := pem.Decode(s.data["morpork"])
 	require.Equal(t, c.Bytes, cFinal.Bytes)
-	require.Equal(t, "", bFinal.Headers["path"])
+	_, ok = cFinal.Headers["path"]
+	require.False(t, ok, "expected no path header, should have been removed at import")
 	require.Len(t, cRest, 0)
 }
 
@@ -386,7 +391,7 @@ func TestImportKeys2InOneFileNoPath(t *testing.T) {
 	b := &pem.Block{
 		Headers: make(map[string]string),
 	}
-	from, _ := os.OpenFile("test.key", os.O_RDONLY, notary.PrivKeyPerms)
+	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivKeyPerms)
 	b.Bytes, _ = ioutil.ReadAll(from)
 	rand.Read(b.Bytes)
 	b.Headers["path"] = "ankh"
@@ -419,16 +424,19 @@ func TestImportKeys2InOneFileNoPath(t *testing.T) {
 
 	bFinal, bRest := pem.Decode(s.data["ankh"])
 	require.Equal(t, b.Bytes, bFinal.Bytes)
-	require.Equal(t, "", bFinal.Headers["path"]) // path header is stripped during import
+	_, ok := bFinal.Headers["path"]
+	require.False(t, ok, "expected no path header, should have been removed at import")
 
 	b2Final, b2Rest := pem.Decode(bRest)
 	require.Equal(t, b2.Bytes, b2Final.Bytes)
-	require.Equal(t, "", b2Final.Headers["path"]) // path header is stripped during import
+	_, ok = b2Final.Headers["path"]
+	require.False(t, ok, "expected no path header, should have been removed at import")
 	require.Len(t, b2Rest, 0)
 
 	cFinal, cRest := pem.Decode(s.data["morpork"])
 	require.Equal(t, c.Bytes, cFinal.Bytes)
-	require.Equal(t, "", bFinal.Headers["path"])
+	_, ok = cFinal.Headers["path"]
+	require.False(t, ok, "expected no path header, should have been removed at import")
 	require.Len(t, cRest, 0)
 
 	require.Len(t, s.data, 2)

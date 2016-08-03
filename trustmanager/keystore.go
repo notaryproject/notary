@@ -152,7 +152,7 @@ func (s *GenericKeyStore) AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error
 	}
 
 	if chosenPassphrase != "" {
-		pemPrivKey, err = utils.EncryptPrivateKey(privKey, keyInfo.Role, chosenPassphrase)
+		pemPrivKey, err = utils.EncryptPrivateKey(privKey, keyInfo.Role, keyInfo.Gun, chosenPassphrase)
 	} else {
 		pemPrivKey, err = utils.KeyToPEM(privKey, keyInfo.Role)
 	}
