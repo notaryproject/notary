@@ -29,7 +29,7 @@ func getRemoteStore(baseURL, gun string, rt http.RoundTripper) (store.RemoteStor
 	return s, err
 }
 
-func applyChangelist(repo *tuf.Repo, cl changelist.Changelist) error {
+func applyChangelist(repo *tuf.Repo, invalid *tuf.Repo, cl changelist.Changelist) error {
 	it, err := cl.NewIterator()
 	if err != nil {
 		return err
@@ -43,11 +43,11 @@ func applyChangelist(repo *tuf.Repo, cl changelist.Changelist) error {
 		isDel := data.IsDelegation(c.Scope()) || data.IsWildDelegation(c.Scope())
 		switch {
 		case c.Scope() == changelist.ScopeTargets || isDel:
-			err = applyTargetsChange(repo, c)
+			err = applyTargetsChange(repo, invalid, c)
 		case c.Scope() == changelist.ScopeRoot:
 			err = applyRootChange(repo, c)
 		default:
-			logrus.Debug("scope not supported: ", c.Scope())
+			return fmt.Errorf("scope not supported: %s", c.Scope())
 		}
 		if err != nil {
 			logrus.Debugf("error attempting to apply change #%d: %s, on scope: %s path: %s type: %s", index, c.Action(), c.Scope(), c.Path(), c.Type())
@@ -59,12 +59,14 @@ func applyChangelist(repo *tuf.Repo, cl changelist.Changelist) error {
 	return nil
 }
 
-func applyTargetsChange(repo *tuf.Repo, c changelist.Change) error {
+func applyTargetsChange(repo *tuf.Repo, invalid *tuf.Repo, c changelist.Change) error {
 	switch c.Type() {
 	case changelist.TypeTargetsTarget:
 		return changeTargetMeta(repo, c)
 	case changelist.TypeTargetsDelegation:
 		return changeTargetsDelegation(repo, c)
+	case changelist.TypeWitness:
+		return witnessTargets(repo, invalid, c.Scope())
 	default:
 		return fmt.Errorf("only target meta and delegations changes supported")
 	}
@@ -155,7 +157,7 @@ func changeTargetMeta(repo *tuf.Repo, c changelist.Change) error {
 		}
 
 	default:
-		logrus.Debug("action not yet supported: ", c.Action())
+		err = fmt.Errorf("action not yet supported: %s", c.Action())
 	}
 	return err
 }
@@ -166,7 +168,7 @@ func applyRootChange(repo *tuf.Repo, c changelist.Change) error {
 	case changelist.TypeRootRole:
 		err = applyRootRoleChange(repo, c)
 	default:
-		logrus.Debug("type of root change not yet supported: ", c.Type())
+		err = fmt.Errorf("type of root change not yet supported: %s", c.Type())
 	}
 	return err // might be nil
 }
@@ -185,7 +187,7 @@ func applyRootRoleChange(repo *tuf.Repo, c changelist.Change) error {
 			return err
 		}
 	default:
-		logrus.Debug("action not yet supported for root: ", c.Action())
+		return fmt.Errorf("action not yet supported for root: %s", c.Action())
 	}
 	return nil
 }

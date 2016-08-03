@@ -83,6 +83,12 @@ var cmdTUFVerifyTemplate = usageTemplate{
 	Long:  "Verifies if the data passed in STDIN is included in the remote trusted collection identified by the Globally Unique Name.",
 }
 
+var cmdWitnessTemplate = usageTemplate{
+	Use:   "witness [ GUN ] <role> ...",
+	Short: "Marks roles to be re-signed the next time they're published",
+	Long:  "Marks roles to be re-signed the next time they're published. Currently will always bump version and expiry for role. N.B. behaviour may change when thresholding is introduced.",
+}
+
 type tufCommander struct {
 	// these need to be set
 	configGetter func() (*viper.Viper, error)
@@ -140,6 +146,46 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmdTUFVerify.Flags().StringVarP(&t.output, "output", "o", "", "Write to a file, instead of STDOUT")
 	cmdTUFVerify.Flags().BoolVarP(&t.quiet, "quiet", "q", false, "No output except for errors")
 	cmd.AddCommand(cmdTUFVerify)
+
+	cmdWitness := cmdWitnessTemplate.ToCommand(t.tufWitness)
+	cmd.AddCommand(cmdWitness)
+}
+
+func (t *tufCommander) tufWitness(cmd *cobra.Command, args []string) error {
+	if len(args) < 2 {
+		cmd.Usage()
+		return fmt.Errorf("Please provide a GUN and at least one role to witness")
+	}
+	config, err := t.configGetter()
+	if err != nil {
+		return err
+	}
+	trustPin, err := getTrustPinning(config)
+	if err != nil {
+		return err
+	}
+	gun := args[0]
+	roles := args[1:]
+
+	// no online operations are performed by add so the transport argument
+	// should be nil
+	nRepo, err := notaryclient.NewNotaryRepository(
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin)
+	if err != nil {
+		return err
+	}
+
+	success, err := nRepo.Witness(roles...)
+	if err != nil {
+		cmd.Printf("Some roles have failed to be marked for witnessing: %s", err.Error())
+	}
+
+	cmd.Printf(
+		"The following roles were successfully marked for witnessing on the next publish:\n\t- %s\n",
+		strings.Join(success, "\n\t- "),
+	)
+
+	return nil
 }
 
 func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {

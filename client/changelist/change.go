@@ -23,6 +23,7 @@ const (
 	TypeRootRole          = "role"
 	TypeTargetsTarget     = "target"
 	TypeTargetsDelegation = "delegation"
+	TypeWitness           = "witness"
 )
 
 // TUFChange represents a change to a TUF repo
