@@ -37,16 +37,16 @@ import (
 	"log"
 	"net"
 
-	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 )
 
 const (
 	port = ":50051"
 )
 
-// server is used to implement hellowrld.GreeterServer.
+// server is used to implement helloworld.GreeterServer.
 type server struct{}
 
 // SayHello implements helloworld.GreeterServer
