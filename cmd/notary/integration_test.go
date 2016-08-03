@@ -11,7 +11,9 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
+	"crypto/x509"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -265,16 +267,8 @@ func TestClientDeleteTUFInteraction(t *testing.T) {
 	// Setup certificate
 	certFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
-
-	privKey, err := utils.GenerateECDSAKey(rand.Reader)
-	startTime := time.Now()
-	endTime := startTime.AddDate(10, 0, 0)
-	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
-	require.NoError(t, err)
-
+	cert, _, _ := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
 	_, err = certFile.Write(utils.CertToPEM(cert))
-	require.NoError(t, err)
-	tempFile.Close()
 	defer os.Remove(certFile.Name())
 
 	var (
@@ -557,22 +551,11 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	// Setup certificate
 	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
-
-	privKey, err := utils.GenerateECDSAKey(rand.Reader)
-	startTime := time.Now()
-	endTime := startTime.AddDate(10, 0, 0)
-	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
-	require.NoError(t, err)
-
+	cert, _, keyID := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
 	_, err = tempFile.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
-
-	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
-	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
-	keyID, err := utils.CanonicalKeyID(parsedPubKey)
-	require.NoError(t, err)
 
 	var output string
 
@@ -646,22 +629,11 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	tempFile2, err := ioutil.TempFile("", "pemfile2")
 	require.NoError(t, err)
 
-	privKey, err = utils.GenerateECDSAKey(rand.Reader)
-	startTime = time.Now()
-	endTime = startTime.AddDate(10, 0, 0)
-	cert, err = cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
-	require.NoError(t, err)
-
-	_, err = tempFile2.Write(utils.CertToPEM(cert))
-	require.NoError(t, err)
+	cert2, _, keyID2 := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
+	_, err = tempFile2.Write(utils.CertToPEM(cert2))
 	require.NoError(t, err)
 	tempFile2.Close()
 	defer os.Remove(tempFile2.Name())
-
-	rawPubBytes2, _ := ioutil.ReadFile(tempFile2.Name())
-	parsedPubKey2, _ := utils.ParsePEMPublicKey(rawPubBytes2)
-	keyID2, err := utils.CanonicalKeyID(parsedPubKey2)
-	require.NoError(t, err)
 
 	// add to the delegation by specifying the same role, this time add a scoped path
 	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", tempFile2.Name(), "--paths", "path")
@@ -929,26 +901,15 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	// Setup certificate for delegation role
 	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
-
-	privKey, err := utils.GenerateRSAKey(rand.Reader, 2048)
-	require.NoError(t, err)
-	privKeyBytesNoRole, err := utils.KeyToPEM(privKey, "")
-	require.NoError(t, err)
-	privKeyBytesWithRole, err := utils.KeyToPEM(privKey, "user")
-	require.NoError(t, err)
-	startTime := time.Now()
-	endTime := startTime.AddDate(10, 0, 0)
-	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
-	require.NoError(t, err)
-
+	cert, privKey, canonicalKeyID := generateCertPrivKeyPair(t, "gun", data.RSAKey)
 	_, err = tempFile.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
 
-	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
-	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
-	canonicalKeyID, err := utils.CanonicalKeyID(parsedPubKey)
+	privKeyBytesNoRole, err := utils.KeyToPEM(privKey, "")
+	require.NoError(t, err)
+	privKeyBytesWithRole, err := utils.KeyToPEM(privKey, "user")
 	require.NoError(t, err)
 
 	// Set up targets for publishing
@@ -1103,23 +1064,11 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	// Setup another certificate
 	tempFile2, err := ioutil.TempFile("", "pemfile2")
 	require.NoError(t, err)
-
-	privKey, err = utils.GenerateECDSAKey(rand.Reader)
-	startTime = time.Now()
-	endTime = startTime.AddDate(10, 0, 0)
-	cert, err = cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
-	require.NoError(t, err)
-
-	_, err = tempFile2.Write(utils.CertToPEM(cert))
-	require.NoError(t, err)
+	cert2, _, keyID2 := generateCertPrivKeyPair(t, "gun", data.RSAKey)
+	_, err = tempFile2.Write(utils.CertToPEM(cert2))
 	require.NoError(t, err)
 	tempFile2.Close()
 	defer os.Remove(tempFile2.Name())
-
-	rawPubBytes2, _ := ioutil.ReadFile(tempFile2.Name())
-	parsedPubKey2, _ := utils.ParsePEMPublicKey(rawPubBytes2)
-	keyID2, err := utils.CanonicalKeyID(parsedPubKey2)
-	require.NoError(t, err)
 
 	// add a nested delegation under this releases role
 	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/releases/nested", tempFile2.Name(), "--paths", "nested/path")
@@ -1525,29 +1474,21 @@ func TestWitness(t *testing.T) {
 	server := setupServer()
 	defer server.Close()
 
-	startTime := time.Now()
-	endTime := startTime.AddDate(10, 0, 0)
-
 	// Setup certificates
 	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
-	privKey, err := utils.GenerateECDSAKey(rand.Reader)
-	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
-	require.NoError(t, err)
+
+	cert, privKey, keyID := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
 	_, err = tempFile.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
-	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
-	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
-	keyID, err := utils.CanonicalKeyID(parsedPubKey)
+
+	// Setup another certificate
+	tempFile2, err := ioutil.TempFile("", "pemfile2")
 	require.NoError(t, err)
 
-	tempFile2, err := ioutil.TempFile("", "pemfile")
-	require.NoError(t, err)
-	privKey2, err := utils.GenerateECDSAKey(rand.Reader)
-	cert2, err := cryptoservice.GenerateCertificate(privKey2, "gun", startTime, endTime)
-	require.NoError(t, err)
+	cert2, privKey2, _ := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
 	_, err = tempFile2.Write(utils.CertToPEM(cert2))
 	require.NoError(t, err)
 	tempFile2.Close()
@@ -1662,4 +1603,27 @@ func TestWitness(t *testing.T) {
 		_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
 		require.Error(t, err)
 	}
+}
+
+func generateCertPrivKeyPair(t *testing.T, gun, keyAlgorithm string) (*x509.Certificate, data.PrivateKey, string) {
+	// Setup certificate
+	var privKey data.PrivateKey
+	var err error
+	switch keyAlgorithm {
+	case data.ECDSAKey:
+		privKey, err = utils.GenerateECDSAKey(rand.Reader)
+	case data.RSAKey:
+		privKey, err = utils.GenerateRSAKey(rand.Reader, 4096)
+	default:
+		err = fmt.Errorf("invalid key algorithm provided: %s", keyAlgorithm)
+	}
+	require.NoError(t, err)
+	startTime := time.Now()
+	endTime := startTime.AddDate(10, 0, 0)
+	cert, err := cryptoservice.GenerateCertificate(privKey, gun, startTime, endTime)
+	require.NoError(t, err)
+	parsedPubKey, _ := utils.ParsePEMPublicKey(utils.CertToPEM(cert))
+	keyID, err := utils.CanonicalKeyID(parsedPubKey)
+	require.NoError(t, err)
+	return cert, privKey, keyID
 }
