@@ -3,10 +3,12 @@ package keydbstore
 import (
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
 )
@@ -31,11 +33,6 @@ func multiAliasRetriever(_, alias string, _ bool, _ int) (string, bool, error) {
 type keyRotator interface {
 	trustmanager.KeyStore
 	RotateKeyPassphrase(keyID, newPassphraseAlias string) error
-}
-
-type keyActivator interface {
-	trustmanager.KeyStore
-	MarkActive(keyID string) error
 }
 
 // A key can only be added to the DB once.  Returns a list of expected keys, and which keys are expected to exist.
@@ -114,28 +111,55 @@ func testKeyRotation(t *testing.T, dbStore keyRotator, newValidAlias string) (da
 	return testKeys[0], testKeys[1]
 }
 
-// marking a key as active is successful no matter what, but should only activate a key
-// that exists in the DB.
+type badReader struct{}
+
+func (b badReader) Read([]byte) (n int, err error) {
+	return 0, fmt.Errorf("Nope, not going to read")
+}
+
+// Signing with a key marks it as active if the signing is successful.  Marking as active is successful no matter what,
+// but should only activate a key that exists in the DB.
 // Returns the key that was used and one that was not
-func testMarkKeyActive(t *testing.T, dbStore keyActivator) (data.PrivateKey, data.PrivateKey) {
-	testKeys := make([]data.PrivateKey, 2)
+func testSigningWithKeyMarksAsActive(t *testing.T, dbStore trustmanager.KeyStore) (data.PrivateKey, data.PrivateKey) {
+	testKeys := make([]data.PrivateKey, 3)
 	for i := 0; i < len(testKeys); i++ {
 		testKey, err := utils.GenerateECDSAKey(rand.Reader)
 		require.NoError(t, err)
-		testKeys[i] = testKey
-
-		// MarkActive succeeds whether or not a key exists
-		require.NoError(t, dbStore.MarkActive(testKey.ID()))
-		requireGetKeyFailure(t, dbStore, testKey.ID())
 
 		// Add them to the DB
 		err = dbStore.AddKey(trustmanager.KeyInfo{Role: data.CanonicalTimestampRole, Gun: "gun"}, testKey)
 		require.NoError(t, err)
 		requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole, testKey)
+
+		// store the gotten key, because that key is special
+		gottenKey, _, err := dbStore.GetKey(testKey.ID())
+		require.NoError(t, err)
+		testKeys[i] = gottenKey
 	}
 
-	// MarkActive shoudlshould succeed on a key that exists
-	require.NoError(t, dbStore.MarkActive(testKeys[0].ID()))
+	// sign successfully with the first key - this key will become active
+	msg := []byte("successful")
+	sig, err := testKeys[0].Sign(rand.Reader, msg, nil)
+	require.NoError(t, err)
+	require.NoError(t, signed.Verifiers[data.ECDSASignature].Verify(
+		data.PublicKeyFromPrivate(testKeys[0]), sig, msg))
 
-	return testKeys[0], testKeys[1]
+	// sign unsuccessfully with the second key - this key should remain inactive
+	sig, err = testKeys[1].Sign(badReader{}, []byte("unsuccessful"), nil)
+	require.Error(t, err)
+	require.Equal(t, "Nope, not going to read", err.Error())
+	require.Nil(t, sig)
+
+	// delete the third key from the DB - sign should still succeed, even though
+	// this key cannot be marked as active anymore due to it not existing
+	// (this probably won't return an error)
+	require.NoError(t, dbStore.RemoveKey(testKeys[2].ID()))
+	requireGetKeyFailure(t, dbStore, testKeys[2].ID())
+	msg = []byte("successful, not active")
+	sig, err = testKeys[2].Sign(rand.Reader, msg, nil)
+	require.NoError(t, err)
+	require.NoError(t, signed.Verifiers[data.ECDSASignature].Verify(
+		data.PublicKeyFromPrivate(testKeys[2]), sig, msg))
+
+	return testKeys[0], testKeys[1] // testKeys[2] should no longer exist in the DB
 }

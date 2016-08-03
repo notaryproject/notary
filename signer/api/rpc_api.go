@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
 	"github.com/docker/notary/signer"
 	"github.com/docker/notary/trustmanager"
@@ -25,7 +24,6 @@ type KeyManagementServer struct {
 //SignerServer implements the SignerServer grpc interface
 type SignerServer struct {
 	CryptoServices signer.CryptoServiceIndex
-	MarkKeyActive  func(string) error
 	HealthChecker  func() map[string]string
 }
 
@@ -121,14 +119,6 @@ func (s *SignerServer) Sign(ctx context.Context, sr *pb.SignatureRequest) (*pb.S
 		logger.Errorf("Sign: signing failed for KeyID %s on hash %s", sr.KeyID.ID, sr.Content)
 		return nil, grpc.Errorf(codes.Internal, "Signing failed for KeyID %s on hash %s", sr.KeyID.ID, sr.Content)
 	}
-
-	keyID := privKey.ID()
-	go func() {
-		if err := s.MarkKeyActive(keyID); err != nil {
-			logrus.Errorf("Key %s was just used to sign hash %s, error when trying to mark key as active: %s",
-				keyID, sr.Content, err.Error())
-		}
-	}()
 
 	logger.Info("Sign: Signed ", string(sr.Content), " with KeyID ", sr.KeyID.ID)
 

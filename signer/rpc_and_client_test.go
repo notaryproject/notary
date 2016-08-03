@@ -153,7 +153,7 @@ var constPass = func(string, string, bool, int) (string, bool, error) {
 	return "constant", false, nil
 }
 
-func setUpSignerServer(t *testing.T, store trustmanager.KeyStore, markActive func(string) error) *grpc.Server {
+func setUpSignerServer(t *testing.T, store trustmanager.KeyStore) *grpc.Server {
 	cryptoService := cryptoservice.NewCryptoService(store)
 	cryptoServices := signer.CryptoServiceIndex{
 		data.ED25519Key: cryptoService,
@@ -162,9 +162,6 @@ func setUpSignerServer(t *testing.T, store trustmanager.KeyStore, markActive fun
 	}
 
 	fakeHealth := func() map[string]string { return nil }
-	if markActive == nil {
-		markActive = func(string) error { return nil }
-	}
 
 	//server setup
 	grpcServer := grpc.NewServer()
@@ -175,7 +172,6 @@ func setUpSignerServer(t *testing.T, store trustmanager.KeyStore, markActive fun
 	pb.RegisterSignerServer(grpcServer, &api.SignerServer{
 		CryptoServices: cryptoServices,
 		HealthChecker:  fakeHealth,
-		MarkKeyActive:  markActive,
 	})
 
 	return grpcServer
@@ -189,14 +185,7 @@ func TestGetPrivateKeyAndSignWithExistingKey(t *testing.T) {
 	err = memStore.AddKey(trustmanager.KeyInfo{Role: data.CanonicalTimestampRole, Gun: "gun"}, key)
 	require.NoError(t, err, "could not add key to store")
 
-	// signing successfully should mark a key as active, but not fail the signing if the marking
-	// failed
-	keyChan := make(chan string)
-	mark := func(k string) error {
-		keyChan <- k
-		return fmt.Errorf("no")
-	}
-	signerClient, _, cleanup := setUpSignerClient(t, setUpSignerServer(t, memStore, mark))
+	signerClient, _, cleanup := setUpSignerClient(t, setUpSignerServer(t, memStore))
 	defer cleanup()
 
 	privKey, role, err := signerClient.GetPrivateKey(key.ID())
@@ -207,8 +196,6 @@ func TestGetPrivateKeyAndSignWithExistingKey(t *testing.T) {
 	msg := []byte("message!")
 	sig, err := privKey.Sign(rand.Reader, msg, nil)
 	require.NoError(t, err)
-	keyID := <-keyChan
-	require.Equal(t, key.ID(), keyID, "a successful signature should have marked the key as active")
 
 	err = signed.Verifiers[data.ECDSASignature].Verify(
 		data.PublicKeyFromPrivate(key), sig, msg)
@@ -217,13 +204,8 @@ func TestGetPrivateKeyAndSignWithExistingKey(t *testing.T) {
 
 func TestCannotSignWithKeyThatDoesntExist(t *testing.T) {
 	memStore := trustmanager.NewKeyMemoryStore(constPass)
-	markCalled := false
-	mark := func(k string) error {
-		markCalled = true
-		return nil
-	}
 
-	_, conn, cleanup := setUpSignerClient(t, setUpSignerServer(t, memStore, mark))
+	_, conn, cleanup := setUpSignerClient(t, setUpSignerServer(t, memStore))
 	defer cleanup()
 
 	key, err := utils.GenerateECDSAKey(rand.Reader)
@@ -236,14 +218,12 @@ func TestCannotSignWithKeyThatDoesntExist(t *testing.T) {
 	require.Error(t, err)
 	// error translated into grpc error, so compare the text
 	require.Equal(t, trustmanager.ErrKeyNotFound{KeyID: key.ID()}.Error(), grpc.ErrorDesc(err))
-	// the key was not used to sign, so fail to mark as active
-	require.False(t, markCalled)
 }
 
 // Signer conforms to the signed.CryptoService interface behavior
 func TestCryptoSignerInterfaceBehavior(t *testing.T) {
 	memStore := trustmanager.NewKeyMemoryStore(constPass)
-	signerClient, _, cleanup := setUpSignerClient(t, setUpSignerServer(t, memStore, nil))
+	signerClient, _, cleanup := setUpSignerClient(t, setUpSignerServer(t, memStore))
 	defer cleanup()
 
 	interfaces.EmptyCryptoServiceInterfaceBehaviorTests(t, signerClient)

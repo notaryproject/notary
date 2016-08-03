@@ -142,7 +142,7 @@ func (s *SQLKeyDBStore) GetKey(keyID string) (data.PrivateKey, string, error) {
 		return nil, "", err
 	}
 
-	return privKey, dbPrivateKey.Role, nil
+	return activatingPrivateKey{PrivateKey: privKey, activationFunc: s.markActive}, dbPrivateKey.Role, nil
 }
 
 // GetKeyInfo returns the PrivateKey's role and gun in a KeyInfo given a KeyID
@@ -191,8 +191,8 @@ func (s *SQLKeyDBStore) RotateKeyPassphrase(keyID, newPassphraseAlias string) er
 	}).Error
 }
 
-// MarkActive marks a particular key as active
-func (s *SQLKeyDBStore) MarkActive(keyID string) error {
+// markActive marks a particular key as active
+func (s *SQLKeyDBStore) markActive(keyID string) error {
 	// we have to use the where clause because key_id is not the primary key
 	return s.db.Model(GormPrivateKey{}).Where("key_id = ?", keyID).Updates(GormPrivateKey{LastUsed: s.nowFunc()}).Error
 }
