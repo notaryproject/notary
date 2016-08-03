@@ -21,10 +21,6 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-// The only thing needed from grpc.ClientConn is it's state.
-type checkableConnectionState interface {
-}
-
 // RemotePrivateKey is a key that is on a remote service, so no private
 // key bytes are available
 type RemotePrivateKey struct {
@@ -101,9 +97,8 @@ func (pk *RemotePrivateKey) CryptoSigner() crypto.Signer {
 
 // NotarySigner implements a RPC based Trust service that calls the Notary-signer Service
 type NotarySigner struct {
-	kmClient   pb.KeyManagementClient
-	sClient    pb.SignerClient
-	clientConn checkableConnectionState
+	kmClient pb.KeyManagementClient
+	sClient  pb.SignerClient
 }
 
 // NewGRPCConnection is a convenience method that returns GRPC Client Connection given a hostname, endpoint, and TLS options
@@ -120,9 +115,8 @@ func NewNotarySigner(conn *grpc.ClientConn) *NotarySigner {
 	kmClient := pb.NewKeyManagementClient(conn)
 	sClient := pb.NewSignerClient(conn)
 	return &NotarySigner{
-		kmClient:   kmClient,
-		sClient:    sClient,
-		clientConn: conn,
+		kmClient: kmClient,
+		sClient:  sClient,
 	}
 }
 
