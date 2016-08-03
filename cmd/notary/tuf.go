@@ -145,6 +145,7 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 
 	cmdTUFRemove := cmdTUFRemoveTemplate.ToCommand(t.tufRemove)
 	cmdTUFRemove.Flags().StringSliceVarP(&t.roles, "roles", "r", nil, "Delegation roles to remove this target from")
+	cmdTUFRemove.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, "Automatically attempt to publish after staging the change. Will also publish existing staged changes.")
 	cmd.AddCommand(cmdTUFRemove)
 
 	cmdTUFAddHash := cmdTUFAddHashTemplate.ToCommand(t.tufAddByHash)
@@ -645,7 +646,8 @@ func (t *tufCommander) tufRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	cmd.Printf("Removal of %s from %s staged for next publish.\n", targetName, gun)
-	return nil
+
+	return publish(cmd, t.autoPublish, gun, config, t.retriever)
 }
 
 func (t *tufCommander) tufVerify(cmd *cobra.Command, args []string) error {
