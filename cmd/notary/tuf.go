@@ -313,26 +313,7 @@ func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 
 	cmd.Printf("Addition of target \"%s\" to repository \"%s\" staged for next publish.\n", targetName, gun)
 
-	// Auto publish the local trusted collection to remote.
-	if t.autoPublish {
-
-		// We need to set up a http RoundTripper when publishing
-		rt, err := getTransport(config, gun, readWrite)
-		if err != nil {
-			return err
-		}
-
-		nRepo, err := notaryclient.NewNotaryRepository(
-			config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
-		if err != nil {
-			return err
-		}
-
-		cmd.Println("Auto-publishing changes to", gun)
-		return nRepo.Publish()
-	}
-
-	return nil
+	return publish(cmd, t.autoPublish, gun, config, t.retriever)
 }
 
 func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
@@ -948,4 +929,31 @@ func (a *authRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 
 	// Return the last response
 	return resp, nil
+}
+
+func publish(cmd *cobra.Command, doPublish bool, gun string, config *viper.Viper, passRetriever notary.PassRetriever) error {
+
+	if !doPublish {
+		return nil
+	}
+
+	// We need to set up a http RoundTripper when publishing
+	rt, err := getTransport(config, gun, readWrite)
+	if err != nil {
+		return err
+	}
+
+	trustPin, err := getTrustPinning(config)
+	if err != nil {
+		return err
+	}
+
+	nRepo, err := notaryclient.NewNotaryRepository(
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, passRetriever, trustPin)
+	if err != nil {
+		return err
+	}
+
+	cmd.Println("Auto-publishing changes to", gun)
+	return nRepo.Publish()
 }
