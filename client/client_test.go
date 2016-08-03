@@ -3621,35 +3621,57 @@ func TestGetAllTargetInfo(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, targetSignatureData)
 	require.Len(t, targetSignatureData, 3)
-	require.Len(t, targetSignatureData[data.CanonicalTargetsRole].Signatures, 1)
-	require.Equal(t, (targetSignatureData[data.CanonicalTargetsRole]).Target, *targetsCurrentTarget)
-	require.Equal(t, (targetSignatureData["targets/level1"]).Target, *level1CurrentTarget)
-	require.Len(t, targetSignatureData["targets/level1"].Signatures, 1)
-	require.Equal(t, (targetSignatureData["targets/level2"]).Target, *level2CurrentTarget)
-	require.Len(t, targetSignatureData["targets/level2"].Signatures, 1)
+	var makeSureWeHitEachCase int
+	for _, tarSigStr := range targetSignatureData {
+		switch tarSigStr.Role.Name {
+		case data.CanonicalTargetsRole:
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, tarSigStr.Target, *targetsCurrentTarget)
+			makeSureWeHitEachCase = makeSureWeHitEachCase + 1
+		case "targets/level1":
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, tarSigStr.Target, *level1CurrentTarget)
+			makeSureWeHitEachCase = makeSureWeHitEachCase + 2
+		case "targets/level2":
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, tarSigStr.Target, *level2CurrentTarget)
+			makeSureWeHitEachCase = makeSureWeHitEachCase + 3
+		}
+	}
+	require.Equal(t, makeSureWeHitEachCase, 6)
 
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("other")
 	require.NoError(t, err)
 	require.NotNil(t, targetSignatureData)
 	require.Len(t, targetSignatureData, 1)
-	require.Equal(t, (targetSignatureData["targets/level1"]).Target, *level1OtherTarget)
-	require.Len(t, targetSignatureData["targets/level1"].Signatures, 1)
+	require.Equal(t, (targetSignatureData[0]).Target, *level1OtherTarget)
+	require.Len(t, targetSignatureData[0].Signatures, 1)
 
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("latest")
 	require.NoError(t, err)
 	require.NotNil(t, targetSignatureData)
 	require.Len(t, targetSignatureData, 1)
-	require.Equal(t, (targetSignatureData[data.CanonicalTargetsRole]).Target, *targetsLatestTarget)
-	require.Len(t, targetSignatureData[data.CanonicalTargetsRole].Signatures, 1)
+	require.Equal(t, (targetSignatureData[0]).Target, *targetsLatestTarget)
+	require.Len(t, targetSignatureData[0].Signatures, 1)
 
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("level2")
 	require.NoError(t, err)
 	require.NotNil(t, targetSignatureData)
 	require.Len(t, targetSignatureData, 2)
-	require.Equal(t, (targetSignatureData["targets/level2"]).Target, *level2Level2Target)
-	require.Len(t, targetSignatureData["targets/level2"].Signatures, 1)
-	require.Equal(t, (targetSignatureData["targets/level1/level2"]).Target, *level1Level2Level2Target)
-	require.Len(t, targetSignatureData["targets/level1/level2"].Signatures, 1)
+	makeSureWeHitEachCase = 0
+	for _, tarSigStr := range targetSignatureData {
+		switch tarSigStr.Role.Name {
+		case "targets/level2":
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, tarSigStr.Target, *level2Level2Target)
+			makeSureWeHitEachCase = makeSureWeHitEachCase + 1
+		case "targets/level1/level2":
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, tarSigStr.Target, *level1Level2Level2Target)
+			makeSureWeHitEachCase = makeSureWeHitEachCase + 2
+		}
+	}
+	require.Equal(t, makeSureWeHitEachCase, 3)
 
 	// nonexistent targets
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("level23")
