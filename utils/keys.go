@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
+	tufdata "github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
 	"io"
 	"io/ioutil"
@@ -27,7 +28,7 @@ type Importer interface {
 // ExportKeysByGUN exports all keys filtered to a GUN
 func ExportKeysByGUN(to io.Writer, s Exporter, gun string) error {
 	keys := s.ListFiles()
-	sort.Strings(keys) // ensure consistent. ListFiles has no order guarantee
+	sort.Strings(keys) // ensure consistency. ListFiles has no order guarantee
 	for _, k := range keys {
 		dir := filepath.Dir(k)
 		if dir == gun { // must be full GUN match
@@ -94,7 +95,7 @@ func ExportKeys(to io.Writer, s Exporter, from string) error {
 // Each block is written to the subpath indicated in the "path" PEM
 // header. If the file already exists, the file is truncated. Multiple
 // adjacent PEMs with the same "path" header are appended together.
-func ImportKeys(from io.Reader, to []Importer, role string, gun string, passRet notary.PassRetriever) error {
+func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGun string, passRet notary.PassRetriever) error {
 	data, err := ioutil.ReadAll(from)
 	if err != nil {
 		return err
@@ -106,11 +107,18 @@ func ImportKeys(from io.Reader, to []Importer, role string, gun string, passRet 
 	for block, rest := pem.Decode(data); block != nil; block, rest = pem.Decode(rest) {
 		if block.Headers["role"] == "" {
 			// no worries about if check as for GUN here because empty roles will get a role:notary.DefaultImportRole
-			block.Headers["role"] = role
+			block.Headers["role"] = fallbackRole
+		}
+		if rawPath := block.Headers["path"]; rawPath != "" {
+			pathWOFileName := strings.TrimSuffix(rawPath, filepath.Base(rawPath))
+			if strings.HasPrefix(pathWOFileName, notary.NonRootKeysSubdir) {
+				gunName := strings.TrimPrefix(pathWOFileName, notary.NonRootKeysSubdir)
+				block.Headers["gun"] = gunName[1:(len(gunName) - 1)] //removes the slashes
+			}
 		}
 		if block.Headers["gun"] == "" {
-			if gun != "" {
-				block.Headers["gun"] = gun
+			if fallbackGun != "" {
+				block.Headers["gun"] = fallbackGun
 			}
 		}
 		loc, ok := block.Headers["path"]
@@ -125,12 +133,12 @@ func ImportKeys(from io.Reader, to []Importer, role string, gun string, passRet 
 
 			decodedKey, err := utils.ParsePEMPrivateKey(pem.EncodeToMemory(block), "")
 			if err != nil {
-				logrus.Info("failed to import key to store: Invalid key generated, key may be encrypted and not contains path header")
+				logrus.Info("failed to import key to store: Invalid key generated, key may be encrypted and does not contain path header")
 				continue
 			}
 			keyID := decodedKey.ID()
 
-			if block.Headers["role"] == "root" {
+			if block.Headers["role"] == tufdata.CanonicalRootRole {
 				// does not make sense for root keys to have GUNs, so import it without the GUN even if specified
 				loc = filepath.Join(notary.RootKeysSubdir, keyID)
 			} else {
@@ -174,7 +182,7 @@ func ImportKeys(from io.Reader, to []Importer, role string, gun string, passRet 
 				}
 				break
 			}
-			toSave, _ = utils.EncryptPrivateKey(privKey, block.Headers["role"], chosenPassphrase)
+			toSave, _ = utils.EncryptPrivateKey(privKey, block.Headers["role"], block.Headers["gun"], chosenPassphrase)
 		}
 
 		toWrite = append(toWrite, toSave...)
