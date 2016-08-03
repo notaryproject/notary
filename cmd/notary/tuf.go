@@ -122,6 +122,7 @@ type tufCommander struct {
 func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmdTUFInit := cmdTUFInitTemplate.ToCommand(t.tufInit)
 	cmdTUFInit.Flags().StringVar(&t.rootKey, "rootkey", "", "Root key to initialize the repository with")
+	cmdTUFInit.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, "Automatically attempt to publish after staging the change. Will also publish existing staged changes.")
 	cmd.AddCommand(cmdTUFInit)
 
 	cmdStatus := cmdTUFStatusTemplate.ToCommand(t.tufStatus)
@@ -413,7 +414,8 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 	if err = nRepo.Initialize([]string{rootKeyID}); err != nil {
 		return err
 	}
-	return nil
+
+	return publish(cmd, t.autoPublish, gun, config, t.retriever)
 }
 
 // Attempt to read an encrypted root key from a file, and return it as a data.PrivateKey
