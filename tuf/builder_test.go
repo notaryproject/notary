@@ -98,6 +98,84 @@ func TestBuilderOnlyAcceptsDelegationsAfterParent(t *testing.T) {
 	require.NoError(t, builder.Load("targets/a/b", meta["targets/a/b"], 1, false))
 }
 
+func TestBuilderLoadInvalidDelegations(t *testing.T) {
+	gun := "docker.com/notary"
+	tufRepo, _, err := testutils.EmptyRepo(gun, "targets/a", "targets/a/b", "targets/b")
+	require.NoError(t, err)
+
+	meta, err := testutils.SignAndSerialize(tufRepo)
+	require.NoError(t, err)
+
+	builder := tuf.NewBuilderFromRepo(gun, tufRepo, trustpinning.TrustPinConfig{})
+
+	// modify targets/a to remove the signature and update the snapshot
+	// (we're not going to load the timestamp so no need to modify)
+	targetsAJSON := meta["targets/a"]
+	targetsA := data.Signed{}
+	err = json.Unmarshal(targetsAJSON, &targetsA)
+	require.NoError(t, err)
+	targetsA.Signatures = make([]data.Signature, 0)
+	targetsAJSON, err = json.Marshal(&targetsA)
+	require.NoError(t, err)
+	meta["targets/a"] = targetsAJSON
+	delete(tufRepo.Targets, "targets/a")
+
+	snap := tufRepo.Snapshot
+	m, err := data.NewFileMeta(
+		bytes.NewReader(targetsAJSON),
+		"sha256", "sha512",
+	)
+	require.NoError(t, err)
+	snap.AddMeta("targets/a", m)
+
+	// load snapshot directly into repo to bypass signature check (we've invalidated
+	// the signature by modifying it)
+	tufRepo.Snapshot = snap
+
+	// load targets/a
+	require.Error(
+		t,
+		builder.Load(
+			"targets/a",
+			meta["targets/a"],
+			1,
+			false,
+		),
+	)
+
+	_, invalid, err := builder.Finish()
+	require.NoError(t, err)
+	_, ok := invalid.Targets["targets/a"]
+	require.True(t, ok)
+}
+
+func TestBuilderLoadInvalidDelegationsOldVersion(t *testing.T) {
+	gun := "docker.com/notary"
+	tufRepo, _, err := testutils.EmptyRepo(gun, "targets/a", "targets/a/b", "targets/b")
+	require.NoError(t, err)
+
+	meta, err := testutils.SignAndSerialize(tufRepo)
+	require.NoError(t, err)
+
+	builder := tuf.NewBuilderFromRepo(gun, tufRepo, trustpinning.TrustPinConfig{})
+	delete(tufRepo.Targets, "targets/a")
+
+	// load targets/a with high min-version so this one is too old
+	err = builder.Load(
+		"targets/a",
+		meta["targets/a"],
+		10,
+		false,
+	)
+	require.Error(t, err)
+	require.IsType(t, signed.ErrLowVersion{}, err)
+
+	_, invalid, err := builder.Finish()
+	require.NoError(t, err)
+	_, ok := invalid.Targets["targets/a"]
+	require.False(t, ok)
+}
+
 func TestBuilderAcceptRoleOnce(t *testing.T) {
 	meta, gun := getSampleMeta(t)
 	builder := tuf.NewRepoBuilder(gun, nil, trustpinning.TrustPinConfig{})
@@ -128,7 +206,7 @@ func TestBuilderStopsAcceptingOrProducingDataOnceDone(t *testing.T) {
 		require.True(t, builder.IsLoaded(roleName))
 	}
 
-	_, err := builder.Finish()
+	_, _, err := builder.Finish()
 	require.NoError(t, err)
 
 	err = builder.Load("targets/a", meta["targets/a"], 1, false)
@@ -143,7 +221,7 @@ func TestBuilderStopsAcceptingOrProducingDataOnceDone(t *testing.T) {
 	require.Equal(t, tuf.ErrBuildDone, err)
 
 	for _, b := range []tuf.RepoBuilder{builder, bootstrapped} {
-		_, err = b.Finish()
+		_, _, err = b.Finish()
 		require.Error(t, err)
 		require.Equal(t, tuf.ErrBuildDone, err)
 

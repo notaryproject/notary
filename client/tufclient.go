@@ -11,17 +11,17 @@ import (
 	"github.com/docker/notary/tuf/signed"
 )
 
-// Client is a usability wrapper around a raw TUF repo
-type Client struct {
+// TUFClient is a usability wrapper around a raw TUF repo
+type TUFClient struct {
 	remote     store.RemoteStore
 	cache      store.MetadataStore
 	oldBuilder tuf.RepoBuilder
 	newBuilder tuf.RepoBuilder
 }
 
-// NewClient initialized a Client with the given repo, remote source of content, and cache
-func NewClient(oldBuilder, newBuilder tuf.RepoBuilder, remote store.RemoteStore, cache store.MetadataStore) *Client {
-	return &Client{
+// NewTUFClient initialized a TUFClient with the given repo, remote source of content, and cache
+func NewTUFClient(oldBuilder, newBuilder tuf.RepoBuilder, remote store.RemoteStore, cache store.MetadataStore) *TUFClient {
+	return &TUFClient{
 		oldBuilder: oldBuilder,
 		newBuilder: newBuilder,
 		remote:     remote,
@@ -30,7 +30,7 @@ func NewClient(oldBuilder, newBuilder tuf.RepoBuilder, remote store.RemoteStore,
 }
 
 // Update performs an update to the TUF repo as defined by the TUF spec
-func (c *Client) Update() (*tuf.Repo, error) {
+func (c *TUFClient) Update() (*tuf.Repo, *tuf.Repo, error) {
 	// 1. Get timestamp
 	//   a. If timestamp error (verification, expired, etc...) download new root and return to 1.
 	// 2. Check if local snapshot is up to date
@@ -49,19 +49,19 @@ func (c *Client) Update() (*tuf.Repo, error) {
 
 		if err := c.downloadRoot(); err != nil {
 			logrus.Debug("Client Update (Root):", err)
-			return nil, err
+			return nil, nil, err
 		}
 		// If we error again, we now have the latest root and just want to fail
 		// out as there's no expectation the problem can be resolved automatically
 		logrus.Debug("retrying TUF client update")
 		if err := c.update(); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	return c.newBuilder.Finish()
 }
 
-func (c *Client) update() error {
+func (c *TUFClient) update() error {
 	if err := c.downloadTimestamp(); err != nil {
 		logrus.Debugf("Client Update (Timestamp): %s", err.Error())
 		return err
@@ -79,7 +79,7 @@ func (c *Client) update() error {
 }
 
 // downloadRoot is responsible for downloading the root.json
-func (c *Client) downloadRoot() error {
+func (c *TUFClient) downloadRoot() error {
 	role := data.CanonicalRootRole
 	consistentInfo := c.newBuilder.GetConsistentInfo(role)
 
@@ -102,7 +102,7 @@ func (c *Client) downloadRoot() error {
 // downloadTimestamp is responsible for downloading the timestamp.json
 // Timestamps are special in that we ALWAYS attempt to download and only
 // use cache if the download fails (and the cache is still valid).
-func (c *Client) downloadTimestamp() error {
+func (c *TUFClient) downloadTimestamp() error {
 	logrus.Debug("Loading timestamp...")
 	role := data.CanonicalTimestampRole
 	consistentInfo := c.newBuilder.GetConsistentInfo(role)
@@ -131,7 +131,7 @@ func (c *Client) downloadTimestamp() error {
 }
 
 // downloadSnapshot is responsible for downloading the snapshot.json
-func (c *Client) downloadSnapshot() error {
+func (c *TUFClient) downloadSnapshot() error {
 	logrus.Debug("Loading snapshot...")
 	role := data.CanonicalSnapshotRole
 	consistentInfo := c.newBuilder.GetConsistentInfo(role)
@@ -143,11 +143,12 @@ func (c *Client) downloadSnapshot() error {
 // downloadTargets downloads all targets and delegated targets for the repository.
 // It uses a pre-order tree traversal as it's necessary to download parents first
 // to obtain the keys to validate children.
-func (c *Client) downloadTargets() error {
+func (c *TUFClient) downloadTargets() error {
 	toDownload := []data.DelegationRole{{
 		BaseRole: data.BaseRole{Name: data.CanonicalTargetsRole},
 		Paths:    []string{""},
 	}}
+
 	for len(toDownload) > 0 {
 		role := toDownload[0]
 		toDownload = toDownload[1:]
@@ -175,7 +176,7 @@ func (c *Client) downloadTargets() error {
 	return nil
 }
 
-func (c Client) getTargetsFile(role data.DelegationRole, ci tuf.ConsistentInfo) ([]data.DelegationRole, error) {
+func (c TUFClient) getTargetsFile(role data.DelegationRole, ci tuf.ConsistentInfo) ([]data.DelegationRole, error) {
 	logrus.Debugf("Loading %s...", role.Name)
 	tgs := &data.SignedTargets{}
 
@@ -190,7 +191,7 @@ func (c Client) getTargetsFile(role data.DelegationRole, ci tuf.ConsistentInfo) 
 	return tgs.GetValidDelegations(role), nil
 }
 
-func (c *Client) tryLoadCacheThenRemote(consistentInfo tuf.ConsistentInfo) ([]byte, error) {
+func (c *TUFClient) tryLoadCacheThenRemote(consistentInfo tuf.ConsistentInfo) ([]byte, error) {
 	cachedTS, err := c.cache.GetSized(consistentInfo.RoleName, consistentInfo.Length())
 	if err != nil {
 		logrus.Debugf("no %s in cache, must download", consistentInfo.RoleName)
@@ -206,7 +207,7 @@ func (c *Client) tryLoadCacheThenRemote(consistentInfo tuf.ConsistentInfo) ([]by
 	return c.tryLoadRemote(consistentInfo, cachedTS)
 }
 
-func (c *Client) tryLoadRemote(consistentInfo tuf.ConsistentInfo, old []byte) ([]byte, error) {
+func (c *TUFClient) tryLoadRemote(consistentInfo tuf.ConsistentInfo, old []byte) ([]byte, error) {
 	consistentName := consistentInfo.ConsistentName()
 	raw, err := c.remote.GetSized(consistentName, consistentInfo.Length())
 	if err != nil {

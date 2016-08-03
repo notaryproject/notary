@@ -1202,7 +1202,7 @@ func testListTarget(t *testing.T, rootType string) {
 	require.NoError(t, err, "could not open changelist")
 
 	// apply the changelist to the repo
-	err = applyChangelist(repo.tufRepo, cl)
+	err = applyChangelist(repo.tufRepo, nil, cl)
 	require.NoError(t, err, "could not apply changelist")
 
 	fakeServerData(t, repo, mux, keys)
@@ -1280,7 +1280,7 @@ func testListTargetWithDelegates(t *testing.T, rootType string) {
 	require.NoError(t, err, "could not open changelist")
 
 	// apply the changelist to the repo, then clear it
-	err = applyChangelist(repo.tufRepo, cl)
+	err = applyChangelist(repo.tufRepo, nil, cl)
 	require.NoError(t, err, "could not apply changelist")
 	require.NoError(t, cl.Clear(""))
 
@@ -1305,7 +1305,7 @@ func testListTargetWithDelegates(t *testing.T, rootType string) {
 		filepath.Join(repo.baseDir, "tuf", filepath.FromSlash(repo.gun), "changelist"))
 	require.NoError(t, err, "could not open changelist")
 	// apply the changelist to the repo
-	err = applyChangelist(repo.tufRepo, cl)
+	err = applyChangelist(repo.tufRepo, nil, cl)
 	require.NoError(t, err, "could not apply changelist")
 	// check the changelist was applied
 	_, ok = repo.tufRepo.Targets["targets/level1/level2"].Signed.Targets["level2"]
@@ -1430,7 +1430,7 @@ func TestListTargetRestrictsDelegationPaths(t *testing.T) {
 	require.NoError(t, err, "could not open changelist")
 
 	// apply the changelist to the repo
-	err = applyChangelist(repo.tufRepo, cl)
+	err = applyChangelist(repo.tufRepo, nil, cl)
 	require.NoError(t, err, "could not apply changelist")
 
 	require.NoError(t, cl.Clear(""))
@@ -1452,7 +1452,7 @@ func TestListTargetRestrictsDelegationPaths(t *testing.T) {
 	require.NoError(t, err, "could not open changelist")
 
 	// apply the changelist to the repo
-	err = applyChangelist(repo.tufRepo, cl)
+	err = applyChangelist(repo.tufRepo, nil, cl)
 	require.NoError(t, err, "could not apply changelist")
 
 	fakeServerData(t, repo, mux, keys)
@@ -2948,7 +2948,7 @@ func TestAddDelegationChangefileApplicable(t *testing.T) {
 	require.Len(t, changes, 2)
 
 	// ensure that it can be applied correctly
-	err = applyTargetsChange(repo.tufRepo, changes[0])
+	err = applyTargetsChange(repo.tufRepo, nil, changes[0])
 	require.NoError(t, err)
 
 	targetRole := repo.tufRepo.Targets[data.CanonicalTargetsRole]
@@ -3025,8 +3025,8 @@ func TestRemoveDelegationChangefileApplicable(t *testing.T) {
 	require.NoError(t, repo.AddDelegation("targets/a", []data.PublicKey{rootPubKey}, []string{""}))
 	changes := getChanges(t, repo)
 	require.Len(t, changes, 2)
-	require.NoError(t, applyTargetsChange(repo.tufRepo, changes[0]))
-	require.NoError(t, applyTargetsChange(repo.tufRepo, changes[1]))
+	require.NoError(t, applyTargetsChange(repo.tufRepo, nil, changes[0]))
+	require.NoError(t, applyTargetsChange(repo.tufRepo, nil, changes[1]))
 
 	targetRole := repo.tufRepo.Targets[data.CanonicalTargetsRole]
 	require.Len(t, targetRole.Signed.Delegations.Roles, 1)
@@ -3038,7 +3038,7 @@ func TestRemoveDelegationChangefileApplicable(t *testing.T) {
 	require.NoError(t, repo.RemoveDelegationKeys("targets/a", []string{rootKeyCanonicalID}))
 	changes = getChanges(t, repo)
 	require.Len(t, changes, 3)
-	require.NoError(t, applyTargetsChange(repo.tufRepo, changes[2]))
+	require.NoError(t, applyTargetsChange(repo.tufRepo, nil, changes[2]))
 
 	targetRole = repo.tufRepo.Targets[data.CanonicalTargetsRole]
 	require.Len(t, targetRole.Signed.Delegations.Roles, 1)
@@ -3061,14 +3061,14 @@ func TestClearAllPathsDelegationChangefileApplicable(t *testing.T) {
 	require.NoError(t, repo.AddDelegation("targets/a", []data.PublicKey{rootPubKey}, []string{"abc,123,xyz,path"}))
 	changes := getChanges(t, repo)
 	require.Len(t, changes, 2)
-	require.NoError(t, applyTargetsChange(repo.tufRepo, changes[0]))
-	require.NoError(t, applyTargetsChange(repo.tufRepo, changes[1]))
+	require.NoError(t, applyTargetsChange(repo.tufRepo, nil, changes[0]))
+	require.NoError(t, applyTargetsChange(repo.tufRepo, nil, changes[1]))
 
 	// now clear paths it
 	require.NoError(t, repo.ClearDelegationPaths("targets/a"))
 	changes = getChanges(t, repo)
 	require.Len(t, changes, 3)
-	require.NoError(t, applyTargetsChange(repo.tufRepo, changes[2]))
+	require.NoError(t, applyTargetsChange(repo.tufRepo, nil, changes[2]))
 
 	delgRoles := repo.tufRepo.Targets[data.CanonicalTargetsRole].Signed.Delegations.Roles
 	require.Len(t, delgRoles, 1)
@@ -3105,7 +3105,7 @@ func TestFullAddDelegationChangefileApplicable(t *testing.T) {
 
 	changes := getChanges(t, repo)
 	require.Len(t, changes, 1)
-	require.NoError(t, applyTargetsChange(repo.tufRepo, changes[0]))
+	require.NoError(t, applyTargetsChange(repo.tufRepo, nil, changes[0]))
 
 	delgRoles := repo.tufRepo.Targets[data.CanonicalTargetsRole].Signed.Delegations.Roles
 	require.Len(t, delgRoles, 1)
@@ -3136,8 +3136,8 @@ func TestFullRemoveDelegationChangefileApplicable(t *testing.T) {
 	require.NoError(t, repo.AddDelegation(delegationName, []data.PublicKey{rootPubKey, key2}, []string{"abc", "123"}))
 	changes := getChanges(t, repo)
 	require.Len(t, changes, 2)
-	require.NoError(t, applyTargetsChange(repo.tufRepo, changes[0]))
-	require.NoError(t, applyTargetsChange(repo.tufRepo, changes[1]))
+	require.NoError(t, applyTargetsChange(repo.tufRepo, nil, changes[0]))
+	require.NoError(t, applyTargetsChange(repo.tufRepo, nil, changes[1]))
 
 	targetRole := repo.tufRepo.Targets[data.CanonicalTargetsRole]
 	require.Len(t, targetRole.Signed.Delegations.Roles, 1)
@@ -3155,7 +3155,7 @@ func TestFullRemoveDelegationChangefileApplicable(t *testing.T) {
 
 	changes = getChanges(t, repo)
 	require.Len(t, changes, 3)
-	require.NoError(t, applyTargetsChange(repo.tufRepo, changes[2]))
+	require.NoError(t, applyTargetsChange(repo.tufRepo, nil, changes[2]))
 
 	delgRoles := repo.tufRepo.Targets[data.CanonicalTargetsRole].Signed.Delegations.Roles
 	require.Len(t, delgRoles, 1)
@@ -3577,7 +3577,7 @@ func TestGetAllTargetInfo(t *testing.T) {
 	require.NoError(t, err, "could not open changelist")
 
 	// apply the changelist to the repo, then clear it
-	err = applyChangelist(repo.tufRepo, cl)
+	err = applyChangelist(repo.tufRepo, nil, cl)
 	require.NoError(t, err, "could not apply changelist")
 	require.NoError(t, cl.Clear(""))
 
@@ -3602,7 +3602,7 @@ func TestGetAllTargetInfo(t *testing.T) {
 		filepath.Join(repo.baseDir, "tuf", filepath.FromSlash(repo.gun), "changelist"))
 	require.NoError(t, err, "could not open changelist")
 	// apply the changelist to the repo
-	err = applyChangelist(repo.tufRepo, cl)
+	err = applyChangelist(repo.tufRepo, nil, cl)
 	require.NoError(t, err, "could not apply changelist")
 	// check the changelist was applied
 	_, ok = repo.tufRepo.Targets["targets/level1/level2"].Signed.Targets["level2"]

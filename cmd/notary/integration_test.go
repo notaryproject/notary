@@ -1366,3 +1366,163 @@ func TestPurge(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, out, delgName)
 }
+
+// Initialize repo and test witnessing. The following steps are performed:
+//   1. init a repo
+//   2. add a delegation with a key and --all-paths
+//   3. add a target to the delegation
+//   4. list targets and ensure it really is in the delegation
+//   5  witness the valid delegation, make sure everything is successful
+//   6. add a new (different) key to the delegation
+//   7. remove the key from the delegation
+//   8. list targets and ensure the target is no longer visible
+//   9. witness the delegation
+//  10. list targets and ensure target is visible again
+//  11. witness an invalid role and check for error on publish
+func TestWitness(t *testing.T) {
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	startTime := time.Now()
+	endTime := startTime.AddDate(10, 0, 0)
+
+	// Setup certificates
+	tempFile, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
+	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
+	require.NoError(t, err)
+	_, err = tempFile.Write(utils.CertToPEM(cert))
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
+	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
+	keyID, err := utils.CanonicalKeyID(parsedPubKey)
+	require.NoError(t, err)
+
+	tempFile2, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+	privKey2, err := utils.GenerateECDSAKey(rand.Reader)
+	cert2, err := cryptoservice.GenerateCertificate(privKey2, "gun", startTime, endTime)
+	require.NoError(t, err)
+	_, err = tempFile2.Write(utils.CertToPEM(cert2))
+	require.NoError(t, err)
+	tempFile2.Close()
+	defer os.Remove(tempFile2.Name())
+
+	delgName := "targets/delegation"
+	targetName := "test_target"
+	targetHash := "9d9e890af64dd0f44b8a1538ff5fa0511cc31bf1ab89f3a3522a9a581a70fad8" // sha256 of README.md at time of writing test
+
+	keyStore, err := trustmanager.NewKeyFileStore(tempDir, passphrase.ConstantRetriever(testPassphrase))
+	require.NoError(t, err)
+	err = keyStore.AddKey(
+		trustmanager.KeyInfo{
+			Gun:  "gun",
+			Role: delgName,
+		},
+		privKey,
+	)
+	require.NoError(t, err)
+
+	// 1. init a repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun")
+	require.NoError(t, err)
+
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// 2. add a delegation with a key and --all-paths
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", delgName, tempFile.Name(), "--all-paths")
+	require.NoError(t, err)
+
+	// 3. add a target to the delegation
+	_, err = runCommand(t, tempDir, "addhash", "gun", targetName, "100", "--sha256", targetHash, "-r", delgName)
+	require.NoError(t, err)
+
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// 4. list targets and ensure it really is in the delegation
+	output, err := runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, targetName)
+	require.Contains(t, output, targetHash)
+
+	// 5. witness the valid delegation, make sure everything is successful
+	_, err = runCommand(t, tempDir, "witness", "gun", delgName)
+	require.NoError(t, err)
+
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, targetName)
+	require.Contains(t, output, targetHash)
+
+	// 6. add a new (different) key to the delegation
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", delgName, tempFile2.Name(), "--all-paths")
+	require.NoError(t, err)
+
+	// 7. remove the key from the delegation
+	_, err = runCommand(t, tempDir, "delegation", "remove", "gun", delgName, keyID)
+	require.NoError(t, err)
+
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// 8. list targets and ensure the target is no longer visible
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.NotContains(t, output, targetName)
+	require.NotContains(t, output, targetHash)
+
+	err = keyStore.AddKey(
+		trustmanager.KeyInfo{
+			Gun:  "gun",
+			Role: delgName,
+		},
+		privKey2,
+	)
+	require.NoError(t, err)
+
+	// 9. witness the delegation
+	_, err = runCommand(t, tempDir, "witness", "gun", delgName)
+	require.NoError(t, err)
+
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// 10. list targets and ensure target is visible again
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, targetName)
+	require.Contains(t, output, targetHash)
+
+	// 11. witness an invalid role and check for error on publish
+	_, err = runCommand(t, tempDir, "witness", "gun", "targets/made/up")
+	require.NoError(t, err)
+
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.Error(t, err)
+
+	// 12. check non-targets base roles all fail
+	for _, role := range []string{data.CanonicalRootRole, data.CanonicalSnapshotRole, data.CanonicalTimestampRole} {
+		// clear any pending changes to ensure errors are only related to the specific role we're trying to witness
+		_, err = runCommand(t, tempDir, "status", "gun", "--reset")
+		require.NoError(t, err)
+
+		_, err = runCommand(t, tempDir, "witness", "gun", role)
+		require.NoError(t, err)
+
+		_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+		require.Error(t, err)
+	}
+}
