@@ -66,7 +66,8 @@ func VerifySignatures(s *data.Signed, roleData data.BaseRole) error {
 	}
 
 	valid := make(map[string]struct{})
-	for _, sig := range s.Signatures {
+	for i := range s.Signatures {
+		sig := &(s.Signatures[i])
 		logrus.Debug("verifying signature for key ID: ", sig.KeyID)
 		key, ok := roleData.Keys[sig.KeyID]
 		if !ok {
@@ -77,12 +78,11 @@ func VerifySignatures(s *data.Signed, roleData data.BaseRole) error {
 		if key.ID() != sig.KeyID {
 			return ErrInvalidKeyID{}
 		}
-		if err := VerifySignature(msg, &sig, key); err != nil {
+		if err := VerifySignature(msg, sig, key); err != nil {
 			logrus.Debugf("continuing b/c %s", err.Error())
 			continue
 		}
 		valid[sig.KeyID] = struct{}{}
-
 	}
 	if len(valid) < roleData.Threshold {
 		return ErrRoleThreshold{
@@ -94,6 +94,8 @@ func VerifySignatures(s *data.Signed, roleData data.BaseRole) error {
 }
 
 // VerifySignature checks a single signature and public key against a payload
+// If the signature is verified, the signature's is valid field will actually
+// be mutated to be equal to the boolean true
 func VerifySignature(msg []byte, sig *data.Signature, pk data.PublicKey) error {
 	// method lookup is consistent due to Unmarshal JSON doing lower case for us.
 	method := sig.Method
