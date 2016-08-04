@@ -74,16 +74,18 @@ func TestRethinkBootstrapSetsUsernamePassword(t *testing.T) {
 	userSession, err := rethinkdb.UserConnection(tlsOpts, source, otherUser, otherPass)
 	require.NoError(t, err)
 	s = NewRethinkDBKeyStore(dbname, otherUser, otherPass, constRetriever, "ignored", userSession)
-	_, _, err = s.GetKey("nonexistent")
+	_, _, err = s.GetPrivateKey("nonexistent")
 	require.Error(t, err)
 	require.IsType(t, gorethink.RQLRuntimeError{}, err)
+	key := s.GetKey("nonexistent")
+	require.Nil(t, key)
 	require.Error(t, s.CheckHealth())
 
 	// our user can access the DB though
 	userSession, err = rethinkdb.UserConnection(tlsOpts, source, username, password)
 	require.NoError(t, err)
 	s = NewRethinkDBKeyStore(dbname, username, password, constRetriever, "ignored", userSession)
-	_, _, err = s.GetKey("nonexistent")
+	_, _, err = s.GetPrivateKey("nonexistent")
 	require.Error(t, err)
 	require.IsType(t, trustmanager.ErrKeyNotFound{}, err)
 	require.NoError(t, s.CheckHealth())
@@ -221,15 +223,22 @@ func TestRethinkSigningMarksKeyActive(t *testing.T) {
 		data.PublicKeyFromPrivate(nonActiveKey), sig, msg))
 }
 
-func TestRethinkGetPendingKey(t *testing.T) {
-	dbStore, cleanup := rethinkDBSetup(t, "signerActivationTests")
+func TestRethinkCreateKey(t *testing.T) {
+	dbStore, cleanup := rethinkDBSetup(t, "signerCreationTests")
 	defer cleanup()
 
-	pendingKey, activeKey := testGetPendingKey(t, dbStore)
+	activeED25519Key, pendingED25519Key, pendingECDSAKey := testCreateKey(t, dbStore)
 
-	rdbKeys := requireExpectedRDBKeys(t, dbStore, []data.PrivateKey{pendingKey, activeKey})
+	rdbKeys := requireExpectedRDBKeys(t, dbStore, []data.PrivateKey{activeED25519Key, pendingED25519Key, pendingECDSAKey})
 
-	// check that activation updates the activated key but not the unactivated key
-	require.True(t, rdbKeys[activeKey.ID()].LastUsed.Equal(rdbNow))
-	require.True(t, rdbKeys[pendingKey.ID()].LastUsed.Equal(time.Time{}))
+	// check that activation updates the activated key but not the unactivated keys
+	require.True(t, rdbKeys[activeED25519Key.ID()].LastUsed.Equal(rdbNow))
+	require.True(t, rdbKeys[pendingED25519Key.ID()].LastUsed.Equal(time.Time{}))
+	require.True(t, rdbKeys[pendingECDSAKey.ID()].LastUsed.Equal(time.Time{}))
+}
+
+func TestRethinkUnimplementedInterfaceBehavior(t *testing.T) {
+	dbStore, cleanup := rethinkDBSetup(t, "signerInterfaceTests")
+	defer cleanup()
+	testUnimplementedInterfaceMethods(t, dbStore)
 }

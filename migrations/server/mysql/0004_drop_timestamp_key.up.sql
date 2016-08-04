@@ -1,1 +1,1 @@
-DROP TABLE `timestamp_keys`;
+DROP TABLE IF EXISTS `timestamp_keys`;
