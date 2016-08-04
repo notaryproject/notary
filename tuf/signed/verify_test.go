@@ -26,6 +26,7 @@ func TestRoleNoKeys(t *testing.T) {
 	require.NoError(t, Sign(cs, s, []data.PublicKey{k}, 1, nil))
 	err = VerifySignatures(s, roleWithKeys)
 	require.IsType(t, ErrRoleThreshold{}, err)
+	require.False(t, s.Signatures[0].IsValid)
 }
 
 func TestNotEnoughSigs(t *testing.T) {
@@ -43,6 +44,8 @@ func TestNotEnoughSigs(t *testing.T) {
 	require.NoError(t, Sign(cs, s, []data.PublicKey{k}, 1, nil))
 	err = VerifySignatures(s, roleWithKeys)
 	require.IsType(t, ErrRoleThreshold{}, err)
+	// while we don't hit our threshold, the signature is still valid over the signed object
+	require.True(t, s.Signatures[0].IsValid)
 }
 
 func TestNoSigs(t *testing.T) {
@@ -58,6 +61,7 @@ func TestNoSigs(t *testing.T) {
 	require.NoError(t, err)
 	s := &data.Signed{Signed: (*json.RawMessage)(&b)}
 	require.Equal(t, ErrNoSignatures, VerifySignatures(s, roleWithKeys))
+	require.Len(t, s.Signatures, 0)
 }
 
 func TestExactlyEnoughSigs(t *testing.T) {
@@ -77,6 +81,30 @@ func TestExactlyEnoughSigs(t *testing.T) {
 	require.Equal(t, 1, len(s.Signatures))
 
 	require.NoError(t, VerifySignatures(s, roleWithKeys))
+	require.True(t, s.Signatures[0].IsValid)
+}
+
+func TestIsValidNotExported(t *testing.T) {
+	cs := NewEd25519()
+	k, err := cs.Create(data.CanonicalRootRole, "", data.ED25519Key)
+	require.NoError(t, err)
+	meta := &data.SignedCommon{Type: data.TUFTypes[data.CanonicalRootRole], Version: 1,
+		Expires: data.DefaultExpires(data.CanonicalRootRole)}
+	b, err := json.MarshalCanonical(meta)
+	require.NoError(t, err)
+	s := &data.Signed{Signed: (*json.RawMessage)(&b)}
+	require.NoError(t, Sign(cs, s, []data.PublicKey{k}, 1, nil))
+	require.Equal(t, 1, len(s.Signatures))
+	before, err := json.MarshalCanonical(s.Signatures[0])
+	require.NoError(t, err)
+	require.False(t, s.Signatures[0].IsValid)
+	require.NoError(t, VerifySignature(b, &(s.Signatures[0]), k))
+	// the IsValid field changed
+	require.True(t, s.Signatures[0].IsValid)
+	after, err := json.MarshalCanonical(s.Signatures[0])
+	require.NoError(t, err)
+	// but the marshalled byte strings stay the same since IsValid is not exported
+	require.Equal(t, before, after)
 }
 
 func TestMoreThanEnoughSigs(t *testing.T) {
@@ -97,6 +125,8 @@ func TestMoreThanEnoughSigs(t *testing.T) {
 
 	err = VerifySignatures(s, roleWithKeys)
 	require.NoError(t, err)
+	require.True(t, s.Signatures[0].IsValid)
+	require.True(t, s.Signatures[1].IsValid)
 }
 
 func TestValidSigWithIncorrectKeyID(t *testing.T) {
@@ -116,6 +146,7 @@ func TestValidSigWithIncorrectKeyID(t *testing.T) {
 	err = VerifySignatures(s, roleWithKeys)
 	require.Error(t, err)
 	require.IsType(t, ErrInvalidKeyID{}, err)
+	require.False(t, s.Signatures[0].IsValid)
 }
 
 func TestDuplicateSigs(t *testing.T) {
@@ -133,6 +164,9 @@ func TestDuplicateSigs(t *testing.T) {
 	s.Signatures = append(s.Signatures, s.Signatures[0])
 	err = VerifySignatures(s, roleWithKeys)
 	require.IsType(t, ErrRoleThreshold{}, err)
+	// both (instances of the same signature) are valid but we still don't hit our threshold
+	require.True(t, s.Signatures[0].IsValid)
+	require.True(t, s.Signatures[1].IsValid)
 }
 
 func TestUnknownKeyBelowThreshold(t *testing.T) {
@@ -152,6 +186,14 @@ func TestUnknownKeyBelowThreshold(t *testing.T) {
 	s.Signatures = append(s.Signatures)
 	err = VerifySignatures(s, roleWithKeys)
 	require.IsType(t, ErrRoleThreshold{}, err)
+	require.Len(t, s.Signatures, 2)
+	for _, signature := range s.Signatures {
+		if signature.KeyID == k.ID() {
+			require.True(t, signature.IsValid)
+		} else {
+			require.False(t, signature.IsValid)
+		}
+	}
 }
 
 func TestVerifyVersion(t *testing.T) {

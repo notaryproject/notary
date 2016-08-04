@@ -478,7 +478,7 @@ func (r *NotaryRepository) GetTargetByName(name string, roles ...string) (*Targe
 
 }
 
-// TargetSignedStruct is a struct that contains information about the Target and the list of signatures
+// TargetSignedStruct is a struct that contains a Target, the role it was found in, and the list of signatures for that role
 type TargetSignedStruct struct {
 	Role       data.DelegationRole
 	Target     Target

@@ -3624,27 +3624,27 @@ func TestGetAllTargetInfo(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, targetSignatureData)
 	require.Len(t, targetSignatureData, 3)
-	var makeSureWeHitEachCase int
+	makeSureWeHitEachCase := make(map[string]struct{})
 	for _, tarSigStr := range targetSignatureData {
 		switch tarSigStr.Role.Name {
 		case data.CanonicalTargetsRole:
 			require.Len(t, tarSigStr.Signatures, 1)
 			require.Equal(t, repo.CryptoService.ListKeys(data.CanonicalTargetsRole)[0], tarSigStr.Signatures[0].KeyID)
 			require.Equal(t, tarSigStr.Target, *targetsCurrentTarget)
-			makeSureWeHitEachCase = makeSureWeHitEachCase + 1
+			makeSureWeHitEachCase[tarSigStr.Role.Name] = struct{}{}
 		case "targets/level1":
 			require.Len(t, tarSigStr.Signatures, 1)
 			require.Equal(t, key1.ID(), tarSigStr.Signatures[0].KeyID)
 			require.Equal(t, tarSigStr.Target, *level1CurrentTarget)
-			makeSureWeHitEachCase = makeSureWeHitEachCase + 2
+			makeSureWeHitEachCase[tarSigStr.Role.Name] = struct{}{}
 		case "targets/level2":
 			require.Len(t, tarSigStr.Signatures, 1)
 			require.Equal(t, key2.ID(), tarSigStr.Signatures[0].KeyID)
 			require.Equal(t, tarSigStr.Target, *level2CurrentTarget)
-			makeSureWeHitEachCase = makeSureWeHitEachCase + 4
+			makeSureWeHitEachCase[tarSigStr.Role.Name] = struct{}{}
 		}
 	}
-	require.Equal(t, makeSureWeHitEachCase, 7)
+	require.Len(t, makeSureWeHitEachCase, 3)
 
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("other")
 	require.NoError(t, err)
@@ -3668,22 +3668,22 @@ func TestGetAllTargetInfo(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, targetSignatureData)
 	require.Len(t, targetSignatureData, 2)
-	makeSureWeHitEachCase = 0
+	makeSureWeHitEachCase = make(map[string]struct{})
 	for _, tarSigStr := range targetSignatureData {
 		switch tarSigStr.Role.Name {
 		case "targets/level2":
 			require.Len(t, tarSigStr.Signatures, 1)
 			require.Equal(t, key2.ID(), tarSigStr.Signatures[0].KeyID)
 			require.Equal(t, tarSigStr.Target, *level2Level2Target)
-			makeSureWeHitEachCase = makeSureWeHitEachCase + 1
+			makeSureWeHitEachCase[tarSigStr.Role.Name] = struct{}{}
 		case "targets/level1/level2":
 			require.Len(t, tarSigStr.Signatures, 1)
 			require.Equal(t, key3.ID(), tarSigStr.Signatures[0].KeyID)
 			require.Equal(t, tarSigStr.Target, *level1Level2Level2Target)
-			makeSureWeHitEachCase = makeSureWeHitEachCase + 2
+			makeSureWeHitEachCase[tarSigStr.Role.Name] = struct{}{}
 		}
 	}
-	require.Equal(t, makeSureWeHitEachCase, 3)
+	require.Len(t, makeSureWeHitEachCase, 2)
 
 	// nonexistent targets
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("level23")
