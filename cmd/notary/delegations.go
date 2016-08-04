@@ -68,6 +68,7 @@ func (d *delegationCommander) GetCommand() *cobra.Command {
 	cmdRemDelg.Flags().StringSliceVar(&d.paths, "paths", nil, "List of paths to remove")
 	cmdRemDelg.Flags().BoolVarP(&d.forceYes, "yes", "y", false, "Answer yes to the removal question (no confirmation)")
 	cmdRemDelg.Flags().BoolVar(&d.allPaths, "all-paths", false, "Remove all paths from this delegation")
+	cmdRemDelg.Flags().BoolVarP(&d.autoPublish, "publish", "p", false, htAutoPublish)
 	cmd.AddCommand(cmdRemDelg)
 
 	cmdAddDelg := cmdDelegationAddTemplate.ToCommand(d.delegationAdd)
@@ -268,7 +269,7 @@ func (d *delegationCommander) delegationRemove(cmd *cobra.Command, args []string
 	}
 	cmd.Println("")
 
-	return nil
+	return maybeAutoPublish(cmd, d.autoPublish, gun, config, d.retriever)
 }
 
 // delegationAdd creates a new delegation by adding a public key from a certificate to a specific role in a GUN
