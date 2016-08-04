@@ -52,6 +52,8 @@ type delegationCommander struct {
 	paths                         []string
 	allPaths, removeAll, forceYes bool
 	keyIDs                        []string
+
+	autoPublish bool
 }
 
 func (d *delegationCommander) GetCommand() *cobra.Command {
@@ -71,6 +73,7 @@ func (d *delegationCommander) GetCommand() *cobra.Command {
 	cmdAddDelg := cmdDelegationAddTemplate.ToCommand(d.delegationAdd)
 	cmdAddDelg.Flags().StringSliceVar(&d.paths, "paths", nil, "List of paths to add")
 	cmdAddDelg.Flags().BoolVar(&d.allPaths, "all-paths", false, "Add all paths to this delegation")
+	cmdAddDelg.Flags().BoolVarP(&d.autoPublish, "publish", "p", false, htAutoPublish)
 	cmd.AddCommand(cmdAddDelg)
 	return cmd
 }
@@ -359,5 +362,6 @@ func (d *delegationCommander) delegationAdd(cmd *cobra.Command, args []string) e
 		"Addition of delegation role %s %sto repository \"%s\" staged for next publish.\n",
 		role, addingItems, gun)
 	cmd.Println("")
-	return nil
+
+	return maybeAutoPublish(cmd, d.autoPublish, gun, config, d.retriever)
 }
