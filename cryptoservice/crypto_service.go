@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/notary"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
@@ -45,7 +46,7 @@ func (cs *CryptoService) Create(role, gun, algorithm string) (data.PublicKey, er
 
 	switch algorithm {
 	case data.RSAKey:
-		privKey, err = utils.GenerateRSAKey(rand.Reader, rsaKeySize)
+		privKey, err = utils.GenerateRSAKey(rand.Reader, notary.MinRSABitSize)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate RSA key: %v", err)
 		}

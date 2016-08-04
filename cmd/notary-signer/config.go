@@ -26,6 +26,7 @@ import (
 	"github.com/docker/notary/storage/rethinkdb"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/signed"
 	tufutils "github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/utils"
 	"github.com/spf13/viper"
@@ -67,7 +68,7 @@ func parseSignerConfig(configFilePath string, doBootstrap bool) (signer.Config, 
 	}
 
 	// setup the cryptoservices
-	cryptoServices, pendingKeyFunc, err := setUpCryptoservices(config, []string{notary.MySQLBackend, notary.MemoryBackend, notary.RethinkDBBackend}, doBootstrap)
+	cryptoServices, err := setUpCryptoservices(config, []string{notary.MySQLBackend, notary.MemoryBackend, notary.RethinkDBBackend}, doBootstrap)
 	if err != nil {
 		return signer.Config{}, err
 	}
@@ -76,7 +77,6 @@ func parseSignerConfig(configFilePath string, doBootstrap bool) (signer.Config, 
 		GRPCAddr:       grpcAddr,
 		TLSConfig:      tlsConfig,
 		CryptoServices: cryptoServices,
-		PendingKeyFunc: pendingKeyFunc,
 	}, nil
 }
 
@@ -96,33 +96,30 @@ func passphraseRetriever(keyName, alias string, createNew bool, attempts int) (p
 	return passphrase, false, nil
 }
 
-type pendingKeyFunc func(trustmanager.KeyInfo) (data.PublicKey, error)
-
 // Reads the configuration file for storage setup, and sets up the cryptoservice
 // mapping
 func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, doBootstrap bool) (
-	signer.CryptoServiceIndex, pendingKeyFunc, error) {
+	signer.CryptoServiceIndex, error) {
 	backend := configuration.GetString("storage.backend")
 
 	if !tufutils.StrSliceContains(allowedBackends, backend) {
-		return nil, nil, fmt.Errorf("%s is not an allowed backend, must be one of: %s", backend, allowedBackends)
+		return nil, fmt.Errorf("%s is not an allowed backend, must be one of: %s", backend, allowedBackends)
 	}
 
-	var keyStore trustmanager.KeyStore
-	var pendingKeyFunc = func(trustmanager.KeyInfo) (data.PublicKey, error) { return nil, fmt.Errorf("no pending key") }
+	var keyService signed.CryptoService
 	switch backend {
 	case notary.MemoryBackend:
-		keyStore = trustmanager.NewKeyMemoryStore(
-			passphrase.ConstantRetriever("memory-db-ignore"))
+		keyService = cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(
+			passphrase.ConstantRetriever("memory-db-ignore")))
 	case notary.RethinkDBBackend:
 		var sess *gorethink.Session
 		storeConfig, err := utils.ParseRethinkDBStorage(configuration)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		defaultAlias, err := getDefaultAlias(configuration)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		tlsOpts := tlsconfig.Options{
 			CAFile:   storeConfig.CA,
@@ -135,51 +132,48 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, d
 			sess, err = rethinkdb.UserConnection(tlsOpts, storeConfig.Source, storeConfig.Username, storeConfig.Password)
 		}
 		if err != nil {
-			return nil, nil, fmt.Errorf("Error starting %s driver: %s", backend, err.Error())
+			return nil, fmt.Errorf("Error starting %s driver: %s", backend, err.Error())
 		}
 		s := keydbstore.NewRethinkDBKeyStore(storeConfig.DBName, storeConfig.Username, storeConfig.Password, passphraseRetriever, defaultAlias, sess)
 		health.RegisterPeriodicFunc("DB operational", time.Minute, s.CheckHealth)
-		pendingKeyFunc = s.GetPendingKey
 
 		if doBootstrap {
-			keyStore = s
+			keyService = s
 		} else {
-			keyStore = keydbstore.NewCachedKeyStore(s)
+			keyService = keydbstore.NewCachedKeyService(s)
 		}
 	case notary.MySQLBackend, notary.SQLiteBackend:
 		storeConfig, err := utils.ParseSQLStorage(configuration)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		defaultAlias, err := getDefaultAlias(configuration)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		dbStore, err := keydbstore.NewSQLKeyDBStore(
 			passphraseRetriever, defaultAlias, storeConfig.Backend, storeConfig.Source)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create a new keydbstore: %v", err)
+			return nil, fmt.Errorf("failed to create a new keydbstore: %v", err)
 		}
 
 		health.RegisterPeriodicFunc(
 			"DB operational", time.Minute, dbStore.HealthCheck)
-		keyStore = keydbstore.NewCachedKeyStore(dbStore)
-		pendingKeyFunc = dbStore.GetPendingKey
+		keyService = keydbstore.NewCachedKeyService(dbStore)
 	}
 
 	if doBootstrap {
-		err := bootstrap(keyStore)
+		err := bootstrap(keyService)
 		if err != nil {
 			logrus.Fatal(err.Error())
 		}
 		os.Exit(0)
 	}
 
-	cryptoService := cryptoservice.NewCryptoService(keyStore)
 	cryptoServices := make(signer.CryptoServiceIndex)
-	cryptoServices[data.ED25519Key] = cryptoService
-	cryptoServices[data.ECDSAKey] = cryptoService
-	return cryptoServices, pendingKeyFunc, nil
+	cryptoServices[data.ED25519Key] = keyService
+	cryptoServices[data.ECDSAKey] = keyService
+	return cryptoServices, nil
 }
 
 func getDefaultAlias(configuration *viper.Viper) (string, error) {
@@ -203,7 +197,6 @@ func setupGRPCServer(signerConfig signer.Config) (*grpc.Server, net.Listener, er
 	kms := &api.KeyManagementServer{
 		CryptoServices: signerConfig.CryptoServices,
 		HealthChecker:  health.CheckStatus,
-		PendingKeyFunc: signerConfig.PendingKeyFunc,
 	}
 	ss := &api.SignerServer{
 		CryptoServices: signerConfig.CryptoServices,

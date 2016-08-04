@@ -2,10 +2,13 @@ package keydbstore
 
 import (
 	"crypto"
+	"crypto/rand"
+	"fmt"
 	"io"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
 )
 
 type activatingPrivateKey struct {
@@ -23,4 +26,26 @@ func (a activatingPrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.Si
 		}
 	}
 	return sig, err
+}
+
+// helper function to generate private keys for the signer databases - does not implement RSA since that is not
+// supported by the signer
+func generatePrivateKey(algorithm string) (data.PrivateKey, error) {
+	var privKey data.PrivateKey
+	var err error
+	switch algorithm {
+	case data.ECDSAKey:
+		privKey, err = utils.GenerateECDSAKey(rand.Reader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate EC key: %v", err)
+		}
+	case data.ED25519Key:
+		privKey, err = utils.GenerateED25519Key(rand.Reader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate ED25519 key: %v", err)
+		}
+	default:
+		return nil, fmt.Errorf("private key type not supported for key generation: %s", algorithm)
+	}
+	return privKey, nil
 }

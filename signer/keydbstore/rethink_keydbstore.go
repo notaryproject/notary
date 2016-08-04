@@ -120,7 +120,7 @@ func (rdb *RethinkDBKeyStore) Name() string {
 
 // AddKey stores the contents of a private key. Both role and gun are ignored,
 // we always use Key IDs as name, and don't support aliases
-func (rdb *RethinkDBKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.PrivateKey) error {
+func (rdb *RethinkDBKeyStore) AddKey(role, gun string, privKey data.PrivateKey) error {
 	passphrase, _, err := rdb.retriever(privKey.ID(), rdb.defaultPassAlias, false, 1)
 	if err != nil {
 		return err
@@ -142,8 +142,8 @@ func (rdb *RethinkDBKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.
 		KeywrapAlg:      KeywrapAlg,
 		PassphraseAlias: rdb.defaultPassAlias,
 		Algorithm:       privKey.Algorithm(),
-		Gun:             keyInfo.Gun,
-		Role:            keyInfo.Role,
+		Gun:             gun,
+		Role:            role,
 		Public:          privKey.Public(),
 		Private:         []byte(encryptedKey),
 	}
@@ -187,8 +187,8 @@ func (rdb *RethinkDBKeyStore) getKey(keyID string) (*RDBPrivateKey, string, erro
 	return &dbPrivateKey, decryptedPrivKey, nil
 }
 
-// GetKey returns the PrivateKey given a KeyID
-func (rdb *RethinkDBKeyStore) GetKey(keyID string) (data.PrivateKey, string, error) {
+// GetPrivateKey returns the PrivateKey given a KeyID
+func (rdb *RethinkDBKeyStore) GetPrivateKey(keyID string) (data.PrivateKey, string, error) {
 	dbPrivateKey, decryptedPrivKey, err := rdb.getKey(keyID)
 	if err != nil {
 		return nil, "", err
@@ -205,13 +205,23 @@ func (rdb *RethinkDBKeyStore) GetKey(keyID string) (data.PrivateKey, string, err
 	return activatingPrivateKey{PrivateKey: privKey, activationFunc: rdb.markActive}, dbPrivateKey.Role, nil
 }
 
-// GetKeyInfo always returns empty and an error. This method is here to satisfy the KeyStore interface
-func (rdb RethinkDBKeyStore) GetKeyInfo(name string) (trustmanager.KeyInfo, error) {
-	return trustmanager.KeyInfo{}, fmt.Errorf("GetKeyInfo currently not supported for RethinkDBKeyStore, as it does not track roles or GUNs")
+// GetKey returns the PublicKey given a KeyID, and does not activate the key
+func (rdb *RethinkDBKeyStore) GetKey(keyID string) data.PublicKey {
+	dbPrivateKey, _, err := rdb.getKey(keyID)
+	if err != nil {
+		return nil
+	}
+
+	return data.NewPublicKey(dbPrivateKey.Algorithm, dbPrivateKey.Public)
 }
 
-// ListKeys always returns nil. This method is here to satisfy the KeyStore interface
-func (rdb RethinkDBKeyStore) ListKeys() map[string]trustmanager.KeyInfo {
+// ListKeys always returns nil. This method is here to satisfy the CryptoService interface
+func (rdb RethinkDBKeyStore) ListKeys(role string) []string {
+	return nil
+}
+
+// ListAllKeys always returns nil. This method is here to satisfy the CryptoService interface
+func (rdb RethinkDBKeyStore) ListAllKeys() map[string]string {
 	return nil
 }
 
@@ -264,21 +274,35 @@ func (rdb RethinkDBKeyStore) markActive(keyID string) error {
 	return err
 }
 
-// GetPendingKey gets the public key component of a key that was created but never used for signing a given gun and role
-func (rdb RethinkDBKeyStore) GetPendingKey(keyInfo trustmanager.KeyInfo) (data.PublicKey, error) {
+// Create will attempt to first re-use an inactive key for the same role, gun, and algorithm.
+// If one isn't found, it will create a private key and add it to the DB as an inactive key
+func (rdb RethinkDBKeyStore) Create(role, gun, algorithm string) (data.PublicKey, error) {
 	dbPrivateKey := RDBPrivateKey{}
-	res, err := gorethink.DB(rdb.dbName).Table(dbPrivateKey.TableName()).Filter(gorethink.Row.Field("gun").Eq(keyInfo.Gun)).Filter(gorethink.Row.Field("role").Eq(keyInfo.Role)).Filter(gorethink.Row.Field("last_used").Eq(time.Time{})).Run(rdb.sess)
+	res, err := gorethink.DB(rdb.dbName).Table(dbPrivateKey.TableName()).
+		Filter(gorethink.Row.Field("gun").Eq(gun)).
+		Filter(gorethink.Row.Field("role").Eq(role)).
+		Filter(gorethink.Row.Field("algorithm").Eq(algorithm)).
+		Filter(gorethink.Row.Field("last_used").Eq(time.Time{})).
+		Run(rdb.sess)
 	if err != nil {
 		return nil, err
 	}
 	defer res.Close()
 
 	err = res.One(&dbPrivateKey)
-	if err != nil {
-		return nil, trustmanager.ErrKeyNotFound{}
+	if err == nil {
+		return data.NewPublicKey(dbPrivateKey.Algorithm, dbPrivateKey.Public), nil
 	}
 
-	return data.NewPublicKey(dbPrivateKey.Algorithm, dbPrivateKey.Public), nil
+	privKey, err := generatePrivateKey(algorithm)
+	if err != nil {
+		return nil, err
+	}
+	if err = rdb.AddKey(role, gun, privKey); err != nil {
+		return nil, fmt.Errorf("failed to store key: %v", err)
+	}
+
+	return privKey, nil
 }
 
 // Bootstrap sets up the database and tables, also creating the notary signer user with appropriate db permission

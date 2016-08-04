@@ -5,59 +5,70 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/docker/notary/cryptoservice"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
 )
 
 // gets a key from the DB store, and asserts that the key is the expected key
-func requireGetKeySuccess(t *testing.T, dbStore trustmanager.KeyStore, expectedRole string, expectedKey data.PrivateKey) {
-	retrKey, role, err := dbStore.GetKey(expectedKey.ID())
+func requireGetKeySuccess(t *testing.T, dbKeyService signed.CryptoService, expectedRole string, expectedKey data.PrivateKey) {
+	retrKey, retrRole, err := dbKeyService.GetPrivateKey(expectedKey.ID())
 	require.NoError(t, err)
-	require.Equal(t, expectedRole, role)
-	require.Equal(t, retrKey.Private(), expectedKey.Private())
+	require.Equal(t, retrKey.ID(), expectedKey.ID())
 	require.Equal(t, retrKey.Algorithm(), expectedKey.Algorithm())
 	require.Equal(t, retrKey.Public(), expectedKey.Public())
-	require.Equal(t, retrKey.SignatureAlgorithm(), expectedKey.SignatureAlgorithm())
+	require.Equal(t, retrKey.Private(), expectedKey.Private())
+	require.Equal(t, retrRole, expectedRole)
+}
+
+func requireGetPubKeySuccess(t *testing.T, dbKeyService signed.CryptoService, expectedRole string, expectedPubKey data.PublicKey) {
+	retrPubKey := dbKeyService.GetKey(expectedPubKey.ID())
+	require.Equal(t, retrPubKey.Public(), expectedPubKey.Public())
+	require.Equal(t, retrPubKey.ID(), expectedPubKey.ID())
+	require.Equal(t, retrPubKey.Algorithm(), expectedPubKey.Algorithm())
 }
 
 // closes the DB connection first so we can test that the successful get was
 // from the cache
-func requireGetKeySuccessFromCache(t *testing.T, cachedStore, underlyingStore trustmanager.KeyStore, expectedRole string, expectedKey data.PrivateKey) {
+func requireGetKeySuccessFromCache(t *testing.T, cachedStore, underlyingStore signed.CryptoService, expectedRole string, expectedKey data.PrivateKey) {
 	require.NoError(t, underlyingStore.RemoveKey(expectedKey.ID()))
 	requireGetKeySuccess(t, cachedStore, expectedRole, expectedKey)
 }
 
-func requireGetKeyFailure(t *testing.T, dbStore trustmanager.KeyStore, keyID string) {
-	_, _, err := dbStore.GetKey(keyID)
-	require.IsType(t, trustmanager.ErrKeyNotFound{}, err)
+func requireGetKeyFailure(t *testing.T, dbStore signed.CryptoService, keyID string) {
+	_, _, err := dbStore.GetPrivateKey(keyID)
+	require.Error(t, err)
+	k := dbStore.GetKey(keyID)
+	require.Nil(t, k)
 }
 
-type unAddableKeyStore struct {
-	trustmanager.KeyStore
+type unAddableKeyService struct {
+	signed.CryptoService
 }
 
-func (u unAddableKeyStore) AddKey(_ trustmanager.KeyInfo, _ data.PrivateKey) error {
-	return fmt.Errorf("Can't add to keystore!")
+func (u unAddableKeyService) AddKey(_, _ string, _ data.PrivateKey) error {
+	return fmt.Errorf("Can't add to keyservice!")
 }
 
-type unRemoveableKeyStore struct {
-	trustmanager.KeyStore
+type unRemoveableKeyService struct {
+	signed.CryptoService
 	failToRemove bool
 }
 
-func (u unRemoveableKeyStore) RemoveKey(keyID string) error {
+func (u unRemoveableKeyService) RemoveKey(keyID string) error {
 	if u.failToRemove {
 		return fmt.Errorf("Can't remove from keystore!")
 	}
-	return u.KeyStore.RemoveKey(keyID)
+	return u.CryptoService.RemoveKey(keyID)
 }
 
-// Getting a key, on succcess, populates the cache.
+// Getting a key, on success, populates the cache.
 func TestGetSuccessPopulatesCache(t *testing.T) {
-	underlying := trustmanager.NewKeyMemoryStore(constRetriever)
-	cached := NewCachedKeyStore(underlying)
+	underlying := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(constRetriever))
+	cached := NewCachedKeyService(underlying)
 
 	testKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
@@ -66,7 +77,7 @@ func TestGetSuccessPopulatesCache(t *testing.T) {
 	requireGetKeyFailure(t, cached, testKey.ID())
 
 	// Add key to underlying store only
-	err = underlying.AddKey(trustmanager.KeyInfo{Role: data.CanonicalTimestampRole, Gun: "gun"}, testKey)
+	err = underlying.AddKey(data.CanonicalTimestampRole, "gun", testKey)
 	require.NoError(t, err)
 
 	// getting for the first time is successful, and after that getting from cache should be too
@@ -76,9 +87,8 @@ func TestGetSuccessPopulatesCache(t *testing.T) {
 
 // Creating a key, on success, populates the cache, but does not do so on failure
 func TestAddKeyPopulatesCacheIfSuccessful(t *testing.T) {
-	var underlying trustmanager.KeyStore
-	underlying = trustmanager.NewKeyMemoryStore(constRetriever)
-	cached := NewCachedKeyStore(underlying)
+	underlying := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(constRetriever))
+	cached := NewCachedKeyService(underlying)
 
 	testKeys := make([]data.PrivateKey, 2)
 	for i := 0; i < 2; i++ {
@@ -87,17 +97,16 @@ func TestAddKeyPopulatesCacheIfSuccessful(t *testing.T) {
 		testKeys[i] = privKey
 	}
 
-	// Writing in the keystore succeeds
-	err := cached.AddKey(trustmanager.KeyInfo{Role: data.CanonicalTimestampRole, Gun: "gun"}, testKeys[0])
+	// Writing in the key service succeeds
+	err := cached.AddKey(data.CanonicalTimestampRole, "gun", testKeys[0])
 	require.NoError(t, err)
 
 	// Now even if it's deleted from the underlying database, it's fine because it's cached
 	requireGetKeySuccessFromCache(t, cached, underlying, data.CanonicalTimestampRole, testKeys[0])
 
-	// Writing in the keystore fails
-	underlying = unAddableKeyStore{KeyStore: underlying}
-	cached = NewCachedKeyStore(underlying)
-	err = cached.AddKey(trustmanager.KeyInfo{Role: data.CanonicalTimestampRole, Gun: "gun"}, testKeys[1])
+	// Writing in the key service fails
+	cached = NewCachedKeyService(unAddableKeyService{underlying})
+	err = cached.AddKey(data.CanonicalTimestampRole, "gun", testKeys[1])
 	require.Error(t, err)
 
 	// And now it can't be found in either DB
@@ -106,14 +115,14 @@ func TestAddKeyPopulatesCacheIfSuccessful(t *testing.T) {
 
 // Deleting a key, no matter whether we succeed in the underlying layer or not, evicts the cached key.
 func TestDeleteKeyRemovesKeyFromCache(t *testing.T) {
-	underlying := trustmanager.NewKeyMemoryStore(constRetriever)
-	cached := NewCachedKeyStore(underlying)
+	underlying := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(constRetriever))
+	cached := NewCachedKeyService(underlying)
 
 	testKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
 	// Write the key, which puts it in the cache
-	err = cached.AddKey(trustmanager.KeyInfo{Role: data.CanonicalTimestampRole, Gun: "gun"}, testKey)
+	err = cached.AddKey(data.CanonicalTimestampRole, "gun", testKey)
 	require.NoError(t, err)
 
 	// Deleting removes the key from the cache and the underlying store
@@ -122,9 +131,9 @@ func TestDeleteKeyRemovesKeyFromCache(t *testing.T) {
 	requireGetKeyFailure(t, cached, testKey.ID())
 
 	// Now set up an underlying store where the key can't be deleted
-	failingUnderlying := unRemoveableKeyStore{KeyStore: underlying, failToRemove: true}
-	cached = NewCachedKeyStore(failingUnderlying)
-	err = cached.AddKey(trustmanager.KeyInfo{Role: data.CanonicalTimestampRole, Gun: "gun"}, testKey)
+	failingUnderlying := unRemoveableKeyService{CryptoService: underlying, failToRemove: true}
+	cached = NewCachedKeyService(failingUnderlying)
+	err = cached.AddKey(data.CanonicalTimestampRole, "gun", testKey)
 	require.NoError(t, err)
 
 	// Deleting fails to remove the key from the underlying store

@@ -169,15 +169,22 @@ func TestSQLSigningMarksKeyActive(t *testing.T) {
 		data.PublicKeyFromPrivate(nonActiveKey), sig, msg))
 }
 
-func TestSQLGetPendingKey(t *testing.T) {
+func TestSQLCreateKey(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
-	pendingKey, activeKey := testGetPendingKey(t, dbStore)
+	activeED25519Key, pendingED25519Key, pendingECDSAKey := testCreateKey(t, dbStore)
 
-	gormKeys := requireExpectedGORMKeys(t, dbStore, []data.PrivateKey{pendingKey, activeKey})
+	gormKeys := requireExpectedGORMKeys(t, dbStore, []data.PrivateKey{activeED25519Key, pendingED25519Key, pendingECDSAKey})
 
 	// check that activation updates the activated key but not the pending key
-	require.True(t, gormKeys[activeKey.ID()].LastUsed.Equal(gormActiveTime))
-	require.True(t, gormKeys[pendingKey.ID()].LastUsed.Equal(time.Time{}))
+	require.True(t, gormKeys[activeED25519Key.ID()].LastUsed.Equal(gormActiveTime))
+	require.True(t, gormKeys[pendingED25519Key.ID()].LastUsed.Equal(time.Time{}))
+	require.True(t, gormKeys[pendingECDSAKey.ID()].LastUsed.Equal(time.Time{}))
+}
+
+func TestSQLUnimplementedInterfaceBehavior(t *testing.T) {
+	dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
+	testUnimplementedInterfaceMethods(t, dbStore)
 }

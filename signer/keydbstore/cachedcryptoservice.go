@@ -3,14 +3,12 @@ package keydbstore
 import (
 	"sync"
 
-	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/signed"
 )
 
-// Note:  once trustmanager's file KeyStore has been flattened, this can be moved to trustmanager
-
-type cachedKeyStore struct {
-	trustmanager.KeyStore
+type cachedKeyService struct {
+	signed.CryptoService
 	lock       *sync.Mutex
 	cachedKeys map[string]*cachedKey
 }
@@ -20,19 +18,19 @@ type cachedKey struct {
 	key  data.PrivateKey
 }
 
-// NewCachedKeyStore returns a new trustmanager.KeyStore that includes caching
-func NewCachedKeyStore(baseStore trustmanager.KeyStore) trustmanager.KeyStore {
-	return &cachedKeyStore{
-		KeyStore:   baseStore,
-		lock:       &sync.Mutex{},
-		cachedKeys: make(map[string]*cachedKey),
+// NewCachedKeyService returns a new signed.CryptoService that includes caching
+func NewCachedKeyService(baseKeyService signed.CryptoService) signed.CryptoService {
+	return &cachedKeyService{
+		CryptoService: baseKeyService,
+		lock:          &sync.Mutex{},
+		cachedKeys:    make(map[string]*cachedKey),
 	}
 }
 
 // AddKey stores the contents of a private key. Both role and gun are ignored,
 // we always use Key IDs as name, and don't support aliases
-func (s *cachedKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.PrivateKey) error {
-	if err := s.KeyStore.AddKey(keyInfo, privKey); err != nil {
+func (s *cachedKeyService) AddKey(role, gun string, privKey data.PrivateKey) error {
+	if err := s.CryptoService.AddKey(role, gun, privKey); err != nil {
 		return err
 	}
 
@@ -40,7 +38,7 @@ func (s *cachedKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.Priva
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.cachedKeys[privKey.ID()] = &cachedKey{
-		role: keyInfo.Role,
+		role: role,
 		key:  privKey,
 	}
 
@@ -48,14 +46,14 @@ func (s *cachedKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.Priva
 }
 
 // GetKey returns the PrivateKey given a KeyID
-func (s *cachedKeyStore) GetKey(keyID string) (data.PrivateKey, string, error) {
+func (s *cachedKeyService) GetPrivateKey(keyID string) (data.PrivateKey, string, error) {
 	cachedKeyEntry, ok := s.cachedKeys[keyID]
 	if ok {
 		return cachedKeyEntry.key, cachedKeyEntry.role, nil
 	}
 
 	// retrieve the key from the underlying store and put it into the cache
-	privKey, role, err := s.KeyStore.GetKey(keyID)
+	privKey, role, err := s.CryptoService.GetPrivateKey(keyID)
 	if err == nil {
 		s.lock.Lock()
 		defer s.lock.Unlock()
@@ -67,10 +65,10 @@ func (s *cachedKeyStore) GetKey(keyID string) (data.PrivateKey, string, error) {
 }
 
 // RemoveKey removes the key from the keyfilestore
-func (s *cachedKeyStore) RemoveKey(keyID string) error {
+func (s *cachedKeyService) RemoveKey(keyID string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	delete(s.cachedKeys, keyID)
-	return s.KeyStore.RemoveKey(keyID)
+	return s.CryptoService.RemoveKey(keyID)
 }

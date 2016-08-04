@@ -20,7 +20,6 @@ import (
 type KeyManagementServer struct {
 	CryptoServices signer.CryptoServiceIndex
 	HealthChecker  func() map[string]string
-	PendingKeyFunc func(trustmanager.KeyInfo) (data.PublicKey, error)
 }
 
 //SignerServer implements the SignerServer grpc interface
@@ -43,16 +42,12 @@ func (s *KeyManagementServer) CreateKey(ctx context.Context, req *pb.CreateKeyRe
 	var tufKey data.PublicKey
 	var err error
 
-	if tufKey, err = s.PendingKeyFunc(trustmanager.KeyInfo{Gun: req.Gun, Role: req.Role}); err == nil {
-		logger.Debugf("CreateKey: found pending key for role %s GUN %s that will be used", req.Role, req.Gun)
-	} else {
-		tufKey, err = service.Create(req.Role, req.Gun, req.Algorithm)
-		if err != nil {
-			logger.Error("CreateKey: failed to create key: ", err)
-			return nil, grpc.Errorf(codes.Internal, "Key creation failed")
-		}
-		logger.Info("CreateKey: Created KeyID ", tufKey.ID())
+	tufKey, err = service.Create(req.Role, req.Gun, req.Algorithm)
+	if err != nil {
+		logger.Error("CreateKey: failed to create key: ", err)
+		return nil, grpc.Errorf(codes.Internal, "Key creation failed")
 	}
+	logger.Info("CreateKey: Created KeyID ", tufKey.ID())
 
 	return &pb.PublicKey{
 		KeyInfo: &pb.KeyInfo{
