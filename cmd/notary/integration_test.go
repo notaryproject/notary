@@ -1644,12 +1644,12 @@ func TestClientTUFInitWithAutoPublish(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	var (
-		output       string = ""
-		gun          string = "MistsOfPandaria"
-		gunNoPublish string = "Legion"
+		output       = ""
+		gun          = "MistsOfPandaria"
+		gunNoPublish = "Legion"
 
 		// This might be changed via the implementation, please be careful.
-		emptyList string = "\nNo targets present in this repository.\n\n"
+		emptyList = "\nNo targets present in this repository.\n\n"
 	)
 	// -- tests --
 
@@ -1688,10 +1688,10 @@ func TestClientTUFAddWithAutoPublish(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	var (
-		output          string = ""
-		target          string = "ShangXi"
-		targetNoPublish string = "Shen-zinSu"
-		gun             string = "MistsOfPandaria"
+		output          = ""
+		target          = "ShangXi"
+		targetNoPublish = "Shen-zinSu"
+		gun             = "MistsOfPandaria"
 	)
 	// -- tests --
 
@@ -1738,10 +1738,10 @@ func TestClientTUFRemoveWithAutoPublish(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	var (
-		output              string = ""
-		target              string = "ShangXi"
-		targetWillBeRemoved string = "Shen-zinSu"
-		gun                 string = "MistsOfPandaria"
+		output              = ""
+		target              = "ShangXi"
+		targetWillBeRemoved = "Shen-zinSu"
+		gun                 = "MistsOfPandaria"
 	)
 	// -- tests --
 
