@@ -1667,7 +1667,7 @@ func TestClientTUFInitWithAutoPublish(t *testing.T) {
 	_, err = runCommand(t, tempDir, "-s", server.URL, "init", gunNoPublish)
 	require.NoError(t, err)
 	// list repo - exepect error
-	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gunNoPublish)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "list", gunNoPublish)
 	require.NotNil(t, err)
 	require.Equal(t, err, nstorage.ErrMetaNotFound{Resource: "root"})
 }
@@ -1782,4 +1782,162 @@ func TestClientTUFRemoveWithAutoPublish(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, strings.Contains(output, target))
 	require.False(t, strings.Contains(output, targetWillBeRemoved))
+}
+
+func TestClientDelegationAddWithAutoPublish(t *testing.T) {
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	// Setup certificate
+	tempFile, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
+	startTime := time.Now()
+	endTime := startTime.AddDate(10, 0, 0)
+	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
+	require.NoError(t, err)
+
+	_, err = tempFile.Write(utils.CertToPEM(cert))
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
+	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
+	keyID, err := utils.CanonicalKeyID(parsedPubKey)
+	require.NoError(t, err)
+
+	var output string
+
+	// -- tests --
+
+	// init and publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun", "-p")
+	require.NoError(t, err)
+
+	// list delegations - none yet
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, "No delegations present in this repository.")
+
+	// add new valid delegation with single new cert, and no path
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile.Name())
+	require.NoError(t, err)
+
+	// check status - no changelist
+	output, err = runCommand(t, tempDir, "status", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, "No unpublished changes for gun")
+
+	// list delegations - we should see our added delegation, with no paths
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, "targets/delegation")
+	require.Contains(t, output, keyID)
+}
+
+func TestClientDelegationRemoveWithAutoPublish(t *testing.T) {
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	// Setup certificate
+	tempFile, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
+	startTime := time.Now()
+	endTime := startTime.AddDate(10, 0, 0)
+	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
+	require.NoError(t, err)
+
+	_, err = tempFile.Write(utils.CertToPEM(cert))
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
+	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
+	keyID, err := utils.CanonicalKeyID(parsedPubKey)
+	require.NoError(t, err)
+
+	var output string
+
+	// -- tests --
+
+	// init repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun", "-p")
+	require.NoError(t, err)
+
+	// add new valid delegation with single new cert, and no path
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile.Name())
+	require.NoError(t, err)
+
+	// list delegations - we should see our added delegation, with no paths
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, "targets/delegation")
+
+	// Setup another certificate
+	tempFile2, err := ioutil.TempFile("", "pemfile2")
+	require.NoError(t, err)
+
+	privKey, err = utils.GenerateECDSAKey(rand.Reader)
+	startTime = time.Now()
+	endTime = startTime.AddDate(10, 0, 0)
+	cert, err = cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
+	require.NoError(t, err)
+
+	_, err = tempFile2.Write(utils.CertToPEM(cert))
+	require.NoError(t, err)
+	tempFile2.Close()
+	defer os.Remove(tempFile2.Name())
+
+	rawPubBytes2, _ := ioutil.ReadFile(tempFile2.Name())
+	parsedPubKey2, _ := utils.ParsePEMPublicKey(rawPubBytes2)
+	keyID2, err := utils.CanonicalKeyID(parsedPubKey2)
+	require.NoError(t, err)
+
+	// add to the delegation by specifying the same role, this time add a scoped path
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile2.Name(), "--paths", "path")
+	require.NoError(t, err)
+
+	// list delegations - we should see two keys
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, "path")
+	require.Contains(t, output, keyID)
+	require.Contains(t, output, keyID2)
+
+	// remove the delegation's first key
+	output, err = runCommand(t, tempDir, "delegation", "-s", server.URL, "remove", "-p", "gun", "targets/delegation", keyID)
+	require.NoError(t, err)
+	require.Contains(t, output, "Removal of delegation role")
+
+	// list delegations - we should see the delegation but with only the second key
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.NotContains(t, output, keyID)
+	require.Contains(t, output, keyID2)
+
+	// remove the delegation's second key
+	output, err = runCommand(t, tempDir, "delegation", "-s", server.URL, "remove", "-p", "gun", "targets/delegation", keyID2)
+	require.NoError(t, err)
+	require.Contains(t, output, "Removal of delegation role")
+
+	// list delegations - we should see no delegations
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.NotContains(t, output, keyID)
+	require.NotContains(t, output, keyID2)
 }
