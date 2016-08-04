@@ -6,6 +6,11 @@ import (
 	"os"
 )
 
+const (
+	// The help text of auto publish
+	htAutoPublish string = "Automatically attempt to publish after staging the change. Will also publish existing staged changes."
+)
+
 // getPayload is a helper function to get the content used to be verified
 // either from an existing file or STDIN.
 func getPayload(t *tufCommander) ([]byte, error) {
