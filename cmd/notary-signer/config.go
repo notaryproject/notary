@@ -190,22 +190,25 @@ func getDefaultAlias(configuration *viper.Viper) (string, error) {
 }
 
 // set up the GRPC server
-func setupGRPCServer(grpcAddr string, tlsConfig *tls.Config,
-	cryptoServices signer.CryptoServiceIndex) (*grpc.Server, net.Listener, error) {
+func setupGRPCServer(signerConfig signer.Config) (*grpc.Server, net.Listener, error) {
 
 	//RPC server setup
-	kms := &api.KeyManagementServer{CryptoServices: cryptoServices,
-		HealthChecker: health.CheckStatus}
-	ss := &api.SignerServer{CryptoServices: cryptoServices,
-		HealthChecker: health.CheckStatus}
-
-	lis, err := net.Listen("tcp", grpcAddr)
-	if err != nil {
-		return nil, nil, fmt.Errorf("grpc server failed to listen on %s: %v",
-			grpcAddr, err)
+	kms := &api.KeyManagementServer{
+		CryptoServices: signerConfig.CryptoServices,
+		HealthChecker:  health.CheckStatus,
+	}
+	ss := &api.SignerServer{
+		CryptoServices: signerConfig.CryptoServices,
+		HealthChecker:  health.CheckStatus,
 	}
 
-	creds := credentials.NewTLS(tlsConfig)
+	lis, err := net.Listen("tcp", signerConfig.GRPCAddr)
+	if err != nil {
+		return nil, nil, fmt.Errorf("grpc server failed to listen on %s: %v",
+			signerConfig.GRPCAddr, err)
+	}
+
+	creds := credentials.NewTLS(signerConfig.TLSConfig)
 	opts := []grpc.ServerOption{grpc.Creds(creds)}
 	grpcServer := grpc.NewServer(opts...)
 

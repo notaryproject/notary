@@ -13,7 +13,6 @@ import (
 	"time"
 
 	pb "github.com/docker/notary/proto"
-	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -122,7 +121,8 @@ func NewNotarySigner(conn *grpc.ClientConn) *NotarySigner {
 
 // Create creates a remote key and returns the PublicKey associated with the remote private key
 func (trust *NotarySigner) Create(role, gun, algorithm string) (data.PublicKey, error) {
-	publicKey, err := trust.kmClient.CreateKey(context.Background(), &pb.Algorithm{Algorithm: algorithm})
+	publicKey, err := trust.kmClient.CreateKey(context.Background(),
+		&pb.CreateKeyRequest{Algorithm: algorithm, Role: role, Gun: gun})
 	if err != nil {
 		return nil, err
 	}
@@ -143,21 +143,29 @@ func (trust *NotarySigner) RemoveKey(keyid string) error {
 
 // GetKey retrieves a key by ID - returns nil if the key doesn't exist
 func (trust *NotarySigner) GetKey(keyid string) data.PublicKey {
-	publicKey, err := trust.kmClient.GetKeyInfo(context.Background(), &pb.KeyID{ID: keyid})
+	pubKey, _, err := trust.getKeyInfo(keyid)
 	if err != nil {
 		return nil
 	}
-	return data.NewPublicKey(publicKey.KeyInfo.Algorithm.Algorithm, publicKey.PublicKey)
+	return pubKey
+}
+
+func (trust *NotarySigner) getKeyInfo(keyid string) (data.PublicKey, string, error) {
+	keyInfo, err := trust.kmClient.GetKeyInfo(context.Background(), &pb.KeyID{ID: keyid})
+	if err != nil {
+		return nil, "", err
+	}
+	return data.NewPublicKey(keyInfo.KeyInfo.Algorithm.Algorithm, keyInfo.PublicKey), keyInfo.Role, nil
 }
 
 // GetPrivateKey retrieves by ID an object that can be used to sign, but that does
 // not contain any private bytes.  If the key doesn't exist, returns an error.
 func (trust *NotarySigner) GetPrivateKey(keyid string) (data.PrivateKey, string, error) {
-	pubKey := trust.GetKey(keyid)
-	if pubKey == nil {
-		return nil, "", trustmanager.ErrKeyNotFound{KeyID: keyid}
+	pubKey, role, err := trust.getKeyInfo(keyid)
+	if err != nil {
+		return nil, "", err
 	}
-	return NewRemotePrivateKey(pubKey, trust.sClient), "", nil
+	return NewRemotePrivateKey(pubKey, trust.sClient), role, nil
 }
 
 // ListKeys not supported for NotarySigner

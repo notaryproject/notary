@@ -41,8 +41,7 @@ func EmptyCryptoServiceInterfaceBehaviorTests(t *testing.T, empty signed.CryptoS
 // 1.  Creating a key succeeds and returns a non-nil public key
 // 2.  Getting the key should return the same key, without error
 // 3.  Removing the key succeeds
-func CreateGetKeyCryptoServiceInterfaceBehaviorTests(t *testing.T, cs signed.CryptoService, algo string,
-	checkRole bool) {
+func CreateGetKeyCryptoServiceInterfaceBehaviorTests(t *testing.T, cs signed.CryptoService, algo string) {
 
 	expectedRolesToKeys := make(map[string]string)
 	for i := 0; i < 2; i++ {
@@ -53,15 +52,14 @@ func CreateGetKeyCryptoServiceInterfaceBehaviorTests(t *testing.T, cs signed.Cry
 		expectedRolesToKeys[role] = createdPubKey.ID()
 	}
 
-	testGetKey(t, cs, expectedRolesToKeys, algo, checkRole)
+	testGetKey(t, cs, expectedRolesToKeys, algo)
 }
 
 // CreateListKeyCryptoServiceInterfaceBehaviorTests tests expected behavior for
-// creating keys in a signed.CryptoService and other read operations on the
-// crypto service after keys are present
+// creating keys in a signed.CryptoService and listing keys after keys are
+// present
 // 1.  Creating a key succeeds and returns a non-nil public key
 // 2.  Listing returns the correct number of keys and right roles
-// We allow skipping some tests because for now, signer does not support role checking or listing keys.
 func CreateListKeyCryptoServiceInterfaceBehaviorTests(t *testing.T, cs signed.CryptoService, algo string) {
 	expectedRolesToKeys := make(map[string]string)
 	for i := 0; i < 2; i++ {
@@ -105,7 +103,7 @@ func AddGetKeyCryptoServiceInterfaceBehaviorTests(t *testing.T, cs signed.Crypto
 		expectedRolesToKeys[role] = addedPrivKey.ID()
 	}
 
-	testGetKey(t, cs, expectedRolesToKeys, algo, true)
+	testGetKey(t, cs, expectedRolesToKeys, algo)
 }
 
 // AddListKeyCryptoServiceInterfaceBehaviorTests tests expected behavior for
@@ -140,9 +138,7 @@ func AddListKeyCryptoServiceInterfaceBehaviorTests(t *testing.T, cs signed.Crypt
 	testListKeys(t, cs, expectedRolesToKeys)
 }
 
-func testGetKey(t *testing.T, cs signed.CryptoService, expectedRolesToKeys map[string]string, algo string,
-	checkRole bool) {
-
+func testGetKey(t *testing.T, cs signed.CryptoService, expectedRolesToKeys map[string]string, algo string) {
 	for role, keyID := range expectedRolesToKeys {
 		pubKey := cs.GetKey(keyID)
 		require.NotNil(t, pubKey)
@@ -154,17 +150,13 @@ func testGetKey(t *testing.T, cs signed.CryptoService, expectedRolesToKeys map[s
 		require.NotNil(t, privKey)
 		require.Equal(t, keyID, privKey.ID())
 		require.Equal(t, algo, privKey.Algorithm())
-		if checkRole {
-			require.Equal(t, role, gotRole)
-		}
+		require.Equal(t, role, gotRole)
 
 		require.NoError(t, cs.RemoveKey(keyID))
 		require.Nil(t, cs.GetKey(keyID))
 	}
 }
 
-// The signer does not yet support listing keys or tracking roles, so skip those parts of this test if we're testing
-// the signer
 func testListKeys(t *testing.T, cs signed.CryptoService, expectedRolesToKeys map[string]string) {
 	for _, role := range append(data.BaseRoles, "targets/delegation", "invalid") {
 		keys := cs.ListKeys(role)
