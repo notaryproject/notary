@@ -3552,6 +3552,7 @@ func TestGetAllTargetInfo(t *testing.T) {
 	// setup delegated targets/level1 role with targets current and other
 	k, err := repo.CryptoService.Create("targets/level1", repo.gun, rootType)
 	require.NoError(t, err)
+	key1 := k
 	err = repo.tufRepo.UpdateDelegationKeys("targets/level1", []data.PublicKey{k}, []string{}, 1)
 	require.NoError(t, err)
 	err = repo.tufRepo.UpdateDelegationPaths("targets/level1", []string{""}, []string{}, false)
@@ -3562,6 +3563,7 @@ func TestGetAllTargetInfo(t *testing.T) {
 	// setup delegated targets/level2 role with targets current and level2
 	k, err = repo.CryptoService.Create("targets/level2", repo.gun, rootType)
 	require.NoError(t, err)
+	key2 := k
 	err = repo.tufRepo.UpdateDelegationKeys("targets/level2", []data.PublicKey{k}, []string{}, 1)
 	require.NoError(t, err)
 	err = repo.tufRepo.UpdateDelegationPaths("targets/level2", []string{""}, []string{}, false)
@@ -3592,6 +3594,7 @@ func TestGetAllTargetInfo(t *testing.T) {
 	// add level2 to targets/level1/level2
 	k, err = repo.CryptoService.Create("targets/level1/level2", repo.gun, rootType)
 	require.NoError(t, err)
+	key3 := k
 	err = repo.tufRepo.UpdateDelegationKeys("targets/level1/level2", []data.PublicKey{k}, []string{}, 1)
 	require.NoError(t, err)
 	err = repo.tufRepo.UpdateDelegationPaths("targets/level1/level2", []string{"level2"}, []string{}, false)
@@ -3626,32 +3629,39 @@ func TestGetAllTargetInfo(t *testing.T) {
 		switch tarSigStr.Role.Name {
 		case data.CanonicalTargetsRole:
 			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, repo.CryptoService.ListKeys(data.CanonicalTargetsRole)[0], tarSigStr.Signatures[0].KeyID)
 			require.Equal(t, tarSigStr.Target, *targetsCurrentTarget)
 			makeSureWeHitEachCase = makeSureWeHitEachCase + 1
 		case "targets/level1":
 			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, key1.ID(), tarSigStr.Signatures[0].KeyID)
 			require.Equal(t, tarSigStr.Target, *level1CurrentTarget)
 			makeSureWeHitEachCase = makeSureWeHitEachCase + 2
 		case "targets/level2":
 			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, key2.ID(), tarSigStr.Signatures[0].KeyID)
 			require.Equal(t, tarSigStr.Target, *level2CurrentTarget)
-			makeSureWeHitEachCase = makeSureWeHitEachCase + 3
+			makeSureWeHitEachCase = makeSureWeHitEachCase + 4
 		}
 	}
-	require.Equal(t, makeSureWeHitEachCase, 6)
+	require.Equal(t, makeSureWeHitEachCase, 7)
 
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("other")
 	require.NoError(t, err)
 	require.NotNil(t, targetSignatureData)
 	require.Len(t, targetSignatureData, 1)
+	require.Equal(t, targetSignatureData[0].Role.Name, "targets/level1")
 	require.Equal(t, (targetSignatureData[0]).Target, *level1OtherTarget)
+	require.Equal(t, key1.ID(), targetSignatureData[0].Signatures[0].KeyID)
 	require.Len(t, targetSignatureData[0].Signatures, 1)
 
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("latest")
 	require.NoError(t, err)
 	require.NotNil(t, targetSignatureData)
 	require.Len(t, targetSignatureData, 1)
+	require.Equal(t, targetSignatureData[0].Role.Name, data.CanonicalTargetsRole)
 	require.Equal(t, (targetSignatureData[0]).Target, *targetsLatestTarget)
+	require.Equal(t, repo.CryptoService.ListKeys(data.CanonicalTargetsRole)[0], targetSignatureData[0].Signatures[0].KeyID)
 	require.Len(t, targetSignatureData[0].Signatures, 1)
 
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("level2")
@@ -3663,10 +3673,12 @@ func TestGetAllTargetInfo(t *testing.T) {
 		switch tarSigStr.Role.Name {
 		case "targets/level2":
 			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, key2.ID(), tarSigStr.Signatures[0].KeyID)
 			require.Equal(t, tarSigStr.Target, *level2Level2Target)
 			makeSureWeHitEachCase = makeSureWeHitEachCase + 1
 		case "targets/level1/level2":
 			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, key3.ID(), tarSigStr.Signatures[0].KeyID)
 			require.Equal(t, tarSigStr.Target, *level1Level2Level2Target)
 			makeSureWeHitEachCase = makeSureWeHitEachCase + 2
 		}
