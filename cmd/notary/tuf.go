@@ -122,7 +122,7 @@ type tufCommander struct {
 func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmdTUFInit := cmdTUFInitTemplate.ToCommand(t.tufInit)
 	cmdTUFInit.Flags().StringVar(&t.rootKey, "rootkey", "", "Root key to initialize the repository with")
-	cmdTUFInit.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, "Automatically attempt to publish after staging the change. Will also publish existing staged changes.")
+	cmdTUFInit.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
 	cmd.AddCommand(cmdTUFInit)
 
 	cmdStatus := cmdTUFStatusTemplate.ToCommand(t.tufStatus)
@@ -140,12 +140,12 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 
 	cmdTUFAdd := cmdTUFAddTemplate.ToCommand(t.tufAdd)
 	cmdTUFAdd.Flags().StringSliceVarP(&t.roles, "roles", "r", nil, "Delegation roles to add this target to")
-	cmdTUFAdd.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, "Automatically attempt to publish after staging the change. Will also publish existing staged changes.")
+	cmdTUFAdd.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
 	cmd.AddCommand(cmdTUFAdd)
 
 	cmdTUFRemove := cmdTUFRemoveTemplate.ToCommand(t.tufRemove)
 	cmdTUFRemove.Flags().StringSliceVarP(&t.roles, "roles", "r", nil, "Delegation roles to remove this target from")
-	cmdTUFRemove.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, "Automatically attempt to publish after staging the change. Will also publish existing staged changes.")
+	cmdTUFRemove.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
 	cmd.AddCommand(cmdTUFRemove)
 
 	cmdTUFAddHash := cmdTUFAddHashTemplate.ToCommand(t.tufAddByHash)
