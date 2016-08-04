@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	cjson "github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/cryptoservice"
@@ -486,7 +487,7 @@ type TargetSignedStruct struct {
 }
 
 // GetAllTargetMetadataByName searches the entire delegation role tree to find the specified target by name for all
-// roles, and returns a map of role strings to TargetSignedStructs for each time it finds the specified target.
+// roles, and returns a list of TargetSignedStructs for each time it finds the specified target.
 func (r *NotaryRepository) GetAllTargetMetadataByName(name string) ([]TargetSignedStruct, error) {
 	if err := r.Update(false); err != nil {
 		return nil, err
@@ -502,12 +503,22 @@ func (r *NotaryRepository) GetAllTargetMetadataByName(name string) ([]TargetSign
 		// We found the target and validated path compatibility in our walk,
 		// so add it to our list
 		if resultMeta, foundTarget := tgt.Signed.Targets[name]; foundTarget {
-			targetInfo := TargetSignedStruct{
-				Role:       validRole,
-				Target:     Target{Name: name, Hashes: resultMeta.Hashes, Length: resultMeta.Length},
-				Signatures: tgt.Signatures,
+			//require.NoError(t, signed.Verifiers[data.ECDSASignature].Verify(publicKey, sig, msg))
+			marshalledSign, _ := cjson.MarshalCanonical(tgt.Signed)
+			for _, signature := range tgt.Signatures {
+				for _, key := range validRole.ListKeys() {
+					if signature.KeyID == key.ID() {
+						if signed.VerifySignature(marshalledSign, signature, r.CryptoService.GetKey(signature.KeyID)) == nil {
+							targetInfo := TargetSignedStruct{
+								Role:       validRole,
+								Target:     Target{Name: name, Hashes: resultMeta.Hashes, Length: resultMeta.Length},
+								Signatures: tgt.Signatures,
+							}
+							targetInfoList = append(targetInfoList, targetInfo)
+						}
+					}
+				}
 			}
-			targetInfoList = append(targetInfoList, targetInfo)
 		}
 		// continue walking to all child roles
 		return nil
@@ -518,7 +529,7 @@ func (r *NotaryRepository) GetAllTargetMetadataByName(name string) ([]TargetSign
 		return nil, err
 	}
 	if len(targetInfoList) == 0 {
-		return nil, fmt.Errorf("No trust data for %s", name)
+		return nil, fmt.Errorf("No valid trust data for %s", name)
 	}
 	return targetInfoList, nil
 }
