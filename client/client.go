@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	cjson "github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/cryptoservice"
@@ -503,22 +502,12 @@ func (r *NotaryRepository) GetAllTargetMetadataByName(name string) ([]TargetSign
 		// We found the target and validated path compatibility in our walk,
 		// so add it to our list
 		if resultMeta, foundTarget := tgt.Signed.Targets[name]; foundTarget {
-			//require.NoError(t, signed.Verifiers[data.ECDSASignature].Verify(publicKey, sig, msg))
-			marshalledSign, _ := cjson.MarshalCanonical(tgt.Signed)
-			for _, signature := range tgt.Signatures {
-				for _, key := range validRole.ListKeys() {
-					if signature.KeyID == key.ID() {
-						if signed.VerifySignature(marshalledSign, signature, r.CryptoService.GetKey(signature.KeyID)) == nil {
-							targetInfo := TargetSignedStruct{
-								Role:       validRole,
-								Target:     Target{Name: name, Hashes: resultMeta.Hashes, Length: resultMeta.Length},
-								Signatures: tgt.Signatures,
-							}
-							targetInfoList = append(targetInfoList, targetInfo)
-						}
-					}
-				}
+			targetInfo := TargetSignedStruct{
+				Role:       validRole,
+				Target:     Target{Name: name, Hashes: resultMeta.Hashes, Length: resultMeta.Length},
+				Signatures: tgt.Signatures,
 			}
+			targetInfoList = append(targetInfoList, targetInfo)
 		}
 		// continue walking to all child roles
 		return nil
