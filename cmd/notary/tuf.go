@@ -315,7 +315,7 @@ func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 
 	cmd.Printf("Addition of target \"%s\" to repository \"%s\" staged for next publish.\n", targetName, gun)
 
-	return publish(cmd, t.autoPublish, gun, config, t.retriever)
+	return maybeAutoPublish(cmd, t.autoPublish, gun, config, t.retriever)
 }
 
 func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
@@ -416,7 +416,7 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return publish(cmd, t.autoPublish, gun, config, t.retriever)
+	return maybeAutoPublish(cmd, t.autoPublish, gun, config, t.retriever)
 }
 
 // Attempt to read an encrypted root key from a file, and return it as a data.PrivateKey
@@ -647,7 +647,7 @@ func (t *tufCommander) tufRemove(cmd *cobra.Command, args []string) error {
 
 	cmd.Printf("Removal of %s from %s staged for next publish.\n", targetName, gun)
 
-	return publish(cmd, t.autoPublish, gun, config, t.retriever)
+	return maybeAutoPublish(cmd, t.autoPublish, gun, config, t.retriever)
 }
 
 func (t *tufCommander) tufVerify(cmd *cobra.Command, args []string) error {
@@ -935,7 +935,7 @@ func (a *authRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 	return resp, nil
 }
 
-func publish(cmd *cobra.Command, doPublish bool, gun string, config *viper.Viper, passRetriever notary.PassRetriever) error {
+func maybeAutoPublish(cmd *cobra.Command, doPublish bool, gun string, config *viper.Viper, passRetriever notary.PassRetriever) error {
 
 	if !doPublish {
 		return nil
