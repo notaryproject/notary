@@ -77,7 +77,7 @@ func VerifySignatures(s *data.Signed, roleData data.BaseRole) error {
 		if key.ID() != sig.KeyID {
 			return ErrInvalidKeyID{}
 		}
-		if err := VerifySignature(msg, sig, key); err != nil {
+		if err := VerifySignature(msg, &sig, key); err != nil {
 			logrus.Debugf("continuing b/c %s", err.Error())
 			continue
 		}
@@ -94,7 +94,7 @@ func VerifySignatures(s *data.Signed, roleData data.BaseRole) error {
 }
 
 // VerifySignature checks a single signature and public key against a payload
-func VerifySignature(msg []byte, sig data.Signature, pk data.PublicKey) error {
+func VerifySignature(msg []byte, sig *data.Signature, pk data.PublicKey) error {
 	// method lookup is consistent due to Unmarshal JSON doing lower case for us.
 	method := sig.Method
 	verifier, ok := Verifiers[method]
@@ -105,5 +105,6 @@ func VerifySignature(msg []byte, sig data.Signature, pk data.PublicKey) error {
 	if err := verifier.Verify(pk, sig.Signature, msg); err != nil {
 		return fmt.Errorf("signature was invalid\n")
 	}
+	sig.IsValid = true
 	return nil
 }
