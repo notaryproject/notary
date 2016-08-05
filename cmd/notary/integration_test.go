@@ -1653,10 +1653,18 @@ func TestClientTUFInitWithAutoPublish(t *testing.T) {
 	)
 	// -- tests --
 
+	// init repo with auto publish being enabled but with a malformed URL.
+	_, err = runCommand(t, tempDir, "-s", "For the Horde!", "init", "-p", gun)
+	require.Error(t, err, "Trust server url has to be in the form of http(s)://URL:PORT.")
+	// init repo with auto publish being enabled but with an un-accessable URL.
+	_, err = runCommand(t, tempDir, "-s", "https://notary-server-on-the-moon:12306", "init", "-p", gun)
+	require.NotNil(t, err)
+	require.Equal(t, err, nstorage.ErrOffline{})
+
 	// init repo with auto publish being enabled
 	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "-p", gun)
 	require.NoError(t, err)
-	// list repo - exepect empty list
+	// list repo - expect empty list
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
 	require.NoError(t, err)
 	require.Equal(t, output, emptyList)
@@ -1666,10 +1674,10 @@ func TestClientTUFInitWithAutoPublish(t *testing.T) {
 	// Use this test to guarantee that we won't break the normal init process.
 	_, err = runCommand(t, tempDir, "-s", server.URL, "init", gunNoPublish)
 	require.NoError(t, err)
-	// list repo - exepect error
+	// list repo - expect error
 	_, err = runCommand(t, tempDir, "-s", server.URL, "list", gunNoPublish)
 	require.NotNil(t, err)
-	require.Equal(t, err, nstorage.ErrMetaNotFound{Resource: "root"})
+	require.Equal(t, err, nstorage.ErrMetaNotFound{Resource: data.CanonicalRootRole})
 }
 
 func TestClientTUFAddWithAutoPublish(t *testing.T) {
@@ -1690,6 +1698,7 @@ func TestClientTUFAddWithAutoPublish(t *testing.T) {
 	var (
 		output          = ""
 		target          = "ShangXi"
+		target2         = "ChenStormstout"
 		targetNoPublish = "Shen-zinSu"
 		gun             = "MistsOfPandaria"
 	)
@@ -1698,13 +1707,25 @@ func TestClientTUFAddWithAutoPublish(t *testing.T) {
 	// init repo with auto publish being enabled
 	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "-p", gun)
 	require.NoError(t, err)
-	// add a target with auto publish being enabled
-	_, err = runCommand(t, tempDir, "-s", server.URL, "add", "-p", gun, target, tempFile.Name())
+
+	// add a target with auto publish being enabled, but without the server URL
+	_, err = runCommand(t, tempDir, "add", "-p", gun, target, tempFile.Name())
+	require.NotNil(t, err)
+	require.Equal(t, err, nstorage.ErrOffline{})
+	// check status, since we only fail the auto publishment in the previous step,
+	// the change should still exists.
+	output, err = runCommand(t, tempDir, "status", gun)
 	require.NoError(t, err)
-	// list repo - expect target
+
+	// add a target with auto publish being enabled, and with the server URL
+	_, err = runCommand(t, tempDir, "-s", server.URL, "add", "-p", gun, target2, tempFile.Name())
+	require.NoError(t, err)
+	// list repo, since the auto publish flag will try to publish all the staged changes,
+	// so the target and target2 should be in the list.
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
 	require.NoError(t, err)
 	require.True(t, strings.Contains(output, target))
+	require.True(t, strings.Contains(output, target2))
 
 	// add a target without auto publish being enabled
 	//
