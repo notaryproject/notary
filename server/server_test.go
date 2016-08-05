@@ -317,8 +317,8 @@ func TestRotateKeyEndpoint(t *testing.T) {
 	defer ts.Close()
 
 	rolesToStatus := map[string]int{
-		data.CanonicalTimestampRole: http.StatusOK, // just returning same as GetKey endpoint right now
-		data.CanonicalSnapshotRole:  http.StatusOK, // just returning same as GetKey endpoint right now
+		data.CanonicalTimestampRole: http.StatusOK,
+		data.CanonicalSnapshotRole:  http.StatusOK,
 		data.CanonicalTargetsRole:   http.StatusNotFound,
 		data.CanonicalRootRole:      http.StatusNotFound,
 		"targets/delegation":        http.StatusNotFound,

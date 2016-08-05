@@ -2791,7 +2791,7 @@ func TestRotateKeyAfterPublishServerManagementChange(t *testing.T) {
 		data.CanonicalRootRole:     false,
 	})
 	// check that the snapshot remote rotation creates new keys
-	testRotateKeySuccess(t, false, map[string]bool{
+	testRotateKeySuccess(t, true, map[string]bool{
 		data.CanonicalSnapshotRole: true,
 	})
 	// check that the timestamp remote rotation creates new keys
@@ -2833,6 +2833,11 @@ func testRotateKeySuccess(t *testing.T, serverManagesSnapshotInit bool,
 		if !serverManaged {
 			keysToExpectCreated = append(keysToExpectCreated, role)
 		}
+	}
+
+	for _, role := range keysToExpectCreated {
+		// We can't tell which ID in particular to expect from just the role, so check we have at least one key for this role on disk
+		require.True(t, len(repo.CryptoService.ListKeys(role)) > 0, fmt.Sprintf("could not find key on disk for role %s", role))
 	}
 }
 

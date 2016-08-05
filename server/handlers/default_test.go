@@ -148,18 +148,22 @@ func TestKeyHandlersNoRoleOrRepo(t *testing.T) {
 	}
 }
 
-// Getting a key for a non-supported role results in a 400.
-func TestGetKeyHandlerInvalidRole(t *testing.T) {
+// GetKeyHandler and RotateKeyHandler called for a non-supported role results in a 400.
+func TestKeyHandlersInvalidRole(t *testing.T) {
 	state := defaultState()
-	vars := map[string]string{
-		"imageName": "gun",
-		"tufRole":   data.CanonicalRootRole,
-	}
-	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
+	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
+		for _, role := range []string{data.CanonicalRootRole, data.CanonicalTargetsRole, "targets/a", "invalidrole"} {
+			vars := map[string]string{
+				"imageName": "gun",
+				"tufRole":   role,
+			}
+			req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 
-	err := getKeyHandler(getContext(state), httptest.NewRecorder(), req, vars)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid role")
+			err := keyHandler(getContext(state), httptest.NewRecorder(), req, vars)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "invalid role")
+		}
+	}
 }
 
 // Getting the key for a valid role and gun succeeds
@@ -177,34 +181,19 @@ func TestGetKeyHandlerCreatesOnce(t *testing.T) {
 	}
 }
 
-// Rotating a key for a non-supported role results in a 400.
-func TestRotateKeyHandlerInvalidRole(t *testing.T) {
-	state := defaultState()
-	for _, role := range []string{data.CanonicalRootRole, data.CanonicalTargetsRole, "targets/a", "invalidrole"} {
-		vars := map[string]string{
-			"imageName": "gun",
-			"tufRole":   role,
-		}
-		req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
-
-		err := rotateKeyHandler(getContext(state), httptest.NewRecorder(), req, vars)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid role")
-	}
-}
-
-// Rotating the key fails if we don't pass a valid key algorithm
-func TestRotateKeyHandlerInvalidKeyAlgo(t *testing.T) {
+// Getting or rotating the key fails if we don't pass a valid key algorithm
+func TestKeyHandlersInvalidKeyAlgo(t *testing.T) {
 	roles := []string{data.CanonicalTimestampRole, data.CanonicalSnapshotRole}
 	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
-
-	for _, role := range roles {
-		vars := map[string]string{"imageName": "gun", "tufRole": role}
-		recorder := httptest.NewRecorder()
-		invalidKeyAlgoState := defaultState()
-		invalidKeyAlgoState.keyAlgo = "notactuallyakeyalgorithm"
-		err := rotateKeyHandler(getContext(invalidKeyAlgoState), recorder, req, vars)
-		require.Error(t, err)
+	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
+		for _, role := range roles {
+			vars := map[string]string{"imageName": "gun", "tufRole": role}
+			recorder := httptest.NewRecorder()
+			invalidKeyAlgoState := defaultState()
+			invalidKeyAlgoState.keyAlgo = "notactuallyakeyalgorithm"
+			err := keyHandler(getContext(invalidKeyAlgoState), recorder, req, vars)
+			require.Error(t, err)
+		}
 	}
 }
 
