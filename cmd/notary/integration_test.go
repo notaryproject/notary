@@ -1656,7 +1656,7 @@ func TestClientTUFInitWithAutoPublish(t *testing.T) {
 	// init repo with auto publish being enabled but with a malformed URL.
 	_, err = runCommand(t, tempDir, "-s", "For the Horde!", "init", "-p", gun)
 	require.Error(t, err, "Trust server url has to be in the form of http(s)://URL:PORT.")
-	// init repo with auto publish being enabled but with an un-accessable URL.
+	// init repo with auto publish being enabled but with an unaccessible URL.
 	_, err = runCommand(t, tempDir, "-s", "https://notary-server-on-the-moon:12306", "init", "-p", gun)
 	require.NotNil(t, err)
 	require.Equal(t, err, nstorage.ErrOffline{})
@@ -1961,4 +1961,113 @@ func TestClientDelegationRemoveWithAutoPublish(t *testing.T) {
 	require.NoError(t, err)
 	require.NotContains(t, output, keyID)
 	require.NotContains(t, output, keyID2)
+}
+
+// TestClientTUFAddByHashWithAutoPublish is similar to TestClientTUFAddByHashInteraction,
+// but with the auto publish flag "-p".
+func TestClientTUFAddByHashWithAutoPublish(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	targetData := []byte{'a', 'b', 'c'}
+	target256Bytes := sha256.Sum256(targetData)
+	targetSha256Hex := hex.EncodeToString(target256Bytes[:])
+	target512Bytes := sha512.Sum512(targetData)
+	targetSha512Hex := hex.EncodeToString(target512Bytes[:])
+
+	err := ioutil.WriteFile(filepath.Join(tempDir, "tempfile"), targetData, 0644)
+	require.NoError(t, err)
+
+	var (
+		output  string
+		target1 = "sdgkadga"
+		target2 = "asdfasdf"
+		target3 = "qwerty"
+	)
+	// -- tests --
+
+	// init repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun", "-p")
+	require.NoError(t, err)
+
+	// add a target just by sha256
+	_, err = runCommand(t, tempDir, "-s", server.URL, "addhash", "-p", "gun", target1, "3", "--sha256", targetSha256Hex)
+	require.NoError(t, err)
+
+	// check status - no targets
+	output, err = runCommand(t, tempDir, "status", "gun")
+	require.NoError(t, err)
+	require.False(t, strings.Contains(string(output), target1))
+
+	// list repo - see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(output), target1))
+
+	// lookup target and repo - see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target1)
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(output), target1))
+
+	// remove target
+	_, err = runCommand(t, tempDir, "-s", server.URL, "remove", "-p", "gun", target1)
+	require.NoError(t, err)
+
+	// list repo - don't see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.False(t, strings.Contains(string(output), target1))
+
+	// add a target just by sha512
+	_, err = runCommand(t, tempDir, "-s", server.URL, "addhash", "-p", "gun", target2, "3", "--sha512", targetSha512Hex)
+	require.NoError(t, err)
+
+	// check status - no targets
+	output, err = runCommand(t, tempDir, "status", "gun")
+	require.NoError(t, err)
+	require.False(t, strings.Contains(string(output), target2))
+
+	// list repo - see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(output), target2))
+
+	// lookup target and repo - see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target2)
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(output), target2))
+
+	// remove target
+	_, err = runCommand(t, tempDir, "-s", server.URL, "remove", "-p", "gun", target2)
+	require.NoError(t, err)
+
+	// add a target by sha256 and sha512
+	_, err = runCommand(t, tempDir, "-s", server.URL, "addhash", "-p", "gun",
+		target3, "3", "--sha256", targetSha256Hex, "--sha512", targetSha512Hex)
+	require.NoError(t, err)
+
+	// check status - no targets
+	output, err = runCommand(t, tempDir, "status", "gun")
+	require.NoError(t, err)
+	require.False(t, strings.Contains(string(output), target3))
+
+	// list repo - see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(output), target3))
+
+	// lookup target and repo - see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target3)
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(output), target3))
+
+	// remove target
+	_, err = runCommand(t, tempDir, "-s", server.URL, "remove", "-p", "gun", target3)
+	require.NoError(t, err)
 }
