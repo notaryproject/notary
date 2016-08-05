@@ -14,10 +14,6 @@ import (
 	"github.com/docker/notary/tuf/utils"
 )
 
-const (
-	rsaKeySize = 2048 // Used for snapshots and targets keys
-)
-
 var (
 	// ErrNoValidPrivateKey is returned if a key being imported doesn't
 	// look like a private key
