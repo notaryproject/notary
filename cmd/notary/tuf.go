@@ -152,6 +152,7 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmdTUFAddHash.Flags().StringSliceVarP(&t.roles, "roles", "r", nil, "Delegation roles to add this target to")
 	cmdTUFAddHash.Flags().StringVar(&t.sha256, notary.SHA256, "", "hex encoded sha256 of the target to add")
 	cmdTUFAddHash.Flags().StringVar(&t.sha512, notary.SHA512, "", "hex encoded sha512 of the target to add")
+	cmdTUFAddHash.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
 	cmd.AddCommand(cmdTUFAddHash)
 
 	cmdTUFVerify := cmdTUFVerifyTemplate.ToCommand(t.tufVerify)
@@ -274,7 +275,8 @@ func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 	cmd.Printf(
 		"Addition of target \"%s\" by %s hash to repository \"%s\" staged for next publish.\n",
 		targetName, strings.Join(hashesUsed, ", "), gun)
-	return nil
+
+	return maybeAutoPublish(cmd, t.autoPublish, gun, config, t.retriever)
 }
 
 func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
