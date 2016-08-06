@@ -1268,8 +1268,16 @@ func TestClientKeyGenerationRotation(t *testing.T) {
 	// publish using the new keys
 	output := assertSuccessfullyPublish(
 		t, tempDir, server.URL, "gun", target+"2", tempfiles[1])
-	// assert that the previous target is sitll there
-	require.Contains(t, output, target)
+	// assert that the previous target is still there
+	require.True(t, strings.Contains(string(output), target))
+
+	// rotate the snapshot and timestamp keys on the server, multiple times
+	for i := 0; i < 10; i++ {
+		_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalSnapshotRole, "-r")
+		require.NoError(t, err)
+		_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalTimestampRole, "-r")
+		require.NoError(t, err)
+	}
 }
 
 // Tests default root key generation
