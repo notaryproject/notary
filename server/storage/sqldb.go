@@ -37,7 +37,7 @@ func translateOldVersionError(err error) error {
 		// 1022 = Can't write; duplicate key in table '%s'
 		// 1062 = Duplicate entry '%s' for key %d
 		if err.Number == 1022 || err.Number == 1062 {
-			return &ErrOldVersion{}
+			return ErrOldVersion{}
 		}
 	}
 	return err
@@ -52,7 +52,7 @@ func (db *SQLStorage) UpdateCurrent(gun string, update MetaUpdate) error {
 		gun, update.Role, update.Version).First(&TUFFile{})
 
 	if !exists.RecordNotFound() {
-		return &ErrOldVersion{}
+		return ErrOldVersion{}
 	}
 	checksum := sha256.Sum256(update.Data)
 	return translateOldVersionError(db.Create(&TUFFile{
@@ -92,7 +92,7 @@ func (db *SQLStorage) UpdateMany(gun string, updates []MetaUpdate) error {
 			gun, update.Role, update.Version).First(&TUFFile{})
 
 		if !query.RecordNotFound() {
-			return rollback(&ErrOldVersion{})
+			return rollback(ErrOldVersion{})
 		}
 
 		var row TUFFile
@@ -110,7 +110,7 @@ func (db *SQLStorage) UpdateMany(gun string, updates []MetaUpdate) error {
 		// it's previously been added, which means it's a duplicate entry
 		// in the same transaction
 		if _, ok := added[row.ID]; ok {
-			return rollback(&ErrOldVersion{})
+			return rollback(ErrOldVersion{})
 		}
 		added[row.ID] = true
 	}
