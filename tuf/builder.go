@@ -18,7 +18,7 @@ var ErrBuildDone = fmt.Errorf(
 	"the builder has finished building and cannot accept any more input or produce any more output")
 
 // ErrInvalidBuilderInput is returned when RepoBuilder.Load is called
-// with the wrong type of metadata for thes tate that it's in
+// with the wrong type of metadata for the state that it's in
 type ErrInvalidBuilderInput struct{ msg string }
 
 func (e ErrInvalidBuilderInput) Error() string {
@@ -349,7 +349,7 @@ func (rb *repoBuilder) GenerateTimestamp(prev *data.SignedTimestamp) ([]byte, in
 		return nil, 0, ErrInvalidBuilderInput{msg: "timestamp has already been loaded"}
 	}
 
-	// SignTimetamp always serializes the loaded snapshot and signs in the data, so we must always
+	// SignTimestamp always serializes the loaded snapshot and signs in the data, so we must always
 	// have the snapshot loaded first
 	if err := rb.checkPrereqsLoaded([]string{data.CanonicalRootRole, data.CanonicalSnapshotRole}); err != nil {
 		return nil, 0, err
@@ -422,7 +422,6 @@ func (rb *repoBuilder) loadRoot(content []byte, minVersion int, allowExpired boo
 	if err != nil { // this should never happen since the root has been validated
 		return err
 	}
-
 	rb.repo.Root = signedRoot
 	rb.repo.originalRootRole = rootRole
 	return nil

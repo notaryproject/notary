@@ -64,7 +64,7 @@ func RotateTimestampKey(gun string, store storage.MetaStore, crypto signed.Crypt
 	if err != nil {
 		return nil, err
 	}
-	logrus.Debug("Created new pending timestamp key to rotate to for ", gun, ". With algo: ", key.Algorithm())
+	logrus.Debug("Created new pending timestamp key ", key.ID(), "to rotate to for ", gun, ". With algo: ", key.Algorithm())
 	return key, nil
 }
 

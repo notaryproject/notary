@@ -107,27 +107,34 @@ func (c *TUFClient) downloadTimestamp() error {
 	role := data.CanonicalTimestampRole
 	consistentInfo := c.newBuilder.GetConsistentInfo(role)
 
-	// get the cached timestamp, if it exists
+	// always get the remote timestamp, since it supersedes the local one
 	cachedTS, cachedErr := c.cache.GetSized(role, notary.MaxTimestampSize)
-	// always get the remote timestamp, since it supercedes the local one
 	_, remoteErr := c.tryLoadRemote(consistentInfo, cachedTS)
 
-	switch {
-	case remoteErr == nil:
+	// check that there was no remote error, or if there was a network problem
+	// If there was a validation error, we should error out so we can download a new root or fail the update
+	switch remoteErr.(type) {
+	case nil:
 		return nil
-	case cachedErr == nil:
-		logrus.Debug(remoteErr.Error())
-		logrus.Warn("Error while downloading remote metadata, using cached timestamp - this might not be the latest version available remotely")
-
-		err := c.newBuilder.Load(role, cachedTS, 1, false)
-		if err == nil {
-			logrus.Debug("successfully verified cached timestamp")
-		}
-		return err
+	case store.ErrMetaNotFound, store.ErrServerUnavailable:
+		break
 	default:
+		return remoteErr
+	}
+
+	// since it was a network error: get the cached timestamp, if it exists
+	if cachedErr != nil {
 		logrus.Debug("no cached or remote timestamp available")
 		return remoteErr
 	}
+
+	logrus.Warn("Error while downloading remote metadata, using cached timestamp - this might not be the latest version available remotely")
+	err := c.newBuilder.Load(role, cachedTS, 1, false)
+	if err == nil {
+		logrus.Debug("successfully verified cached timestamp")
+	}
+	return err
+
 }
 
 // downloadSnapshot is responsible for downloading the snapshot.json
@@ -220,7 +227,6 @@ func (c *TUFClient) tryLoadRemote(consistentInfo tuf.ConsistentInfo, old []byte)
 	// will be 1
 	c.oldBuilder.Load(consistentInfo.RoleName, old, 1, true)
 	minVersion := c.oldBuilder.GetLoadedVersion(consistentInfo.RoleName)
-
 	if err := c.newBuilder.Load(consistentInfo.RoleName, raw, minVersion, false); err != nil {
 		logrus.Debugf("downloaded %s is invalid: %s", consistentName, err)
 		return raw, err

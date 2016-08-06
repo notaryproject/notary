@@ -2827,18 +2827,6 @@ func testRotateKeySuccess(t *testing.T, serverManagesSnapshotInit bool,
 	// Get root.json and capture targets + snapshot key IDs
 	_, err := repo.GetTargetByName("latest")
 	require.NoError(t, err)
-
-	var keysToExpectCreated []string
-	for role, serverManaged := range keysToRotate {
-		if !serverManaged {
-			keysToExpectCreated = append(keysToExpectCreated, role)
-		}
-	}
-
-	for _, role := range keysToExpectCreated {
-		// We can't tell which ID in particular to expect from just the role, so check we have at least one key for this role on disk
-		require.True(t, len(repo.CryptoService.ListKeys(role)) > 0, fmt.Sprintf("could not find key on disk for role %s", role))
-	}
 }
 
 func logRepoTrustRoot(t *testing.T, prefix string, repo *NotaryRepository) {
