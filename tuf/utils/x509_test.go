@@ -140,16 +140,19 @@ func TestKeyOperations(t *testing.T) {
 	stringEncryptedEDKey := string(encryptedEDKey)
 	require.True(t, strings.Contains(stringEncryptedEDKey, "-----BEGIN ED25519 PRIVATE KEY-----"))
 	require.True(t, strings.Contains(stringEncryptedEDKey, "Proc-Type: 4,ENCRYPTED"))
+	require.True(t, strings.Contains(stringEncryptedEDKey, "role: root"))
 
 	// Check to see if EC key it is encrypted
 	stringEncryptedECKey := string(encryptedECKey)
 	require.True(t, strings.Contains(stringEncryptedECKey, "-----BEGIN EC PRIVATE KEY-----"))
 	require.True(t, strings.Contains(stringEncryptedECKey, "Proc-Type: 4,ENCRYPTED"))
+	require.True(t, strings.Contains(stringEncryptedECKey, "role: root"))
 
 	// Check to see if RSA key it is encrypted
 	stringEncryptedRSAKey := string(encryptedRSAKey)
 	require.True(t, strings.Contains(stringEncryptedRSAKey, "-----BEGIN RSA PRIVATE KEY-----"))
 	require.True(t, strings.Contains(stringEncryptedRSAKey, "Proc-Type: 4,ENCRYPTED"))
+	require.True(t, strings.Contains(stringEncryptedRSAKey, "role: root"))
 
 	// Decrypt our ED Key
 	decryptedEDKey, err := ParsePEMPrivateKey(encryptedEDKey, "ponies")
@@ -166,6 +169,19 @@ func TestKeyOperations(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, rsaKey.Private(), decryptedRSAKey.Private())
 
+	// quick test that gun headers are being added appropriately
+	// Encrypt our RSA Key, one type of key should be enough since headers are treated the same
+	testGunKey, err := EncryptPrivateKey(rsaKey, "root", "ilove", "ponies")
+	require.NoError(t, err)
+
+	testNoGunKey, err := EncryptPrivateKey(rsaKey, "root", "", "ponies")
+	require.NoError(t, err)
+
+	stringTestGunKey := string(testGunKey)
+	require.True(t, strings.Contains(stringTestGunKey, "gun: ilove"))
+
+	stringTestNoGunKey := string(testNoGunKey)
+	require.False(t, strings.Contains(stringTestNoGunKey, "gun:"))
 }
 
 // X509PublickeyID returns the public key ID of a RSA X509 key rather than the

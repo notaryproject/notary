@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"github.com/docker/notary"
+	"github.com/docker/notary/tuf/data"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
@@ -238,6 +239,8 @@ func TestImportKeys(t *testing.T) {
 	c.Bytes, _ = ioutil.ReadAll(from)
 	rand.Read(c.Bytes)
 	c.Headers["path"] = "morpork"
+	c.Headers["role"] = data.CanonicalSnapshotRole
+	c.Headers["gun"] = "somegun"
 
 	bBytes := pem.EncodeToMemory(b)
 	cBytes := pem.EncodeToMemory(c)
@@ -260,6 +263,8 @@ func TestImportKeys(t *testing.T) {
 	require.Equal(t, c.Bytes, cFinal.Bytes)
 	_, ok = cFinal.Headers["path"]
 	require.False(t, ok, "expected no path header, should have been removed at import")
+	require.Equal(t, data.CanonicalSnapshotRole, cFinal.Headers["role"])
+	require.Equal(t, "somegun", cFinal.Headers["gun"])
 	require.Len(t, cRest, 0)
 }
 
@@ -301,11 +306,11 @@ func TestNonRootPathInference(t *testing.T) {
 
 	in := bytes.NewBuffer(b.Bytes)
 
-	err := ImportKeys(in, []Importer{s}, "somerole", "somegun", passphraseRetriever)
+	err := ImportKeys(in, []Importer{s}, data.CanonicalSnapshotRole, "somegun", passphraseRetriever)
 	require.NoError(t, err)
 
 	for key := range s.data {
-		// no path but role included should work
+		// no path but role included should work and 12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497 is the key ID of the fixture
 		require.Equal(t, key, filepath.Join(notary.NonRootKeysSubdir, "somegun", "12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497"))
 	}
 }
@@ -326,8 +331,12 @@ func TestBlockHeaderPrecedence(t *testing.T) {
 	require.NoError(t, err)
 
 	for key := range s.data {
-		// block header role should take precedence over command line flag
-		require.Equal(t, key, filepath.Join(notary.RootKeysSubdir, "12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497"))
+		// block header role= root should take precedence over command line flag
+		require.Equal(t, key, filepath.Join(notary.NonRootKeysSubdir, "anothergun", "12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497"))
+		final, rest := pem.Decode(s.data[key])
+		require.Len(t, rest, 0)
+		require.Equal(t, final.Headers["role"], "snapshot")
+		require.Equal(t, final.Headers["gun"], "anothergun")
 	}
 }
 
