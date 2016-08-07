@@ -105,10 +105,7 @@ func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGun 
 		toWrite []byte
 	)
 	for block, rest := pem.Decode(data); block != nil; block, rest = pem.Decode(rest) {
-		if block.Headers["role"] == "" {
-			// no worries about if check as for GUN here because empty roles will get a role:notary.DefaultImportRole
-			block.Headers["role"] = fallbackRole
-		}
+		// if there is a path then we set the gun header from this path
 		if rawPath := block.Headers["path"]; rawPath != "" {
 			pathWOFileName := strings.TrimSuffix(rawPath, filepath.Base(rawPath))
 			if strings.HasPrefix(pathWOFileName, notary.NonRootKeysSubdir) {
@@ -121,34 +118,73 @@ func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGun 
 				block.Headers["gun"] = fallbackGun
 			}
 		}
+		if block.Headers["role"] == "" {
+			if fallbackRole == "" {
+				block.Headers["role"] = notary.DefaultImportRole
+			} else {
+				block.Headers["role"] = fallbackRole
+			}
+		}
 		loc, ok := block.Headers["path"]
 		// only if the path isn't specified do we get into this parsing path logic
 		if !ok || loc == "" {
-			if block.Headers["role"] == "" {
-				// now we have no clue where to copy this key so we skip it since we have no path or role
-				logrus.Info("failed to import key to store: PEM headers did not contain import path")
-				continue
-			}
 			// if the path isn't specified, we will try to infer the path rel to trust dir from the role (and then gun)
-
+			// parse key for the keyID which we will save it by.
+			// if the key is encrypted at this point, we will generate an error and continue since we don't know the ID to save it by
 			decodedKey, err := utils.ParsePEMPrivateKey(pem.EncodeToMemory(block), "")
 			if err != nil {
 				logrus.Info("failed to import key to store: Invalid key generated, key may be encrypted and does not contain path header")
 				continue
 			}
 			keyID := decodedKey.ID()
-
 			if block.Headers["role"] == tufdata.CanonicalRootRole {
-				// does not make sense for root keys to have GUNs, so import it without the GUN even if specified
+				// this is a root key so import it to trustDir/root_keys/
 				loc = filepath.Join(notary.RootKeysSubdir, keyID)
-			} else {
-				// additional path inference from gun
+			} else if block.Headers["role"] == tufdata.CanonicalSnapshotRole || block.Headers["role"] == tufdata.CanonicalTargetsRole || block.Headers["role"] == tufdata.CanonicalTimestampRole {
 				loc = filepath.Join(notary.NonRootKeysSubdir, block.Headers["gun"], keyID)
+			} else {
+				loc = filepath.Join(notary.NonRootKeysSubdir, keyID)
+			}
+			switch block.Headers["role"] {
+			case tufdata.CanonicalRootRole:
+				// this is a root key so import it to trustDir/root_keys/
+				loc = filepath.Join(notary.RootKeysSubdir, keyID)
+			case tufdata.CanonicalSnapshotRole, tufdata.CanonicalTargetsRole, tufdata.CanonicalTimestampRole:
+				// this is a canonical key
+				loc = filepath.Join(notary.NonRootKeysSubdir, block.Headers["gun"], keyID)
+			default:
+				//this is a delegation key
+				loc = filepath.Join(notary.NonRootKeysSubdir, keyID)
 			}
 		}
-		// this is the path + no-role case where we assume the key is a delegation key
-		if block.Headers["role"] == "" {
-			block.Headers["role"] = notary.DefaultImportRole
+
+		// A root key or a delegations key should not have a gun
+		// Note that a key that is not any of the canonical roles (except root) is a delegations key and should not have a gun
+		if block.Headers["role"] != tufdata.CanonicalSnapshotRole && block.Headers["role"] != tufdata.CanonicalTargetsRole && block.Headers["role"] != tufdata.CanonicalTimestampRole {
+			delete(block.Headers, "gun")
+		}
+
+		// the path header is not of any use once we've imported the key so strip it away
+		delete(block.Headers, "path")
+
+		// we are now all set for import but let's first encrypt the key
+		blockBytes := pem.EncodeToMemory(block)
+		// check if key is encrypted, note: if it is encrypted at this point, it will have had a path header
+		if privKey, err := utils.ParsePEMPrivateKey(blockBytes, ""); err == nil {
+			// Key is not encrypted- ask for a passphrase and encrypt this key
+			var chosenPassphrase string
+			for attempts := 0; ; attempts++ {
+				var giveup bool
+				chosenPassphrase, giveup, err = passRet(loc, block.Headers["role"], true, attempts)
+				if err != nil {
+					continue
+				}
+				if giveup || attempts > 10 {
+					fmt.Println("exceeded attempts")
+				}
+				break
+			}
+			blockBytes, _ = utils.EncryptPrivateKey(privKey, block.Headers["role"], block.Headers["gun"], chosenPassphrase)
 		}
 
 		if loc != writeTo {
@@ -164,28 +200,8 @@ func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGun 
 			toWrite = nil
 			writeTo = loc
 		}
-		delete(block.Headers, "path")
 
-		// check if a key is not encrypted- if it isn't then ask for a passphrase and encrypt it
-		toSave := pem.EncodeToMemory(block)
-		if privKey, err := utils.ParsePEMPrivateKey(toSave, ""); err == nil {
-			// Key is not encrypted- ask for a passphrase and encrypt this key
-			var chosenPassphrase string
-			for attempts := 0; ; attempts++ {
-				var giveup bool
-				chosenPassphrase, giveup, err = passRet(loc, block.Headers["role"], true, attempts)
-				if err != nil {
-					continue
-				}
-				if giveup || attempts > 10 {
-					fmt.Println("exceeded attempts")
-				}
-				break
-			}
-			toSave, _ = utils.EncryptPrivateKey(privKey, block.Headers["role"], block.Headers["gun"], chosenPassphrase)
-		}
-
-		toWrite = append(toWrite, toSave...)
+		toWrite = append(toWrite, blockBytes...)
 	}
 	if toWrite != nil { // close out final iteration if there's data left
 		return importToStores(to, writeTo, toWrite)

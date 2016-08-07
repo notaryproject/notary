@@ -454,6 +454,7 @@ func EncryptPrivateKey(key data.PrivateKey, role, gun, passphrase string) ([]byt
 		return nil, fmt.Errorf("unable to encrypt key - invalid PEM file produced")
 	}
 	encryptedPEMBlock.Headers["role"] = role
+
 	if gun != "" {
 		encryptedPEMBlock.Headers["gun"] = gun
 	}
