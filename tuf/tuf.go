@@ -253,6 +253,10 @@ func (tr *Repo) GetDelegationRole(name string) (data.DelegationRole, error) {
 						continue
 					}
 					if err := utils.ValidateCertificate(certFromKey, true); err != nil {
+						if _, ok := err.(data.ErrCertExpired); !ok {
+							// do not allow other invalid cert errors
+							return err
+						}
 						logrus.Warnf("error with delegation %s key ID %d: %s", delgRole.Name, keyID, err)
 					}
 				}

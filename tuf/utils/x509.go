@@ -264,18 +264,6 @@ func ValidateCertificate(c *x509.Certificate, checkExpiry bool) error {
 	if (c.NotBefore).After(c.NotAfter) {
 		return fmt.Errorf("certificate validity window is invalid")
 	}
-	if checkExpiry {
-		now := time.Now()
-		tomorrow := now.AddDate(0, 0, 1)
-		// Give one day leeway on creation "before" time, check "after" against today
-		if (tomorrow).Before(c.NotBefore) || now.After(c.NotAfter) {
-			return fmt.Errorf("certificate with CN %s is expired", c.Subject.CommonName)
-		}
-		// If this certificate is expiring within 6 months, put out a warning
-		if (c.NotAfter).Before(time.Now().AddDate(0, 6, 0)) {
-			logrus.Warnf("certificate with CN %s is near expiry", c.Subject.CommonName)
-		}
-	}
 	// Can't have SHA1 sig algorithm
 	if c.SignatureAlgorithm == x509.SHA1WithRSA || c.SignatureAlgorithm == x509.DSAWithSHA1 || c.SignatureAlgorithm == x509.ECDSAWithSHA1 {
 		return fmt.Errorf("certificate with CN %s uses invalid SHA1 signature algorithm", c.Subject.CommonName)
@@ -288,6 +276,18 @@ func ValidateCertificate(c *x509.Certificate, checkExpiry bool) error {
 		}
 		if rsaKey.N.BitLen() < notary.MinRSABitSize {
 			return fmt.Errorf("RSA bit length is too short")
+		}
+	}
+	if checkExpiry {
+		now := time.Now()
+		tomorrow := now.AddDate(0, 0, 1)
+		// Give one day leeway on creation "before" time, check "after" against today
+		if (tomorrow).Before(c.NotBefore) || now.After(c.NotAfter) {
+			return data.ErrCertExpired{CN: c.Subject.CommonName}
+		}
+		// If this certificate is expiring within 6 months, put out a warning
+		if (c.NotAfter).Before(time.Now().AddDate(0, 6, 0)) {
+			logrus.Warnf("certificate with CN %s is near expiry", c.Subject.CommonName)
 		}
 	}
 	return nil
