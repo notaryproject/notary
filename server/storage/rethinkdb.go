@@ -165,7 +165,7 @@ func (rdb RethinkDB) UpdateCurrent(gun string, update MetaUpdate) error {
 		},
 	).RunWrite(rdb.sess)
 	if err != nil && gorethink.IsConflictErr(err) {
-		return &ErrOldVersion{}
+		return ErrOldVersion{}
 	}
 	return err
 }
@@ -195,7 +195,7 @@ func (rdb RethinkDB) UpdateCurrentWithTSChecksum(gun, tsChecksum string, update 
 		},
 	).RunWrite(rdb.sess)
 	if err != nil && gorethink.IsConflictErr(err) {
-		return &ErrOldVersion{}
+		return ErrOldVersion{}
 	}
 	return err
 }

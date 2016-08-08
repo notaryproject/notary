@@ -118,7 +118,7 @@ func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore, oldVersionExists b
 	tufObj := SampleCustomTUFObj(gun, role, version, nil)
 	err := s.UpdateCurrent(gun, MakeUpdate(tufObj))
 	require.Error(t, err, "Error should not be nil")
-	require.IsType(t, &ErrOldVersion{}, err,
+	require.IsType(t, ErrOldVersion{}, err,
 		"Expected ErrOldVersion error type, got: %v", err)
 
 	assertExpectedTUFMetaInStore(t, s, expected[:2], false)
@@ -199,14 +199,14 @@ func testUpdateManyConflictRollback(t *testing.T, s MetaStore) []StoredTUFMeta {
 
 	err := s.UpdateMany(gun, updates)
 	require.Error(t, err)
-	require.IsType(t, &ErrOldVersion{}, err)
+	require.IsType(t, ErrOldVersion{}, err)
 
 	// self-conflicting, in that it's a duplicate, but otherwise no DB conflicts
 	duplicate := SampleCustomTUFObj(gun, data.CanonicalTimestampRole, 3, []byte("duplicate"))
 	duplicateUpdate := MakeUpdate(duplicate)
 	err = s.UpdateMany(gun, []MetaUpdate{duplicateUpdate, duplicateUpdate})
 	require.Error(t, err)
-	require.IsType(t, &ErrOldVersion{}, err)
+	require.IsType(t, ErrOldVersion{}, err)
 
 	assertExpectedTUFMetaInStore(t, s, successBatch, true)
 
