@@ -11,7 +11,9 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
+	"crypto/x509"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -24,10 +26,12 @@ import (
 	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
 	"github.com/docker/notary"
+	"github.com/docker/notary/client"
 	"github.com/docker/notary/cryptoservice"
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/server"
 	"github.com/docker/notary/server/storage"
+	notaryStorage "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
@@ -245,6 +249,148 @@ func TestClientTUFInteraction(t *testing.T) {
 	require.False(t, strings.Contains(string(output), target))
 }
 
+func TestClientDeleteTUFInteraction(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	tempFile, err := ioutil.TempFile("", "targetfile")
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	// Setup certificate
+	certFile, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+	cert, _, _ := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
+	_, err = certFile.Write(utils.CertToPEM(cert))
+	defer os.Remove(certFile.Name())
+
+	var (
+		output string
+		target = "helloIamanotarytarget"
+	)
+	// -- tests --
+
+	// init repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun")
+	require.NoError(t, err)
+
+	// add a target
+	_, err = runCommand(t, tempDir, "add", "gun", target, tempFile.Name())
+	require.NoError(t, err)
+
+	// check status - see target
+	output, err = runCommand(t, tempDir, "status", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(output, target))
+
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// list repo - see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(output), target))
+
+	// add a delegation and publish
+	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", certFile.Name())
+	require.NoError(t, err)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// list delegations - see role
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(output), "targets/delegation"))
+
+	// Delete the repo metadata locally, so no need for server URL
+	output, err = runCommand(t, tempDir, "delete", "gun")
+	require.NoError(t, err)
+	assertLocalMetadataForGun(t, tempDir, "gun", false)
+
+	// list repo - see target still because remote data exists
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(output), target))
+
+	// list delegations - see role because remote data still exists
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(output), "targets/delegation"))
+
+	// Trying to delete the repo with the remote flag fails if it's given a badly formed URL
+	output, err = runCommand(t, tempDir, "-s", "//invalidURLType", "delete", "gun", "--remote")
+	require.Error(t, err)
+	// since the connection fails to parse the URL before we can delete anything, local data should exist
+	assertLocalMetadataForGun(t, tempDir, "gun", true)
+
+	// Trying to delete the repo with the remote flag fails if it's given a well-formed URL that doesn't point to a server
+	output, err = runCommand(t, tempDir, "-s", "https://invalid-server", "delete", "gun", "--remote")
+	require.Error(t, err)
+	require.IsType(t, notaryStorage.ErrOffline{}, err)
+	// In this case, local notary metadata does not exist since local deletion operates first if we have a valid transport
+	assertLocalMetadataForGun(t, tempDir, "gun", false)
+
+	// Delete the repo remotely and locally, pointing to the correct server
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delete", "gun", "--remote")
+	require.NoError(t, err)
+	assertLocalMetadataForGun(t, tempDir, "gun", false)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.Error(t, err)
+	require.IsType(t, client.ErrRepositoryNotExist{}, err)
+
+	// Silent success on extraneous deletes
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delete", "gun", "--remote")
+	require.NoError(t, err)
+	assertLocalMetadataForGun(t, tempDir, "gun", false)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.Error(t, err)
+	require.IsType(t, client.ErrRepositoryNotExist{}, err)
+
+	// Now check that we can re-publish the same repo
+	// init repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun")
+	require.NoError(t, err)
+
+	// add a target
+	_, err = runCommand(t, tempDir, "add", "gun", target, tempFile.Name())
+	require.NoError(t, err)
+
+	// check status - see target
+	output, err = runCommand(t, tempDir, "status", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(output, target))
+
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// list repo - see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.True(t, strings.Contains(string(output), target))
+}
+
+func assertLocalMetadataForGun(t *testing.T, configDir, gun string, shouldExist bool) {
+	for _, role := range data.BaseRoles {
+		fileInfo, err := os.Stat(filepath.Join(configDir, "tuf", gun, "metadata", role+".json"))
+		if shouldExist {
+			require.NoError(t, err)
+			require.NotNil(t, fileInfo)
+		} else {
+			require.Error(t, err)
+			require.Nil(t, fileInfo)
+		}
+	}
+}
+
 // Initializes a repo, adds a target, publishes the target by hash, lists the target,
 // verifies the target, and then removes the target.
 func TestClientTUFAddByHashInteraction(t *testing.T) {
@@ -405,22 +551,11 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	// Setup certificate
 	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
-
-	privKey, err := utils.GenerateECDSAKey(rand.Reader)
-	startTime := time.Now()
-	endTime := startTime.AddDate(10, 0, 0)
-	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
-	require.NoError(t, err)
-
+	cert, _, keyID := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
 	_, err = tempFile.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
-
-	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
-	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
-	keyID, err := utils.CanonicalKeyID(parsedPubKey)
-	require.NoError(t, err)
 
 	var output string
 
@@ -494,22 +629,11 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	tempFile2, err := ioutil.TempFile("", "pemfile2")
 	require.NoError(t, err)
 
-	privKey, err = utils.GenerateECDSAKey(rand.Reader)
-	startTime = time.Now()
-	endTime = startTime.AddDate(10, 0, 0)
-	cert, err = cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
-	require.NoError(t, err)
-
-	_, err = tempFile2.Write(utils.CertToPEM(cert))
-	require.NoError(t, err)
+	cert2, _, keyID2 := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
+	_, err = tempFile2.Write(utils.CertToPEM(cert2))
 	require.NoError(t, err)
 	tempFile2.Close()
 	defer os.Remove(tempFile2.Name())
-
-	rawPubBytes2, _ := ioutil.ReadFile(tempFile2.Name())
-	parsedPubKey2, _ := utils.ParsePEMPublicKey(rawPubBytes2)
-	keyID2, err := utils.CanonicalKeyID(parsedPubKey2)
-	require.NoError(t, err)
 
 	// add to the delegation by specifying the same role, this time add a scoped path
 	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", tempFile2.Name(), "--paths", "path")
@@ -777,26 +901,15 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	// Setup certificate for delegation role
 	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
-
-	privKey, err := utils.GenerateRSAKey(rand.Reader, 2048)
-	require.NoError(t, err)
-	privKeyBytesNoRole, err := utils.KeyToPEM(privKey, "")
-	require.NoError(t, err)
-	privKeyBytesWithRole, err := utils.KeyToPEM(privKey, "user")
-	require.NoError(t, err)
-	startTime := time.Now()
-	endTime := startTime.AddDate(10, 0, 0)
-	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
-	require.NoError(t, err)
-
+	cert, privKey, canonicalKeyID := generateCertPrivKeyPair(t, "gun", data.RSAKey)
 	_, err = tempFile.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
 
-	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
-	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
-	canonicalKeyID, err := utils.CanonicalKeyID(parsedPubKey)
+	privKeyBytesNoRole, err := utils.KeyToPEM(privKey, "")
+	require.NoError(t, err)
+	privKeyBytesWithRole, err := utils.KeyToPEM(privKey, "user")
 	require.NoError(t, err)
 
 	// Set up targets for publishing
@@ -951,23 +1064,11 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	// Setup another certificate
 	tempFile2, err := ioutil.TempFile("", "pemfile2")
 	require.NoError(t, err)
-
-	privKey, err = utils.GenerateECDSAKey(rand.Reader)
-	startTime = time.Now()
-	endTime = startTime.AddDate(10, 0, 0)
-	cert, err = cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
-	require.NoError(t, err)
-
-	_, err = tempFile2.Write(utils.CertToPEM(cert))
-	require.NoError(t, err)
+	cert2, _, keyID2 := generateCertPrivKeyPair(t, "gun", data.RSAKey)
+	_, err = tempFile2.Write(utils.CertToPEM(cert2))
 	require.NoError(t, err)
 	tempFile2.Close()
 	defer os.Remove(tempFile2.Name())
-
-	rawPubBytes2, _ := ioutil.ReadFile(tempFile2.Name())
-	parsedPubKey2, _ := utils.ParsePEMPublicKey(rawPubBytes2)
-	keyID2, err := utils.CanonicalKeyID(parsedPubKey2)
-	require.NoError(t, err)
 
 	// add a nested delegation under this releases role
 	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/releases/nested", tempFile2.Name(), "--paths", "nested/path")
@@ -1169,21 +1270,6 @@ func TestClientKeyGenerationRotation(t *testing.T) {
 		t, tempDir, server.URL, "gun", target+"2", tempfiles[1])
 	// assert that the previous target is sitll there
 	require.True(t, strings.Contains(string(output), target))
-}
-
-// Helper method to get the subdirectory for TUF keys
-func getKeySubdir(role, gun string) string {
-	subdir := notary.PrivDir
-	switch role {
-	case data.CanonicalRootRole:
-		return filepath.Join(subdir, notary.RootKeysSubdir)
-	case data.CanonicalTargetsRole:
-		return filepath.Join(subdir, notary.NonRootKeysSubdir, gun)
-	case data.CanonicalSnapshotRole:
-		return filepath.Join(subdir, notary.NonRootKeysSubdir, gun)
-	default:
-		return filepath.Join(subdir, notary.NonRootKeysSubdir)
-	}
 }
 
 // Tests default root key generation
@@ -1388,29 +1474,21 @@ func TestWitness(t *testing.T) {
 	server := setupServer()
 	defer server.Close()
 
-	startTime := time.Now()
-	endTime := startTime.AddDate(10, 0, 0)
-
 	// Setup certificates
 	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
-	privKey, err := utils.GenerateECDSAKey(rand.Reader)
-	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
-	require.NoError(t, err)
+
+	cert, privKey, keyID := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
 	_, err = tempFile.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
-	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
-	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
-	keyID, err := utils.CanonicalKeyID(parsedPubKey)
+
+	// Setup another certificate
+	tempFile2, err := ioutil.TempFile("", "pemfile2")
 	require.NoError(t, err)
 
-	tempFile2, err := ioutil.TempFile("", "pemfile")
-	require.NoError(t, err)
-	privKey2, err := utils.GenerateECDSAKey(rand.Reader)
-	cert2, err := cryptoservice.GenerateCertificate(privKey2, "gun", startTime, endTime)
-	require.NoError(t, err)
+	cert2, privKey2, _ := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
 	_, err = tempFile2.Write(utils.CertToPEM(cert2))
 	require.NoError(t, err)
 	tempFile2.Close()
@@ -1525,4 +1603,27 @@ func TestWitness(t *testing.T) {
 		_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
 		require.Error(t, err)
 	}
+}
+
+func generateCertPrivKeyPair(t *testing.T, gun, keyAlgorithm string) (*x509.Certificate, data.PrivateKey, string) {
+	// Setup certificate
+	var privKey data.PrivateKey
+	var err error
+	switch keyAlgorithm {
+	case data.ECDSAKey:
+		privKey, err = utils.GenerateECDSAKey(rand.Reader)
+	case data.RSAKey:
+		privKey, err = utils.GenerateRSAKey(rand.Reader, 4096)
+	default:
+		err = fmt.Errorf("invalid key algorithm provided: %s", keyAlgorithm)
+	}
+	require.NoError(t, err)
+	startTime := time.Now()
+	endTime := startTime.AddDate(10, 0, 0)
+	cert, err := cryptoservice.GenerateCertificate(privKey, gun, startTime, endTime)
+	require.NoError(t, err)
+	parsedPubKey, _ := utils.ParsePEMPublicKey(utils.CertToPEM(cert))
+	keyID, err := utils.CanonicalKeyID(parsedPubKey)
+	require.NoError(t, err)
+	return cert, privKey, keyID
 }
