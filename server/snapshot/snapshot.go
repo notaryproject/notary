@@ -24,11 +24,7 @@ func GetOrCreateSnapshotKey(gun string, store storage.MetaStore, crypto signed.C
 			logrus.Errorf("Error when retrieving root role for GUN %s: %v", gun, err)
 			return nil, err
 		}
-		key, err := crypto.Create(data.CanonicalSnapshotRole, gun, createAlgorithm)
-		if err != nil {
-			return nil, err
-		}
-		return key, nil
+		return crypto.Create(data.CanonicalSnapshotRole, gun, createAlgorithm)
 	}
 
 	// If we have a current root, parse out the public key for the snapshot role, and return it
@@ -44,12 +40,14 @@ func GetOrCreateSnapshotKey(gun string, store storage.MetaStore, crypto signed.C
 		return nil, err
 	}
 
-	// We currently only support single keys for snapshot and timestamp, so we can return the first and only key in the map
-	for _, pubKey := range snapshotRole.Keys {
-		return pubKey, nil
+	// We currently only support single keys for snapshot and timestamp, so we can return the first and only key in the map if the signer has it
+	for keyID := range snapshotRole.Keys {
+		if pubKey := crypto.GetKey(keyID); pubKey != nil {
+			return pubKey, nil
+		}
 	}
-	logrus.Errorf("Failed to find any snapshot keys in saved root for GUN %s", gun)
-	return nil, err
+	logrus.Debugf("Failed to find any snapshot keys in cryptosigner from root for GUN %s, generating new key", gun)
+	return crypto.Create(data.CanonicalSnapshotRole, gun, createAlgorithm)
 }
 
 // RotateSnapshotKey attempts to rotate a snapshot key in the signer, but might be rate-limited by the signer

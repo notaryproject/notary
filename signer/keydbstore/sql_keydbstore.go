@@ -202,7 +202,7 @@ func (s *SQLKeyDBStore) markActive(keyID string) error {
 func (s *SQLKeyDBStore) Create(role, gun, algorithm string) (data.PublicKey, error) {
 	// If an unused key exists, simply return it.  Else, error because SQL can't make keys
 	dbPrivateKey := GormPrivateKey{}
-	if !s.db.Model(GormPrivateKey{}).Where("role = ? AND gun = ? AND algorithm = ? AND last_used IS NULL", role, gun, algorithm).First(&dbPrivateKey).RecordNotFound() {
+	if !s.db.Model(GormPrivateKey{}).Where("role = ? AND gun = ? AND algorithm = ? AND last_used IS NULL", role, gun, algorithm).Order("key_id").First(&dbPrivateKey).RecordNotFound() {
 		// Just return the public key component if we found one
 		return data.NewPublicKey(dbPrivateKey.Algorithm, []byte(dbPrivateKey.Public)), nil
 	}

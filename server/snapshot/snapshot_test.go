@@ -92,8 +92,7 @@ func TestGetSnapshotKeyCreateWithInvalidAlgo(t *testing.T) {
 	require.Nil(t, k, "Key should be nil")
 }
 
-func TestGetSnapshotKeyExisting(t *testing.T) {
-
+func TestGetSnapshotKeyExistingMetadata(t *testing.T) {
 	repo, crypto, err := testutils.EmptyRepo("gun")
 	require.NoError(t, err)
 
@@ -122,6 +121,14 @@ func TestGetSnapshotKeyExisting(t *testing.T) {
 
 	require.Equal(t, k, k2, "Did not receive same key when attempting to recreate.")
 	require.NotNil(t, k2, "Key should not be nil")
+
+	// try wiping out the cryptoservice data, and ensure we create a new key because the signer doesn't hold the key specified by TUF
+	crypto = signed.NewEd25519()
+	k3, err := GetOrCreateSnapshotKey("gun", store, crypto, data.ED25519Key)
+	require.Nil(t, err, "Expected nil error")
+	require.NotEqual(t, k, k3, "Received same key when attempting to recreate.")
+	require.NotEqual(t, k2, k3, "Received same key when attempting to recreate.")
+	require.NotNil(t, k3, "Key should not be nil")
 }
 
 // If there is no previous snapshot or the previous snapshot is corrupt, then
