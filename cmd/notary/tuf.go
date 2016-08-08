@@ -89,6 +89,12 @@ var cmdWitnessTemplate = usageTemplate{
 	Long:  "Marks roles to be re-signed the next time they're published. Currently will always bump version and expiry for role. N.B. behaviour may change when thresholding is introduced.",
 }
 
+var cmdTUFDeleteTemplate = usageTemplate{
+	Use:   "delete [ GUN ]",
+	Short: "Deletes all content for a trusted collection",
+	Long:  "Deletes all local content for a trusted collection identified by the Globally Unique Name. Remote data can also be deleted with an additional flag.",
+}
+
 type tufCommander struct {
 	// these need to be set
 	configGetter func() (*viper.Viper, error)
@@ -107,6 +113,8 @@ type tufCommander struct {
 	deleteIdx         []int
 	reset             bool
 	archiveChangelist string
+
+	deleteRemote bool
 }
 
 func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
@@ -149,6 +157,10 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 
 	cmdWitness := cmdWitnessTemplate.ToCommand(t.tufWitness)
 	cmd.AddCommand(cmdWitness)
+
+	cmdTUFDeleteGUN := cmdTUFDeleteTemplate.ToCommand(t.tufDeleteGUN)
+	cmdTUFDeleteGUN.Flags().BoolVar(&t.deleteRemote, "remote", false, "Delete remote data for GUN in addition to local cache")
+	cmd.AddCommand(cmdTUFDeleteGUN)
 }
 
 func (t *tufCommander) tufWitness(cmd *cobra.Command, args []string) error {
@@ -299,6 +311,41 @@ func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 		"Addition of target \"%s\" to repository \"%s\" staged for next publish.\n",
 		targetName, gun)
 	return nil
+}
+
+func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
+	if len(args) < 1 {
+		cmd.Usage()
+		return fmt.Errorf("Must specify a GUN")
+	}
+	config, err := t.configGetter()
+	if err != nil {
+		return err
+	}
+
+	gun := args[0]
+
+	trustPin, err := getTrustPinning(config)
+
+	// Only initialize a roundtripper if we get the remote flag
+	var rt http.RoundTripper
+	if t.deleteRemote {
+		rt, err = getTransport(config, gun, admin)
+		if err != nil {
+			return err
+		}
+	}
+
+	nRepo, err := notaryclient.NewNotaryRepository(
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
+
+	if err != nil {
+		return err
+	}
+
+	cmd.Printf("Deleting trust data for repository %s.\n", gun)
+
+	return nRepo.DeleteTrustData(t.deleteRemote)
 }
 
 func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {

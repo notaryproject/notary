@@ -166,6 +166,7 @@ var exampleValidCommands = []string{
 	"delegation add repo targets/releases path/to/pem/file.pem",
 	"delegation remove repo targets/releases",
 	"witness gun targets/releases",
+	"delete repo",
 }
 
 // config parsing bugs are propagated in all commands
