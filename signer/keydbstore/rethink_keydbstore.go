@@ -283,6 +283,7 @@ func (rdb RethinkDBKeyStore) Create(role, gun, algorithm string) (data.PublicKey
 		Filter(gorethink.Row.Field("role").Eq(role)).
 		Filter(gorethink.Row.Field("algorithm").Eq(algorithm)).
 		Filter(gorethink.Row.Field("last_used").Eq(time.Time{})).
+		OrderBy(gorethink.Row.Field("key_id")).
 		Run(rdb.sess)
 	if err != nil {
 		return nil, err

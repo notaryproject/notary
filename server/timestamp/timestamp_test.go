@@ -259,10 +259,49 @@ func TestGetTimestampKeyCreateWithCorruptedStore(t *testing.T) {
 	require.Nil(t, k, "Key should be nil")
 }
 
-func TestGetSnapshotKeyCreateWithInvalidAlgo(t *testing.T) {
+func TestGetTimestampKeyCreateWithInvalidAlgo(t *testing.T) {
 	store := storage.NewMemStorage()
 	crypto := signed.NewEd25519()
 	k, err := GetOrCreateTimestampKey("gun", store, crypto, "notactuallyanalgorithm")
 	require.Error(t, err, "Expected error")
 	require.Nil(t, k, "Key should be nil")
+}
+
+func TestGetTimestampKeyExistingMetadata(t *testing.T) {
+	repo, crypto, err := testutils.EmptyRepo("gun")
+	require.NoError(t, err)
+
+	sgnd, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	require.NoError(t, err)
+	rootJSON, err := json.Marshal(sgnd)
+	require.NoError(t, err)
+	store := storage.NewMemStorage()
+	require.NoError(t,
+		store.UpdateCurrent("gun", storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0, Data: rootJSON}))
+
+	timestampRole, err := repo.Root.BuildBaseRole(data.CanonicalTimestampRole)
+	require.NoError(t, err)
+	key, ok := timestampRole.Keys[repo.Root.Signed.Roles[data.CanonicalTimestampRole].KeyIDs[0]]
+	require.True(t, ok)
+
+	k, err := GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
+	require.Nil(t, err, "Expected nil error")
+	require.NotNil(t, k, "Key should not be nil")
+	require.Equal(t, key, k, "Did not receive same key when attempting to recreate.")
+	require.NotNil(t, k, "Key should not be nil")
+
+	k2, err := GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
+
+	require.Nil(t, err, "Expected nil error")
+
+	require.Equal(t, k, k2, "Did not receive same key when attempting to recreate.")
+	require.NotNil(t, k2, "Key should not be nil")
+
+	// try wiping out the cryptoservice data, and ensure we create a new key because the signer doesn't hold the key specified by TUF
+	crypto = signed.NewEd25519()
+	k3, err := GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
+	require.Nil(t, err, "Expected nil error")
+	require.NotEqual(t, k, k3, "Received same key when attempting to recreate.")
+	require.NotEqual(t, k2, k3, "Received same key when attempting to recreate.")
+	require.NotNil(t, k3, "Key should not be nil")
 }

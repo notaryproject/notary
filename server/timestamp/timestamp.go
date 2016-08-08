@@ -29,11 +29,7 @@ func GetOrCreateTimestampKey(gun string, store storage.MetaStore, crypto signed.
 			logrus.Errorf("Error when retrieving root role for GUN %s: %v", gun, err)
 			return nil, err
 		}
-		key, err := crypto.Create(data.CanonicalTimestampRole, gun, createAlgorithm)
-		if err != nil {
-			return nil, err
-		}
-		return key, nil
+		return crypto.Create(data.CanonicalTimestampRole, gun, createAlgorithm)
 	}
 
 	// If we have a current root, parse out the public key for the timestamp role, and return it
@@ -49,12 +45,14 @@ func GetOrCreateTimestampKey(gun string, store storage.MetaStore, crypto signed.
 		return nil, err
 	}
 
-	// We currently only support single keys for snapshot and timestamp, so we can return the first and only key in the map
-	for _, pubKey := range timestampRole.Keys {
-		return pubKey, nil
+	// We currently only support single keys for snapshot and timestamp, so we can return the first and only key in the map if the signer has it
+	for keyID := range timestampRole.Keys {
+		if pubKey := crypto.GetKey(keyID); pubKey != nil {
+			return pubKey, nil
+		}
 	}
-	logrus.Errorf("Failed to find any timestamp keys in saved root for GUN %s", gun)
-	return nil, err
+	logrus.Debugf("Failed to find any timestamp keys in cryptosigner from root for GUN %s, generating new key", gun)
+	return crypto.Create(data.CanonicalTimestampRole, gun, createAlgorithm)
 }
 
 // RotateTimestampKey attempts to rotate a timestamp key in the signer, but might be rate-limited by the signer
