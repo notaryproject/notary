@@ -123,7 +123,7 @@ func TestInitWithRootKey(t *testing.T) {
 	// check that the root key used for init is the one listed as root key
 	output, err := runCommand(t, tempDir, "key", "list")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(output, data.PublicKeyFromPrivate(privKey).ID()))
+	require.Contains(t, output, data.PublicKeyFromPrivate(privKey).ID())
 
 	// check error if file doesn't exist
 	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun2", "--rootkey", "bad_file")
@@ -210,7 +210,7 @@ func TestClientTUFInteraction(t *testing.T) {
 	// check status - see target
 	output, err = runCommand(t, tempDir, "status", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(output, target))
+	require.Contains(t, output, target)
 
 	// publish repo
 	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
@@ -224,12 +224,12 @@ func TestClientTUFInteraction(t *testing.T) {
 	// list repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target))
+	require.Contains(t, output, target)
 
 	// lookup target and repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target))
+	require.Contains(t, output, target)
 
 	// verify repo - empty file
 	output, err = runCommand(t, tempDir, "-s", server.URL, "verify", "gun", target)
@@ -431,7 +431,7 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 	// check status - see target
 	output, err = runCommand(t, tempDir, "status", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(output, target1))
+	require.Contains(t, output, target1)
 
 	// publish repo
 	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
@@ -445,12 +445,12 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 	// list repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target1))
+	require.Contains(t, output, target1)
 
 	// lookup target and repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target1)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target1))
+	require.Contains(t, output, target1)
 
 	// remove target
 	_, err = runCommand(t, tempDir, "remove", "gun", target1)
@@ -472,7 +472,7 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 	// check status - see target
 	output, err = runCommand(t, tempDir, "status", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(output, target2))
+	require.Contains(t, output, target2)
 
 	// publish repo
 	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
@@ -486,12 +486,12 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 	// list repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target2))
+	require.Contains(t, output, target2)
 
 	// lookup target and repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target2)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target2))
+	require.Contains(t, output, target2)
 
 	// remove target
 	_, err = runCommand(t, tempDir, "remove", "gun", target2)
@@ -508,7 +508,7 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 	// check status - see target
 	output, err = runCommand(t, tempDir, "status", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(output, target3))
+	require.Contains(t, output, target3)
 
 	// publish repo
 	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
@@ -522,12 +522,12 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 	// list repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target3))
+	require.Contains(t, output, target3)
 
 	// lookup target and repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target3)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target3))
+	require.Contains(t, output, target3)
 
 	// remove target
 	_, err = runCommand(t, tempDir, "remove", "gun", target3)
@@ -1204,7 +1204,7 @@ func assertSuccessfullyPublish(
 
 	output, err := runCommand(t, tempDir, "-s", url, "list", gun)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target))
+	require.Contains(t, output, target)
 
 	return output
 }
@@ -1269,7 +1269,7 @@ func TestClientKeyGenerationRotation(t *testing.T) {
 	output := assertSuccessfullyPublish(
 		t, tempDir, server.URL, "gun", target+"2", tempfiles[1])
 	// assert that the previous target is sitll there
-	require.True(t, strings.Contains(string(output), target))
+	require.Contains(t, output, target)
 }
 
 // Tests default root key generation
@@ -1724,8 +1724,8 @@ func TestClientTUFAddWithAutoPublish(t *testing.T) {
 	// so the target and target2 should be in the list.
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(output, target))
-	require.True(t, strings.Contains(output, target2))
+	require.Contains(t, output, target)
+	require.Contains(t, output, target2)
 
 	// add a target without auto publish being enabled
 	//
@@ -1735,11 +1735,11 @@ func TestClientTUFAddWithAutoPublish(t *testing.T) {
 	// check status - expect the targetNoPublish
 	output, err = runCommand(t, tempDir, "status", gun)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(output, targetNoPublish))
+	require.Contains(t, output, targetNoPublish)
 	// list repo - expect only the target, not the targetNoPublish
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(output, target))
+	require.Contains(t, output, target)
 	require.False(t, strings.Contains(output, targetNoPublish))
 }
 
@@ -1780,7 +1780,7 @@ func TestClientTUFRemoveWithAutoPublish(t *testing.T) {
 	// list repo - expect target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(output, target))
+	require.Contains(t, output, target)
 	require.False(t, strings.Contains(output, targetWillBeRemoved))
 
 	// remove a target without auto publish being enabled
@@ -1794,14 +1794,14 @@ func TestClientTUFRemoveWithAutoPublish(t *testing.T) {
 	// check status - expect the targetWillBeRemoved
 	output, err = runCommand(t, tempDir, "status", gun)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(output, targetWillBeRemoved))
+	require.Contains(t, output, targetWillBeRemoved)
 	// publish repo
 	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", gun)
 	require.NoError(t, err)
 	// list repo - expect only the target, not the targetWillBeRemoved
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(output, target))
+	require.Contains(t, output, target)
 	require.False(t, strings.Contains(output, targetWillBeRemoved))
 }
 
@@ -2008,12 +2008,12 @@ func TestClientTUFAddByHashWithAutoPublish(t *testing.T) {
 	// list repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target1))
+	require.Contains(t, output, target1)
 
 	// lookup target and repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target1)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target1))
+	require.Contains(t, output, target1)
 
 	// remove target
 	_, err = runCommand(t, tempDir, "-s", server.URL, "remove", "-p", "gun", target1)
@@ -2036,12 +2036,12 @@ func TestClientTUFAddByHashWithAutoPublish(t *testing.T) {
 	// list repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target2))
+	require.Contains(t, output, target2)
 
 	// lookup target and repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target2)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target2))
+	require.Contains(t, output, target2)
 
 	// remove target
 	_, err = runCommand(t, tempDir, "-s", server.URL, "remove", "-p", "gun", target2)
@@ -2060,12 +2060,12 @@ func TestClientTUFAddByHashWithAutoPublish(t *testing.T) {
 	// list repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target3))
+	require.Contains(t, output, target3)
 
 	// lookup target and repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target3)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target3))
+	require.Contains(t, output, target3)
 
 	// remove target
 	_, err = runCommand(t, tempDir, "-s", server.URL, "remove", "-p", "gun", target3)
