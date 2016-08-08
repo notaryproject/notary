@@ -42,7 +42,7 @@ func init() {
 			require.NoError(t, err)
 
 			// drop all tables, if they exist
-			gormDB.DropTable(&TUFFile{})
+			gormDB.DropTable(&SQLTUFFile{})
 			gormDB.DropTable(&Key{})
 		}
 		cleanup1()

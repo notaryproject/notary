@@ -440,3 +440,100 @@ func TestAtomicUpdateVersionErrorPropagated(t *testing.T) {
 	require.Equal(t, errors.ErrOldVersion, errorObj.Code)
 	require.Equal(t, storage.ErrOldVersion{}, errorObj.Detail)
 }
+
+func TestQueryTUFFilesHandlerInvalidParameters(t *testing.T) {
+	rw := httptest.NewRecorder()
+	validDate := "2006-01-02T15:04:05.000Z"
+
+	req, err := http.NewRequest("GET", "https://notary.com/irrelevent", nil)
+	require.NoError(t, err)
+	q := req.URL.Query()
+	q.Add("createdBefore", "invalid")
+	req.URL.RawQuery = q.Encode()
+	err = QueryTUFFilesHandler(context.Background(), rw, req)
+	require.Error(t, err)
+	errorObj, ok := err.(errcode.Error)
+	require.True(t, ok, "Expected an errcode.Error, got %v", err)
+	require.Equal(t, errors.ErrMalformedQueryParameters, errorObj.Code)
+	require.Contains(t, errorObj.Detail, "Please check createdBefore.")
+
+	req, err = http.NewRequest("GET", "https://notary.com/irrelevent", nil)
+	require.NoError(t, err)
+	q = req.URL.Query()
+	q.Add("createdAfter", "invalid")
+	req.URL.RawQuery = q.Encode()
+	err = QueryTUFFilesHandler(context.Background(), rw, req)
+	require.Error(t, err)
+	errorObj, ok = err.(errcode.Error)
+	require.True(t, ok, "Expected an errcode.Error, got %v", err)
+	require.Equal(t, errors.ErrMalformedQueryParameters, errorObj.Code)
+	require.Contains(t, errorObj.Detail, "Please check createdAfter.")
+
+	req, err = http.NewRequest("GET", "https://notary.com/irrelevent", nil)
+	require.NoError(t, err)
+	q = req.URL.Query()
+	q.Add("createdBefore", "invalid")
+	q.Add("createdAfter", "invalid")
+	req.URL.RawQuery = q.Encode()
+	err = QueryTUFFilesHandler(context.Background(), rw, req)
+	require.Error(t, err)
+	errorObj, ok = err.(errcode.Error)
+	require.True(t, ok, "Expected an errcode.Error, got %v", err)
+	require.Equal(t, errors.ErrMalformedQueryParameters, errorObj.Code)
+	require.Contains(t, errorObj.Detail, "Please check createdBefore.")
+
+	req, err = http.NewRequest("GET", "https://notary.com/irrelevent", nil)
+	require.NoError(t, err)
+	q = req.URL.Query()
+	q.Add("createdBefore", validDate)
+	q.Add("createdAfter", "invalid")
+	req.URL.RawQuery = q.Encode()
+	err = QueryTUFFilesHandler(context.Background(), rw, req)
+	require.Error(t, err)
+	errorObj, ok = err.(errcode.Error)
+	require.True(t, ok, "Expected an errcode.Error, got %v", err)
+	require.Equal(t, errors.ErrMalformedQueryParameters, errorObj.Code)
+	require.Contains(t, errorObj.Detail, "Please check createdAfter.")
+}
+
+func TestQueryTUFFilesHandlerNoStorage(t *testing.T) {
+	rw := httptest.NewRecorder()
+
+	req, err := http.NewRequest("GET", "https://notary.com/irrelevent", nil)
+	require.NoError(t, err)
+	err = QueryTUFFilesHandler(context.Background(), rw, req)
+	require.Error(t, err)
+	errorObj, ok := err.(errcode.Error)
+	require.True(t, ok, "Expected an errcode.Error, got %v", err)
+	require.Equal(t, errors.ErrNoStorage, errorObj.Code)
+}
+
+func TestQueryTUFFilesHandlerValid(t *testing.T) {
+	repo, _, err := testutils.EmptyRepo("gun")
+	require.NoError(t, err)
+
+	state := defaultState()
+	ctx := getContext(state)
+	sn, err := repo.SignSnapshot(data.DefaultExpires("snapshot"))
+	snJSON, err := json.Marshal(sn)
+	require.NoError(t, err)
+	metaStore := state.store.(*storage.MemStorage)
+	metaStore.UpdateCurrent(
+		"gun", storage.MetaUpdate{Role: "snapshot", Version: 1, Data: snJSON})
+
+	rw := httptest.NewRecorder()
+
+	req, err := http.NewRequest("GET", "https://notary.com/irrelevent", nil)
+	require.NoError(t, err)
+	err = QueryTUFFilesHandler(ctx, rw, req)
+	require.NoError(t, err)
+
+	var parsed []TUFResponse
+	if err := json.Unmarshal(rw.Body.Bytes(), &parsed); err != nil {
+		t.Fatal("Invalid JSON returned from QueryTuFFilesHandler")
+	}
+
+	require.Len(t, parsed, 1)
+	require.Equal(t, "gun", parsed[0].Gun)
+	require.Equal(t, 1, parsed[0].Version)
+}

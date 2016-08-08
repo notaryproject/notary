@@ -13,6 +13,21 @@ type KeyStore interface {
 	SetKey(gun, role, algorithm string, public []byte) error
 }
 
+// TUFFile provides an interface for getting data from TUF Files
+type TUFFile interface {
+	// GetGUN returns the GUN for the TUF File
+	GetGUN() string
+
+	// GetRole returns the role for the TUF File
+	GetRole() string
+
+	// GetVersion returns the version for the TUF File
+	GetVersion() int
+
+	// GetSha256 returns the SHA for the TUF File
+	GetSha256() string
+}
+
 // MetaStore holds the methods that are used for a Metadata Store
 type MetaStore interface {
 	// UpdateCurrent adds new metadata version for the given GUN if and only
@@ -30,6 +45,10 @@ type MetaStore interface {
 	// the latest version of the given GUN and role.  If there is no data for
 	// the given GUN and role, an error is returned.
 	GetCurrent(gun, tufRole string) (created *time.Time, data []byte, err error)
+
+	// GetAll returns all metadata associated with TUF Files, with optional
+	// query parameters specifying the time range to query for.
+	GetAll(createdBefore, createdAfter *time.Time) ([]TUFFile, error)
 
 	// GetChecksum returns the given TUF role file and creation date for the
 	// GUN with the provided checksum. If the given (gun, role, checksum) are

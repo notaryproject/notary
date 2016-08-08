@@ -27,7 +27,7 @@ func SetupSQLDB(t *testing.T, dbtype, dburl string) *SQLStorage {
 
 	// verify that the tables are empty
 	var count int
-	for _, model := range [2]interface{}{&TUFFile{}, &Key{}} {
+	for _, model := range [2]interface{}{&SQLTUFFile{}, &Key{}} {
 		query := dbStore.DB.Model(model).Count(&count)
 		require.NoError(t, query.Error)
 		require.Equal(t, 0, count)
@@ -40,9 +40,9 @@ type sqldbSetupFunc func(*testing.T) (*SQLStorage, func())
 var sqldbSetup sqldbSetupFunc
 
 func assertExpectedGormTUFMeta(t *testing.T, expected []StoredTUFMeta, gormDB gorm.DB) {
-	expectedGorm := make([]TUFFile, len(expected))
+	expectedGorm := make([]SQLTUFFile, len(expected))
 	for i, tufObj := range expected {
-		expectedGorm[i] = TUFFile{
+		expectedGorm[i] = SQLTUFFile{
 			Model:   gorm.Model{ID: uint(i + 1)},
 			Gun:     tufObj.Gun,
 			Role:    tufObj.Role,
@@ -53,7 +53,7 @@ func assertExpectedGormTUFMeta(t *testing.T, expected []StoredTUFMeta, gormDB go
 	}
 
 	// There should just be one row
-	var rows []TUFFile
+	var rows []SQLTUFFile
 	query := gormDB.Select("id, gun, role, version, sha256, data").Find(&rows)
 	require.NoError(t, query.Error)
 	// to avoid issues with nil vs zero len list
@@ -265,7 +265,7 @@ func TestSQLDBCheckHealthTableMissing(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
-	dbStore.DropTable(&TUFFile{})
+	dbStore.DropTable(&SQLTUFFile{})
 	dbStore.DropTable(&Key{})
 
 	// No tables, health check fails
@@ -276,7 +276,7 @@ func TestSQLDBCheckHealthTableMissing(t *testing.T) {
 	CreateTUFTable(dbStore.DB)
 	err = dbStore.CheckHealth()
 	require.Error(t, err, "Cannot access table:")
-	dbStore.DropTable(&TUFFile{})
+	dbStore.DropTable(&SQLTUFFile{})
 
 	CreateKeyTable(dbStore.DB)
 	err = dbStore.CheckHealth()
@@ -376,4 +376,28 @@ func TestSQLTUFMetaStoreGetCurrent(t *testing.T) {
 	defer cleanup()
 
 	testTUFMetaStoreGetCurrent(t, dbStore)
+}
+
+func TestSQLTUFMetaStoreGetAll(t *testing.T) {
+	dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
+
+	_, err := dbStore.GetAll(nil, nil)
+
+	// require error since this function is not implemented
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not implemented")
+}
+
+func TestSQLTUFFileGetters(t *testing.T) {
+	tf := SQLTUFFile{
+		Gun:     "GUN",
+		Role:    "role",
+		Version: 2,
+		Sha256:  "sha",
+	}
+	require.Equal(t, "GUN", tf.GetGUN())
+	require.Equal(t, "role", tf.GetRole())
+	require.Equal(t, 2, tf.GetVersion())
+	require.Equal(t, "sha", tf.GetSha256())
 }

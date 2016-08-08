@@ -38,6 +38,12 @@ var (
 		Description:    "The client sent malformed JSON.",
 		HTTPStatusCode: http.StatusBadRequest,
 	})
+	ErrMalformedQueryParameters = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "MALFORMED_QUERY_PARAMETERS",
+		Message:        "Query parameters sent by the client could not be parsed by the server",
+		Description:    "The client sent malformed query parameters.",
+		HTTPStatusCode: http.StatusBadRequest,
+	})
 	ErrUpdating = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "UPDATING",
 		Message:        "An error has occurred while updating the TUF repository.",

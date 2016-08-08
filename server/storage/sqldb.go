@@ -49,13 +49,13 @@ func (db *SQLStorage) UpdateCurrent(gun string, update MetaUpdate) error {
 	// struct, because that only works with non-zero values, and Version
 	// can be 0.
 	exists := db.Where("gun = ? and role = ? and version >= ?",
-		gun, update.Role, update.Version).First(&TUFFile{})
+		gun, update.Role, update.Version).First(&SQLTUFFile{})
 
 	if !exists.RecordNotFound() {
 		return ErrOldVersion{}
 	}
 	checksum := sha256.Sum256(update.Data)
-	return translateOldVersionError(db.Create(&TUFFile{
+	return translateOldVersionError(db.Create(&SQLTUFFile{
 		Gun:     gun,
 		Role:    update.Role,
 		Version: update.Version,
@@ -89,13 +89,13 @@ func (db *SQLStorage) UpdateMany(gun string, updates []MetaUpdate) error {
 		// (you cannot insert the version 2 before version 1).  And we do
 		// not care about monotonic ordering in the updates.
 		query = db.Where("gun = ? and role = ? and version >= ?",
-			gun, update.Role, update.Version).First(&TUFFile{})
+			gun, update.Role, update.Version).First(&SQLTUFFile{})
 
 		if !query.RecordNotFound() {
 			return rollback(ErrOldVersion{})
 		}
 
-		var row TUFFile
+		var row SQLTUFFile
 		checksum := sha256.Sum256(update.Data)
 		hexChecksum := hex.EncodeToString(checksum[:])
 		query = tx.Where(map[string]interface{}{
@@ -119,20 +119,27 @@ func (db *SQLStorage) UpdateMany(gun string, updates []MetaUpdate) error {
 
 // GetCurrent gets a specific TUF record
 func (db *SQLStorage) GetCurrent(gun, tufRole string) (*time.Time, []byte, error) {
-	var row TUFFile
+	var row SQLTUFFile
 	q := db.Select("updated_at, data").Where(
-		&TUFFile{Gun: gun, Role: tufRole}).Order("version desc").Limit(1).First(&row)
+		&SQLTUFFile{Gun: gun, Role: tufRole}).Order("version desc").Limit(1).First(&row)
 	if err := isReadErr(q, row); err != nil {
 		return nil, nil, err
 	}
 	return &(row.UpdatedAt), row.Data, nil
 }
 
+// GetAll returns TUFFile data for TUFFiles updated between createdBefore and createdAfter.
+// If createdBefore is nil, there is no upper bound on event creation time.
+// If createdAfter is nil, there is no lower bound on event creation time.
+func (db *SQLStorage) GetAll(createdBefore, createdAfter *time.Time) ([]TUFFile, error) {
+	return nil, fmt.Errorf("GetAll is not implemented for SQLStorage")
+}
+
 // GetChecksum gets a specific TUF record by its hex checksum
 func (db *SQLStorage) GetChecksum(gun, tufRole, checksum string) (*time.Time, []byte, error) {
-	var row TUFFile
+	var row SQLTUFFile
 	q := db.Select("created_at, data").Where(
-		&TUFFile{
+		&SQLTUFFile{
 			Gun:    gun,
 			Role:   tufRole,
 			Sha256: checksum,
@@ -144,7 +151,7 @@ func (db *SQLStorage) GetChecksum(gun, tufRole, checksum string) (*time.Time, []
 	return &(row.CreatedAt), row.Data, nil
 }
 
-func isReadErr(q *gorm.DB, row TUFFile) error {
+func isReadErr(q *gorm.DB, row SQLTUFFile) error {
 	if q.RecordNotFound() {
 		return ErrNotFound{}
 	} else if q.Error != nil {
@@ -156,7 +163,7 @@ func isReadErr(q *gorm.DB, row TUFFile) error {
 // Delete deletes all the records for a specific GUN - we have to do a hard delete using Unscoped
 // otherwise we can't insert for that GUN again
 func (db *SQLStorage) Delete(gun string) error {
-	return db.Unscoped().Where(&TUFFile{Gun: gun}).Delete(TUFFile{}).Error
+	return db.Unscoped().Where(&SQLTUFFile{Gun: gun}).Delete(SQLTUFFile{}).Error
 }
 
 // GetKey returns the Public Key data for a gun+role
@@ -198,7 +205,7 @@ func (db *SQLStorage) SetKey(gun, role, algorithm string, public []byte) error {
 func (db *SQLStorage) CheckHealth() error {
 	interfaces := []interface {
 		TableName() string
-	}{&TUFFile{}, &Key{}}
+	}{&SQLTUFFile{}, &Key{}}
 
 	for _, model := range interfaces {
 		tableOk := db.HasTable(model)

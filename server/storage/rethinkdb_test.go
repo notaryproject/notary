@@ -184,3 +184,16 @@ func TestRDBKeyJSONUnmarshallingFailure(t *testing.T) {
 		require.Error(t, err)
 	}
 }
+
+func TestRDBTUFFileGetters(t *testing.T) {
+	tf := RDBTUFFile{
+		Gun:     "GUN",
+		Role:    "role",
+		Version: 2,
+		Sha256:  "sha",
+	}
+	require.Equal(t, "GUN", tf.GetGUN())
+	require.Equal(t, "role", tf.GetRole())
+	require.Equal(t, 2, tf.GetVersion())
+	require.Equal(t, "sha", tf.GetSha256())
+}

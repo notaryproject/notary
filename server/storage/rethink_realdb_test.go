@@ -167,3 +167,10 @@ func TestRethinkTUFMetaStoreGetCurrent(t *testing.T) {
 
 	testTUFMetaStoreGetCurrent(t, dbStore)
 }
+
+func TestRethinkTUFMetaStoreGetAll(t *testing.T) {
+	dbStore, cleanup := rethinkDBSetup(t)
+	defer cleanup()
+
+	testTUFMetaStoreGetAll(t, dbStore)
+}
