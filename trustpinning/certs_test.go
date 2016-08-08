@@ -183,7 +183,9 @@ func TestValidateRootWithPinnedCert(t *testing.T) {
 	// This call to trustpinning.ValidateRoot should also succeed with the correct Cert ID (same as root public key ID), even though we passed an extra bad one
 	validatedSignedRoot, err = trustpinning.ValidateRoot(nil, &testSignedRoot, "docker.com/notary", trustpinning.TrustPinConfig{Certs: map[string][]string{"docker.com/notary": {rootPubKeyID, "invalidID"}}, DisableTOFU: true})
 	require.NoError(t, err)
-	require.Equal(t, validatedSignedRoot, typedSignedRoot)
+	// This extra assignment is necessary because ValidateRoot calls through to a successful VerifySignature which marks IsValid
+	typedSignedRoot.Signatures[0].IsValid = true
+	require.Equal(t, typedSignedRoot, validatedSignedRoot)
 }
 
 func TestValidateRootWithPinnerCertAndIntermediates(t *testing.T) {
@@ -519,6 +521,8 @@ func TestValidateRootWithPinnedCA(t *testing.T) {
 	// Check that we validate correctly against a pinned CA and provided bundle
 	validatedRoot, err = trustpinning.ValidateRoot(nil, newTestSignedRoot, "notary-signer", trustpinning.TrustPinConfig{CA: map[string]string{"notary-signer": bundleWithExpiredCertPath}, DisableTOFU: true})
 	require.NoError(t, err)
+	// this extra assignment is necessary because ValidateRoot calls through to a successful VerifySignature which marks IsValid
+	newTypedSignedRoot.Signatures[0].IsValid = true
 	require.Equal(t, newTypedSignedRoot, validatedRoot)
 
 	testPubKey2, err := cryptoService.Create("root", "notary-signer", data.ECDSAKey)

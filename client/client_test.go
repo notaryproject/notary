@@ -3552,6 +3552,7 @@ func TestGetAllTargetInfo(t *testing.T) {
 	// setup delegated targets/level1 role with targets current and other
 	k, err := repo.CryptoService.Create("targets/level1", repo.gun, rootType)
 	require.NoError(t, err)
+	key1 := k
 	err = repo.tufRepo.UpdateDelegationKeys("targets/level1", []data.PublicKey{k}, []string{}, 1)
 	require.NoError(t, err)
 	err = repo.tufRepo.UpdateDelegationPaths("targets/level1", []string{""}, []string{}, false)
@@ -3562,6 +3563,7 @@ func TestGetAllTargetInfo(t *testing.T) {
 	// setup delegated targets/level2 role with targets current and level2
 	k, err = repo.CryptoService.Create("targets/level2", repo.gun, rootType)
 	require.NoError(t, err)
+	key2 := k
 	err = repo.tufRepo.UpdateDelegationKeys("targets/level2", []data.PublicKey{k}, []string{}, 1)
 	require.NoError(t, err)
 	err = repo.tufRepo.UpdateDelegationPaths("targets/level2", []string{""}, []string{}, false)
@@ -3592,6 +3594,7 @@ func TestGetAllTargetInfo(t *testing.T) {
 	// add level2 to targets/level1/level2
 	k, err = repo.CryptoService.Create("targets/level1/level2", repo.gun, rootType)
 	require.NoError(t, err)
+	key3 := k
 	err = repo.tufRepo.UpdateDelegationKeys("targets/level1/level2", []data.PublicKey{k}, []string{}, 1)
 	require.NoError(t, err)
 	err = repo.tufRepo.UpdateDelegationPaths("targets/level1/level2", []string{"level2"}, []string{}, false)
@@ -3617,38 +3620,76 @@ func TestGetAllTargetInfo(t *testing.T) {
 	// level2 - signed by targets/level2 and targets/level1/level2, with the same hash
 
 	// Positive cases
-	targetData, err := repo.GetAllTargetMetadataByName("current")
+	targetSignatureData, err := repo.GetAllTargetMetadataByName("current")
 	require.NoError(t, err)
-	require.NotNil(t, targetData)
-	require.Len(t, targetData, 3)
-	require.Equal(t, targetData[data.CanonicalTargetsRole], *targetsCurrentTarget)
-	require.Equal(t, targetData["targets/level1"], *level1CurrentTarget)
-	require.Equal(t, targetData["targets/level2"], *level2CurrentTarget)
+	require.NotNil(t, targetSignatureData)
+	require.Len(t, targetSignatureData, 3)
+	makeSureWeHitEachCase := make(map[string]struct{})
+	for _, tarSigStr := range targetSignatureData {
+		switch tarSigStr.Role.Name {
+		case data.CanonicalTargetsRole:
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, repo.CryptoService.ListKeys(data.CanonicalTargetsRole)[0], tarSigStr.Signatures[0].KeyID)
+			require.Equal(t, tarSigStr.Target, *targetsCurrentTarget)
+			makeSureWeHitEachCase[tarSigStr.Role.Name] = struct{}{}
+		case "targets/level1":
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, key1.ID(), tarSigStr.Signatures[0].KeyID)
+			require.Equal(t, tarSigStr.Target, *level1CurrentTarget)
+			makeSureWeHitEachCase[tarSigStr.Role.Name] = struct{}{}
+		case "targets/level2":
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, key2.ID(), tarSigStr.Signatures[0].KeyID)
+			require.Equal(t, tarSigStr.Target, *level2CurrentTarget)
+			makeSureWeHitEachCase[tarSigStr.Role.Name] = struct{}{}
+		}
+	}
+	require.Len(t, makeSureWeHitEachCase, 3)
 
-	targetData, err = repo.GetAllTargetMetadataByName("other")
+	targetSignatureData, err = repo.GetAllTargetMetadataByName("other")
 	require.NoError(t, err)
-	require.NotNil(t, targetData)
-	require.Len(t, targetData, 1)
-	require.Equal(t, targetData["targets/level1"], *level1OtherTarget)
+	require.NotNil(t, targetSignatureData)
+	require.Len(t, targetSignatureData, 1)
+	require.Equal(t, targetSignatureData[0].Role.Name, "targets/level1")
+	require.Equal(t, (targetSignatureData[0]).Target, *level1OtherTarget)
+	require.Equal(t, key1.ID(), targetSignatureData[0].Signatures[0].KeyID)
+	require.Len(t, targetSignatureData[0].Signatures, 1)
 
-	targetData, err = repo.GetAllTargetMetadataByName("latest")
+	targetSignatureData, err = repo.GetAllTargetMetadataByName("latest")
 	require.NoError(t, err)
-	require.NotNil(t, targetData)
-	require.Len(t, targetData, 1)
-	require.Equal(t, targetData[data.CanonicalTargetsRole], *targetsLatestTarget)
+	require.NotNil(t, targetSignatureData)
+	require.Len(t, targetSignatureData, 1)
+	require.Equal(t, targetSignatureData[0].Role.Name, data.CanonicalTargetsRole)
+	require.Equal(t, (targetSignatureData[0]).Target, *targetsLatestTarget)
+	require.Equal(t, repo.CryptoService.ListKeys(data.CanonicalTargetsRole)[0], targetSignatureData[0].Signatures[0].KeyID)
+	require.Len(t, targetSignatureData[0].Signatures, 1)
 
-	targetData, err = repo.GetAllTargetMetadataByName("level2")
+	targetSignatureData, err = repo.GetAllTargetMetadataByName("level2")
 	require.NoError(t, err)
-	require.NotNil(t, targetData)
-	require.Len(t, targetData, 2)
-	require.Equal(t, targetData["targets/level2"], *level2Level2Target)
-	require.Equal(t, targetData["targets/level1/level2"], *level1Level2Level2Target)
+	require.NotNil(t, targetSignatureData)
+	require.Len(t, targetSignatureData, 2)
+	makeSureWeHitEachCase = make(map[string]struct{})
+	for _, tarSigStr := range targetSignatureData {
+		switch tarSigStr.Role.Name {
+		case "targets/level2":
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, key2.ID(), tarSigStr.Signatures[0].KeyID)
+			require.Equal(t, tarSigStr.Target, *level2Level2Target)
+			makeSureWeHitEachCase[tarSigStr.Role.Name] = struct{}{}
+		case "targets/level1/level2":
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, key3.ID(), tarSigStr.Signatures[0].KeyID)
+			require.Equal(t, tarSigStr.Target, *level1Level2Level2Target)
+			makeSureWeHitEachCase[tarSigStr.Role.Name] = struct{}{}
+		}
+	}
+	require.Len(t, makeSureWeHitEachCase, 2)
 
 	// nonexistent targets
-	targetData, err = repo.GetAllTargetMetadataByName("level23")
+	targetSignatureData, err = repo.GetAllTargetMetadataByName("level23")
 	require.Error(t, err)
-	require.Nil(t, targetData)
-	targetData, err = repo.GetAllTargetMetadataByName("invalid")
+	require.Nil(t, targetSignatureData)
+	targetSignatureData, err = repo.GetAllTargetMetadataByName("invalid")
 	require.Error(t, err)
-	require.Nil(t, targetData)
+	require.Nil(t, targetSignatureData)
 }

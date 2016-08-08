@@ -111,6 +111,7 @@ type Signature struct {
 	KeyID     string       `json:"keyid"`
 	Method    SigAlgorithm `json:"method"`
 	Signature []byte       `json:"sig"`
+	IsValid   bool         `json:"-"`
 }
 
 // Files is the map of paths to file meta container in targets and delegations
