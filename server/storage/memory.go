@@ -57,7 +57,7 @@ func (st *MemStorage) UpdateCurrent(gun string, update MetaUpdate) error {
 	if space, ok := st.tufMeta[id]; ok {
 		for _, v := range space {
 			if v.version >= update.Version {
-				return &ErrOldVersion{}
+				return ErrOldVersion{}
 			}
 		}
 	}
@@ -88,7 +88,7 @@ func (st *MemStorage) UpdateMany(gun string, updates []MetaUpdate) error {
 
 		// prevent duplicate versions of the same role
 		if _, ok := versioner[u.Role][u.Version]; ok {
-			return &ErrOldVersion{}
+			return ErrOldVersion{}
 		}
 		if _, ok := versioner[u.Role]; !ok {
 			versioner[u.Role] = make(map[int]struct{})
@@ -98,7 +98,7 @@ func (st *MemStorage) UpdateMany(gun string, updates []MetaUpdate) error {
 		if space, ok := st.tufMeta[id]; ok {
 			for _, v := range space {
 				if v.version >= u.Version {
-					return &ErrOldVersion{}
+					return ErrOldVersion{}
 				}
 			}
 		}
