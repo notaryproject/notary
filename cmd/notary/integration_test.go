@@ -935,10 +935,6 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, output, "No delegations present in this repository.")
 
-	// publish repo
-	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
-	require.NoError(t, err)
-
 	// validate that we have all keys, including snapshot
 	assertNumKeys(t, tempDir, 1, 2, true)
 
@@ -1149,7 +1145,7 @@ func getUniqueKeys(t *testing.T, tempDir string) ([]string, []string) {
 			placeToGo map[string]bool
 			keyID     string
 		)
-		if strings.TrimSpace(parts[0]) == "root" {
+		if strings.TrimSpace(parts[0]) == data.CanonicalRootRole {
 			// no gun, so there are only 3 fields
 			placeToGo, keyID = rootMap, parts[1]
 		} else {
@@ -2490,6 +2486,7 @@ func TestExportImportFlow(t *testing.T) {
 	snapBytes, _ := ioutil.ReadAll(snapKey)
 	snapString := string(snapBytes)
 	require.Contains(t, snapString, "gun: gun")
+	require.True(t, strings.Contains(snapString, "role: snapshot") || strings.Contains(snapString, "role: target"))
 	require.Contains(t, snapString, "role: snapshot")
 
 	// validate targets is imported correctly
@@ -2499,5 +2496,5 @@ func TestExportImportFlow(t *testing.T) {
 	targBytes, _ := ioutil.ReadAll(targKey)
 	targString := string(targBytes)
 	require.Contains(t, targString, "gun: gun")
-	require.Contains(t, targString, "role: target")
+	require.True(t, strings.Contains(snapString, "role: snapshot") || strings.Contains(snapString, "role: target"))
 }
