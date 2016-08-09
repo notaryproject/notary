@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary/tuf/data"
@@ -98,6 +97,7 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 	// Retrieve all the leaf and intermediate certificates in root for which the CN matches the GUN
 	allLeafCerts, allIntCerts := parseAllCerts(signedRoot)
 	certsFromRoot, err := validRootLeafCerts(allLeafCerts, gun, true)
+	validIntCerts := validRootIntCerts(allIntCerts)
 
 	if err != nil {
 		logrus.Debugf("error retrieving valid leaf certificates for: %s, %v", gun, err)
@@ -140,7 +140,7 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 		validPinnedCerts := map[string]*x509.Certificate{}
 		for id, cert := range certsFromRoot {
 			logrus.Debugf("checking trust-pinning for cert: %s", id)
-			if ok := trustPinCheckFunc(cert, allIntCerts[id]); !ok {
+			if ok := trustPinCheckFunc(cert, validIntCerts[id]); !ok {
 				logrus.Debugf("trust-pinning check failed for cert: %s", id)
 				continue
 			}
@@ -156,7 +156,7 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 	// Note that certsFromRoot is guaranteed to be unchanged only if we had prior cert data for this GUN or enabled TOFUS
 	// If we attempted to pin a certain certificate or CA, certsFromRoot could have been pruned accordingly
 	err = signed.VerifySignatures(root, data.BaseRole{
-		Keys: utils.CertsToKeys(certsFromRoot, allIntCerts), Threshold: rootRole.Threshold})
+		Keys: utils.CertsToKeys(certsFromRoot, validIntCerts), Threshold: rootRole.Threshold})
 	if err != nil {
 		logrus.Debugf("failed to verify TUF data for: %s, %v", gun, err)
 		return nil, &ErrValidationFail{Reason: "failed to validate integrity of roots"}
@@ -181,17 +181,8 @@ func validRootLeafCerts(allLeafCerts map[string]*x509.Certificate, gun string, c
 			continue
 		}
 		// Make sure the certificate is not expired if checkExpiry is true
-		if checkExpiry && time.Now().After(cert.NotAfter) {
-			logrus.Debugf("error leaf certificate is expired")
-			continue
-		}
-
-		// We don't allow root certificates that use SHA1
-		if cert.SignatureAlgorithm == x509.SHA1WithRSA ||
-			cert.SignatureAlgorithm == x509.DSAWithSHA1 ||
-			cert.SignatureAlgorithm == x509.ECDSAWithSHA1 {
-
-			logrus.Debugf("error certificate uses deprecated hashing algorithm (SHA1)")
+		// and warn if it hasn't expired yet but is within 6 months of expiry
+		if err := utils.ValidateCertificate(cert, checkExpiry); err != nil {
 			continue
 		}
 
@@ -206,6 +197,24 @@ func validRootLeafCerts(allLeafCerts map[string]*x509.Certificate, gun string, c
 	logrus.Debugf("found %d valid leaf certificates for %s: %s", len(validLeafCerts), gun,
 		prettyFormatCertIDs(validLeafCerts))
 	return validLeafCerts, nil
+}
+
+// validRootIntCerts filters the passed in structure of intermediate certificates to only include non-expired, non-sha1 certificates
+// Note that this "validity" alone does not imply any measure of trust.
+func validRootIntCerts(allIntCerts map[string][]*x509.Certificate) map[string][]*x509.Certificate {
+	validIntCerts := make(map[string][]*x509.Certificate)
+
+	// Go through every leaf cert ID, and build its valid intermediate certificate list
+	for leafID, intCertList := range allIntCerts {
+		for _, intCert := range intCertList {
+			if err := utils.ValidateCertificate(intCert, true); err != nil {
+				continue
+			}
+			validIntCerts[leafID] = append(validIntCerts[leafID], intCert)
+		}
+
+	}
+	return validIntCerts
 }
 
 // parseAllCerts returns two maps, one with all of the leafCertificates and one
