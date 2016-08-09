@@ -101,9 +101,9 @@ func (k *keyCommander) GetCommand() *cobra.Command {
 
 	cmdKeysImport := cmdKeyImportTemplate.ToCommand(k.importKeys)
 	cmdKeysImport.Flags().StringVarP(
-		&k.keysImportRole, "role", "r", "", "Role to import key with - Notary can use this to infer the path to store the key. A specified path will take precedence")
+		&k.keysImportRole, "role", "r", "", "Role to import key with, if a role is not already given in a PEM header")
 	cmdKeysImport.Flags().StringVarP(
-		&k.keysImportGUN, "gun", "g", "", "Gun to import key with - Notary can use this to infer the path to store the key. A specified path will take precedence")
+		&k.keysImportGUN, "gun", "g", "", "Gun to import key with, if a gun is not already given in a PEM header")
 	cmd.AddCommand(cmdKeysImport)
 	cmdExport := cmdKeyExportTemplate.ToCommand(k.exportKeys)
 	cmdExport.Flags().StringSliceVar(
@@ -415,8 +415,8 @@ func (k *keyCommander) importKeys(cmd *cobra.Command, args []string) error {
 	for _, file := range args {
 		from, err := os.OpenFile(file, os.O_RDONLY, notary.PrivKeyPerms)
 		defer from.Close()
-		passRetreiver := k.getRetriever()
-		if err = utils.ImportKeys(from, importers, k.keysImportRole, k.keysImportGUN, passRetreiver); err != nil {
+		passRetriever := k.getRetriever()
+		if err = utils.ImportKeys(from, importers, k.keysImportRole, k.keysImportGUN, passRetriever); err != nil {
 			return err
 		}
 	}

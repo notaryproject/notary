@@ -86,15 +86,15 @@ func TestKeyOperations(t *testing.T) {
 	rsaKey, err := GenerateRSAKey(rand.Reader, 512)
 
 	// Encode our ED private key
-	edPEM, err := KeyToPEM(edKey, "root")
+	edPEM, err := KeyToPEM(edKey, data.CanonicalRootRole)
 	require.NoError(t, err)
 
 	// Encode our EC private key
-	ecPEM, err := KeyToPEM(ecKey, "root")
+	ecPEM, err := KeyToPEM(ecKey, data.CanonicalRootRole)
 	require.NoError(t, err)
 
 	// Encode our RSA private key
-	rsaPEM, err := KeyToPEM(rsaKey, "root")
+	rsaPEM, err := KeyToPEM(rsaKey, data.CanonicalRootRole)
 	require.NoError(t, err)
 
 	// Check to see if ED key it is encoded
@@ -125,15 +125,15 @@ func TestKeyOperations(t *testing.T) {
 	require.Equal(t, rsaKey.Private(), decodedRSAKey.Private())
 
 	// Encrypt our ED Key
-	encryptedEDKey, err := EncryptPrivateKey(edKey, "root", "", "ponies")
+	encryptedEDKey, err := EncryptPrivateKey(edKey, data.CanonicalRootRole, "", "ponies")
 	require.NoError(t, err)
 
 	// Encrypt our EC Key
-	encryptedECKey, err := EncryptPrivateKey(ecKey, "root", "", "ponies")
+	encryptedECKey, err := EncryptPrivateKey(ecKey, data.CanonicalRootRole, "", "ponies")
 	require.NoError(t, err)
 
 	// Encrypt our RSA Key
-	encryptedRSAKey, err := EncryptPrivateKey(rsaKey, "root", "", "ponies")
+	encryptedRSAKey, err := EncryptPrivateKey(rsaKey, data.CanonicalRootRole, "", "ponies")
 	require.NoError(t, err)
 
 	// Check to see if ED key it is encrypted
@@ -171,10 +171,10 @@ func TestKeyOperations(t *testing.T) {
 
 	// quick test that gun headers are being added appropriately
 	// Encrypt our RSA Key, one type of key should be enough since headers are treated the same
-	testGunKey, err := EncryptPrivateKey(rsaKey, "root", "ilove", "ponies")
+	testGunKey, err := EncryptPrivateKey(rsaKey, data.CanonicalRootRole, "ilove", "ponies")
 	require.NoError(t, err)
 
-	testNoGunKey, err := EncryptPrivateKey(rsaKey, "root", "", "ponies")
+	testNoGunKey, err := EncryptPrivateKey(rsaKey, data.CanonicalRootRole, "", "ponies")
 	require.NoError(t, err)
 
 	stringTestGunKey := string(testGunKey)

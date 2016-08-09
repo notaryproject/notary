@@ -110,7 +110,10 @@ func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGun 
 			pathWOFileName := strings.TrimSuffix(rawPath, filepath.Base(rawPath))
 			if strings.HasPrefix(pathWOFileName, notary.NonRootKeysSubdir) {
 				gunName := strings.TrimPrefix(pathWOFileName, notary.NonRootKeysSubdir)
-				block.Headers["gun"] = gunName[1:(len(gunName) - 1)] //removes the slashes
+				gunName = gunName[1:(len(gunName) - 1)] // remove the slashes
+				if gunName != "" {
+					block.Headers["gun"] = gunName
+				}
 			}
 		}
 		if block.Headers["gun"] == "" {
