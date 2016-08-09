@@ -30,6 +30,8 @@ import (
 	tufutils "github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/utils"
 	"github.com/spf13/viper"
+	ghealth "google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"gopkg.in/dancannon/gorethink.v2"
 )
 
@@ -202,6 +204,7 @@ func setupGRPCServer(signerConfig signer.Config) (*grpc.Server, net.Listener, er
 		CryptoServices: signerConfig.CryptoServices,
 		HealthChecker:  health.CheckStatus,
 	}
+	hs := ghealth.NewServer()
 
 	lis, err := net.Listen("tcp", signerConfig.GRPCAddr)
 	if err != nil {
@@ -215,6 +218,11 @@ func setupGRPCServer(signerConfig signer.Config) (*grpc.Server, net.Listener, er
 
 	pb.RegisterKeyManagementServer(grpcServer, kms)
 	pb.RegisterSignerServer(grpcServer, ss)
+	healthpb.RegisterHealthServer(grpcServer, hs)
+
+	// Set status
+	hs.SetServingStatus("grpc.health.v1.Health.KeyManagement", healthpb.HealthCheckResponse_SERVING)
+	hs.SetServingStatus("grpc.health.v1.Health.Signer", healthpb.HealthCheckResponse_SERVING)
 
 	return grpcServer, lis, nil
 }
