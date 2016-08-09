@@ -31,7 +31,7 @@ import (
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/server"
 	"github.com/docker/notary/server/storage"
-	notaryStorage "github.com/docker/notary/storage"
+	nstorage "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
@@ -123,7 +123,7 @@ func TestInitWithRootKey(t *testing.T) {
 	// check that the root key used for init is the one listed as root key
 	output, err := runCommand(t, tempDir, "key", "list")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(output, data.PublicKeyFromPrivate(privKey).ID()))
+	require.Contains(t, output, data.PublicKeyFromPrivate(privKey).ID())
 
 	// check error if file doesn't exist
 	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun2", "--rootkey", "bad_file")
@@ -210,7 +210,7 @@ func TestClientTUFInteraction(t *testing.T) {
 	// check status - see target
 	output, err = runCommand(t, tempDir, "status", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(output, target))
+	require.Contains(t, output, target)
 
 	// publish repo
 	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
@@ -224,12 +224,12 @@ func TestClientTUFInteraction(t *testing.T) {
 	// list repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target))
+	require.Contains(t, output, target)
 
 	// lookup target and repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target))
+	require.Contains(t, output, target)
 
 	// verify repo - empty file
 	output, err = runCommand(t, tempDir, "-s", server.URL, "verify", "gun", target)
@@ -334,7 +334,7 @@ func TestClientDeleteTUFInteraction(t *testing.T) {
 	// Trying to delete the repo with the remote flag fails if it's given a well-formed URL that doesn't point to a server
 	output, err = runCommand(t, tempDir, "-s", "https://invalid-server", "delete", "gun", "--remote")
 	require.Error(t, err)
-	require.IsType(t, notaryStorage.ErrOffline{}, err)
+	require.IsType(t, nstorage.ErrOffline{}, err)
 	// In this case, local notary metadata does not exist since local deletion operates first if we have a valid transport
 	assertLocalMetadataForGun(t, tempDir, "gun", false)
 
@@ -431,7 +431,7 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 	// check status - see target
 	output, err = runCommand(t, tempDir, "status", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(output, target1))
+	require.Contains(t, output, target1)
 
 	// publish repo
 	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
@@ -445,12 +445,12 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 	// list repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target1))
+	require.Contains(t, output, target1)
 
 	// lookup target and repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target1)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target1))
+	require.Contains(t, output, target1)
 
 	// remove target
 	_, err = runCommand(t, tempDir, "remove", "gun", target1)
@@ -472,7 +472,7 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 	// check status - see target
 	output, err = runCommand(t, tempDir, "status", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(output, target2))
+	require.Contains(t, output, target2)
 
 	// publish repo
 	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
@@ -486,12 +486,12 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 	// list repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target2))
+	require.Contains(t, output, target2)
 
 	// lookup target and repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target2)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target2))
+	require.Contains(t, output, target2)
 
 	// remove target
 	_, err = runCommand(t, tempDir, "remove", "gun", target2)
@@ -508,7 +508,7 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 	// check status - see target
 	output, err = runCommand(t, tempDir, "status", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(output, target3))
+	require.Contains(t, output, target3)
 
 	// publish repo
 	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
@@ -522,12 +522,12 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 	// list repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target3))
+	require.Contains(t, output, target3)
 
 	// lookup target and repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target3)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target3))
+	require.Contains(t, output, target3)
 
 	// remove target
 	_, err = runCommand(t, tempDir, "remove", "gun", target3)
@@ -1204,7 +1204,7 @@ func assertSuccessfullyPublish(
 
 	output, err := runCommand(t, tempDir, "-s", url, "list", gun)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(string(output), target))
+	require.Contains(t, output, target)
 
 	return output
 }
@@ -1269,7 +1269,7 @@ func TestClientKeyGenerationRotation(t *testing.T) {
 	output := assertSuccessfullyPublish(
 		t, tempDir, server.URL, "gun", target+"2", tempfiles[1])
 	// assert that the previous target is sitll there
-	require.True(t, strings.Contains(string(output), target))
+	require.Contains(t, output, target)
 }
 
 // Tests default root key generation
@@ -1626,4 +1626,397 @@ func generateCertPrivKeyPair(t *testing.T, gun, keyAlgorithm string) (*x509.Cert
 	keyID, err := utils.CanonicalKeyID(parsedPubKey)
 	require.NoError(t, err)
 	return cert, privKey, keyID
+}
+
+func TestClientTUFInitWithAutoPublish(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	tempFile, err := ioutil.TempFile("", "targetfile")
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	var (
+		output       = ""
+		gun          = "MistsOfPandaria"
+		gunNoPublish = "Legion"
+
+		// This might be changed via the implementation, please be careful.
+		emptyList = "\nNo targets present in this repository.\n\n"
+	)
+	// -- tests --
+
+	// init repo with auto publish being enabled but with a malformed URL.
+	_, err = runCommand(t, tempDir, "-s", "For the Horde!", "init", "-p", gun)
+	require.Error(t, err, "Trust server url has to be in the form of http(s)://URL:PORT.")
+	// init repo with auto publish being enabled but with an unaccessible URL.
+	_, err = runCommand(t, tempDir, "-s", "https://notary-server-on-the-moon:12306", "init", "-p", gun)
+	require.NotNil(t, err)
+	require.Equal(t, err, nstorage.ErrOffline{})
+
+	// init repo with auto publish being enabled
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "-p", gun)
+	require.NoError(t, err)
+	// list repo - expect empty list
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
+	require.NoError(t, err)
+	require.Equal(t, output, emptyList)
+
+	// init repo without auto publish being enabled
+	//
+	// Use this test to guarantee that we won't break the normal init process.
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", gunNoPublish)
+	require.NoError(t, err)
+	// list repo - expect error
+	_, err = runCommand(t, tempDir, "-s", server.URL, "list", gunNoPublish)
+	require.NotNil(t, err)
+	require.Equal(t, err, nstorage.ErrMetaNotFound{Resource: data.CanonicalRootRole})
+}
+
+func TestClientTUFAddWithAutoPublish(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	tempFile, err := ioutil.TempFile("", "targetfile")
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	var (
+		output          = ""
+		target          = "ShangXi"
+		target2         = "ChenStormstout"
+		targetNoPublish = "Shen-zinSu"
+		gun             = "MistsOfPandaria"
+	)
+	// -- tests --
+
+	// init repo with auto publish being enabled
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "-p", gun)
+	require.NoError(t, err)
+
+	// add a target with auto publish being enabled, but without the server URL
+	_, err = runCommand(t, tempDir, "add", "-p", gun, target, tempFile.Name())
+	require.NotNil(t, err)
+	require.Equal(t, err, nstorage.ErrOffline{})
+	// check status, since we only fail the auto publishment in the previous step,
+	// the change should still exists.
+	output, err = runCommand(t, tempDir, "status", gun)
+	require.NoError(t, err)
+	require.Contains(t, output, target)
+
+	// add a target with auto publish being enabled but with a malformed URL.
+	_, err = runCommand(t, tempDir, "-s", "For the Horde!", "add", "-p", gun, target, tempFile.Name())
+	require.Error(t, err, "Trust server url has to be in the form of http(s)://URL:PORT.")
+	// add a target with auto publish being enabled but with an unaccessible URL.
+	_, err = runCommand(t, tempDir, "-s", "https://notary-server-on-the-moon:12306", "add", "-p", gun, target, tempFile.Name())
+	require.NotNil(t, err)
+	require.Equal(t, err, nstorage.ErrOffline{})
+
+	// add a target with auto publish being enabled, and with the server URL
+	_, err = runCommand(t, tempDir, "-s", server.URL, "add", "-p", gun, target2, tempFile.Name())
+	require.NoError(t, err)
+	// list repo, since the auto publish flag will try to publish all the staged changes,
+	// so the target and target2 should be in the list.
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
+	require.NoError(t, err)
+	require.Contains(t, output, target)
+	require.Contains(t, output, target2)
+
+	// add a target without auto publish being enabled
+	//
+	// Use this test to guarantee that we won't break the normal add process.
+	_, err = runCommand(t, tempDir, "add", gun, targetNoPublish, tempFile.Name())
+	require.NoError(t, err)
+	// check status - expect the targetNoPublish
+	output, err = runCommand(t, tempDir, "status", gun)
+	require.NoError(t, err)
+	require.Contains(t, output, targetNoPublish)
+	// list repo - expect only the target, not the targetNoPublish
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
+	require.NoError(t, err)
+	require.Contains(t, output, target)
+	require.False(t, strings.Contains(output, targetNoPublish))
+}
+
+func TestClientTUFRemoveWithAutoPublish(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	tempFile, err := ioutil.TempFile("", "targetfile")
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	var (
+		output              = ""
+		target              = "ShangXi"
+		targetWillBeRemoved = "Shen-zinSu"
+		gun                 = "MistsOfPandaria"
+	)
+	// -- tests --
+
+	// init repo with auto publish being enabled
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "-p", gun)
+	require.NoError(t, err)
+	// add a target with auto publish being enabled
+	_, err = runCommand(t, tempDir, "add", "-s", server.URL, "-p", gun, target, tempFile.Name())
+	require.NoError(t, err)
+	_, err = runCommand(t, tempDir, "add", "-s", server.URL, "-p", gun, targetWillBeRemoved, tempFile.Name())
+	require.NoError(t, err)
+	// remove a target with auto publish being enabled
+	_, err = runCommand(t, tempDir, "remove", "-s", server.URL, "-p", gun, targetWillBeRemoved, tempFile.Name())
+	require.NoError(t, err)
+	// list repo - expect target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
+	require.NoError(t, err)
+	require.Contains(t, output, target)
+	require.False(t, strings.Contains(output, targetWillBeRemoved))
+
+	// remove a target without auto publish being enabled
+	//
+	// Use this test to guarantee that we won't break the normal remove process.
+	_, err = runCommand(t, tempDir, "add", "-s", server.URL, "-p", gun, targetWillBeRemoved, tempFile.Name())
+	require.NoError(t, err)
+	// remove the targetWillBeRemoved without auto publish being enabled
+	_, err = runCommand(t, tempDir, "remove", gun, targetWillBeRemoved, tempFile.Name())
+	require.NoError(t, err)
+	// check status - expect the targetWillBeRemoved
+	output, err = runCommand(t, tempDir, "status", gun)
+	require.NoError(t, err)
+	require.Contains(t, output, targetWillBeRemoved)
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", gun)
+	require.NoError(t, err)
+	// list repo - expect only the target, not the targetWillBeRemoved
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
+	require.NoError(t, err)
+	require.Contains(t, output, target)
+	require.False(t, strings.Contains(output, targetWillBeRemoved))
+}
+
+func TestClientDelegationAddWithAutoPublish(t *testing.T) {
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	// Setup certificate
+	tempFile, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
+	startTime := time.Now()
+	endTime := startTime.AddDate(10, 0, 0)
+	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
+	require.NoError(t, err)
+
+	_, err = tempFile.Write(utils.CertToPEM(cert))
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
+	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
+	keyID, err := utils.CanonicalKeyID(parsedPubKey)
+	require.NoError(t, err)
+
+	var output string
+
+	// -- tests --
+
+	// init and publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun", "-p")
+	require.NoError(t, err)
+
+	// list delegations - none yet
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, "No delegations present in this repository.")
+
+	// add new valid delegation with single new cert, and no path
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile.Name())
+	require.NoError(t, err)
+
+	// check status - no changelist
+	output, err = runCommand(t, tempDir, "status", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, "No unpublished changes for gun")
+
+	// list delegations - we should see our added delegation, with no paths
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, "targets/delegation")
+	require.Contains(t, output, keyID)
+}
+
+func TestClientDelegationRemoveWithAutoPublish(t *testing.T) {
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	// Setup certificate
+	tempFile, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
+	startTime := time.Now()
+	endTime := startTime.AddDate(10, 0, 0)
+	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
+	require.NoError(t, err)
+
+	_, err = tempFile.Write(utils.CertToPEM(cert))
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
+	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
+	keyID, err := utils.CanonicalKeyID(parsedPubKey)
+	require.NoError(t, err)
+
+	var output string
+
+	// -- tests --
+
+	// init repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun", "-p")
+	require.NoError(t, err)
+
+	// add new valid delegation with single new cert, and no path
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile.Name())
+	require.NoError(t, err)
+
+	// list delegations - we should see our added delegation, with no paths
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, "targets/delegation")
+
+	// Setup another certificate
+	tempFile2, err := ioutil.TempFile("", "pemfile2")
+	require.NoError(t, err)
+
+	privKey, err = utils.GenerateECDSAKey(rand.Reader)
+	startTime = time.Now()
+	endTime = startTime.AddDate(10, 0, 0)
+	cert, err = cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
+	require.NoError(t, err)
+
+	_, err = tempFile2.Write(utils.CertToPEM(cert))
+	require.NoError(t, err)
+	tempFile2.Close()
+	defer os.Remove(tempFile2.Name())
+
+	rawPubBytes2, _ := ioutil.ReadFile(tempFile2.Name())
+	parsedPubKey2, _ := utils.ParsePEMPublicKey(rawPubBytes2)
+	keyID2, err := utils.CanonicalKeyID(parsedPubKey2)
+	require.NoError(t, err)
+
+	// add to the delegation by specifying the same role, this time add a scoped path
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile2.Name(), "--paths", "path")
+	require.NoError(t, err)
+
+	// list delegations - we should see two keys
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, "path")
+	require.Contains(t, output, keyID)
+	require.Contains(t, output, keyID2)
+
+	// remove the delegation's first key
+	output, err = runCommand(t, tempDir, "delegation", "-s", server.URL, "remove", "-p", "gun", "targets/delegation", keyID)
+	require.NoError(t, err)
+	require.Contains(t, output, "Removal of delegation role")
+
+	// list delegations - we should see the delegation but with only the second key
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.NotContains(t, output, keyID)
+	require.Contains(t, output, keyID2)
+
+	// remove the delegation's second key
+	output, err = runCommand(t, tempDir, "delegation", "-s", server.URL, "remove", "-p", "gun", "targets/delegation", keyID2)
+	require.NoError(t, err)
+	require.Contains(t, output, "Removal of delegation role")
+
+	// list delegations - we should see no delegations
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.NotContains(t, output, keyID)
+	require.NotContains(t, output, keyID2)
+}
+
+// TestClientTUFAddByHashWithAutoPublish is similar to TestClientTUFAddByHashInteraction,
+// but with the auto publish flag "-p".
+func TestClientTUFAddByHashWithAutoPublish(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	targetData := []byte{'a', 'b', 'c'}
+	target256Bytes := sha256.Sum256(targetData)
+	targetSha256Hex := hex.EncodeToString(target256Bytes[:])
+
+	err := ioutil.WriteFile(filepath.Join(tempDir, "tempfile"), targetData, 0644)
+	require.NoError(t, err)
+
+	var (
+		output  string
+		target1 = "sdgkadga"
+	)
+	// -- tests --
+
+	// init repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun", "-p")
+	require.NoError(t, err)
+
+	// add a target just by sha256
+	_, err = runCommand(t, tempDir, "-s", server.URL, "addhash", "-p", "gun", target1, "3", "--sha256", targetSha256Hex)
+	require.NoError(t, err)
+
+	// check status - no targets
+	output, err = runCommand(t, tempDir, "status", "gun")
+	require.NoError(t, err)
+	require.False(t, strings.Contains(string(output), target1))
+
+	// list repo - see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, target1)
+
+	// lookup target and repo - see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target1)
+	require.NoError(t, err)
+	require.Contains(t, output, target1)
 }
