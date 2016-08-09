@@ -2,8 +2,8 @@ package storage
 
 import "github.com/jinzhu/gorm"
 
-// TUFFile represents a TUF file in the database
-type TUFFile struct {
+// SQLTUFFile represents a TUF file in the database
+type SQLTUFFile struct {
 	gorm.Model
 	Gun     string `sql:"type:varchar(255);not null"`
 	Role    string `sql:"type:varchar(255);not null"`
@@ -12,9 +12,29 @@ type TUFFile struct {
 	Data    []byte `sql:"type:longblob;not null"`
 }
 
-// TableName sets a specific table name for TUFFile
-func (g TUFFile) TableName() string {
+// TableName sets a specific table name for SQLTUFFile
+func (s SQLTUFFile) TableName() string {
 	return "tuf_files"
+}
+
+// GetGUN returns the GUN for the TUF File
+func (s SQLTUFFile) GetGUN() string {
+	return s.Gun
+}
+
+// GetRole returns the role for the TUF File
+func (s SQLTUFFile) GetRole() string {
+	return s.Role
+}
+
+// GetVersion returns the version for the TUF File
+func (s SQLTUFFile) GetVersion() int {
+	return s.Version
+}
+
+// GetSha256 returns the SHA for the TUF File
+func (s SQLTUFFile) GetSha256() string {
+	return s.Sha256
 }
 
 // Key represents a single timestamp key in the database
@@ -31,14 +51,14 @@ func (g Key) TableName() string {
 	return "timestamp_keys"
 }
 
-// CreateTUFTable creates the DB table for TUFFile
+// CreateTUFTable creates the DB table for SQLTUFFile
 func CreateTUFTable(db gorm.DB) error {
 	// TODO: gorm
-	query := db.Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8").CreateTable(&TUFFile{})
+	query := db.Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8").CreateTable(&SQLTUFFile{})
 	if query.Error != nil {
 		return query.Error
 	}
-	query = db.Model(&TUFFile{}).AddUniqueIndex(
+	query = db.Model(&SQLTUFFile{}).AddUniqueIndex(
 		"idx_gun", "gun", "role", "version")
 	if query.Error != nil {
 		return query.Error
@@ -46,7 +66,7 @@ func CreateTUFTable(db gorm.DB) error {
 	return nil
 }
 
-// CreateKeyTable creates the DB table for TUFFile
+// CreateKeyTable creates the DB table for SQLTUFFile
 func CreateKeyTable(db gorm.DB) error {
 	query := db.Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8").CreateTable(&Key{})
 	if query.Error != nil {

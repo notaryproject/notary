@@ -85,6 +85,17 @@ func TestGetCurrent(t *testing.T) {
 	require.Equal(t, []byte("test"), d, "Data was incorrect")
 }
 
+func TestGetAll(t *testing.T) {
+	s := NewMemStorage()
+
+	s.UpdateCurrent("gun", MetaUpdate{"role", 1, []byte("test")})
+	tufFiles, err := s.GetAll(nil, nil)
+	require.NoError(t, err)
+	require.Len(t, tufFiles, 1)
+	require.Equal(t, "gun", tufFiles[0].GetGUN())
+	require.Equal(t, 1, tufFiles[0].GetVersion())
+}
+
 func TestGetTimestampKey(t *testing.T) {
 	s := NewMemStorage()
 

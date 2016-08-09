@@ -2,6 +2,7 @@ package storage
 
 import (
 	"testing"
+	"time"
 
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/testutils"
@@ -89,6 +90,62 @@ func testTUFMetaStoreGetCurrent(t *testing.T, s MetaStore) {
 	ConsistentGetCurrentFoundTest(t, tufDBStore, tufMetaByRole[data.CanonicalRootRole])
 	// the orphaned root fails on a GetCurrent even though it's in the underlying store
 	ConsistentTSAndSnapGetDifferentCurrentTest(t, tufDBStore, orphanedRootTUF)
+}
+
+func testTUFMetaStoreGetAll(t *testing.T, s MetaStore) {
+	gun := "testGUN"
+
+	// getAll on empty table should return nothing, but no error
+	tufFiles, err := s.GetAll(nil, nil)
+	require.NoError(t, err)
+	require.Empty(t, tufFiles)
+
+	// Now add metadata from a valid TUF repo
+	tufMetaByRole := metaFromRepo(t, gun, 2)
+	updates := make([]MetaUpdate, 0, len(tufMetaByRole))
+	for _, tufObj := range tufMetaByRole {
+		updates = append(updates, MakeUpdate(tufObj))
+	}
+	require.NoError(t, s.UpdateMany(gun, updates))
+
+	tufFiles, err = s.GetAll(nil, nil)
+	require.NoError(t, err)
+
+	// 5 tuf files for one this event
+	require.Len(t, tufFiles, 5)
+
+	// Test time bounds
+	before := time.Now()
+	time.Sleep(time.Second)
+
+	tufMetaByRole = metaFromRepo(t, gun, 3)
+	updates = make([]MetaUpdate, 0, len(tufMetaByRole))
+	for _, tufObj := range tufMetaByRole {
+		updates = append(updates, MakeUpdate(tufObj))
+	}
+	require.NoError(t, s.UpdateMany(gun, updates))
+
+	after := time.Now()
+	time.Sleep(time.Second)
+
+	tufMetaByRole = metaFromRepo(t, gun, 4)
+	updates = make([]MetaUpdate, 0, len(tufMetaByRole))
+	for _, tufObj := range tufMetaByRole {
+		updates = append(updates, MakeUpdate(tufObj))
+	}
+	require.NoError(t, s.UpdateMany(gun, updates))
+
+	tufFiles, err = s.GetAll(&after, &before)
+	require.NoError(t, err)
+	require.Len(t, tufFiles, 5)
+
+	// v3 was created between the two times
+	require.Equal(t, 3, tufFiles[0].GetVersion())
+
+	// swap before and after, which should return 0 events
+	tufFiles, err = s.GetAll(&before, &after)
+	require.NoError(t, err)
+	require.Empty(t, tufFiles)
 }
 
 func ConsistentGetCurrentFoundTest(t *testing.T, s *TUFMetaStorage, rec StoredTUFMeta) {

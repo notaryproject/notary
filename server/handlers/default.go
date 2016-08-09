@@ -3,9 +3,11 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	ctxu "github.com/docker/distribution/context"
 	"github.com/gorilla/mux"
@@ -20,6 +22,14 @@ import (
 	"github.com/docker/notary/tuf/validation"
 	"github.com/docker/notary/utils"
 )
+
+// TUFResponse is a response struct with various data about a TUF file
+type TUFResponse struct {
+	Gun     string `json:"gun"`
+	Role    string `json:"role"`
+	Version int    `json:"version"`
+	Sha256  string `json:"sha256"`
+}
 
 // MainHandler is the default handler for the server
 func MainHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
@@ -242,6 +252,62 @@ func getKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 	}
 	logger.Debugf("200 GET %s key", role)
 	w.Write(out)
+	return nil
+}
+
+// QueryTUFFilesHandler returns all TUF Files that were created or modified between createdBefore and createdAfter query parameters.
+// If createdBefore is not present, there is no upper bound on when modifications happened.
+// If createdAfter is not present, there is no lower bound on when modifications happened.
+func QueryTUFFilesHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	var createdBefore, createdAfter *time.Time
+	logger := ctxu.GetLogger(ctx)
+	layout := "2006-01-02T15:04:05.000Z"
+	createdBeforeString := r.URL.Query().Get("createdBefore")
+	if createdBeforeString != "" {
+		parsed, err := time.Parse(layout, createdBeforeString)
+		if err != nil {
+			return errors.ErrMalformedQueryParameters.WithDetail(fmt.Sprintf("Timing parameters should be formatted like '%s'. Please check createdBefore.", layout))
+		}
+		createdBefore = &parsed
+	}
+	createdAfterString := r.URL.Query().Get("createdAfter")
+	if createdAfterString != "" {
+		parsed, err := time.Parse(layout, createdAfterString)
+		if err != nil {
+			return errors.ErrMalformedQueryParameters.WithDetail(fmt.Sprintf("Timing parameters should be formatted like '%s'. Please check createdAfter.", layout))
+		}
+		createdAfter = &parsed
+	}
+
+	s := ctx.Value("metaStore")
+	store, ok := s.(storage.MetaStore)
+	if !ok {
+		logger.Error("500 GET TUF Files: no storage exists")
+		return errors.ErrNoStorage.WithDetail(nil)
+	}
+	tufFiles, err := store.GetAll(createdBefore, createdAfter)
+	if err != nil {
+		logger.Error("500 GET TUF Files")
+		return errors.ErrUnknown.WithDetail(err)
+	}
+
+	var resp []TUFResponse
+	for _, tufFile := range tufFiles {
+		resp = append(resp, TUFResponse{
+			Gun:     tufFile.GetGUN(),
+			Role:    tufFile.GetRole(),
+			Version: tufFile.GetVersion(),
+			Sha256:  tufFile.GetSha256(),
+		})
+	}
+
+	out, err := json.Marshal(tufFiles)
+	if err != nil {
+		logger.Error("500 GET TUF Files")
+		return errors.ErrUnknown.WithDetail(err)
+	}
+	w.Write(out)
+
 	return nil
 }
 

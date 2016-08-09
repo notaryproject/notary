@@ -26,6 +26,26 @@ type RDBTUFFile struct {
 	TSchecksum     string        `gorethink:"timestamp_checksum"`
 }
 
+// GetGUN returns the GUN for the TUF File
+func (r RDBTUFFile) GetGUN() string {
+	return r.Gun
+}
+
+// GetRole returns the role for the TUF File
+func (r RDBTUFFile) GetRole() string {
+	return r.Role
+}
+
+// GetVersion returns the version for the TUF File
+func (r RDBTUFFile) GetVersion() int {
+	return r.Version
+}
+
+// GetSha256 returns the SHA for the TUF File
+func (r RDBTUFFile) GetSha256() string {
+	return r.Sha256
+}
+
 // TableName returns the table name for the record type
 func (r RDBTUFFile) TableName() string {
 	return "tuf_files"
@@ -265,6 +285,43 @@ func (rdb RethinkDB) GetCurrent(gun, role string) (created *time.Time, data []by
 		return nil, nil, ErrNotFound{}
 	}
 	return &file.CreatedAt, file.Data, err
+}
+
+// GetAll returns TUFFile data for TUFFiles updated between createdBefore and createdAfter.
+// If createdBefore is nil, there is no upper bound on event creation time.
+// If createdAfter is nil, there is no lower bound on event creation time.
+func (rdb RethinkDB) GetAll(createdBefore, createdAfter *time.Time) ([]TUFFile, error) {
+	var createdBeforeI, createdAfterI interface{} = gorethink.MaxVal, gorethink.MinVal
+	if createdBefore != nil {
+		createdBeforeI = *createdBefore
+	}
+	if createdAfter != nil {
+		createdAfterI = *createdAfter
+	}
+	cursor, err := gorethink.DB(rdb.dbName).Table(RDBTUFFile{}.TableName()).OrderBy(
+		gorethink.OrderByOpts{
+			Index: gorethink.Desc(rdbCreatedAt),
+		},
+	).Between(
+		createdAfterI,
+		createdBeforeI,
+	).Run(rdb.sess)
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch all from database: %s", err.Error())
+	}
+
+	rdbTufFiles := []RDBTUFFile{}
+	if err := cursor.All(&rdbTufFiles); err != nil {
+		return nil, fmt.Errorf("unable to scan tuf files query results: %s", err.Error())
+	}
+
+	// need to return generic []TUFFile
+	var tufFiles []TUFFile
+	for _, rdbTufFile := range rdbTufFiles {
+		tufFiles = append(tufFiles, rdbTufFile)
+	}
+
+	return tufFiles, nil
 }
 
 // GetChecksum returns the given TUF role file and creation date for the

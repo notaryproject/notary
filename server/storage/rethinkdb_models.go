@@ -9,6 +9,7 @@ const (
 	rdbSha256Idx        = "sha256"
 	rdbGunRoleIdx       = "gun_role"
 	rdbGunRoleSha256Idx = "gun_role_sha256"
+	rdbCreatedAt        = "created_at"
 )
 
 var (
@@ -20,6 +21,7 @@ var (
 			rdbSha256Idx:         nil,
 			"gun":                nil,
 			"timestamp_checksum": nil,
+			rdbCreatedAt:         nil,
 			rdbGunRoleIdx:        {"gun", "role"},
 			rdbGunRoleSha256Idx:  {"gun", "role", "sha256"},
 		},

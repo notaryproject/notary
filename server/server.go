@@ -179,6 +179,11 @@ func RootHandler(ac auth.AccessController, ctx context.Context, trust signed.Cry
 		ServerHandler:       handlers.DeleteHandler,
 		PermissionsRequired: []string{"*"},
 	}))
+	r.Methods("GET").Path("/v2/tuffiles").Handler(createHandler(_serverEndpoint{
+		OperationName:       "GetTUFs",
+		ServerHandler:       handlers.QueryTUFFilesHandler,
+		PermissionsRequired: []string{"*"},
+	}))
 
 	r.Methods("GET").Path("/_notary_server/health").HandlerFunc(health.StatusHandler)
 	r.Methods("GET").Path("/metrics").Handler(prometheus.Handler())

@@ -21,6 +21,34 @@ type ver struct {
 	createupdate time.Time
 }
 
+// MemTUFFile represents a TUFFile from the memory store
+type MemTUFFile struct {
+	Gun     string
+	Role    string
+	Version int
+	Sha256  string
+}
+
+// GetGUN returns the GUN for the TUF File
+func (m MemTUFFile) GetGUN() string {
+	return m.Gun
+}
+
+// GetRole returns the role for the TUF File
+func (m MemTUFFile) GetRole() string {
+	return m.Role
+}
+
+// GetVersion returns the version for the TUF File
+func (m MemTUFFile) GetVersion() int {
+	return m.Version
+}
+
+// GetSha256 returns the SHA for the TUF File
+func (m MemTUFFile) GetSha256() string {
+	return m.Sha256
+}
+
 // we want to keep these sorted by version so that it's in increasing version
 // order
 type verList []ver
@@ -132,6 +160,27 @@ func (st *MemStorage) GetCurrent(gun, role string) (*time.Time, []byte, error) {
 		return nil, nil, ErrNotFound{}
 	}
 	return &(space[len(space)-1].createupdate), space[len(space)-1].data, nil
+}
+
+// GetAll returns TUFFile data for TUFFiles updated between createdBefore and createdAfter.
+// If createdBefore is nil, there is no upper bound on event creation time.
+// If createdAfter is nil, there is no lower bound on event creation time.
+// There are no guarantees that this function works correctly, it is strictly for testing.
+// Use at your own risk.
+func (st *MemStorage) GetAll(createdBefore, createdAfter *time.Time) ([]TUFFile, error) {
+	var results []TUFFile
+	for gun, checksums := range st.checksums {
+		for checksum, version := range checksums {
+			if (createdBefore == nil || version.createupdate.Before(*createdBefore)) && (createdAfter == nil || version.createupdate.After(*createdAfter)) {
+				results = append(results, MemTUFFile{
+					Gun:     gun,
+					Version: version.version,
+					Sha256:  checksum,
+				})
+			}
+		}
+	}
+	return results, nil
 }
 
 // GetChecksum returns the createupdate date and metadata for a given role, under a GUN.
