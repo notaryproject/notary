@@ -4,12 +4,10 @@ package signer_test
 
 import (
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +25,8 @@ import (
 	"github.com/docker/notary/tuf/testutils/interfaces"
 	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
+	health "google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func socketDialer(socketAddr string, timeout time.Duration) (net.Conn, error) {
@@ -60,7 +60,7 @@ func setUpSignerClient(t *testing.T, grpcServer *grpc.Server) (*client.NotarySig
 }
 
 type stubServer struct {
-	stubHealthFunc func() (map[string]string, error)
+	healthServer *health.Server
 }
 
 func (s stubServer) CreateKey(ctx context.Context, req *pb.CreateKeyRequest) (*pb.PublicKey, error) {
@@ -80,73 +80,79 @@ func (s stubServer) Sign(ctx context.Context, sr *pb.SignatureRequest) (*pb.Sign
 }
 
 func (s stubServer) CheckHealth(ctx context.Context, v *pb.Void) (*pb.HealthStatus, error) {
-	res, err := s.stubHealthFunc()
-	if err != nil {
-		return nil, err
-	}
-	return &pb.HealthStatus{Status: res}, nil
+	return &pb.HealthStatus{}, nil
 }
 
-func getStubbedHealthServer(healthFunc func() (map[string]string, error)) *grpc.Server {
-	s := stubServer{stubHealthFunc: healthFunc}
+func getStubbedHealthServer(hs *health.Server) *grpc.Server {
+	s := stubServer{healthServer: hs}
 	gServer := grpc.NewServer()
 	pb.RegisterKeyManagementServer(gServer, s)
 	pb.RegisterSignerServer(gServer, s)
+
+	if s.healthServer != nil {
+		healthpb.RegisterHealthServer(gServer, s.healthServer)
+	}
+
 	return gServer
 }
 
 // CheckHealth does not succeed if the KM server is unhealthy
 func TestHealthCheckKMUnhealthy(t *testing.T) {
-	s := getStubbedHealthServer(func() (map[string]string, error) {
-		return map[string]string{"health": "not good"}, nil
-	})
+	hs := health.NewServer()
+	hs.SetServingStatus("grpc.health.v1.Health.KeyManagement", healthpb.HealthCheckResponse_NOT_SERVING)
+
+	s := getStubbedHealthServer(hs)
 	signerClient, _, cleanup := setUpSignerClient(t, s)
 	defer cleanup()
-	require.Error(t, signerClient.CheckHealth(1*time.Second))
+	require.Error(t, signerClient.CheckHealth(1*time.Second, "grpc.health.v1.Health.KeyManagement"))
 }
 
 // CheckHealth does not succeed if the health check to the KM server errors
 func TestHealthCheckKMError(t *testing.T) {
-	s := getStubbedHealthServer(func() (map[string]string, error) {
-		return nil, errors.New("Something's wrong")
-	})
+	hs := health.NewServer()
+	hs.SetServingStatus("grpc.health.v1.Health.KeyManagement", healthpb.HealthCheckResponse_NOT_SERVING)
+
+	s := getStubbedHealthServer(hs)
 	signerClient, _, cleanup := setUpSignerClient(t, s)
 	defer cleanup()
-	require.Error(t, signerClient.CheckHealth(1*time.Second))
+	require.Error(t, signerClient.CheckHealth(1*time.Second, "grpc.health.v1.Health.KeyManagement"))
 }
 
 // CheckHealth does not succeed if the health check to the KM server times out
 func TestHealthCheckKMTimeout(t *testing.T) {
-	s := getStubbedHealthServer(func() (map[string]string, error) {
-		return nil, fmt.Errorf("this should should have failed by now")
-	})
+	hs := health.NewServer()
+	hs.SetServingStatus("grpc.health.v1.Health.KeyManagement", healthpb.HealthCheckResponse_NOT_SERVING)
+
+	s := getStubbedHealthServer(hs)
 	signerClient, _, cleanup := setUpSignerClient(t, s)
 	defer cleanup()
 
-	err := signerClient.CheckHealth(0 * time.Second)
+	err := signerClient.CheckHealth(0*time.Second, "grpc.health.v1.Health.KeyManagement")
 	require.Error(t, err)
-	require.True(t, strings.Contains(err.Error(), "Timed out"))
+	require.Contains(t, err.Error(), context.DeadlineExceeded.Error())
 }
 
 // CheckHealth succeeds if KM is healthy and reachable.
 func TestHealthCheckKMHealthy(t *testing.T) {
-	s := getStubbedHealthServer(func() (map[string]string, error) {
-		return nil, nil
-	})
+	hs := health.NewServer()
+	hs.SetServingStatus("grpc.health.v1.Health.KeyManagement", healthpb.HealthCheckResponse_SERVING)
+
+	s := getStubbedHealthServer(hs)
 	signerClient, _, cleanup := setUpSignerClient(t, s)
 	defer cleanup()
-	require.NoError(t, signerClient.CheckHealth(1*time.Second))
+	require.NoError(t, signerClient.CheckHealth(1*time.Second, "grpc.health.v1.Health.KeyManagement"))
 }
 
 // CheckHealth fails immediately if not connected to the server.
 func TestHealthCheckConnectionDied(t *testing.T) {
-	s := getStubbedHealthServer(func() (map[string]string, error) {
-		return nil, nil
-	})
+	hs := health.NewServer()
+	hs.SetServingStatus("grpc.health.v1.Health.KeyManagement", healthpb.HealthCheckResponse_NOT_SERVING)
+
+	s := getStubbedHealthServer(hs)
 	signerClient, conn, cleanup := setUpSignerClient(t, s)
 	defer cleanup()
 	conn.Close()
-	require.Error(t, signerClient.CheckHealth(1*time.Second))
+	require.Error(t, signerClient.CheckHealth(1*time.Second, "grpc.health.v1.Health.KeyManagement"))
 }
 
 var constPass = func(string, string, bool, int) (string, bool, error) {

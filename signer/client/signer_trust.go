@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 // RemotePrivateKey is a key that is on a remote service, so no private
@@ -98,6 +99,8 @@ func (pk *RemotePrivateKey) CryptoSigner() crypto.Signer {
 type NotarySigner struct {
 	kmClient pb.KeyManagementClient
 	sClient  pb.SignerClient
+
+	healthClient healthpb.HealthClient
 }
 
 // NewGRPCConnection is a convenience method that returns GRPC Client Connection given a hostname, endpoint, and TLS options
@@ -113,9 +116,12 @@ func NewGRPCConnection(hostname string, port string, tlsConfig *tls.Config) (*gr
 func NewNotarySigner(conn *grpc.ClientConn) *NotarySigner {
 	kmClient := pb.NewKeyManagementClient(conn)
 	sClient := pb.NewSignerClient(conn)
+	hc := healthpb.NewHealthClient(conn)
+
 	return &NotarySigner{
-		kmClient: kmClient,
-		sClient:  sClient,
+		kmClient:     kmClient,
+		sClient:      sClient,
+		healthClient: hc,
 	}
 }
 
@@ -178,9 +184,8 @@ func (trust *NotarySigner) ListAllKeys() map[string]string {
 	return map[string]string{}
 }
 
-// CheckHealth checks the health of one of the clients, since both clients run
-// from the same GRPC server.
-func (trust *NotarySigner) CheckHealth(timeout time.Duration) error {
+// CheckHealthDeprecated is deprecated.
+func (trust *NotarySigner) CheckHealthDeprecated(timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	status, err := trust.kmClient.CheckHealth(ctx, &pb.Void{})
 	defer cancel()
@@ -196,4 +201,47 @@ func (trust *NotarySigner) CheckHealth(timeout time.Duration) error {
 	}
 
 	return err
+}
+
+// CheckHealth are used to probe whether the server is able to handle rpcs.
+func (trust *NotarySigner) CheckHealth(d time.Duration, serviceName string) error {
+
+	// The client can optionally set the service name it wants to query for health status
+	if serviceName != "" {
+		out, err := healthCheck(d, trust.healthClient, serviceName)
+		if err != nil {
+			return err
+		}
+		if out.Status != healthpb.HealthCheckResponse_SERVING {
+			return fmt.Errorf("Got the serving status of %s: %s, want %s",
+				serviceName, out.Status, healthpb.HealthCheckResponse_SERVING)
+		}
+		return nil
+	}
+
+	out, err := healthCheck(d, trust.healthClient, "grpc.health.v1.Health.KeyManagement")
+	if err != nil {
+		return err
+	}
+	if out.Status != healthpb.HealthCheckResponse_SERVING {
+		return fmt.Errorf("Got the serving status of %s: %s, want %s", "KeyManagement", out.Status, healthpb.HealthCheckResponse_SERVING)
+	}
+
+	out, err = healthCheck(d, trust.healthClient, "grpc.health.v1.Health.Signer")
+	if err != nil {
+		return err
+	}
+	if out.Status != healthpb.HealthCheckResponse_SERVING {
+		return fmt.Errorf("Got the serving status of %s: %s, want %s", "Signer", out.Status, healthpb.HealthCheckResponse_SERVING)
+	}
+
+	return nil
+}
+
+func healthCheck(d time.Duration, hc healthpb.HealthClient, serviceName string) (*healthpb.HealthCheckResponse, error) {
+	ctx, _ := context.WithTimeout(context.Background(), d)
+	req := &healthpb.HealthCheckRequest{
+		Service: serviceName,
+	}
+	return hc.Check(ctx, req)
 }
