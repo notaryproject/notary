@@ -115,11 +115,14 @@ type tufCommander struct {
 	archiveChangelist string
 
 	deleteRemote bool
+
+	autoPublish bool
 }
 
 func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmdTUFInit := cmdTUFInitTemplate.ToCommand(t.tufInit)
 	cmdTUFInit.Flags().StringVar(&t.rootKey, "rootkey", "", "Root key to initialize the repository with")
+	cmdTUFInit.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
 	cmd.AddCommand(cmdTUFInit)
 
 	cmdStatus := cmdTUFStatusTemplate.ToCommand(t.tufStatus)
@@ -137,16 +140,19 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 
 	cmdTUFAdd := cmdTUFAddTemplate.ToCommand(t.tufAdd)
 	cmdTUFAdd.Flags().StringSliceVarP(&t.roles, "roles", "r", nil, "Delegation roles to add this target to")
+	cmdTUFAdd.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
 	cmd.AddCommand(cmdTUFAdd)
 
 	cmdTUFRemove := cmdTUFRemoveTemplate.ToCommand(t.tufRemove)
 	cmdTUFRemove.Flags().StringSliceVarP(&t.roles, "roles", "r", nil, "Delegation roles to remove this target from")
+	cmdTUFRemove.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
 	cmd.AddCommand(cmdTUFRemove)
 
 	cmdTUFAddHash := cmdTUFAddHashTemplate.ToCommand(t.tufAddByHash)
 	cmdTUFAddHash.Flags().StringSliceVarP(&t.roles, "roles", "r", nil, "Delegation roles to add this target to")
 	cmdTUFAddHash.Flags().StringVar(&t.sha256, notary.SHA256, "", "hex encoded sha256 of the target to add")
 	cmdTUFAddHash.Flags().StringVar(&t.sha512, notary.SHA512, "", "hex encoded sha512 of the target to add")
+	cmdTUFAddHash.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
 	cmd.AddCommand(cmdTUFAddHash)
 
 	cmdTUFVerify := cmdTUFVerifyTemplate.ToCommand(t.tufVerify)
@@ -269,7 +275,8 @@ func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 	cmd.Printf(
 		"Addition of target \"%s\" by %s hash to repository \"%s\" staged for next publish.\n",
 		targetName, strings.Join(hashesUsed, ", "), gun)
-	return nil
+
+	return maybeAutoPublish(cmd, t.autoPublish, gun, config, t.retriever)
 }
 
 func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
@@ -307,10 +314,10 @@ func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 	if err = nRepo.AddTarget(target, t.roles...); err != nil {
 		return err
 	}
-	cmd.Printf(
-		"Addition of target \"%s\" to repository \"%s\" staged for next publish.\n",
-		targetName, gun)
-	return nil
+
+	cmd.Printf("Addition of target \"%s\" to repository \"%s\" staged for next publish.\n", targetName, gun)
+
+	return maybeAutoPublish(cmd, t.autoPublish, gun, config, t.retriever)
 }
 
 func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
@@ -410,7 +417,8 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 	if err = nRepo.Initialize([]string{rootKeyID}); err != nil {
 		return err
 	}
-	return nil
+
+	return maybeAutoPublish(cmd, t.autoPublish, gun, config, t.retriever)
 }
 
 // Attempt to read an encrypted root key from a file, and return it as a data.PrivateKey
@@ -640,7 +648,8 @@ func (t *tufCommander) tufRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	cmd.Printf("Removal of %s from %s staged for next publish.\n", targetName, gun)
-	return nil
+
+	return maybeAutoPublish(cmd, t.autoPublish, gun, config, t.retriever)
 }
 
 func (t *tufCommander) tufVerify(cmd *cobra.Command, args []string) error {
@@ -926,4 +935,31 @@ func (a *authRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 
 	// Return the last response
 	return resp, nil
+}
+
+func maybeAutoPublish(cmd *cobra.Command, doPublish bool, gun string, config *viper.Viper, passRetriever notary.PassRetriever) error {
+
+	if !doPublish {
+		return nil
+	}
+
+	// We need to set up a http RoundTripper when publishing
+	rt, err := getTransport(config, gun, readWrite)
+	if err != nil {
+		return err
+	}
+
+	trustPin, err := getTrustPinning(config)
+	if err != nil {
+		return err
+	}
+
+	nRepo, err := notaryclient.NewNotaryRepository(
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, passRetriever, trustPin)
+	if err != nil {
+		return err
+	}
+
+	cmd.Println("Auto-publishing changes to", gun)
+	return nRepo.Publish()
 }
