@@ -179,7 +179,7 @@ func TestValidateRootWithPinnedCert(t *testing.T) {
 	// This call to trustpinning.ValidateRoot should succeed with the correct Cert ID (same as root public key ID)
 	validatedSignedRoot, err := trustpinning.ValidateRoot(nil, &testSignedRoot, "docker.com/notary", trustpinning.TrustPinConfig{Certs: map[string][]string{"docker.com/notary": {rootPubKeyID}}, DisableTOFU: true})
 	require.NoError(t, err)
-	generateRootKeyIDs(typedSignedRoot)
+	typedSignedRoot.Signatures[0].IsValid = true
 	require.Equal(t, validatedSignedRoot, typedSignedRoot)
 
 	// This call to trustpinning.ValidateRoot should also succeed with the correct Cert ID (same as root public key ID), even though we passed an extra bad one
@@ -190,7 +190,7 @@ func TestValidateRootWithPinnedCert(t *testing.T) {
 	require.Equal(t, typedSignedRoot, validatedSignedRoot)
 }
 
-func TestValidateRootWithPinnerCertAndIntermediates(t *testing.T) {
+func TestValidateRootWithPinnedCertAndIntermediates(t *testing.T) {
 	now := time.Now()
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 
@@ -361,7 +361,7 @@ func TestValidateRootWithPinnerCertAndIntermediates(t *testing.T) {
 		},
 	)
 	require.NoError(t, err, "failed to validate certID with intermediate")
-	generateRootKeyIDs(typedSignedRoot)
+	typedSignedRoot.Signatures[0].IsValid = true
 	require.Equal(t, typedSignedRoot, validatedRoot)
 }
 
@@ -402,7 +402,7 @@ func TestValidateRootFailuresWithPinnedCert(t *testing.T) {
 	// This call to trustpinning.ValidateRoot should succeed because we fall through to TOFUS because we have no matching GUNs under Certs
 	validatedRoot, err := trustpinning.ValidateRoot(nil, &testSignedRoot, "docker.com/notary", trustpinning.TrustPinConfig{Certs: map[string][]string{"not_a_gun": {rootPubKeyID}}, DisableTOFU: false})
 	require.NoError(t, err)
-	generateRootKeyIDs(typedSignedRoot)
+	typedSignedRoot.Signatures[0].IsValid = true
 	require.Equal(t, typedSignedRoot, validatedRoot)
 }
 
@@ -433,7 +433,7 @@ func TestValidateRootWithPinnedCA(t *testing.T) {
 	// This call to trustpinning.ValidateRoot will succeed because we have no valid GUNs to use and we fall back to enabled TOFUS
 	validatedRoot, err := trustpinning.ValidateRoot(nil, &testSignedRoot, "docker.com/notary", trustpinning.TrustPinConfig{CA: map[string]string{"othergun": filepath.Join(tempBaseDir, "nonexistent")}, DisableTOFU: false})
 	require.NoError(t, err)
-	generateRootKeyIDs(typedSignedRoot)
+	typedSignedRoot.Signatures[0].IsValid = true
 	require.Equal(t, typedSignedRoot, validatedRoot)
 
 	// Write an invalid CA cert (not even a PEM) to the tempDir and ensure validation fails when using it
@@ -503,7 +503,7 @@ func TestValidateRootWithPinnedCA(t *testing.T) {
 	// Check that we validate correctly against a pinned CA and provided bundle
 	validatedRoot, err = trustpinning.ValidateRoot(nil, newTestSignedRoot, "notary-signer", trustpinning.TrustPinConfig{CA: map[string]string{"notary-signer": validCAFilepath}, DisableTOFU: true})
 	require.NoError(t, err)
-	generateRootKeyIDs(newTypedSignedRoot)
+	newTypedSignedRoot.Signatures[0].IsValid = true
 	require.Equal(t, newTypedSignedRoot, validatedRoot)
 
 	// Add an expired CA for the same gun to our previous pinned bundle, ensure that we still validate correctly
@@ -634,7 +634,7 @@ func testValidateSuccessfulRootRotation(t *testing.T, keyAlg, rootKeyType string
 	// encoded certificate, and have no other certificates for this CN
 	validatedRoot, err := trustpinning.ValidateRoot(prevRoot, signedTestRoot, gun, trustpinning.TrustPinConfig{})
 	require.NoError(t, err)
-	generateRootKeyIDs(typedSignedRoot)
+	typedSignedRoot.Signatures[0].IsValid = true
 	require.Equal(t, typedSignedRoot, validatedRoot)
 }
 
@@ -877,9 +877,14 @@ func TestValidateRootRotationTrustPinning(t *testing.T) {
 		},
 		DisableTOFU: true,
 	}
+
 	validatedRoot, err := trustpinning.ValidateRoot(prevRoot, signedTestRoot, gun, validCertConfig)
 	require.NoError(t, err)
-	generateRootKeyIDs(typedSignedRoot)
+	for idx, sig := range typedSignedRoot.Signatures {
+		if sig.KeyID == replRootKey.ID() {
+			typedSignedRoot.Signatures[idx].IsValid = true
+		}
+	}
 	require.Equal(t, typedSignedRoot, validatedRoot)
 
 	// This call will also succeed since we only need the new replacement root ID to be pinned
@@ -891,13 +896,11 @@ func TestValidateRootRotationTrustPinning(t *testing.T) {
 	}
 	validatedRoot, err = trustpinning.ValidateRoot(prevRoot, signedTestRoot, gun, validCertConfig)
 	require.NoError(t, err)
-	generateRootKeyIDs(typedSignedRoot)
 	require.Equal(t, typedSignedRoot, validatedRoot)
 
 	// Even if we disable TOFU in the trustpinning, since we have a previously trusted root we should honor a valid rotation
 	validatedRoot, err = trustpinning.ValidateRoot(prevRoot, signedTestRoot, gun, trustpinning.TrustPinConfig{DisableTOFU: true})
 	require.NoError(t, err)
-	generateRootKeyIDs(typedSignedRoot)
 	require.Equal(t, typedSignedRoot, validatedRoot)
 }
 
@@ -995,15 +998,6 @@ func generateTestingCertificate(rootKey data.PrivateKey, gun string, timeToExpir
 func generateExpiredTestingCertificate(rootKey data.PrivateKey, gun string) (*x509.Certificate, error) {
 	startTime := time.Now().AddDate(-10, 0, 0)
 	return cryptoservice.GenerateCertificate(rootKey, gun, startTime, startTime.AddDate(1, 0, 0))
-}
-
-// Helper function for explicitly generating key IDs and unexported fields for equality testing
-func generateRootKeyIDs(r *data.SignedRoot) {
-	for _, keyID := range r.Signed.Roles[data.CanonicalRootRole].KeyIDs {
-		if k, ok := r.Signed.Keys[keyID]; ok {
-			_ = k.ID()
-		}
-	}
 }
 
 func TestCheckingCertExpiry(t *testing.T) {

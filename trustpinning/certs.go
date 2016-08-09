@@ -127,15 +127,17 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 		if !ok {
 			return nil, &ErrValidationFail{Reason: "could not retrieve previous root role data"}
 		}
-
 		err = signed.VerifySignatures(
 			root, data.BaseRole{Keys: utils.CertsToKeys(trustedLeafCerts, allTrustedIntCerts), Threshold: prevRootRoleData.Threshold})
 		if err != nil {
 			logrus.Debugf("failed to verify TUF data for: %s, %v", gun, err)
 			return nil, &ErrRootRotationFail{Reason: "failed to validate data with current trusted certificates"}
 		}
+		// Clear the IsValid marks we could have received from VerifySignatures
+		for i := range root.Signatures {
+			root.Signatures[i].IsValid = false
+		}
 	}
-
 
 	// Regardless of having a previous root or not, confirm that the new root validates against the trust pinning
 	logrus.Debugf("checking root against trust_pinning config", gun)
@@ -169,7 +171,8 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 	}
 
 	logrus.Debugf("root validation succeeded for %s", gun)
-	return signedRoot, nil
+	// Call RootFromSigned to make sure we pick up on the IsValid markings from VerifySignatures
+	return data.RootFromSigned(root)
 }
 
 // validRootLeafCerts returns a list of possibly (if checkExpiry is true) non-expired, non-sha1 certificates
