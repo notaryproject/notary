@@ -12,6 +12,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/docker/notary"
 	pb "github.com/docker/notary/proto"
 	"github.com/docker/notary/tuf/data"
 	"golang.org/x/net/context"
@@ -110,39 +111,43 @@ func healthCheck(d time.Duration, hc healthpb.HealthClient, serviceName string) 
 	return hc.Check(ctx, req)
 }
 
-// CheckHealth are used to probe whether the server is able to handle rpcs.
-func (trust *NotarySigner) CheckHealth(d time.Duration, serviceName string) error {
-
-	// The client can optionally set the service name it wants to query for health status
-	if serviceName != "" {
-		out, err := healthCheck(d, trust.healthClient, serviceName)
-		if err != nil {
-			return err
-		}
-		if out.Status != healthpb.HealthCheckResponse_SERVING {
-			return fmt.Errorf("Got the serving status of %s: %s, want %s",
-				serviceName, out.Status, healthpb.HealthCheckResponse_SERVING)
-		}
-		return nil
-	}
-
-	out, err := healthCheck(d, trust.healthClient, "grpc.health.v1.Health.KeyManagement")
+func healthCheckKeyManagement(d time.Duration, hc healthpb.HealthClient) error {
+	out, err := healthCheck(d, hc, notary.HealthCheckKeyManagement)
 	if err != nil {
 		return err
 	}
 	if out.Status != healthpb.HealthCheckResponse_SERVING {
 		return fmt.Errorf("Got the serving status of %s: %s, want %s", "KeyManagement", out.Status, healthpb.HealthCheckResponse_SERVING)
 	}
+	return nil
+}
 
-	out, err = healthCheck(d, trust.healthClient, "grpc.health.v1.Health.Signer")
+func healthCheckSigner(d time.Duration, hc healthpb.HealthClient) error {
+	out, err := healthCheck(d, hc, notary.HealthCheckSigner)
 	if err != nil {
 		return err
 	}
 	if out.Status != healthpb.HealthCheckResponse_SERVING {
 		return fmt.Errorf("Got the serving status of %s: %s, want %s", "Signer", out.Status, healthpb.HealthCheckResponse_SERVING)
 	}
-
 	return nil
+}
+
+// CheckHealth are used to probe whether the server is able to handle rpcs.
+func (trust *NotarySigner) CheckHealth(d time.Duration, serviceName string) error {
+	switch serviceName {
+	case notary.HealthCheckKeyManagement:
+		return healthCheckKeyManagement(d, trust.healthClient)
+	case notary.HealthCheckSigner:
+		return healthCheckSigner(d, trust.healthClient)
+	case notary.HealthCheckOverall:
+		if err := healthCheckKeyManagement(d, trust.healthClient); err != nil {
+			return err
+		}
+		return healthCheckSigner(d, trust.healthClient)
+	default:
+		return fmt.Errorf("Unknown grpc service %s", serviceName)
+	}
 }
 
 // NewGRPCConnection is a convenience method that returns GRPC Client Connection given a hostname, endpoint, and TLS options
