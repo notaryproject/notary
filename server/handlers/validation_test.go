@@ -675,13 +675,6 @@ func TestValidateSnapshotGenerateNoPrev(t *testing.T) {
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
-	snapRole, err := repo.GetBaseRole(data.CanonicalSnapshotRole)
-	require.NoError(t, err)
-
-	for _, k := range snapRole.Keys {
-		err := store.SetKey(gun, data.CanonicalSnapshotRole, k.Algorithm(), k.Public())
-		require.NoError(t, err)
-	}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	require.NoError(t, err)
@@ -700,13 +693,6 @@ func TestValidateSnapshotGenerateWithPrev(t *testing.T) {
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
-	snapRole, err := repo.GetBaseRole(data.CanonicalSnapshotRole)
-	require.NoError(t, err)
-
-	for _, k := range snapRole.Keys {
-		err := store.SetKey(gun, data.CanonicalSnapshotRole, k.Algorithm(), k.Public())
-		require.NoError(t, err)
-	}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	require.NoError(t, err)
@@ -742,13 +728,6 @@ func TestValidateSnapshotGeneratePrevCorrupt(t *testing.T) {
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
-	snapRole, err := repo.GetBaseRole(data.CanonicalSnapshotRole)
-	require.NoError(t, err)
-
-	for _, k := range snapRole.Keys {
-		err := store.SetKey(gun, data.CanonicalSnapshotRole, k.Algorithm(), k.Public())
-		require.NoError(t, err)
-	}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	require.NoError(t, err)
@@ -778,13 +757,6 @@ func TestValidateSnapshotGenerateStoreGetCurrentSnapshotBroken(t *testing.T) {
 		MetaStore:    storage.NewMemStorage(),
 		errsToReturn: map[string]error{data.CanonicalSnapshotRole: data.ErrNoSuchRole{}},
 	}
-	snapRole, err := repo.GetBaseRole(data.CanonicalSnapshotRole)
-	require.NoError(t, err)
-
-	for _, k := range snapRole.Keys {
-		err := store.SetKey(gun, data.CanonicalSnapshotRole, k.Algorithm(), k.Public())
-		require.NoError(t, err)
-	}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	require.NoError(t, err)
@@ -804,13 +776,6 @@ func TestValidateSnapshotGenerateNoTargets(t *testing.T) {
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
-	snapRole, err := repo.GetBaseRole(data.CanonicalSnapshotRole)
-	require.NoError(t, err)
-
-	for _, k := range snapRole.Keys {
-		err := store.SetKey(gun, data.CanonicalSnapshotRole, k.Algorithm(), k.Public())
-		require.NoError(t, err)
-	}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	require.NoError(t, err)
@@ -829,13 +794,6 @@ func TestValidateSnapshotGenerate(t *testing.T) {
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
-	snapRole, err := repo.GetBaseRole(data.CanonicalSnapshotRole)
-	require.NoError(t, err)
-
-	for _, k := range snapRole.Keys {
-		err := store.SetKey(gun, data.CanonicalSnapshotRole, k.Algorithm(), k.Public())
-		require.NoError(t, err)
-	}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	require.NoError(t, err)

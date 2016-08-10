@@ -26,6 +26,7 @@ import (
 	"github.com/docker/notary/storage/rethinkdb"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/signed"
 	tufutils "github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/utils"
 	"github.com/spf13/viper"
@@ -105,11 +106,11 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, d
 		return nil, fmt.Errorf("%s is not an allowed backend, must be one of: %s", backend, allowedBackends)
 	}
 
-	var keyStore trustmanager.KeyStore
+	var keyService signed.CryptoService
 	switch backend {
 	case notary.MemoryBackend:
-		keyStore = trustmanager.NewKeyMemoryStore(
-			passphrase.ConstantRetriever("memory-db-ignore"))
+		keyService = cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(
+			passphrase.ConstantRetriever("memory-db-ignore")))
 	case notary.RethinkDBBackend:
 		var sess *gorethink.Session
 		storeConfig, err := utils.ParseRethinkDBStorage(configuration)
@@ -135,10 +136,11 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, d
 		}
 		s := keydbstore.NewRethinkDBKeyStore(storeConfig.DBName, storeConfig.Username, storeConfig.Password, passphraseRetriever, defaultAlias, sess)
 		health.RegisterPeriodicFunc("DB operational", time.Minute, s.CheckHealth)
+
 		if doBootstrap {
-			keyStore = s
+			keyService = s
 		} else {
-			keyStore = keydbstore.NewCachedKeyStore(s)
+			keyService = keydbstore.NewCachedKeyService(s)
 		}
 	case notary.MySQLBackend, notary.SQLiteBackend:
 		storeConfig, err := utils.ParseSQLStorage(configuration)
@@ -157,21 +159,20 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, d
 
 		health.RegisterPeriodicFunc(
 			"DB operational", time.Minute, dbStore.HealthCheck)
-		keyStore = keydbstore.NewCachedKeyStore(dbStore)
+		keyService = keydbstore.NewCachedKeyService(dbStore)
 	}
 
 	if doBootstrap {
-		err := bootstrap(keyStore)
+		err := bootstrap(keyService)
 		if err != nil {
 			logrus.Fatal(err.Error())
 		}
 		os.Exit(0)
 	}
 
-	cryptoService := cryptoservice.NewCryptoService(keyStore)
 	cryptoServices := make(signer.CryptoServiceIndex)
-	cryptoServices[data.ED25519Key] = cryptoService
-	cryptoServices[data.ECDSAKey] = cryptoService
+	cryptoServices[data.ED25519Key] = keyService
+	cryptoServices[data.ECDSAKey] = keyService
 	return cryptoServices, nil
 }
 
@@ -190,22 +191,25 @@ func getDefaultAlias(configuration *viper.Viper) (string, error) {
 }
 
 // set up the GRPC server
-func setupGRPCServer(grpcAddr string, tlsConfig *tls.Config,
-	cryptoServices signer.CryptoServiceIndex) (*grpc.Server, net.Listener, error) {
+func setupGRPCServer(signerConfig signer.Config) (*grpc.Server, net.Listener, error) {
 
 	//RPC server setup
-	kms := &api.KeyManagementServer{CryptoServices: cryptoServices,
-		HealthChecker: health.CheckStatus}
-	ss := &api.SignerServer{CryptoServices: cryptoServices,
-		HealthChecker: health.CheckStatus}
-
-	lis, err := net.Listen("tcp", grpcAddr)
-	if err != nil {
-		return nil, nil, fmt.Errorf("grpc server failed to listen on %s: %v",
-			grpcAddr, err)
+	kms := &api.KeyManagementServer{
+		CryptoServices: signerConfig.CryptoServices,
+		HealthChecker:  health.CheckStatus,
+	}
+	ss := &api.SignerServer{
+		CryptoServices: signerConfig.CryptoServices,
+		HealthChecker:  health.CheckStatus,
 	}
 
-	creds := credentials.NewTLS(tlsConfig)
+	lis, err := net.Listen("tcp", signerConfig.GRPCAddr)
+	if err != nil {
+		return nil, nil, fmt.Errorf("grpc server failed to listen on %s: %v",
+			signerConfig.GRPCAddr, err)
+	}
+
+	creds := credentials.NewTLS(signerConfig.TLSConfig)
 	opts := []grpc.ServerOption{grpc.Creds(creds)}
 	grpcServer := grpc.NewServer(opts...)
 

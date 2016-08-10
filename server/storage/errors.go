@@ -4,10 +4,10 @@ import (
 	"fmt"
 )
 
-// ErrOldVersion is returned when a newer version of TUF metadada is already available
+// ErrOldVersion is returned when a newer version of TUF metadata is already available
 type ErrOldVersion struct{}
 
-// ErrOldVersion is returned when a newer version of TUF metadada is already available
+// ErrOldVersion is returned when a newer version of TUF metadata is already available
 func (err ErrOldVersion) Error() string {
 	return fmt.Sprintf("Error updating metadata. A newer version is already available")
 }

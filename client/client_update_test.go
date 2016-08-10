@@ -1058,8 +1058,8 @@ func TestUpdateNonRootRemoteCorruptedNoLocalCache(t *testing.T) {
 // Having a local cache, if the server has the same data (timestamp has not changed),
 // should succeed in all cases if whether forWrite (force check) is true or not.
 // If the timestamp is fine, it hasn't changed and we don't have to download
-// anything. If it's broken, we used the cached timestamp and again download
-// nothing.
+// anything. If it's broken, we used the cached timestamp only if the error on
+// downloading the new one was not validation related
 func TestUpdateNonRootRemoteCorruptedCanUseLocalCache(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
@@ -1070,10 +1070,18 @@ func TestUpdateNonRootRemoteCorruptedCanUseLocalCache(t *testing.T) {
 			continue
 		}
 		for _, testData := range waysToMessUpServer {
-			testUpdateRemoteCorruptValidChecksum(t, updateOpts{
-				localCache: true,
-				role:       role,
-			}, testData, false)
+			// remote timestamp swizzling will fail the update
+			if role == data.CanonicalTimestampRole {
+				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
+					localCache: true,
+					role:       role,
+				}, testData, testData.desc != "insufficient signatures")
+			} else {
+				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
+					localCache: true,
+					role:       role,
+				}, testData, false)
+			}
 		}
 	}
 	for role, expectations := range waysToMessUpServerNonRootPerRole(t) {
@@ -1094,7 +1102,7 @@ func TestUpdateNonRootRemoteCorruptedCanUseLocalCache(t *testing.T) {
 				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
 					localCache: true,
 					role:       role,
-				}, testData, false)
+				}, testData, true)
 			case "targets/a":
 				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
 					localCache: true,
@@ -1137,19 +1145,6 @@ func TestUpdateNonRootRemoteCorruptedCannotUseLocalCache(t *testing.T) {
 		switch role {
 		case data.CanonicalRootRole:
 			break
-		case data.CanonicalTimestampRole:
-			for _, testData := range waysToMessUpServer {
-				// in general the cached timsestamp will always succeed, but if the threshold has been
-				// increased, it fails because when we download the new timestamp, it validates as per our
-				// previous root.  But the root hash doesn't match.  So we download a new root and
-				// try the update again.  In this case, both the old and new timestamps won't have enough
-				// signatures.
-				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
-					serverHasNewData: true,
-					localCache:       true,
-					role:             role,
-				}, testData, testData.desc == "insufficient signatures")
-			}
 		default:
 			for _, testData := range waysToMessUpServer {
 				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
@@ -1198,13 +1193,13 @@ func TestUpdateNonRootRemoteCorruptedCannotUseLocalCache(t *testing.T) {
 					role:             role,
 				}, testData, false)
 			case data.CanonicalTimestampRole:
-				// If the timestamp is invalid, we just default to the previous
-				// cached version of the timestamp, so the update succeeds
+				// we only default to the previous cached version of the timestamp if
+				// there is a network/storage error, so swizzling will fail the update
 				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
 					serverHasNewData: true,
 					localCache:       true,
 					role:             role,
-				}, testData, false)
+				}, testData, true)
 			case "targets/a":
 				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
 					serverHasNewData: true,

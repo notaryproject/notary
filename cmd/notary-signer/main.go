@@ -57,7 +57,7 @@ func main() {
 		logrus.Fatal(err.Error())
 	}
 
-	grpcServer, lis, err := setupGRPCServer(signerConfig.GRPCAddr, signerConfig.TLSConfig, signerConfig.CryptoServices)
+	grpcServer, lis, err := setupGRPCServer(signerConfig)
 	if err != nil {
 		logrus.Fatal(err.Error())
 	}

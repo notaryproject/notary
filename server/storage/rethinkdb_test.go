@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/notary/storage/rethinkdb"
 	"github.com/stretchr/testify/require"
 )
 
@@ -115,72 +114,6 @@ func TestRDBTUFFileJSONUnmarshallingFailure(t *testing.T) {
 
 	for _, invalid := range invalids {
 		_, err := TUFFilesRethinkTable.JSONUnmarshaller([]byte(invalid))
-		require.Error(t, err)
-	}
-}
-
-func TestRDBTUFKeyJSONUnmarshalling(t *testing.T) {
-	rdb := RDBKey{
-		Timing: rethinkdb.Timing{
-			CreatedAt: time.Now().AddDate(-1, -1, -1),
-			UpdatedAt: time.Now().AddDate(0, -5, 0),
-			DeletedAt: time.Time{},
-		},
-		Gun:    "namespaced/name",
-		Role:   "timestamp",
-		Cipher: "ecdsa",
-		Public: []byte("Hello world"),
-	}
-	jsonBytes, err := json.Marshal(rdb)
-	require.NoError(t, err)
-
-	unmarshalledAnon, err := PubKeysRethinkTable.JSONUnmarshaller(jsonBytes)
-	require.NoError(t, err)
-	unmarshalled, ok := unmarshalledAnon.(RDBKey)
-	require.True(t, ok)
-
-	// There is some weirdness with comparing time.Time due to a location pointer,
-	// so let's use time.Time's equal function to compare times, and then re-assign
-	// the timing struct to compare the rest of the RDBTUFFile struct
-	require.True(t, rdb.CreatedAt.Equal(unmarshalled.CreatedAt))
-	require.True(t, rdb.UpdatedAt.Equal(unmarshalled.UpdatedAt))
-	require.True(t, rdb.DeletedAt.Equal(unmarshalled.DeletedAt))
-	unmarshalled.Timing = rdb.Timing
-
-	require.Equal(t, rdb, unmarshalled)
-}
-
-func TestRDBKeyJSONUnmarshallingFailure(t *testing.T) {
-	validTimeMarshalled, err := json.Marshal(time.Now())
-	require.NoError(t, err)
-	dataMarshalled, err := json.Marshal([]byte("Hello world!"))
-	require.NoError(t, err)
-
-	invalids := []string{
-		fmt.Sprintf(`
-			{
-				"created_at": "not a time",
-				"updated_at": %s,
-				"deleted_at": %s,
-				"gun": "namespaced/name",
-				"role": "timestamp",
-				"cipher": "ecdsa",
-				"public": %s,
-			}`, validTimeMarshalled, validTimeMarshalled, dataMarshalled),
-		fmt.Sprintf(`
-			{
-				"created_at": %s,
-				"updated_at": %s,
-				"deleted_at": %s,
-				"gun": "namespaced/name",
-				"role": "timestamp",
-				"cipher": "ecdsa",
-				"public": 12345,
-			}`, validTimeMarshalled, validTimeMarshalled, validTimeMarshalled),
-	}
-
-	for _, invalid := range invalids {
-		_, err := PubKeysRethinkTable.JSONUnmarshaller([]byte(invalid))
 		require.Error(t, err)
 	}
 }

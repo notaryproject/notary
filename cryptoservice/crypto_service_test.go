@@ -407,7 +407,7 @@ func TestCryptoServiceWithEmptyGUN(t *testing.T) {
 func TestCryptoSignerInterfaceBehavior(t *testing.T) {
 	cs := NewCryptoService(trustmanager.NewKeyMemoryStore(passphraseRetriever))
 	interfaces.EmptyCryptoServiceInterfaceBehaviorTests(t, cs)
-	interfaces.CreateGetKeyCryptoServiceInterfaceBehaviorTests(t, cs, data.ECDSAKey, true)
+	interfaces.CreateGetKeyCryptoServiceInterfaceBehaviorTests(t, cs, data.ECDSAKey)
 
 	cs = NewCryptoService(trustmanager.NewKeyMemoryStore(passphraseRetriever))
 	interfaces.CreateListKeyCryptoServiceInterfaceBehaviorTests(t, cs, data.ECDSAKey)

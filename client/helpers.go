@@ -236,6 +236,25 @@ func getRemoteKey(url, gun, role string, rt http.RoundTripper) (data.PublicKey, 
 	return pubKey, nil
 }
 
+// Rotates a private key in a remote store and returns the public key component
+func rotateRemoteKey(url, gun, role string, rt http.RoundTripper) (data.PublicKey, error) {
+	remote, err := getRemoteStore(url, gun, rt)
+	if err != nil {
+		return nil, err
+	}
+	rawPubKey, err := remote.RotateKey(role)
+	if err != nil {
+		return nil, err
+	}
+
+	pubKey, err := data.UnmarshalPublicKey(rawPubKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return pubKey, nil
+}
+
 // signs and serializes the metadata for a canonical role in a TUF repo to JSON
 func serializeCanonicalRole(tufRepo *tuf.Repo, role string) (out []byte, err error) {
 	var s *data.Signed

@@ -173,6 +173,13 @@ func RootHandler(ac auth.AccessController, ctx context.Context, trust signed.Cry
 		ServerHandler:       handlers.GetKeyHandler,
 		PermissionsRequired: []string{"push", "pull"},
 	}))
+	r.Methods("POST").Path(
+		"/v2/{imageName:.*}/_trust/tuf/{tufRole:snapshot|timestamp}.key").Handler(createHandler(_serverEndpoint{
+		OperationName:       "RotateKey",
+		ErrorIfGUNInvalid:   notFoundError,
+		ServerHandler:       handlers.RotateKeyHandler,
+		PermissionsRequired: []string{"*"},
+	}))
 	r.Methods("DELETE").Path("/v2/{imageName:.*}/_trust/tuf/").Handler(createHandler(_serverEndpoint{
 		OperationName:       "DeleteTUF",
 		ErrorIfGUNInvalid:   notFoundError,
