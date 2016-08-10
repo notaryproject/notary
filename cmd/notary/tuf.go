@@ -403,12 +403,12 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 	if len(rootKeyList) < 1 {
 		cmd.Println("No root keys found. Generating a new root key...")
 		rootPublicKey, err := nRepo.CryptoService.Create(data.CanonicalRootRole, "", data.ECDSAKey)
-		rootKeyID = rootPublicKey.ID()
 		if err != nil {
 			return err
 		}
+		rootKeyID = rootPublicKey.ID()
 	} else {
-		// Choses the first root key available, which is initialization specific
+		// Chooses the first root key available, which is initialization specific
 		// but should return the HW one first.
 		rootKeyID = rootKeyList[0]
 		cmd.Printf("Root key found, using: %s\n", rootKeyID)
