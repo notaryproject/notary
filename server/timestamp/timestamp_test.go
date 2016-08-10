@@ -2,16 +2,16 @@ package timestamp
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/docker/go/canonical/json"
+	"github.com/docker/notary/server/storage"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/testutils"
 	"github.com/stretchr/testify/require"
-
-	"github.com/docker/notary/server/storage"
 )
 
 func TestTimestampExpired(t *testing.T) {
@@ -45,8 +45,9 @@ func TestGetTimestampKey(t *testing.T) {
 
 	require.Nil(t, err, "Expected nil error")
 
-	// trying to get the same key again should return the same value
-	require.Equal(t, k, k2, "Did not receive same key when attempting to recreate.")
+	// Note that this cryptoservice does not perform any rate-limiting, unlike the notary-signer,
+	// so we get a different key until we've published valid TUF metadata in the store
+	require.NotEqual(t, k, k2, "Received same key when attempting to recreate.")
 	require.NotNil(t, k2, "Key should not be nil")
 }
 
@@ -75,11 +76,6 @@ func TestGetTimestampNoPreviousTimestamp(t *testing.T) {
 				store.UpdateCurrent("gun",
 					storage.MetaUpdate{Role: data.CanonicalTimestampRole, Version: 0, Data: timestampJSON}))
 		}
-
-		// create a key to be used by GetOrCreateTimestamp
-		key, err := crypto.Create(data.CanonicalTimestampRole, "gun", data.ECDSAKey)
-		require.NoError(t, err)
-		require.NoError(t, store.SetKey("gun", data.CanonicalTimestampRole, key.Algorithm(), key.Public()))
 
 		_, _, err = GetOrCreateTimestamp("gun", store, crypto)
 		require.Error(t, err, "GetTimestamp should have failed")
@@ -229,4 +225,83 @@ func TestCreateTimestampNoKeyInCrypto(t *testing.T) {
 	_, _, err = GetOrCreateTimestamp("gun", store, signed.NewEd25519())
 	require.Error(t, err)
 	require.IsType(t, signed.ErrInsufficientSignatures{}, err)
+}
+
+type FailingStore struct {
+	*storage.MemStorage
+}
+
+func (f FailingStore) GetCurrent(role, gun string) (*time.Time, []byte, error) {
+	return nil, nil, fmt.Errorf("failing store failed")
+}
+
+func TestGetTimestampKeyCreateWithFailingStore(t *testing.T) {
+	store := FailingStore{storage.NewMemStorage()}
+	crypto := signed.NewEd25519()
+	k, err := GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
+	require.Error(t, err, "Expected error")
+	require.Nil(t, k, "Key should be nil")
+}
+
+type CorruptedStore struct {
+	*storage.MemStorage
+}
+
+func (c CorruptedStore) GetCurrent(role, gun string) (*time.Time, []byte, error) {
+	return &time.Time{}, []byte("junk"), nil
+}
+
+func TestGetTimestampKeyCreateWithCorruptedStore(t *testing.T) {
+	store := CorruptedStore{storage.NewMemStorage()}
+	crypto := signed.NewEd25519()
+	k, err := GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
+	require.Error(t, err, "Expected error")
+	require.Nil(t, k, "Key should be nil")
+}
+
+func TestGetTimestampKeyCreateWithInvalidAlgo(t *testing.T) {
+	store := storage.NewMemStorage()
+	crypto := signed.NewEd25519()
+	k, err := GetOrCreateTimestampKey("gun", store, crypto, "notactuallyanalgorithm")
+	require.Error(t, err, "Expected error")
+	require.Nil(t, k, "Key should be nil")
+}
+
+func TestGetTimestampKeyExistingMetadata(t *testing.T) {
+	repo, crypto, err := testutils.EmptyRepo("gun")
+	require.NoError(t, err)
+
+	sgnd, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	require.NoError(t, err)
+	rootJSON, err := json.Marshal(sgnd)
+	require.NoError(t, err)
+	store := storage.NewMemStorage()
+	require.NoError(t,
+		store.UpdateCurrent("gun", storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0, Data: rootJSON}))
+
+	timestampRole, err := repo.Root.BuildBaseRole(data.CanonicalTimestampRole)
+	require.NoError(t, err)
+	key, ok := timestampRole.Keys[repo.Root.Signed.Roles[data.CanonicalTimestampRole].KeyIDs[0]]
+	require.True(t, ok)
+
+	k, err := GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
+	require.Nil(t, err, "Expected nil error")
+	require.NotNil(t, k, "Key should not be nil")
+	require.Equal(t, key, k, "Did not receive same key when attempting to recreate.")
+	require.NotNil(t, k, "Key should not be nil")
+
+	k2, err := GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
+
+	require.Nil(t, err, "Expected nil error")
+
+	require.Equal(t, k, k2, "Did not receive same key when attempting to recreate.")
+	require.NotNil(t, k2, "Key should not be nil")
+
+	// try wiping out the cryptoservice data, and ensure we create a new key because the signer doesn't hold the key specified by TUF
+	crypto = signed.NewEd25519()
+	k3, err := GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
+	require.Nil(t, err, "Expected nil error")
+	require.NotEqual(t, k, k3, "Received same key when attempting to recreate.")
+	require.NotEqual(t, k2, k3, "Received same key when attempting to recreate.")
+	require.NotNil(t, k3, "Key should not be nil")
 }

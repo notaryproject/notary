@@ -29,14 +29,4 @@ var (
 		},
 		JSONUnmarshaller: rdbTUFFileFromJSON,
 	}
-
-	// PubKeysRethinkTable is the table definition of notary server's public key information for TUF roles
-	PubKeysRethinkTable = rethinkdb.Table{
-		Name:       RDBKey{}.TableName(),
-		PrimaryKey: "id",
-		SecondaryIndexes: map[string][]string{
-			rdbGunRoleIdx: {"gun", "role"},
-		},
-		JSONUnmarshaller: rdbKeyFromJSON,
-	}
 )

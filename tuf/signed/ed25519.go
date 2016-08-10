@@ -96,7 +96,10 @@ func (e *Ed25519) PublicKeys(keyIDs ...string) (map[string]data.PublicKey, error
 
 // GetKey returns a single public key based on the ID
 func (e *Ed25519) GetKey(keyID string) data.PublicKey {
-	return data.PublicKeyFromPrivate(e.keys[keyID].privKey)
+	if privKey, _, err := e.GetPrivateKey(keyID); err == nil {
+		return data.PublicKeyFromPrivate(privKey)
+	}
+	return nil
 }
 
 // GetPrivateKey returns a single private key and role if present, based on the ID

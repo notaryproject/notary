@@ -159,56 +159,15 @@ func (db *SQLStorage) Delete(gun string) error {
 	return db.Unscoped().Where(&TUFFile{Gun: gun}).Delete(TUFFile{}).Error
 }
 
-// GetKey returns the Public Key data for a gun+role
-func (db *SQLStorage) GetKey(gun, role string) (algorithm string, public []byte, err error) {
-	logrus.Debugf("retrieving timestamp key for %s:%s", gun, role)
-
-	var row Key
-	query := db.Select("cipher, public").Where(&Key{Gun: gun, Role: role}).Find(&row)
-
-	if query.RecordNotFound() {
-		return "", nil, &ErrNoKey{gun: gun}
-	} else if query.Error != nil {
-		return "", nil, query.Error
-	}
-
-	return row.Cipher, row.Public, nil
-}
-
-// SetKey attempts to write a key and returns an error if it already exists for the gun and role
-func (db *SQLStorage) SetKey(gun, role, algorithm string, public []byte) error {
-
-	entry := Key{
-		Gun:  gun,
-		Role: role,
-	}
-
-	if !db.Where(&entry).First(&Key{}).RecordNotFound() {
-		return &ErrKeyExists{gun: gun, role: role}
-	}
-
-	entry.Cipher = algorithm
-	entry.Public = public
-
-	return translateOldVersionError(
-		db.FirstOrCreate(&Key{}, &entry).Error)
-}
-
-// CheckHealth asserts that both required tables are present
+// CheckHealth asserts that the tuf_files table is present
 func (db *SQLStorage) CheckHealth() error {
-	interfaces := []interface {
-		TableName() string
-	}{&TUFFile{}, &Key{}}
-
-	for _, model := range interfaces {
-		tableOk := db.HasTable(model)
-		if db.Error != nil {
-			return db.Error
-		}
-		if !tableOk {
-			return fmt.Errorf(
-				"Cannot access table: %s", model.TableName())
-		}
+	tableOk := db.HasTable(&TUFFile{})
+	if db.Error != nil {
+		return db.Error
+	}
+	if !tableOk {
+		return fmt.Errorf(
+			"Cannot access table: %s", TUFFile{}.TableName())
 	}
 	return nil
 }

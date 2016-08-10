@@ -21,6 +21,7 @@ type RethinkDBKeyStore struct {
 	retriever        notary.PassRetriever
 	user             string
 	password         string
+	nowFunc          func() time.Time
 }
 
 // RDBPrivateKey represents a PrivateKey in the rethink database
@@ -31,6 +32,8 @@ type RDBPrivateKey struct {
 	KeywrapAlg      string `gorethink:"keywrap_alg"`
 	Algorithm       string `gorethink:"algorithm"`
 	PassphraseAlias string `gorethink:"passphrase_alias"`
+	Gun             string `gorethink:"gun"`
+	Role            string `gorethink:"role"`
 
 	// gorethink specifically supports binary types, and says to pass it in as
 	// a byteslice.  Currently our encryption method for the private key bytes
@@ -39,6 +42,9 @@ type RDBPrivateKey struct {
 	// too
 	Public  []byte `gorethink:"public"`
 	Private []byte `gorethink:"private"`
+
+	// whether this key is active or not
+	LastUsed time.Time `gorethink:"last_used"`
 }
 
 // gorethink can't handle an UnmarshalJSON function (see https://github.com/dancannon/gorethink/issues/201),
@@ -53,8 +59,11 @@ func rdbPrivateKeyFromJSON(data []byte) (interface{}, error) {
 		KeywrapAlg      string    `json:"keywrap_alg"`
 		Algorithm       string    `json:"algorithm"`
 		PassphraseAlias string    `json:"passphrase_alias"`
+		Gun             string    `json:"gun"`
+		Role            string    `json:"role"`
 		Public          []byte    `json:"public"`
 		Private         []byte    `json:"private"`
+		LastUsed        time.Time `json:"last_used"`
 	}{}
 	if err := json.Unmarshal(data, &a); err != nil {
 		return RDBPrivateKey{}, err
@@ -70,8 +79,11 @@ func rdbPrivateKeyFromJSON(data []byte) (interface{}, error) {
 		KeywrapAlg:      a.KeywrapAlg,
 		Algorithm:       a.Algorithm,
 		PassphraseAlias: a.PassphraseAlias,
+		Gun:             a.Gun,
+		Role:            a.Role,
 		Public:          a.Public,
 		Private:         a.Private,
+		LastUsed:        a.LastUsed,
 	}, nil
 
 }
@@ -97,6 +109,7 @@ func NewRethinkDBKeyStore(dbName, username, password string, passphraseRetriever
 		retriever:        passphraseRetriever,
 		user:             username,
 		password:         password,
+		nowFunc:          time.Now,
 	}
 }
 
@@ -107,7 +120,7 @@ func (rdb *RethinkDBKeyStore) Name() string {
 
 // AddKey stores the contents of a private key. Both role and gun are ignored,
 // we always use Key IDs as name, and don't support aliases
-func (rdb *RethinkDBKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.PrivateKey) error {
+func (rdb *RethinkDBKeyStore) AddKey(role, gun string, privKey data.PrivateKey) error {
 	passphrase, _, err := rdb.retriever(privKey.ID(), rdb.defaultPassAlias, false, 1)
 	if err != nil {
 		return err
@@ -118,7 +131,7 @@ func (rdb *RethinkDBKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.
 		return err
 	}
 
-	now := time.Now()
+	now := rdb.nowFunc()
 	rethinkPrivKey := RDBPrivateKey{
 		Timing: rethinkdb.Timing{
 			CreatedAt: now,
@@ -129,6 +142,8 @@ func (rdb *RethinkDBKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.
 		KeywrapAlg:      KeywrapAlg,
 		PassphraseAlias: rdb.defaultPassAlias,
 		Algorithm:       privKey.Algorithm(),
+		Gun:             gun,
+		Role:            role,
 		Public:          privKey.Public(),
 		Private:         []byte(encryptedKey),
 	}
@@ -172,8 +187,8 @@ func (rdb *RethinkDBKeyStore) getKey(keyID string) (*RDBPrivateKey, string, erro
 	return &dbPrivateKey, decryptedPrivKey, nil
 }
 
-// GetKey returns the PrivateKey given a KeyID
-func (rdb *RethinkDBKeyStore) GetKey(keyID string) (data.PrivateKey, string, error) {
+// GetPrivateKey returns the PrivateKey given a KeyID
+func (rdb *RethinkDBKeyStore) GetPrivateKey(keyID string) (data.PrivateKey, string, error) {
 	dbPrivateKey, decryptedPrivKey, err := rdb.getKey(keyID)
 	if err != nil {
 		return nil, "", err
@@ -187,16 +202,26 @@ func (rdb *RethinkDBKeyStore) GetKey(keyID string) (data.PrivateKey, string, err
 		return nil, "", err
 	}
 
-	return privKey, "", nil
+	return activatingPrivateKey{PrivateKey: privKey, activationFunc: rdb.markActive}, dbPrivateKey.Role, nil
 }
 
-// GetKeyInfo always returns empty and an error. This method is here to satisfy the KeyStore interface
-func (rdb RethinkDBKeyStore) GetKeyInfo(name string) (trustmanager.KeyInfo, error) {
-	return trustmanager.KeyInfo{}, fmt.Errorf("GetKeyInfo currently not supported for RethinkDBKeyStore, as it does not track roles or GUNs")
+// GetKey returns the PublicKey given a KeyID, and does not activate the key
+func (rdb *RethinkDBKeyStore) GetKey(keyID string) data.PublicKey {
+	dbPrivateKey, _, err := rdb.getKey(keyID)
+	if err != nil {
+		return nil
+	}
+
+	return data.NewPublicKey(dbPrivateKey.Algorithm, dbPrivateKey.Public)
 }
 
-// ListKeys always returns nil. This method is here to satisfy the KeyStore interface
-func (rdb RethinkDBKeyStore) ListKeys() map[string]trustmanager.KeyInfo {
+// ListKeys always returns nil. This method is here to satisfy the CryptoService interface
+func (rdb RethinkDBKeyStore) ListKeys(role string) []string {
+	return nil
+}
+
+// ListAllKeys always returns nil. This method is here to satisfy the CryptoService interface
+func (rdb RethinkDBKeyStore) ListAllKeys() map[string]string {
 	return nil
 }
 
@@ -239,6 +264,46 @@ func (rdb RethinkDBKeyStore) RotateKeyPassphrase(keyID, newPassphraseAlias strin
 	}
 
 	return nil
+}
+
+// markActive marks a particular key as active
+func (rdb RethinkDBKeyStore) markActive(keyID string) error {
+	_, err := gorethink.DB(rdb.dbName).Table(PrivateKeysRethinkTable.Name).Get(keyID).Update(map[string]interface{}{
+		"last_used": rdb.nowFunc(),
+	}).RunWrite(rdb.sess)
+	return err
+}
+
+// Create will attempt to first re-use an inactive key for the same role, gun, and algorithm.
+// If one isn't found, it will create a private key and add it to the DB as an inactive key
+func (rdb RethinkDBKeyStore) Create(role, gun, algorithm string) (data.PublicKey, error) {
+	dbPrivateKey := RDBPrivateKey{}
+	res, err := gorethink.DB(rdb.dbName).Table(dbPrivateKey.TableName()).
+		Filter(gorethink.Row.Field("gun").Eq(gun)).
+		Filter(gorethink.Row.Field("role").Eq(role)).
+		Filter(gorethink.Row.Field("algorithm").Eq(algorithm)).
+		Filter(gorethink.Row.Field("last_used").Eq(time.Time{})).
+		OrderBy(gorethink.Row.Field("key_id")).
+		Run(rdb.sess)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Close()
+
+	err = res.One(&dbPrivateKey)
+	if err == nil {
+		return data.NewPublicKey(dbPrivateKey.Algorithm, dbPrivateKey.Public), nil
+	}
+
+	privKey, err := generatePrivateKey(algorithm)
+	if err != nil {
+		return nil, err
+	}
+	if err = rdb.AddKey(role, gun, privKey); err != nil {
+		return nil, fmt.Errorf("failed to store key: %v", err)
+	}
+
+	return privKey, nil
 }
 
 // Bootstrap sets up the database and tables, also creating the notary signer user with appropriate db permission

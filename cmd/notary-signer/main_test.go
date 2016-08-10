@@ -226,15 +226,18 @@ func TestSetupCryptoServicesInvalidStore(t *testing.T) {
 }
 
 func TestSetupGRPCServerInvalidAddress(t *testing.T) {
-	_, _, err := setupGRPCServer("nope", nil, make(signer.CryptoServiceIndex))
+	_, _, err := setupGRPCServer(signer.Config{GRPCAddr: "nope", CryptoServices: make(signer.CryptoServiceIndex)})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "grpc server failed to listen on nope")
 }
 
 func TestSetupGRPCServerSuccess(t *testing.T) {
 	tlsConf := tls.Config{InsecureSkipVerify: true}
-	grpcServer, lis, err := setupGRPCServer(":7899", &tlsConf,
-		make(signer.CryptoServiceIndex))
+	grpcServer, lis, err := setupGRPCServer(signer.Config{
+		GRPCAddr:       ":7899",
+		TLSConfig:      &tlsConf,
+		CryptoServices: make(signer.CryptoServiceIndex),
+	})
 	defer lis.Close()
 	require.NoError(t, err)
 	require.Equal(t, "[::]:7899", lis.Addr().String())
