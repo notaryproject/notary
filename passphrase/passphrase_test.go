@@ -145,3 +145,11 @@ func TestRolePromptingAndCaching(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(text), "Enter passphrase for targets/delegation/new key with ID 0123456 (repo):")
 }
+
+// TestPromptRetrieverNeedsTerminal checks that PromptRetriever errors when not run with a terminal stdin
+func TestPromptRetrieverNeedsTerminal(t *testing.T) {
+	prompt := PromptRetriever()
+	_, _, err := prompt("repo/0123456789abcdef", "targets/delegation/new", false, 0)
+	require.Error(t, err)
+	require.IsType(t, ErrNoInput, err)
+}
