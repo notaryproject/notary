@@ -47,7 +47,7 @@ var (
 
 // PromptRetriever returns a new Retriever which will provide a prompt on stdin
 // and stdout to retrieve a passphrase. stdin will be checked if it is a terminal,
-// else the PromptRetriever will error when attempting to retreive passphrases.
+// else the PromptRetriever will error when attempting to retrieve a passphrase.
 // Upon successful passphrase retrievals, the passphrase will be cached such that
 // subsequent prompts will produce the same passphrase.
 func PromptRetriever() notary.PassRetriever {
