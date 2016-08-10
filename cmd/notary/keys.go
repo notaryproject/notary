@@ -415,8 +415,7 @@ func (k *keyCommander) importKeys(cmd *cobra.Command, args []string) error {
 	for _, file := range args {
 		from, err := os.OpenFile(file, os.O_RDONLY, notary.PrivKeyPerms)
 		defer from.Close()
-		passRetriever := k.getRetriever()
-		if err = utils.ImportKeys(from, importers, k.keysImportRole, k.keysImportGUN, passRetriever); err != nil {
+		if err = utils.ImportKeys(from, importers, k.keysImportRole, k.keysImportGUN, k.getRetriever()); err != nil {
 			return err
 		}
 	}

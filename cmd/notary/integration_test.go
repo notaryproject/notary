@@ -2098,7 +2098,7 @@ func TestClientKeyImport(t *testing.T) {
 
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
-	_, _ = assertNumKeys(t, tempDir, 2, 0, !rootOnHardware())
+	assertNumKeys(t, tempDir, 2, 0, !rootOnHardware())
 
 	// test 3, no path no role included with unencrypted key
 
@@ -2115,7 +2115,7 @@ func TestClientKeyImport(t *testing.T) {
 
 	nBytes, err = tempFile3.Write(pemBytes)
 	require.NoError(t, err)
-	tempFile2.Close()
+	tempFile3.Close()
 	require.Equal(t, len(pemBytes), nBytes)
 
 	// import the key
@@ -2124,7 +2124,7 @@ func TestClientKeyImport(t *testing.T) {
 
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
-	_, _ = assertNumKeys(t, tempDir, 2, 1, !rootOnHardware())
+	assertNumKeys(t, tempDir, 2, 1, !rootOnHardware())
 	file, err := os.OpenFile(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, privKey.ID()+".key"), os.O_RDONLY, notary.PrivKeyPerms)
 	require.NoError(t, err)
 	filebytes, _ := ioutil.ReadAll(file)
@@ -2155,7 +2155,7 @@ func TestClientKeyImport(t *testing.T) {
 
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
-	_, _ = assertNumKeys(t, tempDir, 2, 2, !rootOnHardware())
+	assertNumKeys(t, tempDir, 2, 2, !rootOnHardware())
 	_, err = os.Open(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, newKeyID+".key"))
 	require.NoError(t, err)
 
@@ -2184,7 +2184,7 @@ func TestClientKeyImport(t *testing.T) {
 
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
-	_, _ = assertNumKeys(t, tempDir, 2, 3, !rootOnHardware())
+	assertNumKeys(t, tempDir, 2, 3, !rootOnHardware())
 	_, err = os.Open(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, "somegun", newKeyID+".key"))
 	require.NoError(t, err)
 
@@ -2212,7 +2212,7 @@ func TestClientKeyImport(t *testing.T) {
 
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
-	_, _ = assertNumKeys(t, tempDir, 2, 3, !rootOnHardware())
+	assertNumKeys(t, tempDir, 2, 3, !rootOnHardware())
 
 	// test7, non root key with no path with no gun
 
@@ -2239,9 +2239,38 @@ func TestClientKeyImport(t *testing.T) {
 
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
-	_, _ = assertNumKeys(t, tempDir, 2, 4, !rootOnHardware())
+	assertNumKeys(t, tempDir, 2, 4, !rootOnHardware())
 	_, err = os.Open(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, newKeyID+".key"))
 	require.NoError(t, err)
+
+	// test 8, non root canonical key with no gun
+
+	tempFile8, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+	// close later, because we might need to write to it
+	defer os.Remove(tempFile8.Name())
+
+	privKey, err = utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+
+	pemBytes, err = utils.EncryptPrivateKey(privKey, data.CanonicalSnapshotRole, "", "")
+	require.NoError(t, err)
+
+	nBytes, err = tempFile8.Write(pemBytes)
+	require.NoError(t, err)
+	tempFile8.Close()
+	require.Equal(t, len(pemBytes), nBytes)
+	newKeyID = privKey.ID()
+
+	// import the key
+	_, err = runCommand(t, tempDir, "key", "import", tempFile8.Name())
+	require.NoError(t, err)
+
+	// if there is hardware available, root will only be on hardware, and not
+	// on disk
+	assertNumKeys(t, tempDir, 2, 4, !rootOnHardware())
+	_, err = os.Open(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, newKeyID+".key"))
+	require.Error(t, err)
 }
 
 func TestAddDelImportKeyPublishFlow(t *testing.T) {
@@ -2487,7 +2516,6 @@ func TestExportImportFlow(t *testing.T) {
 	snapString := string(snapBytes)
 	require.Contains(t, snapString, "gun: gun")
 	require.True(t, strings.Contains(snapString, "role: snapshot") || strings.Contains(snapString, "role: target"))
-	require.Contains(t, snapString, "role: snapshot")
 
 	// validate targets is imported correctly
 	targKey, err := os.OpenFile(filepath.Join(newTempDir, "private", notary.NonRootKeysSubdir, "gun", signing[1]+".key"), os.O_RDONLY, notary.PrivKeyPerms)
