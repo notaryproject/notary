@@ -79,9 +79,11 @@ type keyCommander struct {
 
 	input io.Reader
 
-	exportGUNs   []string
-	exportKeyIDs []string
-	outFile      string
+	keysImportRole string
+	keysImportGUN  string
+	exportGUNs     []string
+	exportKeyIDs   []string
+	outFile        string
 }
 
 func (k *keyCommander) GetCommand() *cobra.Command {
@@ -97,7 +99,12 @@ func (k *keyCommander) GetCommand() *cobra.Command {
 			"Required for timestamp role, optional for snapshot role")
 	cmd.AddCommand(cmdRotateKey)
 
-	cmd.AddCommand(cmdKeyImportTemplate.ToCommand(k.importKeys))
+	cmdKeysImport := cmdKeyImportTemplate.ToCommand(k.importKeys)
+	cmdKeysImport.Flags().StringVarP(
+		&k.keysImportRole, "role", "r", "", "Role to import key with, if a role is not already given in a PEM header")
+	cmdKeysImport.Flags().StringVarP(
+		&k.keysImportGUN, "gun", "g", "", "Gun to import key with, if a gun is not already given in a PEM header")
+	cmd.AddCommand(cmdKeysImport)
 	cmdExport := cmdKeyExportTemplate.ToCommand(k.exportKeys)
 	cmdExport.Flags().StringSliceVar(
 		&k.exportGUNs,
@@ -408,8 +415,7 @@ func (k *keyCommander) importKeys(cmd *cobra.Command, args []string) error {
 	for _, file := range args {
 		from, err := os.OpenFile(file, os.O_RDONLY, notary.PrivKeyPerms)
 		defer from.Close()
-
-		if err = utils.ImportKeys(from, importers); err != nil {
+		if err = utils.ImportKeys(from, importers, k.keysImportRole, k.keysImportGUN, k.getRetriever()); err != nil {
 			return err
 		}
 	}
