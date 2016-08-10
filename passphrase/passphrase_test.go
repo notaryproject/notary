@@ -42,6 +42,38 @@ func TestGetPassphraseForUsingDelegationKey(t *testing.T) {
 	}
 }
 
+// PromptRetrieverWithInOut prompts for passwords up to 10 times when creating
+func TestGetPassphraseLimitsShortPassphrases(t *testing.T) {
+	var in bytes.Buffer
+	var out bytes.Buffer
+
+	retriever := PromptRetrieverWithInOut(&in, &out, nil)
+
+	repeatedShortPass := strings.Repeat("a\n", 22)
+	_, err := in.WriteString(repeatedShortPass)
+	require.NoError(t, err)
+
+	_, _, err = retriever("randomRepo", "targets/randomRole", true, 0)
+	require.Error(t, err)
+	require.IsType(t, ErrTooManyAttempts, err)
+}
+
+// PromptRetrieverWithInOut prompts for passwords up to 10 times when creating
+func TestGetPassphraseLimitsMismatchingPassphrases(t *testing.T) {
+	var in bytes.Buffer
+	var out bytes.Buffer
+
+	retriever := PromptRetrieverWithInOut(&in, &out, nil)
+
+	repeatedShortPass := strings.Repeat("password\nmismatchingpass\n", 11)
+	_, err := in.WriteString(repeatedShortPass)
+	require.NoError(t, err)
+
+	_, _, err = retriever("randomRepo", "targets/randomRole", true, 0)
+	require.Error(t, err)
+	require.IsType(t, ErrTooManyAttempts, err)
+}
+
 // PromptRetrieverWithInOut prompts for creating delegations passwords if needed
 func TestGetPassphraseForCreatingDelegationKey(t *testing.T) {
 	var in bytes.Buffer

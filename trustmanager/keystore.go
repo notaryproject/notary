@@ -142,13 +142,12 @@ func (s *GenericKeyStore) AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error
 	name := filepath.Join(keyInfo.Gun, privKey.ID())
 	for attempts := 0; ; attempts++ {
 		chosenPassphrase, giveup, err = s.PassRetriever(name, keyInfo.Role, true, attempts)
-		if err != nil {
-			continue
+		if err == nil {
+			break
 		}
 		if giveup || attempts > 10 {
 			return ErrAttemptsExceeded{}
 		}
-		break
 	}
 
 	if chosenPassphrase != "" {
