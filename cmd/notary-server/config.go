@@ -186,9 +186,9 @@ func getTrustService(configuration *viper.Viper, sFactory signerFactory,
 		// error.
 		duration,
 		func() error {
-			// The server will use an empty string as the key for server's overall health status,
-			// so that a client not interested in a specific service can query the server's status
-			// with an empty service name.
+			// The signer-service will use an empty string as the key for its overall health status,
+			// so that a client(the notary server) not interested in a specific service can query
+			// the signer's status with an empty service name.
 			err := notarySigner.CheckHealth(duration, "")
 			if err != nil {
 				logrus.Error("Trust not fully operational: ", err.Error())

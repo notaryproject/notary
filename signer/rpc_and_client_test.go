@@ -155,6 +155,35 @@ func TestHealthCheckConnectionDied(t *testing.T) {
 	require.Error(t, signerClient.CheckHealth(1*time.Second, "grpc.health.v1.Health.KeyManagement"))
 }
 
+// TestHealthCheckForOverallStatus query for signer's overall health status
+// with the empty provided service name.
+func TestHealthCheckForOverallStatus(t *testing.T) {
+	hs := health.NewServer()
+
+	s := getStubbedHealthServer(hs)
+	signerClient, _, cleanup := setUpSignerClient(t, s)
+	defer cleanup()
+
+	// both of the service are NOT SERVING, expect the health check for overall status to be failed.
+	hs.SetServingStatus("grpc.health.v1.Health.KeyManagement", healthpb.HealthCheckResponse_NOT_SERVING)
+	hs.SetServingStatus("grpc.health.v1.Health.Signer", healthpb.HealthCheckResponse_NOT_SERVING)
+	err := signerClient.CheckHealth(1*time.Second, "")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "NOT_SERVING, want SERVING")
+
+	// change the status of KeyManagement to SERVING and keep the status of Siger
+	// still be NOT SERVING, expect the health check for overall status to be failed.
+	hs.SetServingStatus("grpc.health.v1.Health.KeyManagement", healthpb.HealthCheckResponse_SERVING)
+	err = signerClient.CheckHealth(1*time.Second, "")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "NOT_SERVING, want SERVING")
+
+	// change the status of Signer to SERVING, expect the health check for overall status to success.
+	hs.SetServingStatus("grpc.health.v1.Health.Signer", healthpb.HealthCheckResponse_SERVING)
+	err = signerClient.CheckHealth(1*time.Second, "")
+	require.NoError(t, err)
+}
+
 var constPass = func(string, string, bool, int) (string, bool, error) {
 	return "constant", false, nil
 }

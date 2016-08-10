@@ -16,7 +16,6 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -103,6 +102,49 @@ type NotarySigner struct {
 	healthClient healthpb.HealthClient
 }
 
+func healthCheck(d time.Duration, hc healthpb.HealthClient, serviceName string) (*healthpb.HealthCheckResponse, error) {
+	ctx, _ := context.WithTimeout(context.Background(), d)
+	req := &healthpb.HealthCheckRequest{
+		Service: serviceName,
+	}
+	return hc.Check(ctx, req)
+}
+
+// CheckHealth are used to probe whether the server is able to handle rpcs.
+func (trust *NotarySigner) CheckHealth(d time.Duration, serviceName string) error {
+
+	// The client can optionally set the service name it wants to query for health status
+	if serviceName != "" {
+		out, err := healthCheck(d, trust.healthClient, serviceName)
+		if err != nil {
+			return err
+		}
+		if out.Status != healthpb.HealthCheckResponse_SERVING {
+			return fmt.Errorf("Got the serving status of %s: %s, want %s",
+				serviceName, out.Status, healthpb.HealthCheckResponse_SERVING)
+		}
+		return nil
+	}
+
+	out, err := healthCheck(d, trust.healthClient, "grpc.health.v1.Health.KeyManagement")
+	if err != nil {
+		return err
+	}
+	if out.Status != healthpb.HealthCheckResponse_SERVING {
+		return fmt.Errorf("Got the serving status of %s: %s, want %s", "KeyManagement", out.Status, healthpb.HealthCheckResponse_SERVING)
+	}
+
+	out, err = healthCheck(d, trust.healthClient, "grpc.health.v1.Health.Signer")
+	if err != nil {
+		return err
+	}
+	if out.Status != healthpb.HealthCheckResponse_SERVING {
+		return fmt.Errorf("Got the serving status of %s: %s, want %s", "Signer", out.Status, healthpb.HealthCheckResponse_SERVING)
+	}
+
+	return nil
+}
+
 // NewGRPCConnection is a convenience method that returns GRPC Client Connection given a hostname, endpoint, and TLS options
 func NewGRPCConnection(hostname string, port string, tlsConfig *tls.Config) (*grpc.ClientConn, error) {
 	var opts []grpc.DialOption
@@ -182,66 +224,4 @@ func (trust *NotarySigner) ListKeys(role string) []string {
 // ListAllKeys not supported for NotarySigner
 func (trust *NotarySigner) ListAllKeys() map[string]string {
 	return map[string]string{}
-}
-
-// CheckHealthDeprecated is deprecated.
-func (trust *NotarySigner) CheckHealthDeprecated(timeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	status, err := trust.kmClient.CheckHealth(ctx, &pb.Void{})
-	defer cancel()
-	if err == nil && len(status.Status) > 0 {
-		var stats string
-		for k, v := range status.Status {
-			stats += k + ":" + v + "; "
-		}
-		return fmt.Errorf("Trust is not healthy: %s", stats)
-	}
-	if err != nil && grpc.Code(err) == codes.DeadlineExceeded {
-		return fmt.Errorf("Timed out reaching trust service after %s.", timeout)
-	}
-
-	return err
-}
-
-// CheckHealth are used to probe whether the server is able to handle rpcs.
-func (trust *NotarySigner) CheckHealth(d time.Duration, serviceName string) error {
-
-	// The client can optionally set the service name it wants to query for health status
-	if serviceName != "" {
-		out, err := healthCheck(d, trust.healthClient, serviceName)
-		if err != nil {
-			return err
-		}
-		if out.Status != healthpb.HealthCheckResponse_SERVING {
-			return fmt.Errorf("Got the serving status of %s: %s, want %s",
-				serviceName, out.Status, healthpb.HealthCheckResponse_SERVING)
-		}
-		return nil
-	}
-
-	out, err := healthCheck(d, trust.healthClient, "grpc.health.v1.Health.KeyManagement")
-	if err != nil {
-		return err
-	}
-	if out.Status != healthpb.HealthCheckResponse_SERVING {
-		return fmt.Errorf("Got the serving status of %s: %s, want %s", "KeyManagement", out.Status, healthpb.HealthCheckResponse_SERVING)
-	}
-
-	out, err = healthCheck(d, trust.healthClient, "grpc.health.v1.Health.Signer")
-	if err != nil {
-		return err
-	}
-	if out.Status != healthpb.HealthCheckResponse_SERVING {
-		return fmt.Errorf("Got the serving status of %s: %s, want %s", "Signer", out.Status, healthpb.HealthCheckResponse_SERVING)
-	}
-
-	return nil
-}
-
-func healthCheck(d time.Duration, hc healthpb.HealthClient, serviceName string) (*healthpb.HealthCheckResponse, error) {
-	ctx, _ := context.WithTimeout(context.Background(), d)
-	req := &healthpb.HealthCheckRequest{
-		Service: serviceName,
-	}
-	return hc.Check(ctx, req)
 }
