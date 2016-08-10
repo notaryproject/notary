@@ -220,9 +220,11 @@ func setupGRPCServer(signerConfig signer.Config) (*grpc.Server, net.Listener, er
 	pb.RegisterSignerServer(grpcServer, ss)
 	healthpb.RegisterHealthServer(grpcServer, hs)
 
-	// Set status
-	hs.SetServingStatus("grpc.health.v1.Health.KeyManagement", healthpb.HealthCheckResponse_SERVING)
-	hs.SetServingStatus("grpc.health.v1.Health.Signer", healthpb.HealthCheckResponse_SERVING)
+	// Set status for both of the grpc service "KeyManagement" and "Signer", these are
+	// the only two we have at present, if we add more grpc service in the future,
+	// we should add a new line for that service here as well.
+	hs.SetServingStatus(notary.HealthCheckKeyManagement, healthpb.HealthCheckResponse_SERVING)
+	hs.SetServingStatus(notary.HealthCheckSigner, healthpb.HealthCheckResponse_SERVING)
 
 	return grpcServer, lis, nil
 }
