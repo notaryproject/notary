@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
@@ -140,14 +141,6 @@ func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGun 
 				continue
 			}
 			keyID := decodedKey.ID()
-			if block.Headers["role"] == tufdata.CanonicalRootRole {
-				// this is a root key so import it to trustDir/root_keys/
-				loc = filepath.Join(notary.RootKeysSubdir, keyID)
-			} else if block.Headers["role"] == tufdata.CanonicalSnapshotRole || block.Headers["role"] == tufdata.CanonicalTargetsRole || block.Headers["role"] == tufdata.CanonicalTimestampRole {
-				loc = filepath.Join(notary.NonRootKeysSubdir, block.Headers["gun"], keyID)
-			} else {
-				loc = filepath.Join(notary.NonRootKeysSubdir, keyID)
-			}
 			switch block.Headers["role"] {
 			case tufdata.CanonicalRootRole:
 				// this is a root key so import it to trustDir/root_keys/
@@ -165,6 +158,12 @@ func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGun 
 		// Note that a key that is not any of the canonical roles (except root) is a delegations key and should not have a gun
 		if block.Headers["role"] != tufdata.CanonicalSnapshotRole && block.Headers["role"] != tufdata.CanonicalTargetsRole && block.Headers["role"] != tufdata.CanonicalTimestampRole {
 			delete(block.Headers, "gun")
+		} else {
+			// check if the key is missing a gun header or has an empty gun and error out since we don't know where to import this key to
+			if block.Headers["gun"] == "" {
+				logrus.Info("failed to import key to store: Cannot have canonical role key without a gun, don't know where to import it")
+				continue
+			}
 		}
 
 		// the path header is not of any use once we've imported the key so strip it away
@@ -179,15 +178,17 @@ func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGun 
 			for attempts := 0; ; attempts++ {
 				var giveup bool
 				chosenPassphrase, giveup, err = passRet(loc, block.Headers["role"], true, attempts)
-				if err != nil {
-					continue
+				if err == nil {
+					break
 				}
 				if giveup || attempts > 10 {
-					fmt.Println("exceeded attempts")
+					return errors.New("maximum number of passphrase attempts exceeded")
 				}
-				break
 			}
-			blockBytes, _ = utils.EncryptPrivateKey(privKey, block.Headers["role"], block.Headers["gun"], chosenPassphrase)
+			blockBytes, err = utils.EncryptPrivateKey(privKey, block.Headers["role"], block.Headers["gun"], chosenPassphrase)
+			if err != nil {
+				return errors.New("failed to encrypt key with given passphrase")
+			}
 		}
 
 		if loc != writeTo {

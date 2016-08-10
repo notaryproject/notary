@@ -431,10 +431,12 @@ func TestImportKeys2InOneFileNoPath(t *testing.T) {
 	defer from.Close()
 	fromBytes, _ := ioutil.ReadAll(from)
 	b, _ := pem.Decode(fromBytes)
+	b.Headers["gun"] = "testgun"
 	b.Headers["role"] = data.CanonicalSnapshotRole
 	bBytes := pem.EncodeToMemory(b)
 
 	b2, _ := pem.Decode(fromBytes)
+	b2.Headers["gun"] = "testgun"
 	b2.Headers["role"] = data.CanonicalSnapshotRole
 	b2Bytes := pem.EncodeToMemory(b2)
 
@@ -455,10 +457,12 @@ func TestImportKeys2InOneFileNoPath(t *testing.T) {
 	err := ImportKeys(in, []Importer{s}, "", "", passphraseRetriever)
 	require.NoError(t, err)
 
-	bFinal, bRest := pem.Decode(s.data[filepath.Join(notary.NonRootKeysSubdir, "12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497")])
+	bFinal, bRest := pem.Decode(s.data[filepath.Join(notary.NonRootKeysSubdir, "testgun", "12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497")])
+	require.Equal(t, b.Headers["gun"], bFinal.Headers["gun"])
 	require.Equal(t, b.Headers["role"], bFinal.Headers["role"])
 
 	b2Final, b2Rest := pem.Decode(bRest)
+	require.Equal(t, b2.Headers["gun"], b2Final.Headers["gun"])
 	require.Equal(t, b2.Headers["role"], b2Final.Headers["role"])
 	require.Len(t, b2Rest, 0)
 
