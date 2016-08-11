@@ -1455,7 +1455,7 @@ func TestPurge(t *testing.T) {
 		t.Fail()
 	}
 
-	err = os.Remove(filepath.Join(tempDir, notary.PrivDir, notary.NonRootKeysSubdir, "gun", targetsKeyID+".key"))
+	err = os.Remove(filepath.Join(tempDir, notary.PrivDir, targetsKeyID+".key"))
 	require.NoError(t, err)
 
 	_, err = runCommand(t, tempDir, "delegation", "purge", "gun", "--key", keyID)
