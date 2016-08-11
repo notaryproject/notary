@@ -87,15 +87,15 @@ func TestKeyOperations(t *testing.T) {
 	require.NoError(t, err)
 
 	// Encode our ED private key
-	edPEM, err := KeyToPEM(edKey, data.CanonicalRootRole)
+	edPEM, err := KeyToPEM(edKey, data.CanonicalRootRole, "")
 	require.NoError(t, err)
 
 	// Encode our EC private key
-	ecPEM, err := KeyToPEM(ecKey, data.CanonicalRootRole)
+	ecPEM, err := KeyToPEM(ecKey, data.CanonicalRootRole, "")
 	require.NoError(t, err)
 
 	// Encode our RSA private key
-	rsaPEM, err := KeyToPEM(rsaKey, data.CanonicalRootRole)
+	rsaPEM, err := KeyToPEM(rsaKey, data.CanonicalRootRole, "")
 	require.NoError(t, err)
 
 	// Check to see if ED key it is encoded
@@ -126,15 +126,15 @@ func TestKeyOperations(t *testing.T) {
 	require.Equal(t, rsaKey.Private(), decodedRSAKey.Private())
 
 	// Encrypt our ED Key
-	encryptedEDKey, err := EncryptPrivateKey(edKey, data.CanonicalRootRole, "", "ponies")
+	encryptedEDKey, err := EncryptPrivateKey(edKey, data.CanonicalRootRole, "ilove", "ponies")
 	require.NoError(t, err)
 
 	// Encrypt our EC Key
-	encryptedECKey, err := EncryptPrivateKey(ecKey, data.CanonicalRootRole, "", "ponies")
+	encryptedECKey, err := EncryptPrivateKey(ecKey, data.CanonicalRootRole, "ilove", "ponies")
 	require.NoError(t, err)
 
 	// Encrypt our RSA Key
-	encryptedRSAKey, err := EncryptPrivateKey(rsaKey, data.CanonicalRootRole, "", "ponies")
+	encryptedRSAKey, err := EncryptPrivateKey(rsaKey, data.CanonicalRootRole, "ilove", "ponies")
 	require.NoError(t, err)
 
 	// Check to see if ED key it is encrypted

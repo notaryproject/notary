@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -42,14 +41,14 @@ func TestImportKeysNoYubikey(t *testing.T) {
 
 	pubK, err := cs.Create(data.CanonicalRootRole, "ankh", data.ECDSAKey)
 	require.NoError(t, err)
-	bytes, err := memStore.Get(notary.RootKeysSubdir + "/" + pubK.ID())
+	bytes, err := memStore.Get(pubK.ID())
 	require.NoError(t, err)
 	b, _ := pem.Decode(bytes)
 	b.Headers["path"] = "ankh"
 
 	pubK, err = cs.Create(data.CanonicalTargetsRole, "morpork", data.ECDSAKey)
 	require.NoError(t, err)
-	bytes, err = memStore.Get(notary.NonRootKeysSubdir + "/morpork/" + pubK.ID())
+	bytes, err = memStore.Get(pubK.ID())
 	require.NoError(t, err)
 	c, _ := pem.Decode(bytes)
 	c.Headers["path"] = "morpork"
@@ -109,14 +108,14 @@ func TestExportImportKeysNoYubikey(t *testing.T) {
 	pubK, err := cs.Create(data.CanonicalRootRole, "ankh", data.ECDSAKey)
 	require.NoError(t, err)
 	bID := pubK.ID()
-	bOrigBytes, err := exportStore.Get(filepath.Join(notary.RootKeysSubdir, bID))
+	bOrigBytes, err := exportStore.Get(bID)
 	require.NoError(t, err)
 	bOrig, _ := pem.Decode(bOrigBytes)
 
 	pubK, err = cs.Create(data.CanonicalTargetsRole, "morpork", data.ECDSAKey)
 	require.NoError(t, err)
 	cID := pubK.ID()
-	cOrigBytes, err := exportStore.Get(filepath.Join(notary.NonRootKeysSubdir, "morpork", cID))
+	cOrigBytes, err := exportStore.Get(cID)
 	require.NoError(t, err)
 	cOrig, _ := pem.Decode(cOrigBytes)
 
@@ -139,9 +138,9 @@ func TestExportImportKeysNoYubikey(t *testing.T) {
 
 	importStore, err := store.NewPrivateKeyFileStorage(importTempDir, notary.KeyExtension)
 	require.NoError(t, err)
-	bResult, err := importStore.Get(filepath.Join(notary.RootKeysSubdir, bID))
+	bResult, err := importStore.Get(bID)
 	require.NoError(t, err)
-	cResult, err := importStore.Get(filepath.Join(notary.NonRootKeysSubdir, "morpork", cID))
+	cResult, err := importStore.Get(cID)
 	require.NoError(t, err)
 
 	block, rest := pem.Decode(bResult)

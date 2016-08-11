@@ -131,6 +131,66 @@ func Test0Dot1RepoFormat(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// We can read and publish from notary0.1 repos
+func Test0Dot3RepoFormat(t *testing.T) {
+	// make a temporary directory and copy the fixture into it, since updating
+	// and publishing will modify the files
+	tmpDir, err := ioutil.TempDir("", "notary-backwards-compat-test")
+	defer os.RemoveAll(tmpDir)
+	require.NoError(t, err)
+	require.NoError(t, recursiveCopy("../fixtures/compatibility/notary0.3", tmpDir))
+
+	gun := "docker.com/notary0.3/samplerepo"
+	passwd := "randompass"
+
+	ts := fullTestServer(t)
+	defer ts.Close()
+
+	repo, err := NewNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
+		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
+	require.NoError(t, err, "error creating repo: %s", err)
+
+	// targets should have 1 target, and it should be readable offline
+	targets, err := repo.ListTargets()
+	require.NoError(t, err)
+	require.Len(t, targets, 1)
+	require.Equal(t, "LICENSE", targets[0].Name)
+
+	// ok, now that everything has been loaded, verify that the fixture is valid
+	requireValidFixture(t, repo)
+
+	// delete the timestamp metadata, since the server will ignore the uploaded
+	// one and try to create a new one from scratch, which will be the wrong version
+	require.NoError(t, repo.fileStore.Remove(data.CanonicalTimestampRole))
+
+	// rotate the timestamp key, since the server doesn't have that one
+	err = repo.RotateKey(data.CanonicalTimestampRole, true)
+	require.NoError(t, err)
+
+	require.NoError(t, repo.Publish())
+
+	targets, err = repo.ListTargets()
+	require.NoError(t, err)
+	require.Len(t, targets, 2)
+
+	// Also check that we can add/remove keys by rotating keys
+	oldTargetsKeys := repo.CryptoService.ListKeys(data.CanonicalTargetsRole)
+	require.NoError(t, repo.RotateKey(data.CanonicalTargetsRole, false))
+	require.NoError(t, repo.Publish())
+	newTargetsKeys := repo.CryptoService.ListKeys(data.CanonicalTargetsRole)
+
+	require.Len(t, oldTargetsKeys, 1)
+	require.Len(t, newTargetsKeys, 1)
+	require.NotEqual(t, oldTargetsKeys[0], newTargetsKeys[0])
+
+	// rotate the snapshot key to the server and ensure that the server can re-generate the snapshot
+	// and we can download the snapshot
+	require.NoError(t, repo.RotateKey(data.CanonicalSnapshotRole, true))
+	require.NoError(t, repo.Publish())
+	err = repo.Update(false)
+	require.NoError(t, err)
+}
+
 // Ensures that the current client can download metadata that is published from notary 0.1 repos
 func TestDownloading0Dot1RepoFormat(t *testing.T) {
 	gun := "docker.com/notary0.1/samplerepo"

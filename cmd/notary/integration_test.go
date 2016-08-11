@@ -106,6 +106,8 @@ func TestInitWithRootKey(t *testing.T) {
 	// create encrypted root key
 	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
+
+	// if the key has a root role, AddKey sets the gun to "" so we have done the same here
 	encryptedPEMPrivKey, err := utils.EncryptPrivateKey(privKey, data.CanonicalRootRole, "", testPassphrase)
 	require.NoError(t, err)
 	encryptedPEMKeyFilename := filepath.Join(tempDir, "encrypted_key.key")
@@ -141,7 +143,7 @@ func TestInitWithRootKey(t *testing.T) {
 	// check error if unencrypted PEM used
 	unencryptedPrivKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	unencryptedPEMPrivKey, err := utils.KeyToPEM(unencryptedPrivKey, data.CanonicalRootRole)
+	unencryptedPEMPrivKey, err := utils.KeyToPEM(unencryptedPrivKey, data.CanonicalRootRole, "")
 	require.NoError(t, err)
 	unencryptedPEMKeyFilename := filepath.Join(tempDir, "unencrypted_key.key")
 	err = ioutil.WriteFile(unencryptedPEMKeyFilename, unencryptedPEMPrivKey, 0644)
@@ -154,6 +156,8 @@ func TestInitWithRootKey(t *testing.T) {
 	// instead of using a new retriever, we create a new key with a different pass
 	badPassPrivKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
+
+	// Blank gun name since it is a root key
 	badPassPEMPrivKey, err := utils.EncryptPrivateKey(badPassPrivKey, data.CanonicalRootRole, "", "bad_pass")
 	require.NoError(t, err)
 	badPassPEMKeyFilename := filepath.Join(tempDir, "badpass_key.key")
@@ -166,7 +170,7 @@ func TestInitWithRootKey(t *testing.T) {
 	// check error if wrong role specified
 	snapshotPrivKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	snapshotPEMPrivKey, err := utils.KeyToPEM(snapshotPrivKey, data.CanonicalSnapshotRole)
+	snapshotPEMPrivKey, err := utils.KeyToPEM(snapshotPrivKey, data.CanonicalSnapshotRole, "gun2")
 	require.NoError(t, err)
 	snapshotPEMKeyFilename := filepath.Join(tempDir, "snapshot_key.key")
 	err = ioutil.WriteFile(snapshotPEMKeyFilename, snapshotPEMPrivKey, 0644)
@@ -902,15 +906,16 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	// Setup certificate for delegation role
 	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
+
 	cert, privKey, canonicalKeyID := generateCertPrivKeyPair(t, "gun", data.RSAKey)
 	_, err = tempFile.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
 
-	privKeyBytesNoRole, err := utils.KeyToPEM(privKey, "")
+	privKeyBytesNoRole, err := utils.KeyToPEM(privKey, "", "")
 	require.NoError(t, err)
-	privKeyBytesWithRole, err := utils.KeyToPEM(privKey, "user")
+	privKeyBytesWithRole, err := utils.KeyToPEM(privKey, "user", "")
 	require.NoError(t, err)
 
 	// Set up targets for publishing
@@ -967,11 +972,11 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	require.NotContains(t, output, "No delegations present in this repository.")
 
 	// remove the targets key to demonstrate that delegates don't need this key
-	keyDir := filepath.Join(tempDir, "private", "tuf_keys")
-	require.NoError(t, os.Remove(filepath.Join(keyDir, "gun", targetKeyID+".key")))
+	keyDir := filepath.Join(tempDir, "private")
+	require.NoError(t, os.Remove(filepath.Join(keyDir, targetKeyID+".key")))
 
 	// Note that we need to use the canonical key ID, followed by the base of the role here
-	err = ioutil.WriteFile(filepath.Join(keyDir, canonicalKeyID+"_releases.key"), privKeyBytesNoRole, 0700)
+	err = ioutil.WriteFile(filepath.Join(keyDir, canonicalKeyID+".key"), privKeyBytesNoRole, 0700)
 	require.NoError(t, err)
 
 	// add a target using the delegation -- will only add to targets/releases
@@ -1010,7 +1015,7 @@ func TestClientDelegationsPublishing(t *testing.T) {
 
 	// Try adding a target with a different key style - private/tuf_keys/canonicalKeyID.key with "user" set as the "role" PEM header
 	// First remove the old key and add the new style
-	require.NoError(t, os.Remove(filepath.Join(keyDir, canonicalKeyID+"_releases.key")))
+	require.NoError(t, os.Remove(filepath.Join(keyDir, canonicalKeyID+".key")))
 	err = ioutil.WriteFile(filepath.Join(keyDir, canonicalKeyID+".key"), privKeyBytesWithRole, 0700)
 	require.NoError(t, err)
 
@@ -1183,7 +1188,7 @@ func assertNumKeys(t *testing.T, tempDir string, numRoot, numSigning int,
 	require.Len(t, signing, numSigning)
 	for _, rootKeyID := range root {
 		_, err := os.Stat(filepath.Join(
-			tempDir, "private", "root_keys", rootKeyID+".key"))
+			tempDir, "private", rootKeyID+".key"))
 		// os.IsExist checks to see if the error is because a file already
 		// exists, and hence it isn't actually the right function to use here
 		require.Equal(t, rootOnDisk, !os.IsNotExist(err))
