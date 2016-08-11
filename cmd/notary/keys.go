@@ -460,8 +460,7 @@ func (k *keyCommander) exportKeys(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("Only the --gun or --key flag may be provided, not a mix of the two flags")
 		}
 		for _, gun := range k.exportGUNs {
-			gunPath := filepath.Join(notary.NonRootKeysSubdir, gun)
-			return utils.ExportKeysByGUN(out, fileStore, gunPath)
+			return utils.ExportKeysByGUN(out, fileStore, gun)
 		}
 	} else if len(k.exportKeyIDs) > 0 {
 		return utils.ExportKeysByID(out, fileStore, k.exportKeyIDs)

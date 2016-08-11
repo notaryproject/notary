@@ -972,7 +972,7 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	require.NotContains(t, output, "No delegations present in this repository.")
 
 	// remove the targets key to demonstrate that delegates don't need this key
-	keyDir := filepath.Join(tempDir, "private")
+	keyDir := filepath.Join(tempDir, notary.PrivDir)
 	require.NoError(t, os.Remove(filepath.Join(keyDir, targetKeyID+".key")))
 
 	// Note that we need to use the canonical key ID, followed by the base of the role here
@@ -1189,7 +1189,7 @@ func assertNumKeys(t *testing.T, tempDir string, numRoot, numSigning int,
 	require.Len(t, signing, numSigning)
 	for _, rootKeyID := range root {
 		_, err := os.Stat(filepath.Join(
-			tempDir, "private", rootKeyID+".key"))
+			tempDir, notary.PrivDir, rootKeyID+".key"))
 		// os.IsExist checks to see if the error is because a file already
 		// exists, and hence it isn't actually the right function to use here
 		require.Equal(t, rootOnDisk, !os.IsNotExist(err))
@@ -2133,7 +2133,7 @@ func TestClientKeyImport(t *testing.T) {
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
 	assertNumKeys(t, tempDir, 2, 1, !rootOnHardware())
-	file, err := os.OpenFile(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, privKey.ID()+".key"), os.O_RDONLY, notary.PrivKeyPerms)
+	file, err := os.OpenFile(filepath.Join(tempDir, notary.PrivDir, privKey.ID()+".key"), os.O_RDONLY, notary.PrivKeyPerms)
 	require.NoError(t, err)
 	filebytes, _ := ioutil.ReadAll(file)
 	require.Contains(t, string(filebytes), ("role: " + notary.DefaultImportRole))
@@ -2164,8 +2164,11 @@ func TestClientKeyImport(t *testing.T) {
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
 	assertNumKeys(t, tempDir, 2, 2, !rootOnHardware())
-	_, err = os.Open(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, newKeyID+".key"))
+	file, err = os.OpenFile(filepath.Join(tempDir, notary.PrivDir, privKey.ID()+".key"), os.O_RDONLY, notary.PrivKeyPerms)
 	require.NoError(t, err)
+	filebytes, _ = ioutil.ReadAll(file)
+	require.Contains(t, string(filebytes), ("role: " + "somerole"))
+	require.NotContains(t, string(filebytes), ("gun: " + "somegun"))
 
 	// test 5, no path non root role with canonical role and gun flag with unencrypted key
 
@@ -2193,8 +2196,11 @@ func TestClientKeyImport(t *testing.T) {
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
 	assertNumKeys(t, tempDir, 2, 3, !rootOnHardware())
-	_, err = os.Open(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, "somegun", newKeyID+".key"))
+	file, err = os.OpenFile(filepath.Join(tempDir, notary.PrivDir, privKey.ID()+".key"), os.O_RDONLY, notary.PrivKeyPerms)
 	require.NoError(t, err)
+	filebytes, _ = ioutil.ReadAll(file)
+	require.Contains(t, string(filebytes), ("role: " + data.CanonicalSnapshotRole))
+	require.Contains(t, string(filebytes), ("gun: " + "somegun"))
 
 	// test6, no path but role=root included with encrypted key, should fail since we don't know what keyid to save to
 
@@ -2248,8 +2254,10 @@ func TestClientKeyImport(t *testing.T) {
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
 	assertNumKeys(t, tempDir, 2, 4, !rootOnHardware())
-	_, err = os.Open(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, newKeyID+".key"))
+	file, err = os.OpenFile(filepath.Join(tempDir, notary.PrivDir, privKey.ID()+".key"), os.O_RDONLY, notary.PrivKeyPerms)
 	require.NoError(t, err)
+	filebytes, _ = ioutil.ReadAll(file)
+	require.Contains(t, string(filebytes), ("role: " + "somerole"))
 
 	// test 8, non root canonical key with no gun
 
@@ -2277,7 +2285,7 @@ func TestClientKeyImport(t *testing.T) {
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
 	assertNumKeys(t, tempDir, 2, 4, !rootOnHardware())
-	_, err = os.Open(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, newKeyID+".key"))
+	_, err = os.Open(filepath.Join(tempDir, notary.PrivDir, newKeyID+".key"))
 	require.Error(t, err)
 }
 
@@ -2376,8 +2384,7 @@ func TestAddDelImportKeyPublishFlow(t *testing.T) {
 	require.NotContains(t, output, "No delegations present in this repository.")
 
 	// remove the targets key to demonstrate that delegates don't need this key
-	keyDir := filepath.Join(tempDir, "private", "tuf_keys")
-	require.NoError(t, os.Remove(filepath.Join(keyDir, "gun", targetKeyID+".key")))
+	require.NoError(t, os.Remove(filepath.Join(tempDir, notary.PrivDir, targetKeyID+".key")))
 
 	// we are now set up with the first part, now import the delegation key- add a target- publish
 
@@ -2422,7 +2429,7 @@ func TestAddDelImportKeyPublishFlow(t *testing.T) {
 	// make sure that it has been imported fine
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
-	_, err = os.Open(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, privKey.ID()+".key"))
+	_, err = os.Open(filepath.Join(tempDir, notary.PrivDir, privKey.ID()+".key"))
 	require.NoError(t, err)
 
 	// now try to publish
@@ -2510,7 +2517,7 @@ func TestExportImportFlow(t *testing.T) {
 
 	if !rootOnHardware() {
 		// validate root is imported correctly
-		rootKey, err := os.OpenFile(filepath.Join(newTempDir, "private", notary.RootKeysSubdir, root[0]+".key"), os.O_RDONLY, notary.PrivKeyPerms)
+		rootKey, err := os.OpenFile(filepath.Join(newTempDir, notary.PrivDir, root[0]+".key"), os.O_RDONLY, notary.PrivKeyPerms)
 		require.NoError(t, err)
 		defer rootKey.Close()
 		rootBytes, _ := ioutil.ReadAll(rootKey)
@@ -2521,7 +2528,7 @@ func TestExportImportFlow(t *testing.T) {
 	}
 
 	// validate snapshot is imported correctly
-	snapKey, err := os.OpenFile(filepath.Join(newTempDir, "private", notary.NonRootKeysSubdir, "gun", signing[0]+".key"), os.O_RDONLY, notary.PrivKeyPerms)
+	snapKey, err := os.OpenFile(filepath.Join(newTempDir, notary.PrivDir, signing[0]+".key"), os.O_RDONLY, notary.PrivKeyPerms)
 	require.NoError(t, err)
 	defer snapKey.Close()
 	snapBytes, _ := ioutil.ReadAll(snapKey)
@@ -2530,7 +2537,7 @@ func TestExportImportFlow(t *testing.T) {
 	require.True(t, strings.Contains(snapString, "role: snapshot") || strings.Contains(snapString, "role: target"))
 
 	// validate targets is imported correctly
-	targKey, err := os.OpenFile(filepath.Join(newTempDir, "private", notary.NonRootKeysSubdir, "gun", signing[1]+".key"), os.O_RDONLY, notary.PrivKeyPerms)
+	targKey, err := os.OpenFile(filepath.Join(newTempDir, notary.PrivDir, signing[1]+".key"), os.O_RDONLY, notary.PrivKeyPerms)
 	require.NoError(t, err)
 	defer targKey.Close()
 	targBytes, _ := ioutil.ReadAll(targKey)
