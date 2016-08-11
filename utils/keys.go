@@ -106,8 +106,9 @@ func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGun 
 		toWrite []byte
 	)
 	for block, rest := pem.Decode(data); block != nil; block, rest = pem.Decode(rest) {
-		// if there is a path then we set the gun header from this path
-		if rawPath := block.Headers["path"]; rawPath != "" {
+		// if there is a lecacy path then we set the gun header from this path
+		if rawPath := block.Headers["path"]; rawPath != filepath.Base(rawPath) {
+			// this is a legacy filepath and we should try to deduce the gun name from it
 			pathWOFileName := strings.TrimSuffix(rawPath, filepath.Base(rawPath))
 			if strings.HasPrefix(pathWOFileName, notary.NonRootKeysSubdir) {
 				gunName := strings.TrimPrefix(pathWOFileName, notary.NonRootKeysSubdir)
@@ -117,40 +118,18 @@ func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGun 
 				}
 			}
 		}
+
 		if block.Headers["gun"] == "" {
 			if fallbackGun != "" {
 				block.Headers["gun"] = fallbackGun
 			}
 		}
+
 		if block.Headers["role"] == "" {
 			if fallbackRole == "" {
 				block.Headers["role"] = notary.DefaultImportRole
 			} else {
 				block.Headers["role"] = fallbackRole
-			}
-		}
-		loc, ok := block.Headers["path"]
-		// only if the path isn't specified do we get into this parsing path logic
-		if !ok || loc == "" {
-			// if the path isn't specified, we will try to infer the path rel to trust dir from the role (and then gun)
-			// parse key for the keyID which we will save it by.
-			// if the key is encrypted at this point, we will generate an error and continue since we don't know the ID to save it by
-			decodedKey, err := utils.ParsePEMPrivateKey(pem.EncodeToMemory(block), "")
-			if err != nil {
-				logrus.Info("failed to import key to store: Invalid key generated, key may be encrypted and does not contain path header")
-				continue
-			}
-			keyID := decodedKey.ID()
-			switch block.Headers["role"] {
-			case tufdata.CanonicalRootRole:
-				// this is a root key so import it to trustDir/root_keys/
-				loc = filepath.Join(notary.RootKeysSubdir, keyID)
-			case tufdata.CanonicalSnapshotRole, tufdata.CanonicalTargetsRole, tufdata.CanonicalTimestampRole:
-				// this is a canonical key
-				loc = filepath.Join(notary.NonRootKeysSubdir, block.Headers["gun"], keyID)
-			default:
-				//this is a delegation key
-				loc = filepath.Join(notary.NonRootKeysSubdir, keyID)
 			}
 		}
 
@@ -159,11 +138,27 @@ func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGun 
 		if block.Headers["role"] != tufdata.CanonicalSnapshotRole && block.Headers["role"] != tufdata.CanonicalTargetsRole && block.Headers["role"] != tufdata.CanonicalTimestampRole {
 			delete(block.Headers, "gun")
 		} else {
-			// check if the key is missing a gun header or has an empty gun and error out since we don't know where to import this key to
+			// check if the key is missing a gun header or has an empty gun and error out since we don't know what gun it belongs to
 			if block.Headers["gun"] == "" {
-				logrus.Info("failed to import key to store: Cannot have canonical role key without a gun, don't know where to import it")
+				logrus.Info("failed to import key to store: Cannot have canonical role key without a gun, don't know what gun it belongs to")
 				continue
 			}
+		}
+
+		loc, ok := block.Headers["path"]
+		// only if the path isn't specified do we get into this parsing path logic
+		if !ok || loc == "" {
+			// if the path isn't specified, we will try to infer the path rel to trust dir from the role (and then gun)
+			// parse key for the keyID which we will save it by.
+			// if the key is encrypted at this point, we will generate an error and continue since we don't know the ID to save it by
+
+			// note that any key exported by an older client
+			decodedKey, err := utils.ParsePEMPrivateKey(pem.EncodeToMemory(block), "")
+			if err != nil {
+				logrus.Info("failed to import key to store: Invalid key generated, key may be encrypted and does not contain path header")
+				continue
+			}
+			loc = decodedKey.ID()
 		}
 
 		// the path header is not of any use once we've imported the key so strip it away

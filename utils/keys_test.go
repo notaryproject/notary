@@ -285,7 +285,7 @@ func TestImportNoPath(t *testing.T) {
 
 	for key := range s.data {
 		// no path but role included should work
-		require.Equal(t, key, filepath.Join(notary.RootKeysSubdir, "12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497"))
+		require.Equal(t, "12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497", key)
 	}
 
 	s = NewTestImportStore()
@@ -310,7 +310,7 @@ func TestNonRootPathInference(t *testing.T) {
 
 	for key := range s.data {
 		// no path but role included should work and 12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497 is the key ID of the fixture
-		require.Equal(t, key, filepath.Join(notary.NonRootKeysSubdir, "somegun", "12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497"))
+		require.Equal(t, "12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497", key)
 	}
 }
 
@@ -333,7 +333,7 @@ func TestBlockHeaderPrecedenceRoleAndGun(t *testing.T) {
 	require.Len(t, s.data, 1)
 	for key := range s.data {
 		// block header role= root should take precedence over command line flag
-		require.Equal(t, key, filepath.Join(notary.NonRootKeysSubdir, "anothergun", "12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497"))
+		require.Equal(t, "12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497", key)
 		final, rest := pem.Decode(s.data[key])
 		require.Len(t, rest, 0)
 		require.Equal(t, final.Headers["role"], "snapshot")
@@ -342,6 +342,7 @@ func TestBlockHeaderPrecedenceRoleAndGun(t *testing.T) {
 }
 
 func TestBlockHeaderPrecedenceGunFromPath(t *testing.T) {
+	// this is a proof of concept that if we have legacy fixtures with nested paths, we infer the gun from them correctly
 	s := NewTestImportStore()
 
 	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivKeyPerms)
@@ -457,7 +458,7 @@ func TestImportKeys2InOneFileNoPath(t *testing.T) {
 	err := ImportKeys(in, []Importer{s}, "", "", passphraseRetriever)
 	require.NoError(t, err)
 
-	bFinal, bRest := pem.Decode(s.data[filepath.Join(notary.NonRootKeysSubdir, "testgun", "12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497")])
+	bFinal, bRest := pem.Decode(s.data["12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497"])
 	require.Equal(t, b.Headers["gun"], bFinal.Headers["gun"])
 	require.Equal(t, b.Headers["role"], bFinal.Headers["role"])
 
@@ -541,7 +542,7 @@ func TestEncryption(t *testing.T) {
 	_ = ImportKeys(in, []Importer{s}, "", "", passphraseRetriever)
 	require.Len(t, s.data, 1)
 
-	shouldBeEnc, ok := s.data[filepath.Join(notary.NonRootKeysSubdir, privKey.ID())]
+	shouldBeEnc, ok := s.data[privKey.ID()]
 	// we should have got a key imported to this location
 	require.True(t, ok)
 
