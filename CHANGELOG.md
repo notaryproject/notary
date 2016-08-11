@@ -1,5 +1,27 @@
 # Changelog
 
+## [v0.4.0](https://github.com/docker/notary/releases/tag/v0.4.0) 8/11/2016
++ Server-managed key rotations
++ Remove `timestamp_keys` table, which stored redundant information
++ Introduce `notary delete` command to delete local and/or remote repo data
++ Introduce `notary witness` command to stage signatures for specified roles
++ Add `-p` flag to offline commands to attempt auto-publish
++ Add `--unstage` and `--reset` flags to `notary status` to manage staged changes
++ Add `--rootkey` flag to `notary init` to provide a private root key for a repo
++ Introduce `notary delegation purge` command to remove a specified key from all delegations
++ Removed HTTP endpoint from notary-signer
++ Refactored and unified key storage
++ Batched key import and export now operate on PEM files (potentially with multiple blocks) instead of ZIP
++ Add full database integration test-suite
++ Improve notary-server, trust pinning, and yubikey logging
++ Warn if certificates for root or delegations are near expiry
++ Warn if role metadata is near expiry
++ Reformat CLI table output to use the `text/tabwriter` package
++ Fix passphrase retrieval attempt counting and terminal detection
++ Fix listing nested delegations
++ Bump go version to 1.6.3, fix go1.7 compatibility
++ Convert docker-compose files to v2 format
+
 ## [v0.3.0](https://github.com/docker/notary/releases/tag/v0.3.0) 5/11/2016
 + Root rotations
 + RethinkDB support as a storage backend for Server and Signer
