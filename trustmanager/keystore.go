@@ -1,19 +1,19 @@
 package trustmanager
 
 import (
+	"bytes"
 	"encoding/pem"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 
-	"bytes"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
 	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
-	"os"
 )
 
 type keyInfoMap map[string]KeyInfo
@@ -76,12 +76,28 @@ func migrateTo0Dot4(s Storage) {
 			}
 		}
 		var keyPEM bytes.Buffer
-		_ = pem.Encode(&keyPEM, block)
+		// since block came from decoding the PEM bytes in the first place, and all we're doing is adding some headers we ignore the possibility of an error while encoding the block
+		pem.Encode(&keyPEM, block)
 		s.Set(keyID, keyPEM.Bytes())
 	}
-	os.RemoveAll(filepath.Join(s.Location(), notary.RootKeysSubdir))
-	os.RemoveAll(filepath.Join(s.Location(), notary.NonRootKeysSubdir))
-	os.RemoveAll(filepath.Join(s.Location(), "trusted_certificates"))
+	rootKeysSubDir := filepath.Join(s.Location(), notary.RootKeysSubdir)
+	nonRootKeysSubDir := filepath.Join(s.Location(), notary.NonRootKeysSubdir)
+	certsSubDir := filepath.Join(s.Location(), "trusted_certificates")
+	if rootKeysSubDir == "" || rootKeysSubDir == "/" {
+		logrus.Warn("The directory for root keys is an unsafe value, we are not going to delete the directory. Please delete it manually")
+	} else {
+		os.RemoveAll(rootKeysSubDir)
+	}
+	if nonRootKeysSubDir == "" || nonRootKeysSubDir == "/" {
+		logrus.Warn("The directory for non root keys is an unsafe value, we are not going to delete the directory. Please delete it manually")
+	} else {
+		os.RemoveAll(nonRootKeysSubDir)
+	}
+	if certsSubDir == "" || certsSubDir == "/" {
+		logrus.Warn("The directory for trusted certificate is an unsafe value, we are not going to delete the directory. Please delete it manually")
+	} else {
+		os.RemoveAll(certsSubDir)
+	}
 }
 
 // NewKeyMemoryStore returns a new KeyMemoryStore which holds keys in memory
@@ -177,21 +193,21 @@ func (s *GenericKeyStore) AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error
 }
 
 // GetKey returns the PrivateKey given a KeyID
-func (s *GenericKeyStore) GetKey(name string) (data.PrivateKey, string, error) {
+func (s *GenericKeyStore) GetKey(keyID string) (data.PrivateKey, string, error) {
 	s.Lock()
 	defer s.Unlock()
 
-	cachedKeyEntry, ok := s.cachedKeys[name]
+	cachedKeyEntry, ok := s.cachedKeys[keyID]
 	if ok {
 		return cachedKeyEntry.key, cachedKeyEntry.alias, nil
 	}
 
-	role, err := getKeyRole(s.store, name)
+	role, err := getKeyRole(s.store, keyID)
 	if err != nil {
 		return nil, "", err
 	}
 
-	keyBytes, err := s.store.Get(name)
+	keyBytes, err := s.store.Get(keyID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -199,12 +215,12 @@ func (s *GenericKeyStore) GetKey(name string) (data.PrivateKey, string, error) {
 	// See if the key is encrypted. If its encrypted we'll fail to parse the private key
 	privKey, err := utils.ParsePEMPrivateKey(keyBytes, "")
 	if err != nil {
-		privKey, _, err = GetPasswdDecryptBytes(s.PassRetriever, keyBytes, name, string(role))
+		privKey, _, err = GetPasswdDecryptBytes(s.PassRetriever, keyBytes, keyID, string(role))
 		if err != nil {
 			return nil, "", err
 		}
 	}
-	s.cachedKeys[name] = &cachedKey{alias: role, key: privKey}
+	s.cachedKeys[keyID] = &cachedKey{alias: role, key: privKey}
 	return privKey, role, nil
 }
 
@@ -219,13 +235,12 @@ func (s *GenericKeyStore) RemoveKey(keyID string) error {
 	defer s.Unlock()
 	delete(s.cachedKeys, keyID)
 
-	// being in a subdirectory is for backwards compatibliity
 	err := s.store.Remove(keyID)
 	if err != nil {
 		return err
 	}
 
-	delete(s.keyInfoMap, filepath.Base(keyID))
+	delete(s.keyInfoMap, keyID)
 	return nil
 }
 
@@ -246,26 +261,18 @@ func copyKeyInfoMap(keyInfoMap map[string]KeyInfo) map[string]KeyInfo {
 
 // KeyInfoFromPEM attempts to get a keyID and KeyInfo from the filename and PEM bytes of a key
 func KeyInfoFromPEM(pemBytes []byte, filename string) (string, KeyInfo, error) {
-	//keyID, role, gun := inferKeyInfoFromKeyPath(filename)
-	var keyID, role, gun string
+	var keyID string
 	keyID = filepath.Base(filename)
 	block, _ := pem.Decode(pemBytes)
 	if block == nil {
 		return "", KeyInfo{}, fmt.Errorf("could not decode PEM block for key %s", filename)
 	}
-	if keyRole, ok := block.Headers["role"]; ok {
-		role = keyRole
-	}
-	if keyGun, ok := block.Headers["gun"]; ok {
-		gun = keyGun
-	}
-	return keyID, KeyInfo{Gun: gun, Role: role}, nil
+	return keyID, KeyInfo{Gun: block.Headers["gun"], Role: block.Headers["role"]}, nil
 }
 
 // getKeyRole finds the role for the given keyID. It attempts to look
 // both in the newer format PEM headers, and also in the legacy filename
-// format. It returns: the role, whether it was found in the legacy(0.1) format
-// (true == legacy),  whether it was found in a notary0.3 format (true == notary0.3) and an error
+// format. It returns: the role, and an error
 func getKeyRole(s Storage, keyID string) (string, error) {
 	name := strings.TrimSpace(strings.TrimSuffix(filepath.Base(keyID), filepath.Ext(keyID)))
 
