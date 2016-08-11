@@ -162,6 +162,7 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmd.AddCommand(cmdTUFVerify)
 
 	cmdWitness := cmdWitnessTemplate.ToCommand(t.tufWitness)
+	cmdWitness.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
 	cmd.AddCommand(cmdWitness)
 
 	cmdTUFDeleteGUN := cmdTUFDeleteTemplate.ToCommand(t.tufDeleteGUN)
@@ -203,7 +204,7 @@ func (t *tufCommander) tufWitness(cmd *cobra.Command, args []string) error {
 		strings.Join(success, "\n\t- "),
 	)
 
-	return nil
+	return maybeAutoPublish(cmd, t.autoPublish, gun, config, t.retriever)
 }
 
 func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {

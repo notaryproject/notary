@@ -1475,6 +1475,8 @@ func TestPurge(t *testing.T) {
 //   9. witness the delegation
 //  10. list targets and ensure target is visible again
 //  11. witness an invalid role and check for error on publish
+//  12. check non-targets base roles all fail
+//  13. test auto-publish functionality
 func TestWitness(t *testing.T) {
 	setUp(t)
 
@@ -1498,7 +1500,7 @@ func TestWitness(t *testing.T) {
 	tempFile2, err := ioutil.TempFile("", "pemfile2")
 	require.NoError(t, err)
 
-	cert2, privKey2, _ := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
+	cert2, privKey2, keyID2 := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
 	_, err = tempFile2.Write(utils.CertToPEM(cert2))
 	require.NoError(t, err)
 	tempFile2.Close()
@@ -1613,6 +1615,34 @@ func TestWitness(t *testing.T) {
 		_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
 		require.Error(t, err)
 	}
+
+	// 13. test auto-publish functionality (just for witness)
+
+	// purge the old staged witness
+	_, err = runCommand(t, tempDir, "status", "gun", "--reset")
+	require.NoError(t, err)
+
+	// remove key2 and add back key1
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", delgName, tempFile.Name(), "--all-paths")
+	require.NoError(t, err)
+	_, err = runCommand(t, tempDir, "delegation", "remove", "gun", delgName, keyID2)
+	require.NoError(t, err)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// the role now won't show its target because it's invalid
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.NotContains(t, output, targetName)
+	require.NotContains(t, output, targetHash)
+
+	// auto-publish with witness, check that the target is back
+	_, err = runCommand(t, tempDir, "-s", server.URL, "witness", "-p", "gun", delgName)
+	require.NoError(t, err)
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, targetName)
+	require.Contains(t, output, targetHash)
 }
 
 func generateCertPrivKeyPair(t *testing.T, gun, keyAlgorithm string) (*x509.Certificate, data.PrivateKey, string) {
