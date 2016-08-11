@@ -43,7 +43,7 @@ services:
       context: .
       dockerfile: Dockerfile
     env_file: buildscripts/env.list
-    command: buildscripts/testclient.sh
+    command: buildscripts/testclient.py
     volumes:
       - ./test_output:/test_output
     networks:
