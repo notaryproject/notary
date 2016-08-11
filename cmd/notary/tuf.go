@@ -719,14 +719,16 @@ func (ps passwordStore) Basic(u *url.URL) (string, string) {
 
 	username := strings.TrimSpace(string(userIn))
 
-	if term.IsTerminal(0) {
-		state, err := term.SaveState(0)
+	// If typing on the terminal, we do not want the terminal to echo the
+	// password that is typed (so it doesn't display)
+	if term.IsTerminal(os.Stdin.Fd()) {
+		state, err := term.SaveState(os.Stdin.Fd())
 		if err != nil {
 			logrus.Errorf("error saving terminal state, cannot retrieve password: %s", err)
 			return "", ""
 		}
-		term.DisableEcho(0, state)
-		defer term.RestoreTerminal(0, state)
+		term.DisableEcho(os.Stdin.Fd(), state)
+		defer term.RestoreTerminal(os.Stdin.Fd(), state)
 	}
 
 	fmt.Fprintf(os.Stdout, "Enter password: ")
