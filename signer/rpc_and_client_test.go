@@ -97,63 +97,92 @@ func getStubbedHealthServer(hs *health.Server) *grpc.Server {
 	return gServer
 }
 
-// CheckHealth does not succeed if the KM server is unhealthy
+// healthCheckUnhealthy does not succeed if the service is unhealthy
+func healthCheckUnhealthy(t *testing.T, serviceName string) {
+	hs := health.NewServer()
+	hs.SetServingStatus(serviceName, healthpb.HealthCheckResponse_NOT_SERVING)
+
+	s := getStubbedHealthServer(hs)
+	signerClient, _, cleanup := setUpSignerClient(t, s)
+	defer cleanup()
+	require.Error(t, signerClient.CheckHealth(1*time.Second, serviceName))
+}
+
+// TestHealthCheckKMUnhealthy does not succeed if the KM server is unhealthy
 func TestHealthCheckKMUnhealthy(t *testing.T) {
-	hs := health.NewServer()
-	hs.SetServingStatus(notary.HealthCheckKeyManagement, healthpb.HealthCheckResponse_NOT_SERVING)
-
-	s := getStubbedHealthServer(hs)
-	signerClient, _, cleanup := setUpSignerClient(t, s)
-	defer cleanup()
-	require.Error(t, signerClient.CheckHealth(1*time.Second, notary.HealthCheckKeyManagement))
+	healthCheckUnhealthy(t, notary.HealthCheckKeyManagement)
 }
 
-// CheckHealth does not succeed if the health check to the KM server errors
-func TestHealthCheckKMError(t *testing.T) {
-	hs := health.NewServer()
-	hs.SetServingStatus(notary.HealthCheckKeyManagement, healthpb.HealthCheckResponse_NOT_SERVING)
-
-	s := getStubbedHealthServer(hs)
-	signerClient, _, cleanup := setUpSignerClient(t, s)
-	defer cleanup()
-	require.Error(t, signerClient.CheckHealth(1*time.Second, notary.HealthCheckKeyManagement))
+// TestHealthCheckSignerUnhealthy does not succeed if the Signer server is unhealthy
+func TestHealthCheckSignerUnhealthy(t *testing.T) {
+	healthCheckUnhealthy(t, notary.HealthCheckSigner)
 }
 
-// CheckHealth does not succeed if the health check to the KM server times out
-func TestHealthCheckKMTimeout(t *testing.T) {
+// healthCheckTimeout does not succeed if the health check to the server times out
+func healthCheckTimeout(t *testing.T, serviceName string) {
 	hs := health.NewServer()
-	hs.SetServingStatus(notary.HealthCheckKeyManagement, healthpb.HealthCheckResponse_NOT_SERVING)
+	hs.SetServingStatus(serviceName, healthpb.HealthCheckResponse_NOT_SERVING)
 
 	s := getStubbedHealthServer(hs)
 	signerClient, _, cleanup := setUpSignerClient(t, s)
 	defer cleanup()
 
-	err := signerClient.CheckHealth(0*time.Second, notary.HealthCheckKeyManagement)
+	err := signerClient.CheckHealth(0*time.Second, serviceName)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), context.DeadlineExceeded.Error())
 }
 
-// CheckHealth succeeds if KM is healthy and reachable.
-func TestHealthCheckKMHealthy(t *testing.T) {
+// TestHealthCheckKMTimeout does not succeed if the health check to the KM server times out
+func TestHealthCheckKMTimeout(t *testing.T) {
+	healthCheckTimeout(t, notary.HealthCheckKeyManagement)
+}
+
+// TestHealthCheckSignerTimeout does not succeed if the health check to the Signer server times out
+func TestHealthCheckSignerTimeout(t *testing.T) {
+	healthCheckTimeout(t, notary.HealthCheckSigner)
+}
+
+// healthCheckHealthy succeeds if server is healthy and reachable.
+func healthCheckKMHealthy(t *testing.T, serviceName string) {
 	hs := health.NewServer()
-	hs.SetServingStatus(notary.HealthCheckKeyManagement, healthpb.HealthCheckResponse_SERVING)
+	hs.SetServingStatus(serviceName, healthpb.HealthCheckResponse_SERVING)
 
 	s := getStubbedHealthServer(hs)
 	signerClient, _, cleanup := setUpSignerClient(t, s)
 	defer cleanup()
-	require.NoError(t, signerClient.CheckHealth(1*time.Second, notary.HealthCheckKeyManagement))
+	require.NoError(t, signerClient.CheckHealth(1*time.Second, serviceName))
 }
 
-// CheckHealth fails immediately if not connected to the server.
-func TestHealthCheckConnectionDied(t *testing.T) {
+// TestHealthCheckKMHealthy succeeds if KM is healthy and reachable.
+func TestHealthCheckKMHealthy(t *testing.T) {
+	healthCheckKMHealthy(t, notary.HealthCheckKeyManagement)
+}
+
+// TestHealthCheckSignerHealthy succeeds if Signer is healthy and reachable.
+func TestHealthCheckSignerHealthy(t *testing.T) {
+	healthCheckKMHealthy(t, notary.HealthCheckSigner)
+}
+
+// healthCheckConnectionDied fails immediately if not connected to the server.
+func healthCheckConnectionDied(t *testing.T, serviceName string) {
 	hs := health.NewServer()
-	hs.SetServingStatus(notary.HealthCheckKeyManagement, healthpb.HealthCheckResponse_NOT_SERVING)
+	hs.SetServingStatus(serviceName, healthpb.HealthCheckResponse_NOT_SERVING)
 
 	s := getStubbedHealthServer(hs)
 	signerClient, conn, cleanup := setUpSignerClient(t, s)
 	defer cleanup()
 	conn.Close()
-	require.Error(t, signerClient.CheckHealth(1*time.Second, notary.HealthCheckKeyManagement))
+	require.Error(t, signerClient.CheckHealth(1*time.Second, serviceName))
+}
+
+// TestHealthCheckKMConnectionDied fails immediately if not connected to the KM server.
+func TestHealthCheckKMConnectionDied(t *testing.T) {
+	healthCheckConnectionDied(t, notary.HealthCheckKeyManagement)
+}
+
+// TestHealthCheckSignerConnectionDied fails immediately if not connected to the Signer server.
+func TestHealthCheckSignerConnectionDied(t *testing.T) {
+	healthCheckConnectionDied(t, notary.HealthCheckSigner)
 }
 
 // TestHealthCheckForOverallStatus query for signer's overall health status
