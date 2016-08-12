@@ -157,7 +157,6 @@ func TestHealthCheckConnectionDied(t *testing.T) {
 }
 
 // TestHealthCheckForOverallStatus query for signer's overall health status
-// with the empty provided service name.
 func TestHealthCheckForOverallStatus(t *testing.T) {
 	hs := health.NewServer()
 
@@ -167,12 +166,12 @@ func TestHealthCheckForOverallStatus(t *testing.T) {
 
 	// both of the service are NOT SERVING, expect the health check for overall status to be failed.
 	hs.SetServingStatus(notary.HealthCheckKeyManagement, healthpb.HealthCheckResponse_NOT_SERVING)
-	hs.SetServingStatus("grpc.health.v1.Health.Signer", healthpb.HealthCheckResponse_NOT_SERVING)
+	hs.SetServingStatus(notary.HealthCheckSigner, healthpb.HealthCheckResponse_NOT_SERVING)
 	err := signerClient.CheckHealth(1*time.Second, notary.HealthCheckOverall)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "NOT_SERVING, want SERVING")
 
-	// change the status of KeyManagement to SERVING and keep the status of Siger
+	// change the status of KeyManagement to SERVING and keep the status of Signer
 	// still be NOT SERVING, expect the health check for overall status to be failed.
 	hs.SetServingStatus(notary.HealthCheckKeyManagement, healthpb.HealthCheckResponse_SERVING)
 	err = signerClient.CheckHealth(1*time.Second, notary.HealthCheckOverall)
@@ -180,22 +179,22 @@ func TestHealthCheckForOverallStatus(t *testing.T) {
 	require.Contains(t, err.Error(), "NOT_SERVING, want SERVING")
 
 	// change the status of Signer to SERVING, expect the health check for overall status to success.
-	hs.SetServingStatus("grpc.health.v1.Health.Signer", healthpb.HealthCheckResponse_SERVING)
+	hs.SetServingStatus(notary.HealthCheckSigner, healthpb.HealthCheckResponse_SERVING)
 	err = signerClient.CheckHealth(1*time.Second, notary.HealthCheckOverall)
 	require.NoError(t, err)
 
 }
 
-// TestHealthCheckUnExistsService query for an un-exists service's health status
+// TestHealthCheckNonexistentService query for a nonexistent service's health status
 // which expected to fail.
-func TestHealthCheckUnExistsService(t *testing.T) {
+func TestHealthCheckNonexistentService(t *testing.T) {
 	hs := health.NewServer()
 
 	s := getStubbedHealthServer(hs)
 	signerClient, _, cleanup := setUpSignerClient(t, s)
 	defer cleanup()
 
-	// check an un-exists service, expect to be failed.
+	// check a nonexistent service, expect to be failed.
 	err := signerClient.CheckHealth(1*time.Second, "Hola Rio")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Unknown grpc service Hola Rio")
