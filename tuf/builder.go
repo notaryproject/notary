@@ -562,6 +562,7 @@ func (rb *repoBuilder) loadDelegation(roleName string, content []byte, minVersio
 
 	// verify signature
 	if err := signed.VerifySignatures(signedObj, delegationRole.BaseRole); err != nil {
+		signedTargets.Signatures = signedObj.Signatures
 		rb.invalidRoles.Targets[roleName] = signedTargets
 		return err
 	}
