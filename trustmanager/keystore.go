@@ -319,7 +319,6 @@ func getSubdir(alias string) string {
 func GetPasswdDecryptBytes(passphraseRetriever notary.PassRetriever, pemBytes []byte, name, alias string) (data.PrivateKey, string, error) {
 	var (
 		passwd  string
-		retErr  error
 		privKey data.PrivateKey
 	)
 	for attempts := 0; ; attempts++ {
@@ -327,27 +326,21 @@ func GetPasswdDecryptBytes(passphraseRetriever notary.PassRetriever, pemBytes []
 			giveup bool
 			err    error
 		)
+		if attempts > 10 {
+			return nil, "", ErrAttemptsExceeded{}
+		}
 		passwd, giveup, err = passphraseRetriever(name, alias, false, attempts)
 		// Check if the passphrase retriever got an error or if it is telling us to give up
 		if giveup || err != nil {
 			return nil, "", ErrPasswordInvalid{}
 		}
-		if attempts > 10 {
-			return nil, "", ErrAttemptsExceeded{}
-		}
 
 		// Try to convert PEM encoded bytes back to a PrivateKey using the passphrase
 		privKey, err = utils.ParsePEMPrivateKey(pemBytes, passwd)
-		if err != nil {
-			retErr = ErrPasswordInvalid{}
-		} else {
+		if err == nil {
 			// We managed to parse the PrivateKey. We've succeeded!
-			retErr = nil
 			break
 		}
-	}
-	if retErr != nil {
-		return nil, "", retErr
 	}
 	return privKey, passwd, nil
 }
