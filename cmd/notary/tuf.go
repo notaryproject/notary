@@ -20,13 +20,13 @@ import (
 	"github.com/docker/notary"
 	notaryclient "github.com/docker/notary/client"
 	"github.com/docker/notary/cryptoservice"
+	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 var cmdTUFListTemplate = usageTemplate{
@@ -720,19 +720,13 @@ func (ps passwordStore) Basic(u *url.URL) (string, string) {
 	username := strings.TrimSpace(string(userIn))
 
 	fmt.Fprintf(os.Stdout, "Enter password: ")
-
-	if terminal.IsTerminal(int(os.Stdin.Fd())) {
-		userIn, err = terminal.ReadPassword(int(os.Stdin.Fd()))
-	} else {
-		userIn, err = stdin.ReadBytes('\n')
-	}
-
+	passphrase, err := passphrase.GetPassphrase(stdin)
 	fmt.Fprintln(os.Stdout)
 	if err != nil {
 		logrus.Errorf("error processing password input: %s", err)
 		return "", ""
 	}
-	password := strings.TrimSpace(string(userIn))
+	password := strings.TrimSpace(string(passphrase))
 
 	return username, password
 }

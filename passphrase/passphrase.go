@@ -123,19 +123,8 @@ func (br *boundRetriever) requestPassphrase(keyName, alias string, createNew boo
 		fmt.Fprintf(br.out, "Enter passphrase for %s key%s: ", displayAlias, withID)
 	}
 
-	var (
-		passphrase []byte
-		err        error
-	)
-
 	stdin := bufio.NewReader(br.in)
-
-	if terminal.IsTerminal(int(os.Stdin.Fd())) {
-		passphrase, err = terminal.ReadPassword(int(os.Stdin.Fd()))
-	} else {
-		passphrase, err = stdin.ReadBytes('\n')
-	}
-
+	passphrase, err := GetPassphrase(stdin)
 	fmt.Fprintln(br.out)
 	if err != nil {
 		return "", false, err
@@ -163,17 +152,7 @@ func (br *boundRetriever) verifyAndConfirmPassword(stdin *bufio.Reader, retPass,
 
 	fmt.Fprintf(br.out, "Repeat passphrase for new %s key%s: ", displayAlias, withID)
 
-	var (
-		confirmation []byte
-		err          error
-	)
-
-	if terminal.IsTerminal(int(os.Stdin.Fd())) {
-		confirmation, err = terminal.ReadPassword(int(os.Stdin.Fd()))
-	} else {
-		confirmation, err = stdin.ReadBytes('\n')
-	}
-
+	confirmation, err := GetPassphrase(stdin)
 	fmt.Fprintln(br.out)
 	if err != nil {
 		return err
@@ -213,4 +192,21 @@ func ConstantRetriever(constantPassphrase string) notary.PassRetriever {
 	return func(k, a string, c bool, n int) (string, bool, error) {
 		return constantPassphrase, false, nil
 	}
+}
+
+// GetPassphrase get the passphrase from bufio.Reader or from terminal.
+// If typing on the terminal, we disable terminal to echo the passphrase.
+func GetPassphrase(in *bufio.Reader) ([]byte, error) {
+	var (
+		passphrase []byte
+		err        error
+	)
+
+	if terminal.IsTerminal(int(os.Stdin.Fd())) {
+		passphrase, err = terminal.ReadPassword(int(os.Stdin.Fd()))
+	} else {
+		passphrase, err = in.ReadBytes('\n')
+	}
+
+	return passphrase, err
 }
