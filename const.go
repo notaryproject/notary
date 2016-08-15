@@ -60,6 +60,7 @@ const (
 
 	MySQLBackend     = "mysql"
 	MemoryBackend    = "memory"
+	PostgresBackend  = "postgres"
 	SQLiteBackend    = "sqlite3"
 	RethinkDBBackend = "rethinkdb"
 

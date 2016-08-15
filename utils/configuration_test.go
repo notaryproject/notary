@@ -160,7 +160,6 @@ func TestParseBugsnagWithEnvironmentVariables(t *testing.T) {
 // If the storage backend is invalid or not provided, an error is returned.
 func TestParseInvalidStorageBackend(t *testing.T) {
 	invalids := []string{
-		`{"storage": {"backend": "postgres", "db_url": "1234"}}`,
 		`{"storage": {"db_url": "12345"}}`,
 		`{"storage": {}}`,
 		`{}`,
@@ -179,7 +178,7 @@ func TestParseInvalidSQLStorageNoDBSource(t *testing.T) {
 		`{"storage": {"backend": "%s"}}`,
 		`{"storage": {"backend": "%s", "db_url": ""}}`,
 	}
-	for _, backend := range []string{notary.MySQLBackend, notary.SQLiteBackend} {
+	for _, backend := range []string{notary.MySQLBackend, notary.SQLiteBackend, notary.PostgresBackend} {
 		for _, configJSONFmt := range invalids {
 			configJSON := fmt.Sprintf(configJSONFmt, backend)
 			_, err := ParseSQLStorage(configure(configJSON))

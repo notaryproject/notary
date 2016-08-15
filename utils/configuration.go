@@ -97,7 +97,7 @@ func ParseSQLStorage(configuration *viper.Viper) (*Storage, error) {
 	}
 
 	switch {
-	case store.Backend != notary.MySQLBackend && store.Backend != notary.SQLiteBackend:
+	case store.Backend != notary.MySQLBackend && store.Backend != notary.SQLiteBackend && store.Backend != notary.PostgresBackend:
 		return nil, fmt.Errorf(
 			"%s is not a supported SQL backend driver",
 			store.Backend,
