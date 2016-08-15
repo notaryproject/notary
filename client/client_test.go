@@ -393,7 +393,7 @@ func TestInitRepoServerOnlyManagesTimestampKey(t *testing.T) {
 // TestInitRepoServerManagesTimestampAndSnapshotKeys runs through the process of
 // initializing a repository and makes sure the repository looks correct on disk.
 // We test this with both an RSA and ECDSA root key.
-// This test case covers the server managing both the timestap and snapshot keys.
+// This test case covers the server managing both the timestamp and snapshot keys.
 func TestInitRepoServerManagesTimestampAndSnapshotKeys(t *testing.T) {
 	testInitRepoMetadata(t, data.ECDSAKey, true)
 	testInitRepoSigningKeys(t, data.ECDSAKey, true)
