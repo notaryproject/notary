@@ -331,7 +331,7 @@ def wait_for_server(server, timeout_in_seconds):
 
     if not succeeded:
         raise Exception(
-            "Could not connect to {0} after {2} seconds.".format(server, timeout_in_seconds))
+            "Could not connect to {0} after {1} seconds.".format(server, timeout_in_seconds))
 
 def run():
     """

@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.4.0](https://github.com/docker/notary/releases/tag/v0.4.0) <date>
++ Rotate keys held on the server.
++ Delete all trust data for a repository on the server.
++ Simplified import/export commands.
+    + <info on removed commands>
++ Command to purge a delegation key from all delegations it is used in.
++ New `-p` flag on all commands that would create a changelist object. Performs a publish immediately after the changelist item is staged.
+
+Thanks to HuKeping, <insert other community contributors>
+
 ## [v0.3.0](https://github.com/docker/notary/releases/tag/v0.3.0) 5/11/2016
 + Root rotations
 + RethinkDB support as a storage backend for Server and Signer
