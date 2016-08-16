@@ -534,6 +534,7 @@ func (rb *repoBuilder) loadTargets(content []byte, minVersion int, allowExpired 
 		}
 	}
 
+	signedTargets.Signatures = signedObj.Signatures
 	rb.repo.Targets[roleName] = signedTargets
 	return nil
 }
@@ -562,7 +563,6 @@ func (rb *repoBuilder) loadDelegation(roleName string, content []byte, minVersio
 
 	// verify signature
 	if err := signed.VerifySignatures(signedObj, delegationRole.BaseRole); err != nil {
-		signedTargets.Signatures = signedObj.Signatures
 		rb.invalidRoles.Targets[roleName] = signedTargets
 		return err
 	}
@@ -574,6 +574,7 @@ func (rb *repoBuilder) loadDelegation(roleName string, content []byte, minVersio
 		}
 	}
 
+	signedTargets.Signatures = signedObj.Signatures
 	rb.repo.Targets[roleName] = signedTargets
 	return nil
 }
