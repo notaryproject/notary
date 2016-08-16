@@ -161,7 +161,6 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 		logrus.Debugf("failed to verify TUF data for: %s, %v", gun, err)
 		return nil, &ErrValidationFail{Reason: "failed to validate integrity of roots"}
 	}
-	signedRoot.Signatures = root.Signatures
 
 	logrus.Debugf("root validation succeeded for %s", gun)
 	return signedRoot, nil

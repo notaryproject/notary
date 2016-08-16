@@ -135,7 +135,9 @@ func TestMarkingIsValid(t *testing.T) {
 	require.NoError(t, builder.Load("targets/a/b", meta["targets/a/b"], 1, false))
 
 	valid, _, err := builder.Finish()
-	require.True(t, valid.Root.Signatures[0].IsValid)
+	// TODO: Once ValidateRoot is changes to set IsValid as per PR #800 we should uncomment the below test to make
+	// sure that IsValid is being set on loadRoot
+	//require.True(t, valid.Root.Signatures[0].IsValid)
 	require.True(t, valid.Timestamp.Signatures[0].IsValid)
 	require.True(t, valid.Snapshot.Signatures[0].IsValid)
 	require.True(t, valid.Targets[data.CanonicalTargetsRole].Signatures[0].IsValid)
