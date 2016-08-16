@@ -98,6 +98,52 @@ func TestBuilderOnlyAcceptsDelegationsAfterParent(t *testing.T) {
 	require.NoError(t, builder.Load("targets/a/b", meta["targets/a/b"], 1, false))
 }
 
+func TestMarkingIsValid(t *testing.T) {
+	meta, gun := getSampleMeta(t)
+	builder := tuf.NewRepoBuilder(gun, nil, trustpinning.TrustPinConfig{})
+
+	// testing that the signed objects have a false isValid value confirming
+	// that verify signatures has not been called on them yet
+	// now when we check that isValid is true after calling load which calls
+	// verify signatures- we can be sure that verify signatures is actually
+	// setting the isValid fields for our data.Signed objects
+	for _, meta := range meta {
+		signedObj := &data.Signed{}
+		if err := json.Unmarshal(meta, signedObj); err != nil {
+			require.NoError(t, err)
+		}
+		require.Len(t, signedObj.Signatures, 1)
+		require.False(t, signedObj.Signatures[0].IsValid)
+	}
+
+	// load the root
+	require.NoError(t, builder.Load(data.CanonicalRootRole, meta[data.CanonicalRootRole], 1, false))
+
+	// load a timestamp
+	require.NoError(t, builder.Load(data.CanonicalTimestampRole, meta[data.CanonicalTimestampRole], 1, false))
+
+	// load a snapshot
+	require.NoError(t, builder.Load(data.CanonicalSnapshotRole, meta[data.CanonicalSnapshotRole], 1, false))
+
+	// load the targets
+	require.NoError(t, builder.Load(data.CanonicalTargetsRole, meta[data.CanonicalTargetsRole], 1, false))
+
+	// targets/a can be loaded now though because targets is loaded
+	require.NoError(t, builder.Load("targets/a", meta["targets/a"], 1, false))
+
+	// and now targets/a/b can be loaded because targets/a is loaded
+	require.NoError(t, builder.Load("targets/a/b", meta["targets/a/b"], 1, false))
+
+	valid, _, err := builder.Finish()
+	require.True(t, valid.Root.Signatures[0].IsValid)
+	require.True(t, valid.Timestamp.Signatures[0].IsValid)
+	require.True(t, valid.Snapshot.Signatures[0].IsValid)
+	require.True(t, valid.Targets[data.CanonicalTargetsRole].Signatures[0].IsValid)
+	require.True(t, valid.Targets["targets/a"].Signatures[0].IsValid)
+	require.True(t, valid.Targets["targets/a/b"].Signatures[0].IsValid)
+	require.NoError(t, err)
+}
+
 func TestBuilderLoadInvalidDelegations(t *testing.T) {
 	gun := "docker.com/notary"
 	tufRepo, _, err := testutils.EmptyRepo(gun, "targets/a", "targets/a/b", "targets/b")
