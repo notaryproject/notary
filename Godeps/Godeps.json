@@ -232,21 +232,6 @@
 			"Rev": "c56d49b111aea675a81d411c2db1acfac6179de9"
 		},
 		{
-			"ImportPath": "github.com/docker/docker/pkg/system",
-			"Comment": "docs-v1.12.0-rc4-2016-07-15-638-g91853e4",
-			"Rev": "91853e44aeb20e55bcfcad5041c274783fdc06bc"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/pkg/term",
-			"Comment": "docs-v1.12.0-rc4-2016-07-15-638-g91853e4",
-			"Rev": "91853e44aeb20e55bcfcad5041c274783fdc06bc"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/pkg/term/windows",
-			"Comment": "docs-v1.12.0-rc4-2016-07-15-638-g91853e4",
-			"Rev": "91853e44aeb20e55bcfcad5041c274783fdc06bc"
-		},
-		{
 			"ImportPath": "github.com/docker/go-connections/tlsconfig",
 			"Comment": "v0.1.2-16-gf549a93",
 			"Rev": "f549a9393d05688dff0992ef3efd8bbe6c628aeb"
