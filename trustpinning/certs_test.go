@@ -173,6 +173,7 @@ func TestValidateRootWithPinnedCert(t *testing.T) {
 
 	// Unmarshal our signedroot
 	json.Unmarshal(signedRootBytes.Bytes(), &testSignedRoot)
+	testSignedRoot.Signatures[0].IsValid = true
 	typedSignedRoot, err := data.RootFromSigned(&testSignedRoot)
 	require.NoError(t, err)
 
@@ -340,6 +341,7 @@ func TestValidateRootWithPinnerCertAndIntermediates(t *testing.T) {
 	err = signed.Sign(cs, signedRoot, []data.PublicKey{ecdsax509Key}, 1, nil)
 	require.NoError(t, err)
 
+	signedRoot.Signatures[0].IsValid = true
 	typedSignedRoot, err := data.RootFromSigned(signedRoot)
 	require.NoError(t, err)
 
@@ -378,6 +380,7 @@ func TestValidateRootFailuresWithPinnedCert(t *testing.T) {
 
 	// Unmarshal our signedroot
 	json.Unmarshal(signedRootBytes.Bytes(), &testSignedRoot)
+	testSignedRoot.Signatures[0].IsValid = true
 	typedSignedRoot, err := data.RootFromSigned(&testSignedRoot)
 	require.NoError(t, err)
 
@@ -417,6 +420,7 @@ func TestValidateRootWithPinnedCA(t *testing.T) {
 	templ.Execute(&signedRootBytes, SignedRSARootTemplate{RootPem: validPEMEncodedRSARoot})
 	// Unmarshal our signedRoot
 	json.Unmarshal(signedRootBytes.Bytes(), &testSignedRoot)
+	testSignedRoot.Signatures[0].IsValid = true
 	typedSignedRoot, err := data.RootFromSigned(&testSignedRoot)
 	require.NoError(t, err)
 
@@ -495,6 +499,7 @@ func TestValidateRootWithPinnedCA(t *testing.T) {
 	err = signed.Sign(cs, newTestSignedRoot, []data.PublicKey{newRootKey}, 1, nil)
 	require.NoError(t, err)
 
+	newTestSignedRoot.Signatures[0].IsValid = true
 	newTypedSignedRoot, err := data.RootFromSigned(newTestSignedRoot)
 	require.NoError(t, err)
 
@@ -625,6 +630,8 @@ func testValidateSuccessfulRootRotation(t *testing.T, keyAlg, rootKeyType string
 	err = signed.Sign(cs, signedTestRoot, []data.PublicKey{replRootKey, origRootKey}, 2, nil)
 	require.NoError(t, err)
 
+	signedTestRoot.Signatures[0].IsValid = true
+	signedTestRoot.Signatures[1].IsValid = true
 	typedSignedRoot, err := data.RootFromSigned(signedTestRoot)
 	require.NoError(t, err)
 
