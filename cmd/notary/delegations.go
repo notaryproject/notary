@@ -62,6 +62,7 @@ func (d *delegationCommander) GetCommand() *cobra.Command {
 
 	cmdPurgeDelgKeys := cmdDelegationPurgeKeysTemplate.ToCommand(d.delegationPurgeKeys)
 	cmdPurgeDelgKeys.Flags().StringSliceVar(&d.keyIDs, "key", nil, "Delegation key IDs to be removed from the GUN")
+	cmdPurgeDelgKeys.Flags().BoolVarP(&d.autoPublish, "publish", "p", false, htAutoPublish)
 	cmd.AddCommand(cmdPurgeDelgKeys)
 
 	cmdRemDelg := cmdDelegationRemoveTemplate.ToCommand(d.delegationRemove)
@@ -166,7 +167,7 @@ func (d *delegationCommander) delegationsList(cmd *cobra.Command, args []string)
 	cmd.Println("")
 	prettyPrintRoles(delegationRoles, cmd.Out(), "delegations")
 	cmd.Println("")
-	return nil
+	return maybeAutoPublish(cmd, d.autoPublish, gun, config, d.retriever)
 }
 
 // delegationRemove removes a public key from a specific role in a GUN
