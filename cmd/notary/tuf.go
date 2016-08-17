@@ -206,6 +206,34 @@ func (t *tufCommander) tufWitness(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func getTargetHashes(t *tufCommander) (data.Hashes, error) {
+	targetHash := data.Hashes{}
+
+	if t.sha256 != "" {
+		if len(t.sha256) != notary.Sha256HexSize {
+			return nil, fmt.Errorf("invalid sha256 hex contents provided")
+		}
+		sha256Hash, err := hex.DecodeString(t.sha256)
+		if err != nil {
+			return nil, err
+		}
+		targetHash[notary.SHA256] = sha256Hash
+	}
+
+	if t.sha512 != "" {
+		if len(t.sha512) != notary.Sha512HexSize {
+			return nil, fmt.Errorf("invalid sha512 hex contents provided")
+		}
+		sha512Hash, err := hex.DecodeString(t.sha512)
+		if err != nil {
+			return nil, err
+		}
+		targetHash[notary.SHA512] = sha512Hash
+	}
+
+	return targetHash, nil
+}
+
 func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 	if len(args) < 3 || t.sha256 == "" && t.sha512 == "" {
 		cmd.Usage()
@@ -238,30 +266,13 @@ func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	targetHash := data.Hashes{}
-	if t.sha256 != "" {
-		if len(t.sha256) != notary.Sha256HexSize {
-			return fmt.Errorf("invalid sha256 hex contents provided")
-		}
-		sha256Hash, err := hex.DecodeString(t.sha256)
-		if err != nil {
-			return err
-		}
-		targetHash[notary.SHA256] = sha256Hash
-	}
-	if t.sha512 != "" {
-		if len(t.sha512) != notary.Sha512HexSize {
-			return fmt.Errorf("invalid sha512 hex contents provided")
-		}
-		sha512Hash, err := hex.DecodeString(t.sha512)
-		if err != nil {
-			return err
-		}
-		targetHash[notary.SHA512] = sha512Hash
+	targetHashes, err := getTargetHashes(t)
+	if err != nil {
+		return err
 	}
 
 	// Manually construct the target with the given byte size and hashes
-	target := &notaryclient.Target{Name: targetName, Hashes: targetHash, Length: targetInt64Len}
+	target := &notaryclient.Target{Name: targetName, Hashes: targetHashes, Length: targetInt64Len}
 
 	// If roles is empty, we default to adding to targets
 	if err = nRepo.AddTarget(target, t.roles...); err != nil {
@@ -269,7 +280,7 @@ func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 	}
 	// Include the hash algorithms we're using for pretty printing
 	hashesUsed := []string{}
-	for hashName := range targetHash {
+	for hashName := range targetHashes {
 		hashesUsed = append(hashesUsed, hashName)
 	}
 	cmd.Printf(
