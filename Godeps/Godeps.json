@@ -7,14 +7,6 @@
 	],
 	"Deps": [
 		{
-			"ImportPath": "github.com/Azure/go-ansiterm",
-			"Rev": "388960b655244e76e24c75f48631564eaefade62"
-		},
-		{
-			"ImportPath": "github.com/Azure/go-ansiterm/winterm",
-			"Rev": "388960b655244e76e24c75f48631564eaefade62"
-		},
-		{
 			"ImportPath": "github.com/BurntSushi/toml",
 			"Rev": "bd2bdf7f18f849530ef7a1c29a4290217cab32a1"
 		},
@@ -230,21 +222,6 @@
 			"ImportPath": "github.com/docker/distribution/uuid",
 			"Comment": "v2.2.1-20-gc56d49b",
 			"Rev": "c56d49b111aea675a81d411c2db1acfac6179de9"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/pkg/system",
-			"Comment": "docs-v1.12.0-rc4-2016-07-15-638-g91853e4",
-			"Rev": "91853e44aeb20e55bcfcad5041c274783fdc06bc"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/pkg/term",
-			"Comment": "docs-v1.12.0-rc4-2016-07-15-638-g91853e4",
-			"Rev": "91853e44aeb20e55bcfcad5041c274783fdc06bc"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/pkg/term/windows",
-			"Comment": "docs-v1.12.0-rc4-2016-07-15-638-g91853e4",
-			"Rev": "91853e44aeb20e55bcfcad5041c274783fdc06bc"
 		},
 		{
 			"ImportPath": "github.com/docker/go-connections/tlsconfig",
