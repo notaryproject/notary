@@ -534,6 +534,7 @@ func (rb *repoBuilder) loadTargets(content []byte, minVersion int, allowExpired 
 		}
 	}
 
+	signedTargets.Signatures = signedObj.Signatures
 	rb.repo.Targets[roleName] = signedTargets
 	return nil
 }
@@ -573,6 +574,7 @@ func (rb *repoBuilder) loadDelegation(roleName string, content []byte, minVersio
 		}
 	}
 
+	signedTargets.Signatures = signedObj.Signatures
 	rb.repo.Targets[roleName] = signedTargets
 	return nil
 }
