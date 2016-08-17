@@ -198,11 +198,9 @@ func setupGRPCServer(signerConfig signer.Config) (*grpc.Server, net.Listener, er
 	//RPC server setup
 	kms := &api.KeyManagementServer{
 		CryptoServices: signerConfig.CryptoServices,
-		HealthChecker:  health.CheckStatus,
 	}
 	ss := &api.SignerServer{
 		CryptoServices: signerConfig.CryptoServices,
-		HealthChecker:  health.CheckStatus,
 	}
 	hs := ghealth.NewServer()
 
