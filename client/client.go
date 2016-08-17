@@ -487,6 +487,7 @@ type TargetSignedStruct struct {
 
 // GetAllTargetMetadataByName searches the entire delegation role tree to find the specified target by name for all
 // roles, and returns a list of TargetSignedStructs for each time it finds the specified target.
+// If given an empty string for a target name, it will return back all targets signed into the repository in every role
 func (r *NotaryRepository) GetAllTargetMetadataByName(name string) ([]TargetSignedStruct, error) {
 	if err := r.Update(false); err != nil {
 		return nil, err
@@ -499,12 +500,22 @@ func (r *NotaryRepository) GetAllTargetMetadataByName(name string) ([]TargetSign
 		if tgt == nil {
 			return nil
 		}
-		// We found the target and validated path compatibility in our walk,
-		// so add it to our list
-		if resultMeta, foundTarget := tgt.Signed.Targets[name]; foundTarget {
+		// We found a target and validated path compatibility in our walk,
+		// so add it to our list if we have a match
+		// if we have an empty name, add all targets, else check if we have it
+		var targetMetaToAdd data.Files
+		if name == "" {
+			targetMetaToAdd = tgt.Signed.Targets
+		} else {
+			if meta, ok := tgt.Signed.Targets[name]; ok {
+				targetMetaToAdd = data.Files{name: meta}
+			}
+		}
+
+		for targetName, resultMeta := range targetMetaToAdd {
 			targetInfo := TargetSignedStruct{
 				Role:       validRole,
-				Target:     Target{Name: name, Hashes: resultMeta.Hashes, Length: resultMeta.Length},
+				Target:     Target{Name: targetName, Hashes: resultMeta.Hashes, Length: resultMeta.Length},
 				Signatures: tgt.Signatures,
 			}
 			targetInfoList = append(targetInfoList, targetInfo)
