@@ -1450,11 +1450,8 @@ func TestPurge(t *testing.T) {
 	err = os.Remove(filepath.Join(tempDir, notary.PrivDir, notary.NonRootKeysSubdir, "gun", targetsKeyID+".key"))
 	require.NoError(t, err)
 
-	_, err = runCommand(t, tempDir, "delegation", "purge", "gun", "--key", keyID)
-	require.NoError(t, err)
-
-	// publish doesn't error because purge only updates the roles we have signing keys for
-	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	// auto-publish doesn't error because purge only updates the roles we have signing keys for
+	_, err = runCommand(t, tempDir, "delegation", "purge", "-s", server.URL, "-p", "gun", "--key", keyID)
 	require.NoError(t, err)
 
 	// check the delegation wasn't removed
