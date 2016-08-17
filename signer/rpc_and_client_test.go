@@ -80,10 +80,6 @@ func (s stubServer) Sign(ctx context.Context, sr *pb.SignatureRequest) (*pb.Sign
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (s stubServer) CheckHealth(ctx context.Context, v *pb.Void) (*pb.HealthStatus, error) {
-	return &pb.HealthStatus{}, nil
-}
-
 func getStubbedHealthServer(hs *health.Server) *grpc.Server {
 	s := stubServer{healthServer: hs}
 	gServer := grpc.NewServer()
@@ -241,17 +237,13 @@ func setUpSignerServer(t *testing.T, store trustmanager.KeyStore) *grpc.Server {
 		data.ECDSAKey:   cryptoService,
 	}
 
-	fakeHealth := func() map[string]string { return nil }
-
 	//server setup
 	grpcServer := grpc.NewServer()
 	pb.RegisterKeyManagementServer(grpcServer, &api.KeyManagementServer{
 		CryptoServices: cryptoServices,
-		HealthChecker:  fakeHealth,
 	})
 	pb.RegisterSignerServer(grpcServer, &api.SignerServer{
 		CryptoServices: cryptoServices,
-		HealthChecker:  fakeHealth,
 	})
 
 	return grpcServer
