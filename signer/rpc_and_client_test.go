@@ -143,7 +143,7 @@ func TestHealthCheckSignerTimeout(t *testing.T) {
 }
 
 // healthCheckHealthy succeeds if server is healthy and reachable.
-func healthCheckKMHealthy(t *testing.T, serviceName string) {
+func healthCheckHealthy(t *testing.T, serviceName string) {
 	hs := health.NewServer()
 	hs.SetServingStatus(serviceName, healthpb.HealthCheckResponse_SERVING)
 
@@ -155,18 +155,18 @@ func healthCheckKMHealthy(t *testing.T, serviceName string) {
 
 // TestHealthCheckKMHealthy succeeds if KM is healthy and reachable.
 func TestHealthCheckKMHealthy(t *testing.T) {
-	healthCheckKMHealthy(t, notary.HealthCheckKeyManagement)
+	healthCheckHealthy(t, notary.HealthCheckKeyManagement)
 }
 
 // TestHealthCheckSignerHealthy succeeds if Signer is healthy and reachable.
 func TestHealthCheckSignerHealthy(t *testing.T) {
-	healthCheckKMHealthy(t, notary.HealthCheckSigner)
+	healthCheckHealthy(t, notary.HealthCheckSigner)
 }
 
 // healthCheckConnectionDied fails immediately if not connected to the server.
 func healthCheckConnectionDied(t *testing.T, serviceName string) {
 	hs := health.NewServer()
-	hs.SetServingStatus(serviceName, healthpb.HealthCheckResponse_NOT_SERVING)
+	hs.SetServingStatus(serviceName, healthpb.HealthCheckResponse_SERVING)
 
 	s := getStubbedHealthServer(hs)
 	signerClient, conn, cleanup := setUpSignerClient(t, s)
