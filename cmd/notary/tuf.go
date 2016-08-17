@@ -16,11 +16,11 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/pkg/term"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/notary"
 	notaryclient "github.com/docker/notary/client"
 	"github.com/docker/notary/cryptoservice"
+	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
@@ -719,27 +719,14 @@ func (ps passwordStore) Basic(u *url.URL) (string, string) {
 
 	username := strings.TrimSpace(string(userIn))
 
-	// If typing on the terminal, we do not want the terminal to echo the
-	// password that is typed (so it doesn't display)
-	if term.IsTerminal(os.Stdin.Fd()) {
-		state, err := term.SaveState(os.Stdin.Fd())
-		if err != nil {
-			logrus.Errorf("error saving terminal state, cannot retrieve password: %s", err)
-			return "", ""
-		}
-		term.DisableEcho(os.Stdin.Fd(), state)
-		defer term.RestoreTerminal(os.Stdin.Fd(), state)
-	}
-
 	fmt.Fprintf(os.Stdout, "Enter password: ")
-
-	userIn, err = stdin.ReadBytes('\n')
+	passphrase, err := passphrase.GetPassphrase(stdin)
 	fmt.Fprintln(os.Stdout)
 	if err != nil {
 		logrus.Errorf("error processing password input: %s", err)
 		return "", ""
 	}
-	password := strings.TrimSpace(string(userIn))
+	password := strings.TrimSpace(string(passphrase))
 
 	return username, password
 }

@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/pkg/term"
 	"github.com/docker/notary"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
@@ -51,7 +51,7 @@ var (
 // Upon successful passphrase retrievals, the passphrase will be cached such that
 // subsequent prompts will produce the same passphrase.
 func PromptRetriever() notary.PassRetriever {
-	if !term.IsTerminal(os.Stdin.Fd()) {
+	if !terminal.IsTerminal(int(os.Stdin.Fd())) {
 		return func(string, string, bool, int) (string, bool, error) {
 			return "", false, ErrNoInput
 		}
@@ -93,17 +93,6 @@ func (br *boundRetriever) requestPassphrase(keyName, alias string, createNew boo
 		displayAlias = val
 	}
 
-	// If typing on the terminal, we do not want the terminal to echo the
-	// password that is typed (so it doesn't display)
-	if term.IsTerminal(os.Stdin.Fd()) {
-		state, err := term.SaveState(os.Stdin.Fd())
-		if err != nil {
-			return "", false, err
-		}
-		term.DisableEcho(os.Stdin.Fd(), state)
-		defer term.RestoreTerminal(os.Stdin.Fd(), state)
-	}
-
 	indexOfLastSeparator := strings.LastIndex(keyName, string(filepath.Separator))
 	if indexOfLastSeparator == -1 {
 		indexOfLastSeparator = 0
@@ -135,7 +124,7 @@ func (br *boundRetriever) requestPassphrase(keyName, alias string, createNew boo
 	}
 
 	stdin := bufio.NewReader(br.in)
-	passphrase, err := stdin.ReadBytes('\n')
+	passphrase, err := GetPassphrase(stdin)
 	fmt.Fprintln(br.out)
 	if err != nil {
 		return "", false, err
@@ -162,7 +151,8 @@ func (br *boundRetriever) verifyAndConfirmPassword(stdin *bufio.Reader, retPass,
 	}
 
 	fmt.Fprintf(br.out, "Repeat passphrase for new %s key%s: ", displayAlias, withID)
-	confirmation, err := stdin.ReadBytes('\n')
+
+	confirmation, err := GetPassphrase(stdin)
 	fmt.Fprintln(br.out)
 	if err != nil {
 		return err
@@ -202,4 +192,21 @@ func ConstantRetriever(constantPassphrase string) notary.PassRetriever {
 	return func(k, a string, c bool, n int) (string, bool, error) {
 		return constantPassphrase, false, nil
 	}
+}
+
+// GetPassphrase get the passphrase from bufio.Reader or from terminal.
+// If typing on the terminal, we disable terminal to echo the passphrase.
+func GetPassphrase(in *bufio.Reader) ([]byte, error) {
+	var (
+		passphrase []byte
+		err        error
+	)
+
+	if terminal.IsTerminal(int(os.Stdin.Fd())) {
+		passphrase, err = terminal.ReadPassword(int(os.Stdin.Fd()))
+	} else {
+		passphrase, err = in.ReadBytes('\n')
+	}
+
+	return passphrase, err
 }
