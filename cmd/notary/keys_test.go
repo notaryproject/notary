@@ -736,12 +736,11 @@ func TestExportKeysByID(t *testing.T) {
 	cBytes := pem.EncodeToMemory(c)
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	err = fileStore.Set("one", bBytes)
 	require.NoError(t, err)
-	err = fileStore.Set("ankh/one", bBytes)
+	err = fileStore.Set("two", b2Bytes)
 	require.NoError(t, err)
-	err = fileStore.Set("ankh/two", b2Bytes)
-	require.NoError(t, err)
-	err = fileStore.Set("morpork/three", cBytes)
+	err = fileStore.Set("three", cBytes)
 	require.NoError(t, err)
 
 	err = k.exportKeys(&cobra.Command{}, nil)
@@ -752,11 +751,11 @@ func TestExportKeysByID(t *testing.T) {
 
 	block, rest := pem.Decode(outRes)
 	require.Equal(t, b.Bytes, block.Bytes)
-	require.Equal(t, "ankh/one", block.Headers["path"])
+	require.Equal(t, "one", block.Headers["path"])
 
 	block, rest = pem.Decode(rest)
 	require.Equal(t, c.Bytes, block.Bytes)
-	require.Equal(t, "morpork/three", block.Headers["path"])
+	require.Equal(t, "three", block.Headers["path"])
 	require.Len(t, rest, 0)
 }
 

@@ -1,10 +1,8 @@
 package trustmanager
 
 import (
-	"bytes"
 	"encoding/pem"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -42,62 +40,8 @@ func NewKeyFileStore(baseDir string, p notary.PassRetriever) (*GenericKeyStore, 
 	if err != nil {
 		return nil, err
 	}
-	migrateTo0Dot4(fileStore)
 	store := NewGenericKeyStore(fileStore, p)
 	return store, nil
-}
-
-func migrateTo0Dot4(s Storage) {
-	for _, file := range s.ListFiles() {
-		keyID := filepath.Base(file)
-		fileDir := filepath.Dir(file)
-		d, _ := s.Get(file)
-		block, _ := pem.Decode(d)
-		if block == nil {
-			logrus.Warn("Key data for ", file, " may have been tampered with/ is invalid. The key has not been migrated and may not be available")
-			continue
-		}
-		if strings.HasPrefix(fileDir, notary.RootKeysSubdir) {
-			fileDir = strings.TrimPrefix(fileDir, notary.RootKeysSubdir)
-			if strings.Contains(keyID, "_") {
-				role := strings.Split(keyID, "_")[1]
-				keyID = strings.TrimSuffix(keyID, "_"+role)
-				block.Headers["role"] = role
-			}
-		} else if strings.HasPrefix(fileDir, notary.NonRootKeysSubdir) {
-			fileDir = strings.TrimPrefix(fileDir, notary.NonRootKeysSubdir)
-			if fileDir != "" {
-				block.Headers["gun"] = fileDir[1:]
-			}
-			if strings.Contains(keyID, "_") {
-				role := strings.Split(keyID, "_")[1]
-				keyID = strings.TrimSuffix(keyID, "_"+role)
-				block.Headers["role"] = role
-			}
-		}
-		var keyPEM bytes.Buffer
-		// since block came from decoding the PEM bytes in the first place, and all we're doing is adding some headers we ignore the possibility of an error while encoding the block
-		pem.Encode(&keyPEM, block)
-		s.Set(keyID, keyPEM.Bytes())
-	}
-	rootKeysSubDir := filepath.Join(s.Location(), notary.RootKeysSubdir)
-	nonRootKeysSubDir := filepath.Join(s.Location(), notary.NonRootKeysSubdir)
-	certsSubDir := filepath.Join(s.Location(), "trusted_certificates")
-	if rootKeysSubDir == "" || rootKeysSubDir == "/" {
-		logrus.Warn("The directory for root keys is an unsafe value, we are not going to delete the directory. Please delete it manually")
-	} else {
-		os.RemoveAll(rootKeysSubDir)
-	}
-	if nonRootKeysSubDir == "" || nonRootKeysSubDir == "/" {
-		logrus.Warn("The directory for non root keys is an unsafe value, we are not going to delete the directory. Please delete it manually")
-	} else {
-		os.RemoveAll(nonRootKeysSubDir)
-	}
-	if certsSubDir == "" || certsSubDir == "/" {
-		logrus.Warn("The directory for trusted certificate is an unsafe value, we are not going to delete the directory. Please delete it manually")
-	} else {
-		os.RemoveAll(certsSubDir)
-	}
 }
 
 // NewKeyMemoryStore returns a new KeyMemoryStore which holds keys in memory
