@@ -40,8 +40,7 @@ func NewKeyFileStore(baseDir string, p notary.PassRetriever) (*GenericKeyStore, 
 	if err != nil {
 		return nil, err
 	}
-	store := NewGenericKeyStore(fileStore, p)
-	return store, nil
+	return NewGenericKeyStore(fileStore, p), nil
 }
 
 // NewKeyMemoryStore returns a new KeyMemoryStore which holds keys in memory
