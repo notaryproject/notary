@@ -3744,6 +3744,57 @@ func TestGetAllTargetInfo(t *testing.T) {
 	}
 	require.Len(t, makeSureWeHitEachCase, 2)
 
+	// calling with the empty string "" name will get us back all targets signed in all roles
+	targetSignatureData, err = repo.GetAllTargetMetadataByName("")
+	require.NoError(t, err)
+	require.Len(t, targetSignatureData, 7)
+
+	makeSureWeHitEachCase = make(map[string]struct{})
+	for _, tarSigStr := range targetSignatureData {
+		switch tarSigStr.Role.Name {
+		// targets has current and latest
+		case data.CanonicalTargetsRole:
+			if tarSigStr.Target.Name == "current" {
+				require.Equal(t, tarSigStr.Target, *targetsCurrentTarget)
+			} else {
+				require.Equal(t, tarSigStr.Target, *targetsLatestTarget)
+			}
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, repo.CryptoService.ListKeys(data.CanonicalTargetsRole)[0], tarSigStr.Signatures[0].KeyID)
+			makeSureWeHitEachCase[tarSigStr.Role.Name+tarSigStr.Target.Name] = struct{}{}
+
+		// targets/level1 has current and other
+		case "targets/level1":
+			if tarSigStr.Target.Name == "current" {
+				require.Equal(t, tarSigStr.Target, *level1CurrentTarget)
+			} else {
+				require.Equal(t, tarSigStr.Target, *level1OtherTarget)
+			}
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, key1.ID(), tarSigStr.Signatures[0].KeyID)
+			makeSureWeHitEachCase[tarSigStr.Role.Name+tarSigStr.Target.Name] = struct{}{}
+
+		// targets/level2 has current and level2
+		case "targets/level2":
+			if tarSigStr.Target.Name == "current" {
+				require.Equal(t, tarSigStr.Target, *level2CurrentTarget)
+			} else {
+				require.Equal(t, tarSigStr.Target, *level2Level2Target)
+			}
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, key2.ID(), tarSigStr.Signatures[0].KeyID)
+			makeSureWeHitEachCase[tarSigStr.Role.Name+tarSigStr.Target.Name] = struct{}{}
+
+		// targets/level1/level2 has level2
+		case "targets/level1/level2":
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, key3.ID(), tarSigStr.Signatures[0].KeyID)
+			require.Equal(t, tarSigStr.Target, *level1Level2Level2Target)
+			makeSureWeHitEachCase[tarSigStr.Role.Name+tarSigStr.Target.Name] = struct{}{}
+		}
+	}
+	require.Len(t, makeSureWeHitEachCase, 7)
+
 	// nonexistent targets
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("level23")
 	require.Error(t, err)
