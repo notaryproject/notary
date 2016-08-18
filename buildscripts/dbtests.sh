@@ -13,6 +13,11 @@ case ${db} in
     dbContainerOpts="--name rethinkdb_tests rdb-01 --bind all --driver-tls-key /tls/key.pem --driver-tls-cert /tls/cert.pem"
     DBURL="rethinkdb_tests"
     ;;
+  postgresql*)
+    db="postgresql"
+    dbContainerOpts="--name postgresql_tests serverdb"
+    DBURL="postgres://server@postgresql_tests:5432/notaryserver?sslmode=disable"
+    ;;
   *)
     echo "Usage: $0 (mysql|rethink)"
     exit 1

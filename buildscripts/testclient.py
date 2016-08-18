@@ -97,7 +97,7 @@ class Client(object):
         })
 
         if notary_server is None:
-            self.client = [binary, "-c", "cmd/notary/config.json"]
+            self.client = [binary, "-D", "-c", "cmd/notary/config.json"]
         else:
             self.client = [binary, "-s", notary_server]
 
