@@ -1,0 +1,72 @@
+version: "2"
+services:
+  server:
+    build:
+      context: .
+      dockerfile: server.Dockerfile
+    networks:
+      serverdb:
+      signer:
+      server:
+        aliases:
+          - notary-server
+    entrypoint: /usr/bin/env sh
+    command: -c "./migrations/migrate.sh && notary-server -config=fixtures/server-config.postgres.json"
+    environment:
+      MIGRATIONS_PATH: migrations/server/postgresql
+      DB_URL: postgres://server@serverdb:5432/notaryserver?sslmode=disable
+    depends_on:
+      - serverdb
+      - signer
+  signer:
+    build:
+      context: .
+      dockerfile: signer.Dockerfile
+    networks:
+      signerdb:
+      signer:
+        aliases:
+          - notarysigner
+    entrypoint: /usr/bin/env sh
+    command: -c "./migrations/migrate.sh && notary-signer -config=fixtures/signer-config.postgres.json"
+    environment:
+      MIGRATIONS_PATH: migrations/signer/postgresql
+      DB_URL: postgres://signer@signerdb:5432/notarysigner?sslmode=disable
+    depends_on:
+      - signerdb
+  serverdb:
+    image: postgres:9.5.4
+    networks:
+      - serverdb
+    environment:
+      POSTGRES_USER: server
+      POSTGRES_DB: notaryserver
+  signerdb:
+    image: postgres:9.5.4
+    networks:
+      - signerdb
+    environment:
+      POSTGRES_USER: signer
+      POSTGRES_DB: notarysigner
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: buildscripts/env.list
+    command: buildscripts/testclient.py
+    volumes:
+      - ./test_output:/test_output
+    networks:
+      - server
+      - serverdb # for dbtests
+    depends_on:
+      - server
+networks:
+  server:
+    external: false
+  serverdb:
+    external: false
+  signer:
+    external: false
+  signerdb:
+    external: false
