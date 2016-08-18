@@ -1,4 +1,4 @@
-// +build !mysqldb,!rethinkdb
+// +build !mysqldb,!rethinkdb,!postgresqldb
 
 package storage
 

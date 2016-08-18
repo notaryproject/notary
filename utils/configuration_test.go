@@ -160,6 +160,7 @@ func TestParseBugsnagWithEnvironmentVariables(t *testing.T) {
 // If the storage backend is invalid or not provided, an error is returned.
 func TestParseInvalidStorageBackend(t *testing.T) {
 	invalids := []string{
+		`{"storage": {"backend": "etcd", "db_url": "1234"}}`,
 		`{"storage": {"db_url": "12345"}}`,
 		`{"storage": {}}`,
 		`{}`,
