@@ -30,6 +30,8 @@ import (
 	tufutils "github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/utils"
 	"github.com/spf13/viper"
+	ghealth "google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"gopkg.in/dancannon/gorethink.v2"
 )
 
@@ -196,12 +198,11 @@ func setupGRPCServer(signerConfig signer.Config) (*grpc.Server, net.Listener, er
 	//RPC server setup
 	kms := &api.KeyManagementServer{
 		CryptoServices: signerConfig.CryptoServices,
-		HealthChecker:  health.CheckStatus,
 	}
 	ss := &api.SignerServer{
 		CryptoServices: signerConfig.CryptoServices,
-		HealthChecker:  health.CheckStatus,
 	}
+	hs := ghealth.NewServer()
 
 	lis, err := net.Listen("tcp", signerConfig.GRPCAddr)
 	if err != nil {
@@ -215,6 +216,13 @@ func setupGRPCServer(signerConfig signer.Config) (*grpc.Server, net.Listener, er
 
 	pb.RegisterKeyManagementServer(grpcServer, kms)
 	pb.RegisterSignerServer(grpcServer, ss)
+	healthpb.RegisterHealthServer(grpcServer, hs)
+
+	// Set status for both of the grpc service "KeyManagement" and "Signer", these are
+	// the only two we have at present, if we add more grpc service in the future,
+	// we should add a new line for that service here as well.
+	hs.SetServingStatus(notary.HealthCheckKeyManagement, healthpb.HealthCheckResponse_SERVING)
+	hs.SetServingStatus(notary.HealthCheckSigner, healthpb.HealthCheckResponse_SERVING)
 
 	return grpcServer, lis, nil
 }

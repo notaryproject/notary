@@ -62,6 +62,13 @@ const (
 	RethinkDBBackend = "rethinkdb"
 
 	DefaultImportRole = "delegation"
+
+	// HealthCheckKeyManagement and HealthCheckSigner are the grpc service name
+	// for "KeyManagement" and "Signer" respectively which used for health check.
+	// The "Overall" indicates the querying for overall status of the server.
+	HealthCheckKeyManagement = "grpc.health.v1.Health.KeyManagement"
+	HealthCheckSigner        = "grpc.health.v1.Health.Signer"
+	HealthCheckOverall       = "grpc.health.v1.Health.Overall"
 )
 
 // NotaryDefaultExpiries is the construct used to configure the default expiry times of
