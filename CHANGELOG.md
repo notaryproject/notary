@@ -1,26 +1,28 @@
 # Changelog
 
 ## [v0.4.0](https://github.com/docker/notary/releases/tag/v0.4.0) 8/11/2016
-+ Server-managed key rotations
-+ Remove `timestamp_keys` table, which stored redundant information
-+ Introduce `notary delete` command to delete local and/or remote repo data
-+ Introduce `notary witness` command to stage signatures for specified roles
-+ Add `-p` flag to offline commands to attempt auto-publish
-+ Add `--unstage` and `--reset` flags to `notary status` to manage staged changes
-+ Add `--rootkey` flag to `notary init` to provide a private root key for a repo
-+ Introduce `notary delegation purge` command to remove a specified key from all delegations
-+ Removed HTTP endpoint from notary-signer
-+ Refactored and unified key storage
-+ Batched key import and export now operate on PEM files (potentially with multiple blocks) instead of ZIP
-+ Add full database integration test-suite
-+ Improve notary-server, trust pinning, and yubikey logging
-+ Warn if certificates for root or delegations are near expiry
-+ Warn if role metadata is near expiry
-+ Reformat CLI table output to use the `text/tabwriter` package
-+ Fix passphrase retrieval attempt counting and terminal detection
-+ Fix listing nested delegations
-+ Bump go version to 1.6.3, fix go1.7 compatibility
-+ Convert docker-compose files to v2 format
++ Server-managed key rotations [#889](https://github.com/docker/notary/pull/889)
++ Remove `timestamp_keys` table, which stored redundant information [#889](https://github.com/docker/notary/pull/889)
++ Introduce `notary delete` command to delete local and/or remote repo data [#895](https://github.com/docker/notary/pull/895)
++ Introduce `notary witness` command to stage signatures for specified roles [#875](https://github.com/docker/notary/pull/875)
++ Add `-p` flag to offline commands to attempt auto-publish [#886](https://github.com/docker/notary/pull/886) [#912](https://github.com/docker/notary/pull/912) [#923](https://github.com/docker/notary/pull/923)
++ Add `--unstage` and `--reset` flags to `notary status` to manage staged changes [#856](https://github.com/docker/notary/pull/856)
++ Add `--rootkey` flag to `notary init` to provide a private root key for a repo [#801](https://github.com/docker/notary/pull/801)
++ Introduce `notary delegation purge` command to remove a specified key from all delegations [#855](https://github.com/docker/notary/pull/855)
++ Removed HTTP endpoint from notary-signer [#870](https://github.com/docker/notary/pull/870)
++ Refactored and unified key storage [#825](https://github.com/docker/notary/pull/825)
++ Batched key import and export now operate on PEM files (potentially with multiple blocks) instead of ZIP [#825](https://github.com/docker/notary/pull/825) [#882](https://github.com/docker/notary/pull/882)
++ Add full database integration test-suite [#824](https://github.com/docker/notary/pull/824) [#854](https://github.com/docker/notary/pull/854) [#863](https://github.com/docker/notary/pull/863)
++ Improve notary-server, trust pinning, and yubikey logging [#798](https://github.com/docker/notary/pull/798) [#858](https://github.com/docker/notary/pull/858) [#891](https://github.com/docker/notary/pull/891)
++ Warn if certificates for root or delegations are near expiry [#802](https://github.com/docker/notary/pull/802)
++ Warn if role metadata is near expiry [#786](https://github.com/docker/notary/pull/786)
++ Reformat CLI table output to use the `text/tabwriter` package [#809](https://github.com/docker/notary/pull/809)
++ Fix passphrase retrieval attempt counting and terminal detection [#906](https://github.com/docker/notary/pull/906)
++ Fix listing nested delegations [#864](https://github.com/docker/notary/pull/864)
++ Bump go version to 1.6.3, fix go1.7 compatibility [#851](https://github.com/docker/notary/pull/851) [#793](https://github.com/docker/notary/pull/793)
++ Convert docker-compose files to v2 format [#755](https://github.com/docker/notary/pull/755)
++ Validate root rotations against trust pinning [#800](https://github.com/docker/notary/pull/800)
++ Update fixture certificates for two-year expiry window [#951](https://github.com/docker/notary/pull/951)
 
 ## [v0.3.0](https://github.com/docker/notary/releases/tag/v0.3.0) 5/11/2016
 + Root rotations
