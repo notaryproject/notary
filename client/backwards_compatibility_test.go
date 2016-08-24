@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/notary"
 	"github.com/docker/notary/passphrase"
 	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustpinning"
@@ -69,6 +70,108 @@ func recursiveCopy(sourceDir, targetDir string) error {
 		}
 		return nil
 	})
+}
+
+func Test0Dot1Migration(t *testing.T) {
+	// make a temporary directory and copy the fixture into it, since updating
+	// and publishing will modify the files
+	tmpDir, err := ioutil.TempDir("", "notary-backwards-compat-test")
+	defer os.RemoveAll(tmpDir)
+	require.NoError(t, err)
+	require.NoError(t, recursiveCopy("../fixtures/compatibility/notary0.1", tmpDir))
+
+	gun := "docker.com/notary0.1/samplerepo"
+	passwd := "randompass"
+
+	ts := fullTestServer(t)
+	defer ts.Close()
+
+	_, err = NewNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
+		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
+	require.NoError(t, err, "error creating repo: %s", err)
+
+	// check that root_keys and tuf_keys are gone and that all corect keys are present and have the correct headers
+	files, _ := ioutil.ReadDir(filepath.Join(tmpDir, notary.PrivDir))
+	require.Equal(t, files[0].Name(), "7fc757801b9bab4ec9e35bfe7a6b61668ff6f4c81b5632af19e6c728ab799599.key")
+	targKey, err := os.OpenFile(filepath.Join(tmpDir, notary.PrivDir, "7fc757801b9bab4ec9e35bfe7a6b61668ff6f4c81b5632af19e6c728ab799599.key"), os.O_RDONLY, notary.PrivKeyPerms)
+	require.NoError(t, err)
+	defer targKey.Close()
+	targBytes, _ := ioutil.ReadAll(targKey)
+	targString := string(targBytes)
+	require.Contains(t, targString, "gun: docker.com/notary0.1/samplerepo")
+	require.Contains(t, targString, "role: targets")
+	require.Equal(t, files[1].Name(), "a55ccf652b0be4b6c4d356cbb02d9ea432bb84a2571665be3df7c7396af8e8b8.key")
+	snapKey, err := os.OpenFile(filepath.Join(tmpDir, notary.PrivDir, "a55ccf652b0be4b6c4d356cbb02d9ea432bb84a2571665be3df7c7396af8e8b8.key"), os.O_RDONLY, notary.PrivKeyPerms)
+	require.NoError(t, err)
+	defer snapKey.Close()
+	snapBytes, _ := ioutil.ReadAll(snapKey)
+	snapString := string(snapBytes)
+	require.Contains(t, snapString, "gun: docker.com/notary0.1/samplerepo")
+	require.Contains(t, snapString, "role: snapshot")
+	require.Equal(t, files[2].Name(), "d0c623c8e70c70d42a8a8125c44a8598588b3f6e31d5c21a83cbc338dfde8a68.key")
+	rootKey, err := os.OpenFile(filepath.Join(tmpDir, notary.PrivDir, "d0c623c8e70c70d42a8a8125c44a8598588b3f6e31d5c21a83cbc338dfde8a68.key"), os.O_RDONLY, notary.PrivKeyPerms)
+	require.NoError(t, err)
+	defer rootKey.Close()
+	rootBytes, _ := ioutil.ReadAll(rootKey)
+	rootString := string(rootBytes)
+	require.Contains(t, rootString, "role: root")
+	require.NotContains(t, rootString, "gun")
+	require.Len(t, files, 3)
+}
+
+func Test0Dot3Migration(t *testing.T) {
+	// make a temporary directory and copy the fixture into it, since updating
+	// and publishing will modify the files
+	tmpDir, err := ioutil.TempDir("", "notary-backwards-compat-test")
+	defer os.RemoveAll(tmpDir)
+	require.NoError(t, err)
+	require.NoError(t, recursiveCopy("../fixtures/compatibility/notary0.3", tmpDir))
+
+	gun := "docker.com/notary0.3/samplerepo"
+	passwd := "randompass"
+
+	ts := fullTestServer(t)
+	defer ts.Close()
+
+	_, err = NewNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
+		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
+	require.NoError(t, err, "error creating repo: %s", err)
+
+	// check that root_keys and tuf_keys are gone and that all corect keys are present and have the correct headers
+	files, _ := ioutil.ReadDir(filepath.Join(tmpDir, notary.PrivDir))
+	require.Equal(t, files[0].Name(), "041b64dab281324ef2b62fd2d04f4758269e120ff063b7bc78709272821a0a02.key")
+	targKey, err := os.OpenFile(filepath.Join(tmpDir, notary.PrivDir, "041b64dab281324ef2b62fd2d04f4758269e120ff063b7bc78709272821a0a02.key"), os.O_RDONLY, notary.PrivKeyPerms)
+	require.NoError(t, err)
+	defer targKey.Close()
+	targBytes, _ := ioutil.ReadAll(targKey)
+	targString := string(targBytes)
+	require.Contains(t, targString, "gun: docker.com/notary0.3/tst")
+	require.Contains(t, targString, "role: targets")
+	require.Equal(t, files[1].Name(), "85559599cf3cf681ff193f432a7ca6d128182bd1cfa8ede2c70761deac8bc2dc.key")
+	snapKey, err := os.OpenFile(filepath.Join(tmpDir, notary.PrivDir, "85559599cf3cf681ff193f432a7ca6d128182bd1cfa8ede2c70761deac8bc2dc.key"), os.O_RDONLY, notary.PrivKeyPerms)
+	require.NoError(t, err)
+	defer snapKey.Close()
+	snapBytes, _ := ioutil.ReadAll(snapKey)
+	snapString := string(snapBytes)
+	require.Contains(t, snapString, "gun: docker.com/notary0.3/tst")
+	require.Contains(t, snapString, "role: snapshot")
+	require.Equal(t, files[2].Name(), "f4eaf871a74aa3b3a0ff95cef2455a1e4d461639f5625418e76756fc5c948690.key")
+	rootKey, err := os.OpenFile(filepath.Join(tmpDir, notary.PrivDir, "f4eaf871a74aa3b3a0ff95cef2455a1e4d461639f5625418e76756fc5c948690.key"), os.O_RDONLY, notary.PrivKeyPerms)
+	require.NoError(t, err)
+	defer rootKey.Close()
+	rootBytes, _ := ioutil.ReadAll(rootKey)
+	rootString := string(rootBytes)
+	require.Contains(t, rootString, "role: root")
+	require.NotContains(t, rootString, "gun")
+	require.Equal(t, files[3].Name(), "fa842f66cac2dc898677a8660789dcff0e3b0b93b73f8952491f6493199936d3.key")
+	delKey, err := os.OpenFile(filepath.Join(tmpDir, notary.PrivDir, "fa842f66cac2dc898677a8660789dcff0e3b0b93b73f8952491f6493199936d3.key"), os.O_RDONLY, notary.PrivKeyPerms)
+	require.NoError(t, err)
+	defer delKey.Close()
+	delBytes, _ := ioutil.ReadAll(delKey)
+	delString := string(delBytes)
+	require.Contains(t, delString, "role: targets/releases")
+	require.NotContains(t, delString, "gun")
+	require.Len(t, files, 4)
 }
 
 // We can read and publish from notary0.1 repos
