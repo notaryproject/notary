@@ -84,6 +84,7 @@ func sendRequest(ctx context.Context, codec Codec, compressor Compressor, callHd
 	}
 	defer func() {
 		if err != nil {
+			// If err is connection error, t will be closed, no need to close stream here.
 			if _, ok := err.(transport.ConnectionError); !ok {
 				t.CloseStream(stream, err)
 			}
@@ -169,9 +170,9 @@ func Invoke(ctx context.Context, method string, args, reply interface{}, cc *Cli
 			if _, ok := err.(*rpcError); ok {
 				return err
 			}
-			if err == errConnClosing {
+			if err == errConnClosing || err == errConnUnavailable {
 				if c.failFast {
-					return Errorf(codes.Unavailable, "%v", errConnClosing)
+					return Errorf(codes.Unavailable, "%v", err)
 				}
 				continue
 			}

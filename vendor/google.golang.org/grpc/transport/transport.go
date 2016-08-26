@@ -44,7 +44,6 @@ import (
 	"io"
 	"net"
 	"sync"
-	"time"
 
 	"golang.org/x/net/context"
 	"golang.org/x/net/trace"
@@ -355,22 +354,18 @@ func NewServerTransport(protocol string, conn net.Conn, maxStreams uint32, authI
 type ConnectOptions struct {
 	// UserAgent is the application user agent.
 	UserAgent string
-	// Cancel is closed to indicate that dialing should be cancelled.
-	Cancel chan struct{}
 	// Dialer specifies how to dial a network address.
-	Dialer func(string, time.Duration, <-chan struct{}) (net.Conn, error)
+	Dialer func(context.Context, string) (net.Conn, error)
 	// PerRPCCredentials stores the PerRPCCredentials required to issue RPCs.
 	PerRPCCredentials []credentials.PerRPCCredentials
 	// TransportCredentials stores the Authenticator required to setup a client connection.
 	TransportCredentials credentials.TransportCredentials
-	// Timeout specifies the timeout for dialing a ClientTransport.
-	Timeout time.Duration
 }
 
 // NewClientTransport establishes the transport with the required ConnectOptions
 // and returns it to the caller.
-func NewClientTransport(target string, opts ConnectOptions) (ClientTransport, error) {
-	return newHTTP2Client(target, opts)
+func NewClientTransport(ctx context.Context, target string, opts ConnectOptions) (ClientTransport, error) {
+	return newHTTP2Client(ctx, target, opts)
 }
 
 // Options provides additional hints and information for message
@@ -490,9 +485,11 @@ func StreamErrorf(c codes.Code, format string, a ...interface{}) StreamError {
 }
 
 // ConnectionErrorf creates an ConnectionError with the specified error description.
-func ConnectionErrorf(format string, a ...interface{}) ConnectionError {
+func ConnectionErrorf(temp bool, e error, format string, a ...interface{}) ConnectionError {
 	return ConnectionError{
 		Desc: fmt.Sprintf(format, a...),
+		temp: temp,
+		err:  e,
 	}
 }
 
@@ -500,15 +497,32 @@ func ConnectionErrorf(format string, a ...interface{}) ConnectionError {
 // entire connection and the retry of all the active streams.
 type ConnectionError struct {
 	Desc string
+	temp bool
+	err  error
 }
 
 func (e ConnectionError) Error() string {
 	return fmt.Sprintf("connection error: desc = %q", e.Desc)
 }
 
+// Temporary indicates if this connection error is temporary or fatal.
+func (e ConnectionError) Temporary() bool {
+	return e.temp
+}
+
+// Origin returns the original error of this connection error.
+func (e ConnectionError) Origin() error {
+	// Never return nil error here.
+	// If the original error is nil, return itself.
+	if e.err == nil {
+		return e
+	}
+	return e.err
+}
+
 var (
 	// ErrConnClosing indicates that the transport is closing.
-	ErrConnClosing = ConnectionError{Desc: "transport is closing"}
+	ErrConnClosing = ConnectionError{Desc: "transport is closing", temp: true}
 	// ErrStreamDrain indicates that the stream is rejected by the server because
 	// the server stops accepting new RPCs.
 	ErrStreamDrain = StreamErrorf(codes.Unavailable, "the server stops accepting new RPCs")
