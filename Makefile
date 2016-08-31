@@ -17,12 +17,12 @@ GOOSES = darwin linux
 NOTARY_BUILDTAGS ?= pkcs11
 NOTARYDIR := /go/src/github.com/docker/notary
 
-GO_VERSION := $(shell go version | grep "1\.[6-9]\(\.[0-9]+\)*\|devel")
+GO_VERSION := $(shell go version | grep "1\.[7-9]\(\.[0-9]+\)*\|devel")
 # check to make sure we have the right version. development versions of Go are
 # not officially supported, but allowed for building
 
 ifeq ($(strip $(GO_VERSION))$(SKIPENVCHECK),)
-$(error Bad Go version - please install Go >= 1.6)
+$(error Bad Go version - please install Go >= 1.7)
 endif
 
 # check to be sure pkcs11 lib is always imported with a build tag
