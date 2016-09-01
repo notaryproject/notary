@@ -699,6 +699,7 @@ func testValidateRootRotationMissingOrigSig(t *testing.T, keyAlg, rootKeyType st
 		},
 		false,
 	)
+	testRoot.Signed.Version = 2
 	require.NoError(t, err, "Failed to create new root")
 
 	signedTestRoot, err := testRoot.ToSigned()
@@ -708,10 +709,14 @@ func testValidateRootRotationMissingOrigSig(t *testing.T, keyAlg, rootKeyType st
 	err = signed.Sign(cs, signedTestRoot, []data.PublicKey{replRootKey}, 1, nil)
 	require.NoError(t, err)
 
-	// This call to trustpinning.ValidateRoot will succeed since we are using a valid PEM
-	// encoded certificate, and have no other certificates for this CN
+	// This call to trustpinning.ValidateRoot will fail since we don't have the original key's signature
 	_, err = trustpinning.ValidateRoot(prevRoot, signedTestRoot, gun, trustpinning.TrustPinConfig{})
-	require.Error(t, err, "insuficient signatures on root")
+	require.Error(t, err, "insufficient signatures on root")
+
+	// If we clear out an valid certs from the prevRoot, this will still fail
+	prevRoot.Signed.Keys = nil
+	_, err = trustpinning.ValidateRoot(prevRoot, signedTestRoot, gun, trustpinning.TrustPinConfig{})
+	require.Error(t, err, "insufficient signatures on root")
 }
 
 // TestValidateRootRotationMissingNewSig runs through a full root certificate rotation
@@ -787,7 +792,7 @@ func testValidateRootRotationMissingNewSig(t *testing.T, keyAlg, rootKeyType str
 	// This call to trustpinning.ValidateRoot will succeed since we are using a valid PEM
 	// encoded certificate, and have no other certificates for this CN
 	_, err = trustpinning.ValidateRoot(prevRoot, signedTestRoot, gun, trustpinning.TrustPinConfig{})
-	require.Error(t, err, "insuficient signatures on root")
+	require.Error(t, err, "insufficient signatures on root")
 }
 
 func generateTestingCertificate(rootKey data.PrivateKey, gun string, timeToExpire time.Duration) (*x509.Certificate, error) {
