@@ -569,6 +569,7 @@ func TestExportKeys(t *testing.T) {
 	require.NoError(t, err)
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	require.NoError(t, err)
 	err = fileStore.Set(filepath.Join(notary.NonRootKeysSubdir, "discworld/ankh"), bBytes)
 	require.NoError(t, err)
 	err = fileStore.Set(filepath.Join(notary.NonRootKeysSubdir, "discworld/morpork"), cBytes)
@@ -642,6 +643,7 @@ func TestExportKeysByGUN(t *testing.T) {
 	require.NoError(t, err)
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	require.NoError(t, err)
 	// we have to manually prepend the NonRootKeysSubdir because
 	// KeyStore would be expected to do this for us.
 	err = fileStore.Set(
@@ -719,9 +721,9 @@ func TestExportKeysByID(t *testing.T) {
 	bBytes := pem.EncodeToMemory(b)
 	b2Bytes := pem.EncodeToMemory(b2)
 	cBytes := pem.EncodeToMemory(c)
-	require.NoError(t, err)
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	require.NoError(t, err)
 	err = fileStore.Set("ankh/one", bBytes)
 	require.NoError(t, err)
 	err = fileStore.Set("ankh/two", b2Bytes)
