@@ -5,9 +5,8 @@ services:
       context: .
       dockerfile: server.Dockerfile
     networks:
-      - server
-      - serverdb
-      - signer
+      - mdb
+      - sig
     ports:
       - "8080"
       - "4443:4443"
@@ -15,60 +14,40 @@ services:
     command: -c "./migrations/migrate.sh && notary-server -config=fixtures/server-config.postgres.json"
     environment:
       MIGRATIONS_PATH: migrations/server/postgresql
-      DB_URL: postgres://server@serverdb:5432/notaryserver?sslmode=disable
+      DB_URL: postgres://server@postgresql:5432/notaryserver?sslmode=disable
     depends_on:
-      - serverdb
+      - postgresql
       - signer
   signer:
     build:
       context: .
       dockerfile: signer.Dockerfile
     networks:
-      server:
-      signerdb:
-      signer:
+      mdb:
+      sig:
         aliases:
           - notarysigner
     entrypoint: /usr/bin/env sh
     command: -c "./migrations/migrate.sh && notary-signer -config=fixtures/signer-config.postgres.json"
     environment:
       MIGRATIONS_PATH: migrations/signer/postgresql
-      DB_URL: postgres://signer@signerdb:5432/notarysigner?sslmode=disable
+      DB_URL: postgres://signer@postgresql:5432/notarysigner?sslmode=disable
     depends_on:
-      - signerdb
-  serverdb:
+      - postgresql
+  postgresql:
     image: postgres:9.5.4
     networks:
-      - serverdb
+      - mdb
     volumes:
+      - ./notarysql/postgresql-initdb.d:/docker-entrypoint-initdb.d
       - notary_data:/var/lib/postgresql
     ports:
       - 5432:5432
-    environment:
-      POSTGRES_USER: server
-      POSTGRES_DB: notaryserver
-  signerdb:
-    image: postgres:9.5.4
-    networks:
-      - signerdb
-    volumes:
-      - notary_signer:/var/lib/postgresql
-    ports:
-      - 5433:5432
-    environment:
-      POSTGRES_USER: signer
-      POSTGRES_DB: notarysigner
 volumes:
-  notary_signer:
-    external: false
   notary_data:
     external: false
 networks:
-  server:
+  mdb:
     external: false
-  serverdb:
-    external: false
-  signer:
-    external: false
-  signerdb:
+  sig:
     external: false

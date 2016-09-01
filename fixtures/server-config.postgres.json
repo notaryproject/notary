@@ -18,6 +18,6 @@
 	},
 	"storage": {
 		"backend": "postgres",
-		"db_url": "postgres://server@serverdb:5432/notaryserver?sslmode=disable"
+		"db_url": "postgres://server@postgresql:5432/notaryserver?sslmode=disable"
 	}
 }

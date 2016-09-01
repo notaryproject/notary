@@ -15,7 +15,7 @@ case ${db} in
     ;;
   postgresql*)
     db="postgresql"
-    dbContainerOpts="--name postgresql_tests serverdb"
+    dbContainerOpts="--name postgresql_tests postgresql"
     DBURL="postgres://server@postgresql_tests:5432/notaryserver?sslmode=disable"
     ;;
   *)
