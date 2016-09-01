@@ -536,13 +536,13 @@ func TestPassphraseRetrieverCaching(t *testing.T) {
 	require.False(t, giveup)
 	require.Equal(t, passphrase, "root_passphrase")
 
-	passphrase, giveup, err = retriever("key", "user", false, 0)
+	_, _, err = retriever("key", "user", false, 0)
 	require.Error(t, err)
-	passphrase, giveup, err = retriever("key", data.CanonicalTargetsRole, false, 0)
+	_, _, err = retriever("key", data.CanonicalTargetsRole, false, 0)
 	require.Error(t, err)
-	passphrase, giveup, err = retriever("key", data.CanonicalSnapshotRole, false, 0)
+	_, _, err = retriever("key", data.CanonicalSnapshotRole, false, 0)
 	require.Error(t, err)
-	passphrase, giveup, err = retriever("key", "targets/delegation", false, 0)
+	_, _, err = retriever("key", "targets/delegation", false, 0)
 	require.Error(t, err)
 
 	// Set up the rest of them

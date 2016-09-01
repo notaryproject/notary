@@ -163,6 +163,7 @@ func TestStatusUnstageAndReset(t *testing.T) {
 	require.Contains(t, out, "test4")
 
 	_, err = runCommand(t, tempBaseDir, "status", "gun", "--unstage", "-1,1,3,10")
+	require.NoError(t, err)
 
 	out, err = runCommand(t, tempBaseDir, "status", "gun")
 	require.NoError(t, err)

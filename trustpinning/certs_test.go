@@ -224,6 +224,7 @@ func TestValidateRootWithPinnerCertAndIntermediates(t *testing.T) {
 		caPrivKey.Public(),
 		caPrivKey,
 	)
+	require.NoError(t, err)
 
 	// generate intermediate
 	intTmpl := x509.Certificate{
@@ -277,6 +278,7 @@ func TestValidateRootWithPinnerCertAndIntermediates(t *testing.T) {
 		signer.Public(),
 		intPrivKey,
 	)
+	require.NoError(t, err)
 
 	rootBundleWriter := bytes.NewBuffer(nil)
 	pem.Encode(
@@ -919,6 +921,7 @@ func TestValidateRootWithExpiredIntermediate(t *testing.T) {
 		caPrivKey.Public(),
 		caPrivKey,
 	)
+	require.NoError(t, err)
 
 	// generate expired intermediate
 	intTmpl := x509.Certificate{
@@ -972,6 +975,7 @@ func TestValidateRootWithExpiredIntermediate(t *testing.T) {
 		signer.Public(),
 		intPrivKey,
 	)
+	require.NoError(t, err)
 
 	rootBundleWriter := bytes.NewBuffer(nil)
 	pem.Encode(

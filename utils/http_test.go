@@ -51,6 +51,7 @@ func TestRootHandlerError(t *testing.T) {
 	defer ts.Close()
 
 	res, err := http.Get(ts.URL)
+	require.NoError(t, err)
 	if res.StatusCode != http.StatusInternalServerError {
 		t.Fatalf("Expected 500, received %d", res.StatusCode)
 	}
