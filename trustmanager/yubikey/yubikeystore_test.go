@@ -377,6 +377,7 @@ func TestYubiListAndGetKeysIgnoresBackup(t *testing.T) {
 	require.NoError(t, err)
 
 	store, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
+	require.NoError(t, err)
 	require.Len(t, store.ListKeys(), 0)
 	_, _, err = store.GetKey(key.ID())
 	require.Error(t, err)

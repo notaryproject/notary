@@ -67,6 +67,7 @@ func TestImportKeysNoYubikey(t *testing.T) {
 	require.NoError(t, err)
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	require.NoError(t, err)
 	bResult, err := fileStore.Get("ankh")
 	require.NoError(t, err)
 	cResult, err := fileStore.Get("morpork")
@@ -101,6 +102,7 @@ func TestExportImportKeysNoYubikey(t *testing.T) {
 	exportCommander.outFile = tempfile.Name()
 
 	exportStore, err := store.NewPrivateKeyFileStorage(exportTempDir, notary.KeyExtension)
+	require.NoError(t, err)
 	ks := trustmanager.NewGenericKeyStore(exportStore, exportCommander.getRetriever())
 	cs := cryptoservice.NewCryptoService(ks)
 
@@ -136,6 +138,7 @@ func TestExportImportKeysNoYubikey(t *testing.T) {
 	require.NoError(t, err)
 
 	importStore, err := store.NewPrivateKeyFileStorage(importTempDir, notary.KeyExtension)
+	require.NoError(t, err)
 	bResult, err := importStore.Get(filepath.Join(notary.RootKeysSubdir, bID))
 	require.NoError(t, err)
 	cResult, err := importStore.Get(filepath.Join(notary.NonRootKeysSubdir, "morpork", cID))

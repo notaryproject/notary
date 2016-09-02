@@ -112,6 +112,9 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 		// Note that we do not validate expiries here since our originally trusted root might have expired certs
 		allTrustedLeafCerts, allTrustedIntCerts := parseAllCerts(prevRoot)
 		trustedLeafCerts, err := validRootLeafCerts(allTrustedLeafCerts, gun, false)
+		if err != nil {
+			return nil, &ErrValidationFail{Reason: "could not retrieve trusted certs from previous root role data"}
+		}
 
 		// Use the certificates we found in the previous root for the GUN to verify its signatures
 		// This could potentially be an empty set, in which case we will fail to verify

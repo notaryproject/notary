@@ -313,6 +313,7 @@ func TestUpdateDelegationsParentMissing(t *testing.T) {
 	repo := initRepo(t, ed25519)
 
 	testDeepKey, err := ed25519.Create("targets/test/deep", testGUN, data.ED25519Key)
+	require.NoError(t, err)
 	err = repo.UpdateDelegationKeys("targets/test/deep", []data.PublicKey{testDeepKey}, []string{}, 1)
 	require.Error(t, err)
 	require.IsType(t, data.ErrInvalidRole{}, err)
@@ -505,6 +506,7 @@ func TestDeleteDelegationsRoleNotExistBecauseNoParentMeta(t *testing.T) {
 	require.False(t, ok, "no targets file should be created for empty delegation")
 
 	delRole, err := data.NewRole("targets/test/a", 1, []string{testKey.ID()}, []string{"test"})
+	require.NoError(t, err)
 
 	err = repo.DeleteDelegation(delRole.Name)
 	require.NoError(t, err)
