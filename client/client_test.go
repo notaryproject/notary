@@ -2879,6 +2879,7 @@ func TestRotateRootKey(t *testing.T) {
 	require.NoError(t, authorRepo.Update(false))
 	newRootRole, err := authorRepo.tufRepo.GetBaseRole(data.CanonicalRootRole)
 	require.False(t, newRootRole.Equals(oldRootRole))
+	require.NoError(t, err)
 	// not only is the root cert different, but the private key is too
 	newRootCertID := rootRoleCertID(t, authorRepo)
 	require.NotEqual(t, oldRootCertID, newRootCertID)
@@ -3157,6 +3158,7 @@ func TestFullAddDelegationChangefileApplicable(t *testing.T) {
 		AddKeys:      data.KeyList([]data.PublicKey{rootPubKey, key2}),
 		AddPaths:     []string{"abc", "123", "xyz"},
 	})
+	require.NoError(t, err)
 	change := newCreateDelegationChange(delegationName, tdJSON)
 	cl, err := changelist.NewFileChangelist(filepath.Join(repo.tufRepoPath, "changelist"))
 	require.NoError(t, err)
@@ -3207,6 +3209,7 @@ func TestFullRemoveDelegationChangefileApplicable(t *testing.T) {
 		RemoveKeys:  []string{key2CanonicalID},
 		RemovePaths: []string{"abc", "123"},
 	})
+	require.NoError(t, err)
 	change := newUpdateDelegationChange(delegationName, tdJSON)
 	cl, err := changelist.NewFileChangelist(filepath.Join(repo.tufRepoPath, "changelist"))
 	require.NoError(t, err)

@@ -84,6 +84,7 @@ func TestKeyOperations(t *testing.T) {
 
 	// Generate our RSA private key
 	rsaKey, err := GenerateRSAKey(rand.Reader, 512)
+	require.NoError(t, err)
 
 	// Encode our ED private key
 	edPEM, err := KeyToPEM(edKey, data.CanonicalRootRole)
