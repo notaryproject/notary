@@ -232,7 +232,7 @@ func TestClientTUFInteraction(t *testing.T) {
 	require.Contains(t, output, target)
 
 	// verify repo - empty file
-	output, err = runCommand(t, tempDir, "-s", server.URL, "verify", "gun", target)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "verify", "gun", target)
 	require.NoError(t, err)
 
 	// remove target
@@ -269,6 +269,7 @@ func TestClientDeleteTUFInteraction(t *testing.T) {
 	require.NoError(t, err)
 	cert, _, _ := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
 	_, err = certFile.Write(utils.CertToPEM(cert))
+	require.NoError(t, err)
 	defer os.Remove(certFile.Name())
 
 	var (
@@ -300,7 +301,7 @@ func TestClientDeleteTUFInteraction(t *testing.T) {
 	require.True(t, strings.Contains(string(output), target))
 
 	// add a delegation and publish
-	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", certFile.Name())
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", certFile.Name())
 	require.NoError(t, err)
 	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
 	require.NoError(t, err)
@@ -311,7 +312,7 @@ func TestClientDeleteTUFInteraction(t *testing.T) {
 	require.True(t, strings.Contains(string(output), "targets/delegation"))
 
 	// Delete the repo metadata locally, so no need for server URL
-	output, err = runCommand(t, tempDir, "delete", "gun")
+	_, err = runCommand(t, tempDir, "delete", "gun")
 	require.NoError(t, err)
 	assertLocalMetadataForGun(t, tempDir, "gun", false)
 
@@ -326,20 +327,20 @@ func TestClientDeleteTUFInteraction(t *testing.T) {
 	require.True(t, strings.Contains(string(output), "targets/delegation"))
 
 	// Trying to delete the repo with the remote flag fails if it's given a badly formed URL
-	output, err = runCommand(t, tempDir, "-s", "//invalidURLType", "delete", "gun", "--remote")
+	_, err = runCommand(t, tempDir, "-s", "//invalidURLType", "delete", "gun", "--remote")
 	require.Error(t, err)
 	// since the connection fails to parse the URL before we can delete anything, local data should exist
 	assertLocalMetadataForGun(t, tempDir, "gun", true)
 
 	// Trying to delete the repo with the remote flag fails if it's given a well-formed URL that doesn't point to a server
-	output, err = runCommand(t, tempDir, "-s", "https://invalid-server", "delete", "gun", "--remote")
+	_, err = runCommand(t, tempDir, "-s", "https://invalid-server", "delete", "gun", "--remote")
 	require.Error(t, err)
 	require.IsType(t, nstorage.ErrOffline{}, err)
 	// In this case, local notary metadata does not exist since local deletion operates first if we have a valid transport
 	assertLocalMetadataForGun(t, tempDir, "gun", false)
 
 	// Delete the repo remotely and locally, pointing to the correct server
-	output, err = runCommand(t, tempDir, "-s", server.URL, "delete", "gun", "--remote")
+	_, err = runCommand(t, tempDir, "-s", server.URL, "delete", "gun", "--remote")
 	require.NoError(t, err)
 	assertLocalMetadataForGun(t, tempDir, "gun", false)
 	_, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
@@ -347,7 +348,7 @@ func TestClientDeleteTUFInteraction(t *testing.T) {
 	require.IsType(t, client.ErrRepositoryNotExist{}, err)
 
 	// Silent success on extraneous deletes
-	output, err = runCommand(t, tempDir, "-s", server.URL, "delete", "gun", "--remote")
+	_, err = runCommand(t, tempDir, "-s", server.URL, "delete", "gun", "--remote")
 	require.NoError(t, err)
 	assertLocalMetadataForGun(t, tempDir, "gun", false)
 	_, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
@@ -756,11 +757,11 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	require.Contains(t, output, keyID2)
 
 	// Add a bunch of individual paths so we can test a delegation remove --all-paths
-	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--paths", "abcdef,123456")
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--paths", "abcdef,123456")
 	require.NoError(t, err)
 
 	// Add more individual paths so we can test a delegation remove --all-paths
-	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--paths", "banana/split,apple/crumble/pie,orange.peel,kiwi")
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--paths", "banana/split,apple/crumble/pie,orange.peel,kiwi")
 	require.NoError(t, err)
 
 	// publish repo
@@ -778,7 +779,7 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	require.Contains(t, output, "kiwi")
 
 	// Try adding "", and check that adding it with other paths clears out the others
-	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--paths", "\"\",grapefruit,pomegranate")
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--paths", "\"\",grapefruit,pomegranate")
 	require.NoError(t, err)
 
 	// publish repo
@@ -799,7 +800,7 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	require.NotContains(t, output, "pomegranate")
 
 	// Try removing just ""
-	output, err = runCommand(t, tempDir, "delegation", "remove", "gun", "targets/delegation", "--paths", "\"\"")
+	_, err = runCommand(t, tempDir, "delegation", "remove", "gun", "targets/delegation", "--paths", "\"\"")
 	require.NoError(t, err)
 
 	// publish repo
@@ -818,7 +819,7 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	require.NotContains(t, output, "\"\"")
 
 	// Remove --all-paths to clear out all paths from this delegation
-	output, err = runCommand(t, tempDir, "delegation", "remove", "gun", "targets/delegation", "--all-paths")
+	_, err = runCommand(t, tempDir, "delegation", "remove", "gun", "targets/delegation", "--all-paths")
 	require.NoError(t, err)
 
 	// publish repo
@@ -836,7 +837,7 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	require.NotContains(t, output, "kiwi")
 
 	// Check that we ignore other --paths if we pass in --all-paths on an add
-	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--all-paths", "--paths", "grapefruit,pomegranate")
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--all-paths", "--paths", "grapefruit,pomegranate")
 	require.NoError(t, err)
 
 	// publish repo
@@ -851,7 +852,7 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	require.NotContains(t, output, "pomegranate")
 
 	// Add those extra paths we ignored to set up the next test
-	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--paths", "grapefruit,pomegranate")
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--paths", "grapefruit,pomegranate")
 	require.NoError(t, err)
 
 	// publish repo
@@ -859,7 +860,7 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check that we ignore other --paths if we pass in --all-paths on a remove
-	output, err = runCommand(t, tempDir, "delegation", "remove", "gun", "targets/delegation", "--all-paths", "--paths", "pomegranate")
+	_, err = runCommand(t, tempDir, "delegation", "remove", "gun", "targets/delegation", "--all-paths", "--paths", "pomegranate")
 	require.NoError(t, err)
 
 	// publish repo
@@ -939,7 +940,7 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	assertNumKeys(t, tempDir, 1, 2, true)
 
 	// rotate the snapshot key to server
-	output, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", "snapshot", "-r")
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", "snapshot", "-r")
 	require.NoError(t, err)
 
 	// publish repo
@@ -982,7 +983,7 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, output, "No targets")
 
-	output, err = runCommand(t, tempDir, "-s", server.URL, "status", "gun")
+	_, err = runCommand(t, tempDir, "-s", server.URL, "status", "gun")
 	require.NoError(t, err)
 
 	// publish repo
@@ -1405,6 +1406,7 @@ func TestPurge(t *testing.T) {
 	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
 	privKey, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
 	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
 	require.NoError(t, err)
 	_, err = tempFile.Write(utils.CertToPEM(cert))
@@ -1681,7 +1683,6 @@ func TestClientTUFInitWithAutoPublish(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	var (
-		output       = ""
 		gun          = "MistsOfPandaria"
 		gunNoPublish = "Legion"
 
@@ -1702,7 +1703,7 @@ func TestClientTUFInitWithAutoPublish(t *testing.T) {
 	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "-p", gun)
 	require.NoError(t, err)
 	// list repo - expect empty list
-	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
+	output, err := runCommand(t, tempDir, "-s", server.URL, "list", gun)
 	require.NoError(t, err)
 	require.Equal(t, output, emptyList)
 
@@ -1733,7 +1734,6 @@ func TestClientTUFAddWithAutoPublish(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	var (
-		output          = ""
 		target          = "ShangXi"
 		target2         = "ChenStormstout"
 		targetNoPublish = "Shen-zinSu"
@@ -1751,7 +1751,7 @@ func TestClientTUFAddWithAutoPublish(t *testing.T) {
 	require.Equal(t, err, nstorage.ErrOffline{})
 	// check status, since we only fail the auto publishment in the previous step,
 	// the change should still exists.
-	output, err = runCommand(t, tempDir, "status", gun)
+	output, err := runCommand(t, tempDir, "status", gun)
 	require.NoError(t, err)
 	require.Contains(t, output, target)
 
@@ -1805,7 +1805,6 @@ func TestClientTUFRemoveWithAutoPublish(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	var (
-		output              = ""
 		target              = "ShangXi"
 		targetWillBeRemoved = "Shen-zinSu"
 		gun                 = "MistsOfPandaria"
@@ -1824,7 +1823,7 @@ func TestClientTUFRemoveWithAutoPublish(t *testing.T) {
 	_, err = runCommand(t, tempDir, "remove", "-s", server.URL, "-p", gun, targetWillBeRemoved, tempFile.Name())
 	require.NoError(t, err)
 	// list repo - expect target
-	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
+	output, err := runCommand(t, tempDir, "-s", server.URL, "list", gun)
 	require.NoError(t, err)
 	require.Contains(t, output, target)
 	require.False(t, strings.Contains(output, targetWillBeRemoved))
@@ -1865,6 +1864,7 @@ func TestClientDelegationAddWithAutoPublish(t *testing.T) {
 	require.NoError(t, err)
 
 	privKey, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
 	startTime := time.Now()
 	endTime := startTime.AddDate(10, 0, 0)
 	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
@@ -1894,7 +1894,7 @@ func TestClientDelegationAddWithAutoPublish(t *testing.T) {
 	require.Contains(t, output, "No delegations present in this repository.")
 
 	// add new valid delegation with single new cert, and no path
-	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile.Name())
+	_, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile.Name())
 	require.NoError(t, err)
 
 	// check status - no changelist
@@ -1923,6 +1923,7 @@ func TestClientDelegationRemoveWithAutoPublish(t *testing.T) {
 	require.NoError(t, err)
 
 	privKey, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
 	startTime := time.Now()
 	endTime := startTime.AddDate(10, 0, 0)
 	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
@@ -1947,7 +1948,7 @@ func TestClientDelegationRemoveWithAutoPublish(t *testing.T) {
 	require.NoError(t, err)
 
 	// add new valid delegation with single new cert, and no path
-	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile.Name())
+	_, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile.Name())
 	require.NoError(t, err)
 
 	// list delegations - we should see our added delegation, with no paths
@@ -1960,6 +1961,7 @@ func TestClientDelegationRemoveWithAutoPublish(t *testing.T) {
 	require.NoError(t, err)
 
 	privKey, err = utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
 	startTime = time.Now()
 	endTime = startTime.AddDate(10, 0, 0)
 	cert, err = cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
@@ -1976,7 +1978,7 @@ func TestClientDelegationRemoveWithAutoPublish(t *testing.T) {
 	require.NoError(t, err)
 
 	// add to the delegation by specifying the same role, this time add a scoped path
-	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile2.Name(), "--paths", "path")
+	_, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile2.Name(), "--paths", "path")
 	require.NoError(t, err)
 
 	// list delegations - we should see two keys
@@ -2368,7 +2370,7 @@ func TestAddDelImportKeyPublishFlow(t *testing.T) {
 	assertNumKeys(t, tempDir, 1, 2, true)
 
 	// rotate the snapshot key to server
-	output, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalSnapshotRole, "-r")
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalSnapshotRole, "-r")
 	require.NoError(t, err)
 
 	// publish repo
@@ -2411,7 +2413,10 @@ func TestAddDelImportKeyPublishFlow(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, output, "No targets")
 
+	// check that our change is staged
 	output, err = runCommand(t, tempDir, "-s", server.URL, "status", "gun")
+	require.Contains(t, output, "targets/releases")
+	require.Contains(t, output, "sdgkadga")
 	require.NoError(t, err)
 
 	// publish repo
@@ -2522,6 +2527,7 @@ func TestExportImportFlow(t *testing.T) {
 		fileList = append(fileList, path)
 		return nil
 	})
+	require.NoError(t, err)
 
 	if !rootOnHardware() {
 		// validate root is imported correctly

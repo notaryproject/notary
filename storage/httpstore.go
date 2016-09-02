@@ -205,6 +205,9 @@ func NewMultiPartMetaRequest(url string, metas map[string][]byte) (*http.Request
 	writer := multipart.NewWriter(body)
 	for role, blob := range metas {
 		part, err := writer.CreateFormFile("files", role)
+		if err != nil {
+			return nil, err
+		}
 		_, err = io.Copy(part, bytes.NewBuffer(blob))
 		if err != nil {
 			return nil, err

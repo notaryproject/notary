@@ -221,6 +221,7 @@ func TestGetHandlerRoot(t *testing.T) {
 	ctx = context.WithValue(ctx, "metaStore", metaStore)
 
 	root, err := repo.SignRoot(data.DefaultExpires("root"))
+	require.NoError(t, err)
 	rootJSON, err := json.Marshal(root)
 	require.NoError(t, err)
 	metaStore.UpdateCurrent("gun", storage.MetaUpdate{Role: "root", Version: 1, Data: rootJSON})
@@ -248,12 +249,14 @@ func TestGetHandlerTimestamp(t *testing.T) {
 	ctx := getContext(handlerState{store: metaStore, crypto: crypto})
 
 	sn, err := repo.SignSnapshot(data.DefaultExpires("snapshot"))
+	require.NoError(t, err)
 	snJSON, err := json.Marshal(sn)
 	require.NoError(t, err)
 	metaStore.UpdateCurrent(
 		"gun", storage.MetaUpdate{Role: "snapshot", Version: 1, Data: snJSON})
 
 	ts, err := repo.SignTimestamp(data.DefaultExpires("timestamp"))
+	require.NoError(t, err)
 	tsJSON, err := json.Marshal(ts)
 	require.NoError(t, err)
 	metaStore.UpdateCurrent(
@@ -283,12 +286,14 @@ func TestGetHandlerSnapshot(t *testing.T) {
 
 	// Need to create a timestamp and snapshot
 	sn, err := repo.SignSnapshot(data.DefaultExpires("snapshot"))
+	require.NoError(t, err)
 	snJSON, err := json.Marshal(sn)
 	require.NoError(t, err)
 	metaStore.UpdateCurrent(
 		"gun", storage.MetaUpdate{Role: "snapshot", Version: 1, Data: snJSON})
 
 	ts, err := repo.SignTimestamp(data.DefaultExpires("timestamp"))
+	require.NoError(t, err)
 	tsJSON, err := json.Marshal(ts)
 	require.NoError(t, err)
 	metaStore.UpdateCurrent(
@@ -385,6 +390,7 @@ func TestAtomicUpdateValidationFailurePropagated(t *testing.T) {
 		data.CanonicalRootRole:    rs,
 		data.CanonicalTargetsRole: tgs,
 	})
+	require.NoError(t, err)
 
 	rw := httptest.NewRecorder()
 
@@ -428,6 +434,7 @@ func TestAtomicUpdateNonValidationFailureNotPropagated(t *testing.T) {
 		data.CanonicalTargetsRole:  tgs,
 		data.CanonicalSnapshotRole: sns,
 	})
+	require.NoError(t, err)
 
 	rw := httptest.NewRecorder()
 
@@ -470,6 +477,7 @@ func TestAtomicUpdateVersionErrorPropagated(t *testing.T) {
 		data.CanonicalTargetsRole:  tgs,
 		data.CanonicalSnapshotRole: sns,
 	})
+	require.NoError(t, err)
 
 	rw := httptest.NewRecorder()
 

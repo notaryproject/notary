@@ -438,6 +438,7 @@ func TestSwizzlerUpdateSnapshotHashesSpecifiedRoles(t *testing.T) {
 	// change because signatures may have random elements
 	f.UpdateSnapshotHashes(data.CanonicalTargetsRole)
 	newMeta, err := f.MetadataCache.GetSized(data.CanonicalSnapshotRole, store.NoSizeLimit)
+	require.NoError(t, err)
 
 	origSigned, newSigned := &data.Signed{}, &data.Signed{}
 	require.NoError(t, json.Unmarshal(origMeta[data.CanonicalSnapshotRole], origSigned))

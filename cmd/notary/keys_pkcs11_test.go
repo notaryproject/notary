@@ -83,6 +83,7 @@ func TestImportWithYubikey(t *testing.T) {
 	require.Error(t, err) // c is non-root, should not be in yubikey
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	require.NoError(t, err)
 	_, err = fileStore.Get("ankh")
 	require.Error(t, err) // b should only be in yubikey, not in filestore
 
