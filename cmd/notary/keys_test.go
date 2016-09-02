@@ -569,6 +569,7 @@ func TestExportKeys(t *testing.T) {
 	require.NoError(t, err)
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	require.NoError(t, err)
 	err = fileStore.Set(filepath.Join(notary.NonRootKeysSubdir, "discworld/ankh"), bBytes)
 	require.NoError(t, err)
 	err = fileStore.Set(filepath.Join(notary.NonRootKeysSubdir, "discworld/morpork"), cBytes)
@@ -642,6 +643,7 @@ func TestExportKeysByGUN(t *testing.T) {
 	require.NoError(t, err)
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	require.NoError(t, err)
 	// we have to manually prepend the NonRootKeysSubdir because
 	// KeyStore would be expected to do this for us.
 	err = fileStore.Set(
@@ -719,9 +721,9 @@ func TestExportKeysByID(t *testing.T) {
 	bBytes := pem.EncodeToMemory(b)
 	b2Bytes := pem.EncodeToMemory(b2)
 	cBytes := pem.EncodeToMemory(c)
-	require.NoError(t, err)
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	require.NoError(t, err)
 	err = fileStore.Set("ankh/one", bBytes)
 	require.NoError(t, err)
 	err = fileStore.Set("ankh/two", b2Bytes)
@@ -770,21 +772,21 @@ func TestExportKeysBadFlagCombo(t *testing.T) {
 	require.Error(t, err)
 }
 
-func generateTempTestKeyFile(t *testing.T, role string) string {
+func TestImportKeysNonexistentFile(t *testing.T) {
 	setUp(t)
-	privKey, err := utils.GenerateECDSAKey(rand.Reader)
-	if err != nil {
-		return ""
+	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempBaseDir)
+	require.NoError(t, err)
+	k := &keyCommander{
+		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
+		configGetter: func() (*viper.Viper, error) {
+			v := viper.New()
+			v.SetDefault("trust_dir", tempBaseDir)
+			return v, nil
+		},
 	}
-	keyBytes, err := utils.KeyToPEM(privKey, role)
-	require.NoError(t, err)
 
-	tempPrivFile, err := ioutil.TempFile("/tmp", "privfile")
-	require.NoError(t, err)
-
-	// Write the private key to a file so we can import it
-	_, err = tempPrivFile.Write(keyBytes)
-	require.NoError(t, err)
-	tempPrivFile.Close()
-	return tempPrivFile.Name()
+	err = k.importKeys(&cobra.Command{}, []string{"Idontexist"})
+	require.Error(t, err)
 }

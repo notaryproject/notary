@@ -344,6 +344,9 @@ func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
 	gun := args[0]
 
 	trustPin, err := getTrustPinning(config)
+	if err != nil {
+		return err
+	}
 
 	// Only initialize a roundtripper if we get the remote flag
 	var rt http.RoundTripper
