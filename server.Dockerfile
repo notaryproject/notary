@@ -1,4 +1,4 @@
-FROM golang:1.6.3-alpine
+FROM golang:1.7.1-alpine
 MAINTAINER David Lawrence "david.lawrence@docker.com"
 
 RUN apk add --update git gcc libc-dev && rm -rf /var/cache/apk/*
