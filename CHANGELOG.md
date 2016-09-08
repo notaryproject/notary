@@ -1,6 +1,9 @@
 # Changelog
 
-## [v0.4.1](https://github.com/docker/notary/releases/tag/v0.4.0) 9/27/2016
+## [v0.4.2](https://github.com/docker/notary/releases/tag/v0.4.2) 9/30/2016
++ Bump the cross compiler to golang 1.7.1, since [1.6.3 builds binaries that could have non-deterministic bugs in OS X Sierra](https://groups.google.com/forum/#!msg/golang-dev/Jho5sBHZgAg/cq6d97S1AwAJ) [#984](https://github.com/docker/notary/pull/984)
+
+## [v0.4.1](https://github.com/docker/notary/releases/tag/v0.4.1) 9/27/2016
 + Preliminary Windows support for notary client [#970](https://github.com/docker/notary/pull/970)
 + Output message to CLI when repo changes have been successfully published [#974](https://github.com/docker/notary/pull/974)
 + Improved error messages for client authentication errors and for the witness command [#972](https://github.com/docker/notary/pull/972)
