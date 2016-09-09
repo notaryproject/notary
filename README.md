@@ -80,7 +80,7 @@ to use `notary` with Docker images.
 
 Prerequisites:
 
-- Go >= 1.7.0
+- Go >= 1.7.1
 - [godep](https://github.com/tools/godep) installed
 - libtool development headers installed
     - Ubuntu: `apt-get install libltdl-dev`
