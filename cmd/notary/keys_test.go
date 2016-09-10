@@ -574,6 +574,7 @@ func TestExportKeys(t *testing.T) {
 	require.NoError(t, err)
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	require.NoError(t, err)
 	err = fileStore.Set("ankh", bBytes)
 	require.NoError(t, err)
 	err = fileStore.Set("morpork", cBytes)
@@ -736,6 +737,7 @@ func TestExportKeysByID(t *testing.T) {
 	cBytes := pem.EncodeToMemory(c)
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	require.NoError(t, err)
 	err = fileStore.Set("one", bBytes)
 	require.NoError(t, err)
 	err = fileStore.Set("two", b2Bytes)
