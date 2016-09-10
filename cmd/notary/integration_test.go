@@ -2155,7 +2155,6 @@ func TestClientKeyImport(t *testing.T) {
 	require.NoError(t, err)
 	tempFile4.Close()
 	require.Equal(t, len(pemBytes), nBytes)
-	newKeyID := privKey.ID()
 
 	// import the key
 	_, err = runCommand(t, tempDir, "key", "import", tempFile4.Name(), "-r", "somerole", "-g", "somegun")
@@ -2187,7 +2186,6 @@ func TestClientKeyImport(t *testing.T) {
 	require.NoError(t, err)
 	tempFile5.Close()
 	require.Equal(t, len(pemBytes), nBytes)
-	newKeyID = privKey.ID()
 
 	// import the key
 	_, err = runCommand(t, tempDir, "key", "import", tempFile5.Name(), "-r", data.CanonicalSnapshotRole, "-g", "somegun")
@@ -2245,7 +2243,6 @@ func TestClientKeyImport(t *testing.T) {
 	require.NoError(t, err)
 	tempFile7.Close()
 	require.Equal(t, len(pemBytes), nBytes)
-	newKeyID = privKey.ID()
 
 	// import the key
 	_, err = runCommand(t, tempDir, "key", "import", tempFile7.Name(), "-r", "somerole")
@@ -2276,7 +2273,7 @@ func TestClientKeyImport(t *testing.T) {
 	require.NoError(t, err)
 	tempFile8.Close()
 	require.Equal(t, len(pemBytes), nBytes)
-	newKeyID = privKey.ID()
+	newKeyID := privKey.ID()
 
 	// import the key
 	_, err = runCommand(t, tempDir, "key", "import", tempFile8.Name())
