@@ -23,7 +23,7 @@ func init() {
 		logrus.Fatal("PostgreSQL environment variable not set")
 	}
 
-	for i := 0; i < 30; i++ {
+	for i := 0; i <= 30; i++ {
 		gormDB, err := gorm.Open(notary.PostgresBackend, dburl)
 		if err == nil {
 			err := gormDB.DB().Ping()
@@ -31,7 +31,7 @@ func init() {
 				break
 			}
 		}
-		if i == 29 {
+		if i == 30 {
 			logrus.Fatalf("Unable to connect to %s after 60 seconds", dburl)
 		}
 		time.Sleep(2 * time.Second)
