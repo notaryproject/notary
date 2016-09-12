@@ -186,6 +186,7 @@ func validRootLeafCerts(allLeafCerts map[string]*x509.Certificate, gun string, c
 		// Make sure the certificate is not expired if checkExpiry is true
 		// and warn if it hasn't expired yet but is within 6 months of expiry
 		if err := utils.ValidateCertificate(cert, checkExpiry); err != nil {
+			logrus.Debugf("%s is invalid: %s", id, err.Error())
 			continue
 		}
 

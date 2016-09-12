@@ -451,13 +451,10 @@ func TestValidateRootWithPinnedCA(t *testing.T) {
 	require.Error(t, err)
 
 	// Now construct a new root with a valid cert chain, such that signatures are correct over the 'notary-signer' GUN.  Pin the root-ca and validate
-	leafCert, err := utils.LoadCertFromFile("../fixtures/notary-signer.crt")
+	certChain, err := utils.LoadCertBundleFromFile("../fixtures/notary-signer.crt")
 	require.NoError(t, err)
 
-	intermediateCert, err := utils.LoadCertFromFile("../fixtures/intermediate-ca.crt")
-	require.NoError(t, err)
-
-	pemChainBytes, err := utils.CertChainToPEM([]*x509.Certificate{leafCert, intermediateCert})
+	pemChainBytes, err := utils.CertChainToPEM(certChain)
 	require.NoError(t, err)
 
 	newRootKey := data.NewPublicKey(data.RSAx509Key, pemChainBytes)
