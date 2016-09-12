@@ -870,8 +870,9 @@ func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*TUFClient, e
 		if err := newBuilder.Load(data.CanonicalRootRole, rootJSON, minVersion, false); err != nil {
 			// Ok, the old root is expired - we want to download a new one.  But we want to use the
 			// old root to verify the new root, so bootstrap a new builder with the old builder
+			// but use the trustpinning to validate the new root
 			minVersion = oldBuilder.GetLoadedVersion(data.CanonicalRootRole)
-			newBuilder = oldBuilder.BootstrapNewBuilder()
+			newBuilder = oldBuilder.BootstrapNewBuilderWithNewTrustpin(r.trustPinning)
 		}
 	}
 

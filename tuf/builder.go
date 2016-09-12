@@ -61,6 +61,7 @@ type RepoBuilder interface {
 	GenerateTimestamp(prev *data.SignedTimestamp) ([]byte, int, error)
 	Finish() (*Repo, *Repo, error)
 	BootstrapNewBuilder() RepoBuilder
+	BootstrapNewBuilderWithNewTrustpin(trustpin trustpinning.TrustPinConfig) RepoBuilder
 
 	// informative functions
 	IsLoaded(roleName string) bool
@@ -80,8 +81,11 @@ func (f finishedBuilder) GenerateSnapshot(prev *data.SignedSnapshot) ([]byte, in
 func (f finishedBuilder) GenerateTimestamp(prev *data.SignedTimestamp) ([]byte, int, error) {
 	return nil, 0, ErrBuildDone
 }
-func (f finishedBuilder) Finish() (*Repo, *Repo, error)        { return nil, nil, ErrBuildDone }
-func (f finishedBuilder) BootstrapNewBuilder() RepoBuilder     { return f }
+func (f finishedBuilder) Finish() (*Repo, *Repo, error)    { return nil, nil, ErrBuildDone }
+func (f finishedBuilder) BootstrapNewBuilder() RepoBuilder { return f }
+func (f finishedBuilder) BootstrapNewBuilderWithNewTrustpin(trustpin trustpinning.TrustPinConfig) RepoBuilder {
+	return f
+}
 func (f finishedBuilder) IsLoaded(roleName string) bool        { return false }
 func (f finishedBuilder) GetLoadedVersion(roleName string) int { return 0 }
 func (f finishedBuilder) GetConsistentInfo(roleName string) ConsistentInfo {
@@ -157,6 +161,18 @@ func (rb *repoBuilder) BootstrapNewBuilder() RepoBuilder {
 		gun:                  rb.gun,
 		loadedNotChecksummed: make(map[string][]byte),
 		trustpin:             rb.trustpin,
+
+		prevRoot:                 rb.repo.Root,
+		bootstrappedRootChecksum: rb.nextRootChecksum,
+	}}
+}
+
+func (rb *repoBuilder) BootstrapNewBuilderWithNewTrustpin(trustpin trustpinning.TrustPinConfig) RepoBuilder {
+	return &repoBuilderWrapper{RepoBuilder: &repoBuilder{
+		repo:                 NewRepo(rb.repo.cryptoService),
+		gun:                  rb.gun,
+		loadedNotChecksummed: make(map[string][]byte),
+		trustpin:             trustpin,
 
 		prevRoot:                 rb.repo.Root,
 		bootstrappedRootChecksum: rb.nextRootChecksum,
