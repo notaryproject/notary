@@ -408,7 +408,7 @@ func blockType(k data.PrivateKey) (string, error) {
 }
 
 // KeyToPEM returns a PEM encoded key from a Private Key
-func KeyToPEM(privKey data.PrivateKey, role string) ([]byte, error) {
+func KeyToPEM(privKey data.PrivateKey, role, gun string) ([]byte, error) {
 	bt, err := blockType(privKey)
 	if err != nil {
 		return nil, err
@@ -416,9 +416,10 @@ func KeyToPEM(privKey data.PrivateKey, role string) ([]byte, error) {
 
 	headers := map[string]string{}
 	if role != "" {
-		headers = map[string]string{
-			"role": role,
-		}
+		headers["role"] = role
+	}
+	if gun != "" {
+		headers["gun"] = gun
 	}
 
 	block := &pem.Block{
@@ -453,8 +454,10 @@ func EncryptPrivateKey(key data.PrivateKey, role, gun, passphrase string) ([]byt
 	if encryptedPEMBlock.Headers == nil {
 		return nil, fmt.Errorf("unable to encrypt key - invalid PEM file produced")
 	}
-	encryptedPEMBlock.Headers["role"] = role
 
+	if role != "" {
+		encryptedPEMBlock.Headers["role"] = role
+	}
 	if gun != "" {
 		encryptedPEMBlock.Headers["gun"] = gun
 	}

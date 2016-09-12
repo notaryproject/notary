@@ -30,7 +30,6 @@ import (
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
-	"path/filepath"
 )
 
 var ret = passphrase.ConstantRetriever("pass")
@@ -556,11 +555,17 @@ func TestExportKeys(t *testing.T) {
 	err = output.Close() // close so export can open
 	require.NoError(t, err)
 
-	b := &pem.Block{}
+	keyHeaders := make(map[string]string)
+	keyHeaders["gun"] = "discworld"
+	b := &pem.Block{
+		Headers: keyHeaders,
+	}
 	b.Bytes = make([]byte, 1000)
 	rand.Read(b.Bytes)
 
-	c := &pem.Block{}
+	c := &pem.Block{
+		Headers: keyHeaders,
+	}
 	c.Bytes = make([]byte, 1000)
 	rand.Read(c.Bytes)
 
@@ -570,9 +575,9 @@ func TestExportKeys(t *testing.T) {
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
 	require.NoError(t, err)
-	err = fileStore.Set(filepath.Join(notary.NonRootKeysSubdir, "discworld/ankh"), bBytes)
+	err = fileStore.Set("ankh", bBytes)
 	require.NoError(t, err)
-	err = fileStore.Set(filepath.Join(notary.NonRootKeysSubdir, "discworld/morpork"), cBytes)
+	err = fileStore.Set("morpork", cBytes)
 	require.NoError(t, err)
 
 	err = k.exportKeys(&cobra.Command{}, nil)
@@ -583,12 +588,12 @@ func TestExportKeys(t *testing.T) {
 
 	block, rest := pem.Decode(outRes)
 	require.Equal(t, b.Bytes, block.Bytes)
-	require.Equal(t, filepath.Join(notary.NonRootKeysSubdir, "discworld/ankh"), block.Headers["path"])
+	require.Equal(t, "ankh", block.Headers["path"])
 	require.Equal(t, "discworld", block.Headers["gun"])
 
 	block, rest = pem.Decode(rest)
 	require.Equal(t, c.Bytes, block.Bytes)
-	require.Equal(t, filepath.Join(notary.NonRootKeysSubdir, "discworld/morpork"), block.Headers["path"])
+	require.Equal(t, "morpork", block.Headers["path"])
 	require.Equal(t, "discworld", block.Headers["gun"])
 	require.Len(t, rest, 0)
 
@@ -625,39 +630,48 @@ func TestExportKeysByGUN(t *testing.T) {
 	require.NoError(t, err)
 	k.exportGUNs = []string{"ankh"}
 
-	b := &pem.Block{}
+	keyHeaders := make(map[string]string)
+	keyHeaders["gun"] = "ankh"
+	keyHeaders["role"] = "snapshot"
+	b := &pem.Block{
+		Headers: keyHeaders,
+	}
 	b.Bytes = make([]byte, 1000)
 	rand.Read(b.Bytes)
 
-	b2 := &pem.Block{}
+	b2 := &pem.Block{
+		Headers: keyHeaders,
+	}
 	b2.Bytes = make([]byte, 1000)
 	rand.Read(b2.Bytes)
 
-	c := &pem.Block{}
+	otherHeaders := make(map[string]string)
+	otherHeaders["gun"] = "morpork"
+	otherHeaders["role"] = "snapshot"
+	c := &pem.Block{
+		Headers: otherHeaders,
+	}
 	c.Bytes = make([]byte, 1000)
 	rand.Read(c.Bytes)
 
 	bBytes := pem.EncodeToMemory(b)
 	b2Bytes := pem.EncodeToMemory(b2)
 	cBytes := pem.EncodeToMemory(c)
-	require.NoError(t, err)
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
 	require.NoError(t, err)
-	// we have to manually prepend the NonRootKeysSubdir because
-	// KeyStore would be expected to do this for us.
 	err = fileStore.Set(
-		filepath.Join(notary.NonRootKeysSubdir, "ankh/one"),
+		"12345",
 		bBytes,
 	)
 	require.NoError(t, err)
 	err = fileStore.Set(
-		filepath.Join(notary.NonRootKeysSubdir, "ankh/two"),
+		"23456",
 		b2Bytes,
 	)
 	require.NoError(t, err)
 	err = fileStore.Set(
-		filepath.Join(notary.NonRootKeysSubdir, "morpork/three"),
+		"34567",
 		cBytes,
 	)
 	require.NoError(t, err)
@@ -672,7 +686,7 @@ func TestExportKeysByGUN(t *testing.T) {
 	require.Equal(t, b.Bytes, block.Bytes)
 	require.Equal(
 		t,
-		filepath.Join(notary.NonRootKeysSubdir, "ankh/one"),
+		"12345",
 		block.Headers["path"],
 	)
 
@@ -680,7 +694,7 @@ func TestExportKeysByGUN(t *testing.T) {
 	require.Equal(t, b2.Bytes, block.Bytes)
 	require.Equal(
 		t,
-		filepath.Join(notary.NonRootKeysSubdir, "ankh/two"),
+		"23456",
 		block.Headers["path"],
 	)
 	require.Len(t, rest, 0)
@@ -724,11 +738,11 @@ func TestExportKeysByID(t *testing.T) {
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
 	require.NoError(t, err)
-	err = fileStore.Set("ankh/one", bBytes)
+	err = fileStore.Set("one", bBytes)
 	require.NoError(t, err)
-	err = fileStore.Set("ankh/two", b2Bytes)
+	err = fileStore.Set("two", b2Bytes)
 	require.NoError(t, err)
-	err = fileStore.Set("morpork/three", cBytes)
+	err = fileStore.Set("three", cBytes)
 	require.NoError(t, err)
 
 	err = k.exportKeys(&cobra.Command{}, nil)
@@ -739,11 +753,11 @@ func TestExportKeysByID(t *testing.T) {
 
 	block, rest := pem.Decode(outRes)
 	require.Equal(t, b.Bytes, block.Bytes)
-	require.Equal(t, "ankh/one", block.Headers["path"])
+	require.Equal(t, "one", block.Headers["path"])
 
 	block, rest = pem.Decode(rest)
 	require.Equal(t, c.Bytes, block.Bytes)
-	require.Equal(t, "morpork/three", block.Headers["path"])
+	require.Equal(t, "three", block.Headers["path"])
 	require.Len(t, rest, 0)
 }
 
