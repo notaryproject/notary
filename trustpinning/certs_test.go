@@ -361,7 +361,11 @@ func TestValidateRootWithPinnedCertAndIntermediates(t *testing.T) {
 		},
 	)
 	require.NoError(t, err, "failed to validate certID with intermediate")
-	typedSignedRoot.Signatures[0].IsValid = true
+	for idx, sig := range typedSignedRoot.Signatures {
+		if sig.KeyID == ecdsax509Key.ID() {
+			typedSignedRoot.Signatures[idx].IsValid = true
+		}
+	}
 	require.Equal(t, typedSignedRoot, validatedRoot)
 }
 
@@ -503,7 +507,11 @@ func TestValidateRootWithPinnedCA(t *testing.T) {
 	// Check that we validate correctly against a pinned CA and provided bundle
 	validatedRoot, err = trustpinning.ValidateRoot(nil, newTestSignedRoot, "notary-signer", trustpinning.TrustPinConfig{CA: map[string]string{"notary-signer": validCAFilepath}, DisableTOFU: true})
 	require.NoError(t, err)
-	newTypedSignedRoot.Signatures[0].IsValid = true
+	for idx, sig := range newTypedSignedRoot.Signatures {
+		if sig.KeyID == newRootKey.ID() {
+			newTypedSignedRoot.Signatures[idx].IsValid = true
+		}
+	}
 	require.Equal(t, newTypedSignedRoot, validatedRoot)
 
 	// Add an expired CA for the same gun to our previous pinned bundle, ensure that we still validate correctly
@@ -525,8 +533,6 @@ func TestValidateRootWithPinnedCA(t *testing.T) {
 	// Check that we validate correctly against a pinned CA and provided bundle
 	validatedRoot, err = trustpinning.ValidateRoot(nil, newTestSignedRoot, "notary-signer", trustpinning.TrustPinConfig{CA: map[string]string{"notary-signer": bundleWithExpiredCertPath}, DisableTOFU: true})
 	require.NoError(t, err)
-	// this extra assignment is necessary because ValidateRoot calls through to a successful VerifySignature which marks IsValid
-	newTypedSignedRoot.Signatures[0].IsValid = true
 	require.Equal(t, newTypedSignedRoot, validatedRoot)
 
 	testPubKey2, err := cryptoService.Create("root", "notary-signer", data.ECDSAKey)
@@ -634,7 +640,11 @@ func testValidateSuccessfulRootRotation(t *testing.T, keyAlg, rootKeyType string
 	// encoded certificate, and have no other certificates for this CN
 	validatedRoot, err := trustpinning.ValidateRoot(prevRoot, signedTestRoot, gun, trustpinning.TrustPinConfig{})
 	require.NoError(t, err)
-	typedSignedRoot.Signatures[0].IsValid = true
+	for idx, sig := range typedSignedRoot.Signatures {
+		if sig.KeyID == replRootKey.ID() {
+			typedSignedRoot.Signatures[idx].IsValid = true
+		}
+	}
 	require.Equal(t, typedSignedRoot, validatedRoot)
 }
 
