@@ -12,9 +12,9 @@ weight=99
 # Notary Command Reference
 
 ## Terminology Reference
-1. **GUN**: Notary uses Globally Unique Names (GUNs) to identify trusted collections.
-2. **Target**: Notary refers to the files the framework is used to distribute as "target files".  Target files are opaque to the framework. Whether target files are packages containing multiple files, single text files, or executable binaries is irrelevant to Notary.
-3. **Trusted Collection**: A trusted collection is a set of target files of interest to the application.
+1. **GUN**: Notary uses Globally Unique Names (GUNs) to identify trusted collections.  Note that `<GUN>` can take on arbitrary values, but when working with Docker Content Trust they are structured like `<domain>/<account>/<repository>`.  For example `docker.io/library/alpine` for the [Docker Library Alpine image](https://hub.docker.com/r/library/alpine).
+2. **Target**: A target refers to a file in a to be distributed as part of a trusted collection.  Target files are opaque to the framework. Whether target files are packages containing multiple files, single text files, or executable binaries is irrelevant to Notary.
+3. **Trusted Collection**: A trusted collection is a set of target files of interest.
 4. **Notary Repository**: A notary repository refers to the set of signed metadata files that describe a trusted collection.
 5. **Key roles**:
     - **Root**: The root role delegates trust to specific keys trusted for all other top-level roles used in the system.
@@ -59,7 +59,7 @@ If you'd like to initialize your trusted collection with a specific root key, th
 $ notary init <GUN> --rootkey <key_file>
 ```
 
-Note that you will have to run a publish after this command for it to take effect, as there are staged changes to initialize the trusted collection that have not been pushed to a notary server.
+Note that you will have to run a publish after this command for it to take effect, because the Notary CLI client will create staged changes to initialize the trusted collection that have not yet been pushed to a notary server.
 ```bash
 $ notary publish <GUN>
 ```
@@ -81,8 +81,6 @@ $ notary status <GUN> --unstage 0
 # Alternatively, unstage all changes
 $ notary status <GUN> --reset
 ```
-
-Note that `<GUN>` can take on arbitrary values, but when working with Docker Content Trust they are structured like `<domain>/<account>/<repository>`.  For example `docker.io/library/alpine` for the [Docker Library Alpine image](https://hub.docker.com/r/library/alpine).
 
 When you're ready to publish your changes to the Notary server, run:
 
@@ -108,7 +106,7 @@ Users can sign content into a notary trusted collection by running:
 $ notary add -p <GUN> <target_name> <target_file>
 ```
 
-In the above command, the `<target_name>` corresponds to the name we want to associate the `<target_file>`'s signature with. Notary will sign the hash of the `<target_file>` into its trusted collection.
+In the above command, the `<target_name>` corresponds to the name we want to associate the `<target_file>` with in the trusted collection. Notary will sign the hash of the `<target_file>` into its trusted collection.
 Instead of adding a target by file, you can specify a hash and byte size directly:
 ```bash
 $ notary addhash -p <GUN> <target_name> <byte_size> --sha256 <sha256Hash>
@@ -184,7 +182,11 @@ Notary can import keys that are already in a PEM format:
 $ notary key import <pemfile> --role <key_role> --gun <key_gun>
 ```
 
-If no `--role` or `--gun` is given, notary will assume that the key is to be used for a delegation role.
+The `--role` and `--gun` flags can be provided to specify a role and GUN to import the key to if that information is not already included in PEM headers.
+Note that for root and delegation keys, the `--gun` flag is ignored because these keys can be shared across GUNs.
+If no `--role` or `--gun` is given, notary will assume that the key is to be used for a delegation role, which will appear as a `delegation` key in commands such as `notary key list`.
+
+
 Moreover, it's possible for notary to import multiple keys contained in one PEM file, each separated into separate PEM blocks.
 
 For each key it attempts to import, notary will prompt for a passphrase so that the key can be encrypted at rest.
@@ -235,13 +237,13 @@ You can also remove keys from a delegation role, such that those keys can no lon
 # Remove the given keys from a delegation role
 $ notary delegation remove -p <GUN> targets/<role> <keyID1> <keyID2>
 
-# Alternatively, you can remove keys from all delegation roles
+# Alternatively, you can remove keys from all delegation roles, in case of delegation key compromise
 $ notary delegation purge <GUN> --key <keyID1> --key <keyID2>
 ```
 
 ## Managing targets in delegation roles
 
-We can specify to sign content into specific delegation roles by specifying the `--roles` flag.  This also applies to `notary addhash` and `notary remove`.
+We can specify which delegation roles to sign content into by using the `--roles` flag.  This also applies to `notary addhash` and `notary remove`.
 Without the `--roles` flag, notary will attempt to operate on the base `targets` role:
 ```bash
 # Add content from a target file to a specific delegation role
@@ -251,7 +253,7 @@ $ notary add -p <GUN> <target_name> <target_file> --roles targets/<role>
 $ notary addhash -p <GUN> <target_name> <byte_size> --sha256 <sha256Hash> --roles targets/<role>
 
 # Remove content from a specific delegation role
-$ notary add -p <GUN> <target_name> <target_file> --roles targets/<role>
+$ notary remove -p <GUN> <target_name> <target_file> --roles targets/<role>
 ```
 
 Similarly, we can list all targets and prefer to show certain delegation roles' targets first with the `--roles` flag.
@@ -292,4 +294,4 @@ If you are receiving this error:
 * fatal: Get <URL>/v2/: x509: certificate signed by unknown authority
 ```
 The Notary CLI must be configured to trust the root certificate authority of the server it is communicating with.
-This can be configured by specifying the root certificate with the `--tlscacert` flag or by editing the Notary client configuration file.
+This can be configured by specifying the root certificate with the `--tlscacert` flag or by editing the Notary client configuration file.  Additionally, you can add the root certificate to your system CAs.
