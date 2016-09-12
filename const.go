@@ -33,8 +33,10 @@ const (
 	// PrivDir is the directory, under the notary repo base directory, where private keys are stored
 	PrivDir = "private"
 	// RootKeysSubdir is the subdirectory under PrivDir where root private keys are stored
+	// DEPRECATED: The only reason we need this constant is compatibility with older versions
 	RootKeysSubdir = "root_keys"
 	// NonRootKeysSubdir is the subdirectory under PrivDir where non-root private keys are stored
+	// DEPRECATED: The only reason we need this constant is compatibility with older versions
 	NonRootKeysSubdir = "tuf_keys"
 	// KeyExtension is the file extension to use for private key files
 	KeyExtension = "key"
