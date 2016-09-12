@@ -62,13 +62,12 @@ func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string, firstBootstra
 		return t.caCheck, nil
 	}
 
-	// If TOFUs is not disabled or we already have previous trusted root data for this GUN (even with TOFUs disabled),
-	// use TOFUs.  It's ok if we have previous root data with TOFUs disabled because we've already
-	// bootstrapped the first use of trust
-	if !trustPinConfig.DisableTOFU || !firstBootstrap {
-		return t.tofusCheck, nil
+	// If TOFUs is disabled and we don't have any previous trusted root data for this GUN, we error out
+	if trustPinConfig.DisableTOFU && firstBootstrap {
+		return nil, fmt.Errorf("invalid trust pinning specified")
+
 	}
-	return nil, fmt.Errorf("invalid trust pinning specified")
+	return t.tofusCheck, nil
 }
 
 func (t trustPinChecker) certsCheck(leafCert *x509.Certificate, intCerts []*x509.Certificate) bool {
