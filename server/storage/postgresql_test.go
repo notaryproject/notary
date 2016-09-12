@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/notary"
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/require"
@@ -23,7 +24,7 @@ func init() {
 	}
 
 	for i := 0; i < 30; i++ {
-		gormDB, err := gorm.Open("postgres", dburl)
+		gormDB, err := gorm.Open(notary.PostgresBackend, dburl)
 		if err == nil {
 			err := gormDB.DB().Ping()
 			if err == nil {
@@ -38,14 +39,14 @@ func init() {
 
 	sqldbSetup = func(t *testing.T) (*SQLStorage, func()) {
 		var cleanup1 = func() {
-			gormDB, err := gorm.Open("postgres", dburl)
+			gormDB, err := gorm.Open(notary.PostgresBackend, dburl)
 			require.NoError(t, err)
 
 			// drop all tables, if they exist
 			gormDB.DropTable(&TUFFile{})
 		}
 		cleanup1()
-		dbStore := SetupSQLDB(t, "postgres", dburl)
+		dbStore := SetupSQLDB(t, notary.PostgresBackend, dburl)
 		return dbStore, func() {
 			dbStore.DB.Close()
 			cleanup1()
