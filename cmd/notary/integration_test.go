@@ -1390,7 +1390,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestPurge(t *testing.T) {
+func TestPurgeSingleKey(t *testing.T) {
 	setUp(t)
 
 	tempDir := tempDirWithConfig(t, "{}")
@@ -1399,67 +1399,62 @@ func TestPurge(t *testing.T) {
 	server := setupServer()
 	defer server.Close()
 
-	startTime := time.Now()
-	endTime := startTime.AddDate(10, 0, 0)
-
 	// Setup certificates
 	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
-	privKey, err := utils.GenerateECDSAKey(rand.Reader)
-	require.NoError(t, err)
-	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
-	require.NoError(t, err)
+
+	cert, _, keyID := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
 	_, err = tempFile.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
-	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
-	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
-	keyID, err := utils.CanonicalKeyID(parsedPubKey)
+
+	// Setup another certificate
+	tempFile2, err := ioutil.TempFile("", "pemfile2")
 	require.NoError(t, err)
 
-	delgName := "targets/delegation"
+	cert2, _, keyID2 := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
+	_, err = tempFile2.Write(utils.CertToPEM(cert2))
+	require.NoError(t, err)
+	tempFile2.Close()
+	defer os.Remove(tempFile2.Name())
+
+	delgName := "targets/delegation1"
+	delgName2 := "targets/delegation2"
 
 	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun")
-	require.NoError(t, err)
-
-	_, err = runCommand(t, tempDir, "delegation", "add", "gun", delgName, tempFile.Name(), "--all-paths")
 	require.NoError(t, err)
 
 	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
 	require.NoError(t, err)
 
-	// remove targets key and ensure we fail to publish
-	out, err := runCommand(t, tempDir, "key", "list")
+	// Add two delegations with two keys
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", delgName, tempFile.Name(), tempFile2.Name(), "--all-paths")
 	require.NoError(t, err)
-	lines := splitLines(out)
-	if len(lines) == 1 && lines[0] == "No signing keys found." {
-		t.Fail()
-	}
-	var targetsKeyID string
-	for _, line := range lines[2:] {
-		parts := strings.Fields(line)
-		if strings.TrimSpace(parts[0]) == data.CanonicalTargetsRole {
-			targetsKeyID = strings.TrimSpace(parts[2])
-			break
-		}
-	}
-
-	if targetsKeyID == "" {
-		t.Fail()
-	}
-
-	err = os.Remove(filepath.Join(tempDir, notary.PrivDir, notary.NonRootKeysSubdir, "gun", targetsKeyID+".key"))
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", delgName2, tempFile.Name(), tempFile2.Name(), "--all-paths")
 	require.NoError(t, err)
+
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	out, err := runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, out, delgName)
+	require.Contains(t, out, delgName2)
+	require.Contains(t, out, keyID)
+	require.Contains(t, out, keyID2)
 
 	// auto-publish doesn't error because purge only updates the roles we have signing keys for
 	_, err = runCommand(t, tempDir, "delegation", "purge", "-s", server.URL, "-p", "gun", "--key", keyID)
 	require.NoError(t, err)
 
-	// check the delegation wasn't removed
+	// check the delegations weren't removed, and that the key we purged isn't present
 	out, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
 	require.NoError(t, err)
+	require.NotContains(t, out, keyID)
 	require.Contains(t, out, delgName)
+	require.Contains(t, out, delgName2)
+	require.Contains(t, out, keyID2)
 }
 
 // Initialize repo and test witnessing. The following steps are performed:
