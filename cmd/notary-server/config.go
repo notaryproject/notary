@@ -100,7 +100,7 @@ func getStore(configuration *viper.Viper, hRegister healthRegister, doBootstrap 
 			return nil, fmt.Errorf("Error starting %s driver: %s", backend, err.Error())
 		}
 		store = *storage.NewTUFMetaStorage(s)
-		hRegister("DB operational", time.Minute, s.CheckHealth)
+		hRegister("DB operational", 10*time.Second, s.CheckHealth)
 	case notary.RethinkDBBackend:
 		var sess *gorethink.Session
 		storeConfig, err := utils.ParseRethinkDBStorage(configuration)
@@ -122,7 +122,7 @@ func getStore(configuration *viper.Viper, hRegister healthRegister, doBootstrap 
 		}
 		s := storage.NewRethinkDBStorage(storeConfig.DBName, storeConfig.Username, storeConfig.Password, sess)
 		store = *storage.NewTUFMetaStorage(s)
-		hRegister("DB operational", time.Minute, s.CheckHealth)
+		hRegister("DB operational", 10*time.Second, s.CheckHealth)
 	default:
 		return nil, fmt.Errorf("%s is not a supported storage backend", backend)
 	}
@@ -181,16 +181,13 @@ func getTrustService(configuration *viper.Viper, sFactory signerFactory,
 	duration := 10 * time.Second
 	hRegister(
 		"Trust operational",
-		// If the trust service fails, the server is degraded but not
-		// exactly unhealthy, so always return healthy and just log an
-		// error.
 		duration,
 		func() error {
 			err := notarySigner.CheckHealth(duration, notary.HealthCheckOverall)
 			if err != nil {
 				logrus.Error("Trust not fully operational: ", err.Error())
 			}
-			return nil
+			return err
 		},
 	)
 	return notarySigner, keyAlgo, nil
