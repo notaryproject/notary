@@ -315,21 +315,22 @@ def wait_for_server(server, timeout_in_seconds):
     if server is None:
         server = "https://notary-server:4443"
         command = ["curl", "--cacert", os.path.join(reporoot(), "fixtures", "root-ca.crt"),
-                   server]
+                   server + "/_notary_server/health"]
 
     start = time()
-    succeeded = False
+    succeeded = 0
     while time() <= start + timeout_in_seconds:
         proc = Popen(command, stderr=PIPE, stdin=PIPE)
         proc.communicate()
         if proc.poll():
-            sleep(1)
+            sleep(11)
             continue
         else:
-            succeeded = True
-            break
+            succeeded += 1
+            if succeeded > 1:
+                break
 
-    if not succeeded:
+    if succeeded < 2:
         raise Exception(
             "Could not connect to {0} after {2} seconds.".format(server, timeout_in_seconds))
 
