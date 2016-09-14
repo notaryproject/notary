@@ -1000,7 +1000,14 @@ func (r *NotaryRepository) DeleteTrustData(deleteRemote bool) error {
 	if err := r.fileStore.RemoveAll(); err != nil {
 		return fmt.Errorf("error clearing TUF repo data: %v", err)
 	}
-	r.tufRepo = tuf.NewRepo(nil)
+	// Clear the local changelist for the repo, in case there were staged changes on disk
+	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
+	if err != nil {
+		return fmt.Errorf("error retrieving changelist to clear TUF repo changelist data: %v", err)
+	}
+	if err := cl.Clear(""); err != nil {
+		return fmt.Errorf("error clearing TUF repo changelist data: %v", err)
+	}
 
 	// Note that this will require admin permission in this NotaryRepository's roundtripper
 	if deleteRemote {
