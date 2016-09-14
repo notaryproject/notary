@@ -144,7 +144,7 @@ $ notary -s https://notary.docker.io -d ~/.docker/trust  publish docker.io/libra
 
 Note that each row in the status has a number associated with it, found in the first
 column. This number can be used to remove individual changes from the changelist if
-they are no longer desired. This is done using the `--unstage` flag:
+they are no longer desired. This is done using the `reset` command and its `--unstage` flag:
 
 ```
 $ notary -d ~/.docker/trust status docker.io/library/alpine 
@@ -154,8 +154,7 @@ Unpublished changes for docker.io/library/alpine:
 \-  ------    -----     ----        ----
 0  delete    targets   target      2.6
 1  create    targets   target      3.0
-$ notary -d ~/.docker/trust status docker.io/library/alpine --unstage 0
-$ notary -d ~/.docker/trust status docker.io/library/alpine
+$ notary -d ~/.docker/trust reset docker.io/library/alpine --unstage 0
 Unpublished changes for docker.io/library/alpine:
 
 \#  ACTION    SCOPE     TYPE        PATH
@@ -165,12 +164,12 @@ Unpublished changes for docker.io/library/alpine:
 
 Pay close attention to how the indices are updated as changes are removed. You may
 pass multiple `--unstage` flags with multiple indices in a single invocation of the 
-`status` subcommand and they will all be handled correctly within that invocation. Between
+`reset` subcommand and they will all be handled correctly within that invocation. Between
 invocations however, you should list the changes again to check which indices you want
 to remove.
 
-It is also possible to completely clear all pending changes by passing the `--reset`
-to the `status` subcommand. This deletes all pending changes for the specified GUN.
+It is also possible to completely clear all pending changes by not passing any flags
+to the `reset` subcommand. This deletes all pending changes for the specified GUN.
 
 ## Configure the client
 
