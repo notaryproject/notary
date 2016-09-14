@@ -332,7 +332,7 @@ def wait_for_server(server, timeout_in_seconds):
 
     if succeeded < 2:
         raise Exception(
-            "Could not connect to {0} after {2} seconds.".format(server, timeout_in_seconds))
+            "Could not connect to {0} after {1} seconds.".format(server, timeout_in_seconds))
 
 def run():
     """
@@ -357,7 +357,7 @@ def run():
         password = getpass("password to server for user {0}: ".format(username))
         username_passwd = (username, password)
 
-    wait_for_server(server, 30)
+    wait_for_server(server, 120)
 
     Tester(repo_name, Client(server, username_passwd)).run()
 
