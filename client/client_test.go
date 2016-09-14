@@ -3387,6 +3387,10 @@ func TestDeleteRepo(t *testing.T) {
 	// Assert the changelist is cleared of staged changes
 	require.Len(t, cl.List(), 0)
 
+	// Check that the tuf/<GUN> directory itself is gone
+	_, err = os.Stat(repo.tufRepoPath)
+	require.Error(t, err)
+
 	// Assert keys for this repo exist locally
 	requireRepoHasExpectedKeys(t, repo, rootKeyID, true)
 }
@@ -3447,6 +3451,10 @@ func TestDeleteRemoteRepo(t *testing.T) {
 	// Assert the changelist is cleared of staged changes
 	require.Len(t, repoCl.List(), 0)
 
+	// Check that the tuf/<GUN> directory itself is gone
+	_, err = os.Stat(repo.tufRepoPath)
+	require.Error(t, err)
+
 	// Assert keys for this repo still exist locally
 	requireRepoHasExpectedKeys(t, repo, rootKeyID, true)
 
@@ -3495,38 +3503,6 @@ func TestDeleteRemoteRepo(t *testing.T) {
 	// Try deleting again with an invalid server URL
 	repo.baseURL = "invalid"
 	require.Error(t, repo.DeleteTrustData(true))
-}
-
-type brokenRemoveFilestore struct {
-	store.MetadataStore
-}
-
-func (s *brokenRemoveFilestore) RemoveAll() error {
-	return fmt.Errorf("can't remove from this broken filestore")
-}
-
-// TestDeleteRepoBadFilestore tests that we properly error when trying to remove against a faulty filestore
-func TestDeleteRepoBadFilestore(t *testing.T) {
-	gun := "docker.com/notary"
-
-	ts, _, _ := simpleTestServer(t)
-	defer ts.Close()
-
-	repo, rootKeyID := initializeRepo(t, data.ECDSAKey, gun, ts.URL, false)
-	defer os.RemoveAll(repo.baseDir)
-
-	// Assert initialization was successful before we delete
-	requireRepoHasExpectedKeys(t, repo, rootKeyID, true)
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalRootRole, true)
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, true)
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, true)
-
-	// Make the filestore faulty on remove
-	repo.fileStore = &brokenRemoveFilestore{repo.fileStore}
-
-	// Delete all local trust data for repo, require an error on the filestore removal
-	err := repo.DeleteTrustData(false)
-	require.Error(t, err)
 }
 
 // Test that we get a correct list of roles with keys and signatures
