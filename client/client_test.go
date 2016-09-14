@@ -3366,8 +3366,16 @@ func TestDeleteRepo(t *testing.T) {
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, true)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, true)
 
+	// Stage a change on the changelist
+	addTarget(t, repo, "someTarget", "../fixtures/intermediate-ca.crt", data.CanonicalTargetsRole)
+	// load the changelist for this repo and check that we have one staged change
+	cl, err := changelist.NewFileChangelist(
+		filepath.Join(repo.baseDir, "tuf", filepath.FromSlash(repo.gun), "changelist"))
+	require.NoError(t, err, "could not open changelist")
+	require.Len(t, cl.List(), 1)
+
 	// Delete all local trust data for repo
-	err := repo.DeleteTrustData(false)
+	err = repo.DeleteTrustData(false)
 	require.NoError(t, err)
 
 	// Assert no metadata for this repo exists locally
@@ -3375,6 +3383,9 @@ func TestDeleteRepo(t *testing.T) {
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, false)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, false)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTimestampRole, false)
+
+	// Assert the changelist is cleared of staged changes
+	require.Len(t, cl.List(), 0)
 
 	// Assert keys for this repo exist locally
 	requireRepoHasExpectedKeys(t, repo, rootKeyID, true)
@@ -3393,6 +3404,14 @@ func TestDeleteRemoteRepo(t *testing.T) {
 
 	require.NoError(t, repo.Publish())
 
+	// Stage a change on this repo's changelist
+	addTarget(t, repo, "someTarget", "../fixtures/intermediate-ca.crt", data.CanonicalTargetsRole)
+	// load the changelist for this repo and check that we have one staged change
+	repoCl, err := changelist.NewFileChangelist(
+		filepath.Join(repo.baseDir, "tuf", filepath.FromSlash(repo.gun), "changelist"))
+	require.NoError(t, err, "could not open changelist")
+	require.Len(t, repoCl.List(), 1)
+
 	// Create another repo to ensure it stays intact
 	livingGun := "stayingAlive"
 	longLivingRepo, _ := initializeRepo(t, data.ECDSAKey, livingGun, ts.URL, false)
@@ -3400,14 +3419,23 @@ func TestDeleteRemoteRepo(t *testing.T) {
 
 	require.NoError(t, longLivingRepo.Publish())
 
+	// Stage a change on the long living repo
+	addTarget(t, longLivingRepo, "someLivingTarget", "../fixtures/intermediate-ca.crt", data.CanonicalTargetsRole)
+	// load the changelist for this repo and check that we have one staged change
+	longLivingCl, err := changelist.NewFileChangelist(
+		filepath.Join(longLivingRepo.baseDir, "tuf", filepath.FromSlash(longLivingRepo.gun), "changelist"))
+	require.NoError(t, err, "could not open changelist")
+	require.Len(t, longLivingCl.List(), 1)
+
 	// Assert initialization was successful before we delete
 	requireRepoHasExpectedKeys(t, repo, rootKeyID, true)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalRootRole, true)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, true)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, true)
+	require.Len(t, repoCl.List(), 1)
 
 	// Delete all local and remote trust data for one repo
-	err := repo.DeleteTrustData(true)
+	err = repo.DeleteTrustData(true)
 	require.NoError(t, err)
 
 	// Assert no metadata for that repo exists locally
@@ -3415,6 +3443,9 @@ func TestDeleteRemoteRepo(t *testing.T) {
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, false)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, false)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTimestampRole, false)
+
+	// Assert the changelist is cleared of staged changes
+	require.Len(t, repoCl.List(), 0)
 
 	// Assert keys for this repo still exist locally
 	requireRepoHasExpectedKeys(t, repo, rootKeyID, true)
@@ -3439,10 +3470,13 @@ func TestDeleteRemoteRepo(t *testing.T) {
 	require.IsType(t, store.ErrMetaNotFound{}, err)
 	require.Nil(t, meta)
 
-	// Check that the other repo was unaffected
+	// Check that the other repo was unaffected: first check local metadata and changelist
 	requireRepoHasExpectedMetadata(t, longLivingRepo, data.CanonicalRootRole, true)
 	requireRepoHasExpectedMetadata(t, longLivingRepo, data.CanonicalTargetsRole, true)
 	requireRepoHasExpectedMetadata(t, longLivingRepo, data.CanonicalSnapshotRole, true)
+	require.Len(t, longLivingCl.List(), 1)
+
+	// Check that the other repo's remote data is unaffected
 	remoteStore, err = getRemoteStore(longLivingRepo.baseURL, longLivingRepo.gun, longLivingRepo.roundTrip)
 	require.NoError(t, err)
 	meta, err = remoteStore.GetSized(data.CanonicalRootRole, store.NoSizeLimit)
