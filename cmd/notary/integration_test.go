@@ -1605,7 +1605,7 @@ func TestWitness(t *testing.T) {
 	// 12. check non-targets base roles all fail
 	for _, role := range []string{data.CanonicalRootRole, data.CanonicalSnapshotRole, data.CanonicalTimestampRole} {
 		// clear any pending changes to ensure errors are only related to the specific role we're trying to witness
-		_, err = runCommand(t, tempDir, "reset", "gun")
+		_, err = runCommand(t, tempDir, "reset", "gun", "--all")
 		require.NoError(t, err)
 
 		_, err = runCommand(t, tempDir, "witness", "gun", role)
@@ -1618,7 +1618,7 @@ func TestWitness(t *testing.T) {
 	// 13. test auto-publish functionality (just for witness)
 
 	// purge the old staged witness
-	_, err = runCommand(t, tempDir, "reset", "gun")
+	_, err = runCommand(t, tempDir, "reset", "gun", "--all")
 	require.NoError(t, err)
 
 	// remove key2 and add back key1

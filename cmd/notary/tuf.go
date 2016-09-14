@@ -116,6 +116,7 @@ type tufCommander struct {
 	output string
 	quiet  bool
 
+	resetAll          bool
 	deleteIdx         []int
 	archiveChangelist string
 
@@ -133,7 +134,8 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmd.AddCommand(cmdTUFStatusTemplate.ToCommand(t.tufStatus))
 
 	cmdReset := cmdTUFResetTemplate.ToCommand(t.tufReset)
-	cmdReset.Flags().IntSliceVarP(&t.deleteIdx, "unstage", "u", nil, "Numbers of specific changes to exclusively delete, as shown in status list")
+	cmdReset.Flags().IntSliceVarP(&t.deleteIdx, "number", "n", nil, "Numbers of specific changes to exclusively reset, as shown in status list")
+	cmdReset.Flags().BoolVar(&t.resetAll, "all", false, "Reset all changes shown in the status list")
 	cmd.AddCommand(cmdReset)
 
 	cmd.AddCommand(cmdTUFPublishTemplate.ToCommand(t.tufPublish))
@@ -589,6 +591,10 @@ func (t *tufCommander) tufReset(cmd *cobra.Command, args []string) error {
 		cmd.Usage()
 		return fmt.Errorf("Must specify a GUN")
 	}
+	if !t.resetAll && len(t.deleteIdx) < 1 {
+		cmd.Usage()
+		return fmt.Errorf("Must specify changes to reset with -n or the --all flag")
+	}
 
 	config, err := t.configGetter()
 	if err != nil {
@@ -612,11 +618,10 @@ func (t *tufCommander) tufReset(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-
-	if len(t.deleteIdx) > 0 {
-		return cl.Remove(t.deleteIdx)
+	if t.resetAll {
+		return cl.Clear(t.archiveChangelist)
 	}
-	return cl.Clear(t.archiveChangelist)
+	return cl.Remove(t.deleteIdx)
 }
 
 func (t *tufCommander) tufPublish(cmd *cobra.Command, args []string) error {
