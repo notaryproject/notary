@@ -137,7 +137,8 @@ func TestStatusUnstageAndReset(t *testing.T) {
 	}
 
 	// run a reset with an empty changelist and make sure it succeeds
-	err := tc.tufStatus(&cobra.Command{}, []string{"gun"})
+	tc.resetAll = true
+	err := tc.tufReset(&cobra.Command{}, []string{"gun"})
 	require.NoError(t, err)
 
 	// add some targets
@@ -161,7 +162,7 @@ func TestStatusUnstageAndReset(t *testing.T) {
 	require.Contains(t, out, "test3")
 	require.Contains(t, out, "test4")
 
-	_, err = runCommand(t, tempBaseDir, "reset", "gun", "--unstage", "-1,1,3,10")
+	_, err = runCommand(t, tempBaseDir, "reset", "gun", "-n", "-1,1,3,10")
 	require.NoError(t, err)
 
 	out, err = runCommand(t, tempBaseDir, "status", "gun")
@@ -171,7 +172,7 @@ func TestStatusUnstageAndReset(t *testing.T) {
 	require.Contains(t, out, "test3")
 	require.NotContains(t, out, "test4")
 
-	_, err = runCommand(t, tempBaseDir, "reset", "gun")
+	_, err = runCommand(t, tempBaseDir, "reset", "gun", "--all")
 	require.NoError(t, err)
 
 	out, err = runCommand(t, tempBaseDir, "status", "gun")
@@ -204,6 +205,7 @@ func TestGetTrustPinningErrors(t *testing.T) {
 		},
 	}
 	require.Error(t, tc.tufStatus(&cobra.Command{}, []string{"gun"}))
+	tc.resetAll = true
 	require.Error(t, tc.tufReset(&cobra.Command{}, []string{"gun"}))
 	require.Error(t, tc.tufDeleteGUN(&cobra.Command{}, []string{"gun"}))
 	require.Error(t, tc.tufInit(&cobra.Command{}, []string{"gun"}))

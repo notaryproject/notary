@@ -76,10 +76,10 @@ You can view staged changes with `notary status` and unstage them with `notary r
 $ notary status <GUN>
 
 # Unstage a specific change
-$ notary reset <GUN> --unstage 0
+$ notary reset <GUN> -n 0
 
 # Alternatively, reset all changes
-$ notary reset <GUN>
+$ notary reset <GUN> --all
 ```
 
 When you're ready to publish your changes to the Notary server, run:
