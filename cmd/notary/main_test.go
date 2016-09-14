@@ -152,6 +152,7 @@ var exampleValidCommands = []string{
 	"init repo",
 	"list repo",
 	"status repo",
+	"reset repo",
 	"publish repo",
 	"add repo v1 somefile",
 	"addhash repo targetv1 --sha256 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 10",
