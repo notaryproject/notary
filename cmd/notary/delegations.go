@@ -124,7 +124,7 @@ func (d *delegationCommander) delegationPurgeKeys(cmd *cobra.Command, args []str
 		gun,
 		strings.Join(d.keyIDs, "\n\t- "),
 	)
-	return nil
+	return maybeAutoPublish(cmd, d.autoPublish, gun, config, d.retriever)
 }
 
 // delegationsList lists all the delegations for a particular GUN
@@ -167,7 +167,7 @@ func (d *delegationCommander) delegationsList(cmd *cobra.Command, args []string)
 	cmd.Println("")
 	prettyPrintRoles(delegationRoles, cmd.Out(), "delegations")
 	cmd.Println("")
-	return maybeAutoPublish(cmd, d.autoPublish, gun, config, d.retriever)
+	return nil
 }
 
 // delegationRemove removes a public key from a specific role in a GUN
