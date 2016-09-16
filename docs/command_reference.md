@@ -69,17 +69,17 @@ $ notary publish <GUN>
 The Notary CLI client stages changes before publishing them to the server.
 These changes are staged locally in files such that the client can request the latest updates from the notary server, attempt to apply the staged changes on top of the new updates (like a `git rebase`), and then finally publish if the changes are still valid.
 
-You can manage the changes that are staged by running:
+You can view staged changes with `notary status` and unstage them with `notary reset`:
 
 ```bash
 # Check what changes are staged
 $ notary status <GUN>
 
 # Unstage a specific change
-$ notary status <GUN> --unstage 0
+$ notary reset <GUN> -n 0
 
-# Alternatively, unstage all changes
-$ notary status <GUN> --reset
+# Alternatively, reset all changes
+$ notary reset <GUN> --all
 ```
 
 When you're ready to publish your changes to the Notary server, run:
