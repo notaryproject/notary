@@ -996,12 +996,10 @@ func (r *NotaryRepository) rootFileKeyChange(cl changelist.Changelist, role, act
 // DeleteTrustData removes the trust data stored for this repo in the TUF cache on the client side
 // Note that we will not delete any private key material from local storage
 func (r *NotaryRepository) DeleteTrustData(deleteRemote bool) error {
-	// Clear local TUF files and cache
-	if err := r.fileStore.RemoveAll(); err != nil {
+	// Remove the tufRepoPath directory, which includes local TUF metadata files and changelist information
+	if err := os.RemoveAll(r.tufRepoPath); err != nil {
 		return fmt.Errorf("error clearing TUF repo data: %v", err)
 	}
-	r.tufRepo = tuf.NewRepo(nil)
-
 	// Note that this will require admin permission in this NotaryRepository's roundtripper
 	if deleteRemote {
 		remote, err := getRemoteStore(r.baseURL, r.gun, r.roundTrip)
