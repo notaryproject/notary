@@ -10,4 +10,4 @@ cross
 .idea
 *.iml
 *.test
-coverage.out
+coverage*.txt
