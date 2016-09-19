@@ -986,7 +986,7 @@ func (r *NotaryRepository) rootFileKeyChange(cl changelist.Changelist, role, act
 	c := changelist.NewTUFChange(
 		action,
 		changelist.ScopeRoot,
-		changelist.TypeRootRole,
+		changelist.TypeBaseRole,
 		role,
 		metaJSON,
 	)
