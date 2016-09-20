@@ -18,4 +18,5 @@ weight=4
 * [Service Architecture](service_architecture.md)
 * [Running a Service](running_a_service.md)
 * [Configuration files](reference/index.md)
+* [Best Practices](best_practices.md)
 * [Changelog](changelog.md)
