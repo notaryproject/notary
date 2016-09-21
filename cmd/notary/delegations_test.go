@@ -85,6 +85,11 @@ func TestAddInvalidDelegationCert(t *testing.T) {
 	// Should error due to expired cert
 	err = commander.delegationAdd(commander.GetCommand(), []string{"gun", "targets/delegation", tempFile.Name(), "--paths", "path"})
 	require.Error(t, err)
+
+	// Should error due to bad path
+	err = commander.delegationAdd(commander.GetCommand(), []string{"gun", "targets/delegation", "nonexistent-pathing", "--paths", "path"})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "file for public key does not exist")
 }
 
 func TestAddInvalidShortPubkeyCert(t *testing.T) {
