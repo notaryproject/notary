@@ -3,7 +3,6 @@ package storage
 import (
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
 
@@ -23,7 +22,7 @@ func TestNewFilesystemStore(t *testing.T) {
 	_, err = NewFilesystemStore(testDir, "metadata", "json")
 	require.Nil(t, err, "Initializing FilesystemStore returned unexpected error: %v", err)
 
-	info, err := os.Stat(path.Join(testDir, "metadata"))
+	info, err := os.Stat(filepath.Join(testDir, "metadata"))
 	require.Nil(t, err, "Error attempting to stat metadata dir: %v", err)
 	require.NotNil(t, info, "Nil FileInfo from stat on metadata dir")
 	require.True(t, 0700&info.Mode() != 0, "Metadata directory is not writable")
@@ -43,7 +42,7 @@ func TestSet(t *testing.T) {
 	err = s.Set("testMeta", testContent)
 	require.Nil(t, err, "Set returned unexpected error: %v", err)
 
-	content, err := ioutil.ReadFile(path.Join(testDir, "metadata", "testMeta.json"))
+	content, err := ioutil.ReadFile(filepath.Join(testDir, "metadata", "testMeta.json"))
 	require.Nil(t, err, "Error reading file: %v", err)
 	require.Equal(t, testContent, content, "Content written to file was corrupted.")
 }
@@ -62,7 +61,7 @@ func TestSetWithNoParentDirectory(t *testing.T) {
 	err = s.Set("noexist/"+"testMeta", testContent)
 	require.Nil(t, err, "Set returned unexpected error: %v", err)
 
-	content, err := ioutil.ReadFile(path.Join(testDir, "metadata", "noexist/testMeta.json"))
+	content, err := ioutil.ReadFile(filepath.Join(testDir, "metadata", "noexist/testMeta.json"))
 	require.Nil(t, err, "Error reading file: %v", err)
 	require.Equal(t, testContent, content, "Content written to file was corrupted.")
 }
@@ -84,7 +83,7 @@ func TestSetRemovesExistingFileBeforeWriting(t *testing.T) {
 	err = s.Set("root", testContent)
 	require.NoError(t, err, "Set returned unexpected error: %v", err)
 
-	content, err := ioutil.ReadFile(path.Join(testDir, "metadata", "root.json"))
+	content, err := ioutil.ReadFile(filepath.Join(testDir, "metadata", "root.json"))
 	require.NoError(t, err, "Error reading file: %v", err)
 	require.Equal(t, testContent, content, "Content written to file was corrupted.")
 }
@@ -100,7 +99,7 @@ func TestGetSized(t *testing.T) {
 
 	testContent := []byte("test data")
 
-	ioutil.WriteFile(path.Join(testDir, "metadata", "testMeta.json"), testContent, 0600)
+	ioutil.WriteFile(filepath.Join(testDir, "metadata", "testMeta.json"), testContent, 0600)
 
 	content, err := s.GetSized("testMeta", int64(len(testContent)))
 	require.Nil(t, err, "GetSized returned unexpected error: %v", err)
@@ -155,7 +154,7 @@ func TestRemoveAll(t *testing.T) {
 	testContent := []byte("test data")
 
 	// Write some files in metadata and targets dirs
-	metaPath := path.Join(testDir, "metadata", "testMeta.json")
+	metaPath := filepath.Join(testDir, "metadata", "testMeta.json")
 	ioutil.WriteFile(metaPath, testContent, 0600)
 
 	// Remove all
