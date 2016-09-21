@@ -10,7 +10,7 @@ import (
 )
 
 func TestAdd(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("/tmp", "test")
+	tmpDir, err := ioutil.TempDir("", "test")
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -43,7 +43,7 @@ func TestAdd(t *testing.T) {
 
 }
 func TestErrorConditions(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("/tmp", "test")
+	tmpDir, err := ioutil.TempDir("", "test")
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -64,7 +64,7 @@ func TestErrorConditions(t *testing.T) {
 }
 
 func TestListOrder(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("/tmp", "test")
+	tmpDir, err := ioutil.TempDir("", "test")
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -98,7 +98,7 @@ func TestListOrder(t *testing.T) {
 }
 
 func TestFileChangeIterator(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("/tmp", "test")
+	tmpDir, err := ioutil.TempDir("", "test")
 	if err != nil {
 		t.Fatal(err.Error())
 	}

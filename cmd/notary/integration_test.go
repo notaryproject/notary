@@ -1336,7 +1336,7 @@ func TestClientKeyPassphraseChange(t *testing.T) {
 	defer server.Close()
 
 	target := "sdgkadga"
-	tempFile, err := ioutil.TempFile("/tmp", "targetfile")
+	tempFile, err := ioutil.TempFile("", "targetfile")
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
