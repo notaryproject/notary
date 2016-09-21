@@ -9,17 +9,19 @@ import (
 
 	"crypto/rand"
 	"fmt"
+	"strconv"
+
 	"github.com/docker/notary"
 	"github.com/stretchr/testify/require"
-	"strconv"
 )
 
-const testDir = "/tmp/testFilesystemStore/"
-
 func TestNewFilesystemStore(t *testing.T) {
-	_, err := NewFilesystemStore(testDir, "metadata", "json")
-	require.Nil(t, err, "Initializing FilesystemStore returned unexpected error: %v", err)
+	testDir, err := ioutil.TempDir("", "testdir")
+	require.NoError(t, err)
 	defer os.RemoveAll(testDir)
+
+	_, err = NewFilesystemStore(testDir, "metadata", "json")
+	require.Nil(t, err, "Initializing FilesystemStore returned unexpected error: %v", err)
 
 	info, err := os.Stat(path.Join(testDir, "metadata"))
 	require.Nil(t, err, "Error attempting to stat metadata dir: %v", err)
@@ -28,6 +30,10 @@ func TestNewFilesystemStore(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
+	testDir, err := ioutil.TempDir("", "testdir")
+	require.NoError(t, err)
+	defer os.RemoveAll(testDir)
+
 	s, err := NewFilesystemStore(testDir, "metadata", "json")
 	require.Nil(t, err, "Initializing FilesystemStore returned unexpected error: %v", err)
 	defer os.RemoveAll(testDir)
@@ -43,6 +49,10 @@ func TestSet(t *testing.T) {
 }
 
 func TestSetWithNoParentDirectory(t *testing.T) {
+	testDir, err := ioutil.TempDir("", "testdir")
+	require.NoError(t, err)
+	defer os.RemoveAll(testDir)
+
 	s, err := NewFilesystemStore(testDir, "metadata", "json")
 	require.Nil(t, err, "Initializing FilesystemStore returned unexpected error: %v", err)
 	defer os.RemoveAll(testDir)
@@ -59,6 +69,10 @@ func TestSetWithNoParentDirectory(t *testing.T) {
 
 // if something already existed there, remove it first and write a new file
 func TestSetRemovesExistingFileBeforeWriting(t *testing.T) {
+	testDir, err := ioutil.TempDir("", "testdir")
+	require.NoError(t, err)
+	defer os.RemoveAll(testDir)
+
 	s, err := NewFilesystemStore(testDir, "metadata", "json")
 	require.Nil(t, err, "Initializing FilesystemStore returned unexpected error: %v", err)
 	defer os.RemoveAll(testDir)
@@ -76,6 +90,10 @@ func TestSetRemovesExistingFileBeforeWriting(t *testing.T) {
 }
 
 func TestGetSized(t *testing.T) {
+	testDir, err := ioutil.TempDir("", "testdir")
+	require.NoError(t, err)
+	defer os.RemoveAll(testDir)
+
 	s, err := NewFilesystemStore(testDir, "metadata", "json")
 	require.Nil(t, err, "Initializing FilesystemStore returned unexpected error: %v", err)
 	defer os.RemoveAll(testDir)
@@ -102,6 +120,10 @@ func TestGetSized(t *testing.T) {
 }
 
 func TestGetSizedSet(t *testing.T) {
+	testDir, err := ioutil.TempDir("", "testdir")
+	require.NoError(t, err)
+	defer os.RemoveAll(testDir)
+
 	s, err := NewFilesystemStore(testDir, "metadata", "json")
 	require.NoError(t, err, "Initializing FilesystemStore returned unexpected error", err)
 	defer os.RemoveAll(testDir)
@@ -110,6 +132,10 @@ func TestGetSizedSet(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
+	testDir, err := ioutil.TempDir("", "testdir")
+	require.NoError(t, err)
+	defer os.RemoveAll(testDir)
+
 	s, err := NewFilesystemStore(testDir, "metadata", "json")
 	require.NoError(t, err, "Initializing FilesystemStore returned unexpected error", err)
 	defer os.RemoveAll(testDir)
@@ -118,6 +144,10 @@ func TestRemove(t *testing.T) {
 }
 
 func TestRemoveAll(t *testing.T) {
+	testDir, err := ioutil.TempDir("", "testdir")
+	require.NoError(t, err)
+	defer os.RemoveAll(testDir)
+
 	s, err := NewFilesystemStore(testDir, "metadata", "json")
 	require.Nil(t, err, "Initializing FilesystemStore returned unexpected error: %v", err)
 	defer os.RemoveAll(testDir)
