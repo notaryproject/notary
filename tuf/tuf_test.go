@@ -109,14 +109,18 @@ func writeRepo(t *testing.T, dir string, repo *Repo) {
 }
 
 func TestInitRepo(t *testing.T) {
+	testDir, err := ioutil.TempDir("", "testdir")
+	require.NoError(t, err)
+	defer os.RemoveAll(testDir)
+
 	ed25519 := signed.NewEd25519()
 	repo := initRepo(t, ed25519)
-	writeRepo(t, "/tmp/tufrepo", repo)
+	writeRepo(t, testDir, repo)
 	// after signing a new repo, there are only 4 roles: the 4 base roles
 	require.Len(t, repo.Root.Signed.Roles, 4)
 
 	// can't use getBaseRole because it's not a valid real role
-	_, err := repo.Root.BuildBaseRole("root.1")
+	_, err = repo.Root.BuildBaseRole("root.1")
 	require.Error(t, err)
 }
 
@@ -313,6 +317,7 @@ func TestUpdateDelegationsParentMissing(t *testing.T) {
 	repo := initRepo(t, ed25519)
 
 	testDeepKey, err := ed25519.Create("targets/test/deep", testGUN, data.ED25519Key)
+	require.NoError(t, err)
 	err = repo.UpdateDelegationKeys("targets/test/deep", []data.PublicKey{testDeepKey}, []string{}, 1)
 	require.Error(t, err)
 	require.IsType(t, data.ErrInvalidRole{}, err)
@@ -505,6 +510,7 @@ func TestDeleteDelegationsRoleNotExistBecauseNoParentMeta(t *testing.T) {
 	require.False(t, ok, "no targets file should be created for empty delegation")
 
 	delRole, err := data.NewRole("targets/test/a", 1, []string{testKey.ID()}, []string{"test"})
+	require.NoError(t, err)
 
 	err = repo.DeleteDelegation(delRole.Name)
 	require.NoError(t, err)

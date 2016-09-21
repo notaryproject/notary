@@ -14,12 +14,12 @@ import (
 func TestGenerateFileMetaDefault(t *testing.T) {
 	// default is sha512
 	r := bytes.NewReader([]byte("foo"))
-	meta, err := NewFileMeta(r, "sha512")
+	meta, err := NewFileMeta(r, notary.SHA512)
 	require.NoError(t, err, "Unexpected error.")
 	require.Equal(t, meta.Length, int64(3), "Meta did not have expected Length field value")
 	hashes := meta.Hashes
 	require.Len(t, hashes, 1, "Only expected one hash to be present")
-	hash, ok := hashes["sha512"]
+	hash, ok := hashes[notary.SHA512]
 	if !ok {
 		t.Fatal("missing sha512 hash")
 	}
@@ -28,14 +28,14 @@ func TestGenerateFileMetaDefault(t *testing.T) {
 
 func TestGenerateFileMetaExplicit(t *testing.T) {
 	r := bytes.NewReader([]byte("foo"))
-	meta, err := NewFileMeta(r, "sha256", "sha512")
+	meta, err := NewFileMeta(r, notary.SHA256, notary.SHA512)
 	require.NoError(t, err)
 	require.Equal(t, meta.Length, int64(3))
 	hashes := meta.Hashes
 	require.Len(t, hashes, 2)
 	for name, val := range map[string]string{
-		"sha256": "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
-		"sha512": "f7fbba6e0636f890e56fbbf3283e524c6fa3204ae298382d624741d0dc6638326e282c41be5e4254d8820772c5518a2c5a8c0c7f7eda19594a7eb539453e1ed7",
+		notary.SHA256: "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+		notary.SHA512: "f7fbba6e0636f890e56fbbf3283e524c6fa3204ae298382d624741d0dc6638326e282c41be5e4254d8820772c5518a2c5a8c0c7f7eda19594a7eb539453e1ed7",
 	} {
 		hash, ok := hashes[name]
 		if !ok {
@@ -99,7 +99,7 @@ func TestCheckHashes(t *testing.T) {
 	require.NoError(t, err)
 
 	only512 := make(Hashes)
-	only512["sha512"], err = hex.DecodeString("f2330f50d0f3ee56cf0d7f66aad8205e0cb9972c323208ffaa914ef7b3c240ae4774b5bbd1db2ce226ee967cfa9058173a853944f9b44e2e08abca385e2b7ed4")
+	only512[notary.SHA512], err = hex.DecodeString("f2330f50d0f3ee56cf0d7f66aad8205e0cb9972c323208ffaa914ef7b3c240ae4774b5bbd1db2ce226ee967cfa9058173a853944f9b44e2e08abca385e2b7ed4")
 	require.NoError(t, err)
 	err = CheckHashes(raw, "meta", only512)
 	require.NoError(t, err)
@@ -157,23 +157,23 @@ func TestCheckValidHashStructures(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "at least one supported hash needed")
 
-	hashes["sha256"], err = hex.DecodeString("766af0ef090a4f2307e49160fa242db6fb95f071ad81a198eeb7d770e61cd6d8")
+	hashes[notary.SHA256], err = hex.DecodeString("766af0ef090a4f2307e49160fa242db6fb95f071ad81a198eeb7d770e61cd6d8")
 	require.NoError(t, err)
 	err = CheckValidHashStructures(hashes)
 	require.NoError(t, err)
 
-	hashes["sha512"], err = hex.DecodeString("795d9e95db099464b6730844f28effddb010b0d5abae5d5892a6ee04deacb09c9e622f89e816458b5a1a81761278d7d3a6a7c269d9707eff8858b16c51de0315")
+	hashes[notary.SHA512], err = hex.DecodeString("795d9e95db099464b6730844f28effddb010b0d5abae5d5892a6ee04deacb09c9e622f89e816458b5a1a81761278d7d3a6a7c269d9707eff8858b16c51de0315")
 	require.NoError(t, err)
 	err = CheckValidHashStructures(hashes)
 	require.NoError(t, err)
 
 	// Also should be succeed since only check the length of the checksum.
-	hashes["sha256"], err = hex.DecodeString("01234567890a4f2307e49160fa242db6fb95f071ad81a198eeb7d770e61cd6d8")
+	hashes[notary.SHA256], err = hex.DecodeString("01234567890a4f2307e49160fa242db6fb95f071ad81a198eeb7d770e61cd6d8")
 	err = CheckValidHashStructures(hashes)
 	require.NoError(t, err)
 
 	// Should failed since the first '0' is missing.
-	hashes["sha256"], err = hex.DecodeString("1234567890a4f2307e49160fa242db6fb95f071ad81a198eeb7d770e61cd6d8")
+	hashes[notary.SHA256], err = hex.DecodeString("1234567890a4f2307e49160fa242db6fb95f071ad81a198eeb7d770e61cd6d8")
 	err = CheckValidHashStructures(hashes)
 	require.IsType(t, ErrInvalidChecksum{}, err)
 }
@@ -190,40 +190,48 @@ func TestCompareMultiHashes(t *testing.T) {
 	// Expected to pass even though the checksum of sha384 isn't a default "supported" hash algorithm valid,
 	// because we haven't provided a supported hash algorithm yet (ex: sha256) for the Hashes map to be considered valid
 	hashes1["sha384"], err = hex.DecodeString("64becc3c23843942b1040ffd4743d1368d988ddf046d17d448a6e199c02c3044b425a680112b399d4dbe9b35b7ccc989")
+	require.NoError(t, err)
 	hashes2["sha384"], err = hex.DecodeString("64becc3c23843942b1040ffd4743d1368d988ddf046d17d448a6e199c02c3044b425a680112b399d4dbe9b35b7ccc989")
+	require.NoError(t, err)
 	err = CompareMultiHashes(hashes1, hashes2)
 	require.Error(t, err)
 
 	// Now both have a matching sha256, so this will pass
-	hashes1["sha256"], err = hex.DecodeString("766af0ef090a4f2307e49160fa242db6fb95f071ad81a198eeb7d770e61cd6d8")
-	hashes2["sha256"], err = hex.DecodeString("766af0ef090a4f2307e49160fa242db6fb95f071ad81a198eeb7d770e61cd6d8")
+	hashes1[notary.SHA256], err = hex.DecodeString("766af0ef090a4f2307e49160fa242db6fb95f071ad81a198eeb7d770e61cd6d8")
+	require.NoError(t, err)
+	hashes2[notary.SHA256], err = hex.DecodeString("766af0ef090a4f2307e49160fa242db6fb95f071ad81a198eeb7d770e61cd6d8")
+	require.NoError(t, err)
 	err = CompareMultiHashes(hashes1, hashes2)
 	require.NoError(t, err)
 
 	// Because the sha384 algorithm isn't a "default hash algorithm", it's still found in the intersection of keys
 	// so this check will fail
 	hashes2["sha384"], err = hex.DecodeString(strings.Repeat("a", 96))
+	require.NoError(t, err)
 	err = CompareMultiHashes(hashes1, hashes2)
 	require.Error(t, err)
 	delete(hashes2, "sha384")
 
 	// only add a sha512 to hashes1, but comparison will still succeed because there's no mismatch and we have the sha256 match
-	hashes1["sha512"], err = hex.DecodeString("795d9e95db099464b6730844f28effddb010b0d5abae5d5892a6ee04deacb09c9e622f89e816458b5a1a81761278d7d3a6a7c269d9707eff8858b16c51de0315")
+	hashes1[notary.SHA512], err = hex.DecodeString("795d9e95db099464b6730844f28effddb010b0d5abae5d5892a6ee04deacb09c9e622f89e816458b5a1a81761278d7d3a6a7c269d9707eff8858b16c51de0315")
+	require.NoError(t, err)
 	err = CompareMultiHashes(hashes1, hashes2)
 	require.NoError(t, err)
 
 	// remove sha256 from hashes1, comparison will fail now because there are no matches
-	delete(hashes1, "sha256")
+	delete(hashes1, notary.SHA256)
 	err = CompareMultiHashes(hashes1, hashes2)
 	require.Error(t, err)
 
 	// add sha512 to hashes2, comparison will now pass because both have matching sha512s
-	hashes2["sha512"], err = hex.DecodeString("795d9e95db099464b6730844f28effddb010b0d5abae5d5892a6ee04deacb09c9e622f89e816458b5a1a81761278d7d3a6a7c269d9707eff8858b16c51de0315")
+	hashes2[notary.SHA512], err = hex.DecodeString("795d9e95db099464b6730844f28effddb010b0d5abae5d5892a6ee04deacb09c9e622f89e816458b5a1a81761278d7d3a6a7c269d9707eff8858b16c51de0315")
+	require.NoError(t, err)
 	err = CompareMultiHashes(hashes1, hashes2)
 	require.NoError(t, err)
 
 	// change the sha512 for hashes2, comparison will now fail
-	hashes2["sha512"], err = hex.DecodeString(strings.Repeat("a", notary.Sha512HexSize))
+	hashes2[notary.SHA512], err = hex.DecodeString(strings.Repeat("a", notary.Sha512HexSize))
+	require.NoError(t, err)
 	err = CompareMultiHashes(hashes1, hashes2)
 	require.Error(t, err)
 }

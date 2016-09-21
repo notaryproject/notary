@@ -35,12 +35,8 @@ func TestRootHandlerFactory(t *testing.T) {
 	defer ts.Close()
 
 	res, err := http.Get(ts.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.StatusCode != http.StatusOK {
-		t.Fatalf("Expected 200, received %d", res.StatusCode)
-	}
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, res.StatusCode)
 }
 
 func TestRootHandlerError(t *testing.T) {
@@ -51,13 +47,12 @@ func TestRootHandlerError(t *testing.T) {
 	defer ts.Close()
 
 	res, err := http.Get(ts.URL)
-	if res.StatusCode != http.StatusInternalServerError {
-		t.Fatalf("Expected 500, received %d", res.StatusCode)
-	}
+	require.NoError(t, err)
+	require.Equal(t, http.StatusInternalServerError, res.StatusCode)
+
 	content, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
+
+	require.NoError(t, err)
 	contentStr := strings.Trim(string(content), "\r\n\t ")
 	if strings.TrimSpace(contentStr) != `{"errors":[{"code":"UNKNOWN","message":"unknown error","detail":"Test Error"}]}` {
 		t.Fatalf("Error Body Incorrect: `%s`", content)

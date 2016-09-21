@@ -472,6 +472,7 @@ func (tr *Repo) PurgeDelegationKeys(role string, removeKeys []string) error {
 				logrus.Warnf("role %s has fewer keys than its threshold of %d; it will not be usable until keys are added to it", role.Name, role.Threshold)
 			}
 		}
+		tgt.Dirty = true
 		return nil
 	}
 	return tr.WalkTargets("", start, purgeKeys)

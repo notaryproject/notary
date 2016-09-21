@@ -12,6 +12,7 @@ import pwd
 import re
 import shutil
 import subprocess
+import tarfile
 from tempfile import mkdtemp
 from time import sleep, time
 import urllib
@@ -23,17 +24,13 @@ from urlparse import urljoin
 # binary name) for these if you do not want them downloaded, otherwise these
 # can be ignored.  Up to you to make sure you are running the correct daemon
 # version.
-DOCKERS = {
-    "1.8": "docker-1.8.3",
-    "1.9": "docker-1.9.1",
-    "1.10": "docker",
-}
+DOCKERS = {}
 
 # delete any of these if you want to specify the docker binaries yourself
 DOWNLOAD_DOCKERS = {
-    "1.8": ("https://get.docker.com", "docker-1.8.3"),
-    "1.9": ("https://get.docker.com", "docker-1.9.1"),
-    "1.10": ("https://get.docker.com", "docker-1.10.3")
+    "1.10": ("https://get.docker.com", "docker-1.10.3"),
+    "1.11": ("https://get.docker.com", "docker-1.11.2"),
+    "1.12": ("https://get.docker.com", "docker-1.12.0"),
 }
 
 # please replace with private registry if you want to test against a private
@@ -81,15 +78,40 @@ def download_docker(download_dir="/tmp"):
     downloadfile = urllib.URLopener()
     for version in DOWNLOAD_DOCKERS:
         domain, binary = DOWNLOAD_DOCKERS[version]
-        filename = os.path.join(download_dir, binary)
-        if not os.path.isfile(filename):
-            url = urljoin(
-                domain, "/".join(["builds", system, architecture, binary]))
-            print("Downloading", url)
-            downloadfile.retrieve(url, filename)
+        tarfilename = os.path.join(download_dir, binary+".tgz")
+        extractdir = os.path.join(download_dir, binary)
 
-        os.chmod(filename, 0755)
-        DOCKERS[version] = filename
+        DOCKERS[version] = os.path.join(extractdir, "docker")
+
+        # we already have that version
+        if os.path.isfile(os.path.join(extractdir, "docker")):
+            continue
+
+        if not os.path.isdir(extractdir):
+            os.makedirs(extractdir)
+
+        if not os.path.isfile(tarfilename):
+            url = urljoin(
+                # as of 1.10 docker downloads are tar-ed due to potentially containing containerd etc.
+                # note that for windows (which we don't currently support), it's a .zip file
+                domain, "/".join(["builds", system, architecture, binary+".tgz"]))
+            print("Downloading", url)
+            downloadfile.retrieve(url, tarfilename)
+
+        with tarfile.open(tarfilename, 'r:gz') as tf:
+            for member in tf.getmembers():
+                if not member.isfile():
+                    continue
+
+                archfile = tf.extractfile(member)
+                fname = os.path.join(extractdir, os.path.basename(member.name))
+                with open(fname, 'wb') as writefile:
+                    writefile.write(archfile.read())
+                os.chmod(fname, 0755)
+
+        if not os.path.isfile(DOCKERS[version]):
+            raise Exception("Extracted {0} to {1} but could not find {1}".format(tarfilename, extractdir, filename))
+
 
 def setup():
     """
@@ -249,7 +271,7 @@ def push(fout, docker_version, image, tag):
 
     # tag image with the docker version
     run_cmd(
-        "{0} tag -f alpine {1}:{2}".format(DOCKERS[docker_version], image, tag),
+        "{0} tag alpine {1}:{2}".format(DOCKERS[docker_version], image, tag),
         fout)
 
     # push!
@@ -260,7 +282,7 @@ def push(fout, docker_version, image, tag):
     size = _SIZE_REGEX.search(output).group(1)
 
     # sleep for 1s after pushing, just to let things propagate :)
-    time.sleep(1)
+    sleep(1)
 
     # list
     targets = notary_list(fout, image)

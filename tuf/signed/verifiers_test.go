@@ -297,6 +297,7 @@ func TestECDSAVerifierOtherCurves(t *testing.T) {
 
 	for _, curve := range curves {
 		ecdsaPrivKey, err := ecdsa.GenerateKey(curve, rand.Reader)
+		require.NoError(t, err)
 
 		// Get a DER-encoded representation of the PublicKey
 		ecdsaPubBytes, err := x509.MarshalPKIXPublicKey(&ecdsaPrivKey.PublicKey)

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -135,10 +136,9 @@ func TestStatusUnstageAndReset(t *testing.T) {
 		},
 	}
 
-	tc.reset = true
-
 	// run a reset with an empty changelist and make sure it succeeds
-	err := tc.tufStatus(&cobra.Command{}, []string{"gun"})
+	tc.resetAll = true
+	err := tc.tufReset(&cobra.Command{}, []string{"gun"})
 	require.NoError(t, err)
 
 	// add some targets
@@ -162,7 +162,8 @@ func TestStatusUnstageAndReset(t *testing.T) {
 	require.Contains(t, out, "test3")
 	require.Contains(t, out, "test4")
 
-	_, err = runCommand(t, tempBaseDir, "status", "gun", "--unstage", "-1,1,3,10")
+	_, err = runCommand(t, tempBaseDir, "reset", "gun", "-n", "-1,1,3,10")
+	require.NoError(t, err)
 
 	out, err = runCommand(t, tempBaseDir, "status", "gun")
 	require.NoError(t, err)
@@ -171,7 +172,7 @@ func TestStatusUnstageAndReset(t *testing.T) {
 	require.Contains(t, out, "test3")
 	require.NotContains(t, out, "test4")
 
-	_, err = runCommand(t, tempBaseDir, "status", "gun", "--reset")
+	_, err = runCommand(t, tempBaseDir, "reset", "gun", "--all")
 	require.NoError(t, err)
 
 	out, err = runCommand(t, tempBaseDir, "status", "gun")
@@ -181,4 +182,40 @@ func TestStatusUnstageAndReset(t *testing.T) {
 	require.NotContains(t, out, "test3")
 	require.NotContains(t, out, "test4")
 
+}
+
+func TestGetTrustPinningErrors(t *testing.T) {
+	setUp(t)
+	invalidTrustPinConfig := tempDirWithConfig(t, `{
+		"trust_pinning": {
+		    "certs": {
+		        "repo3": [60, "abc", [1, 2, 3]]
+		    }
+		 }
+	}`)
+	defer os.RemoveAll(invalidTrustPinConfig)
+
+	tc := &tufCommander{
+		// returns a nil pointer
+		configGetter: func() (*viper.Viper, error) {
+			v := viper.New()
+			v.SetConfigFile(filepath.Join(invalidTrustPinConfig, "config.json"))
+			v.ReadInConfig()
+			return v, nil
+		},
+	}
+	require.Error(t, tc.tufStatus(&cobra.Command{}, []string{"gun"}))
+	tc.resetAll = true
+	require.Error(t, tc.tufReset(&cobra.Command{}, []string{"gun"}))
+	require.Error(t, tc.tufDeleteGUN(&cobra.Command{}, []string{"gun"}))
+	require.Error(t, tc.tufInit(&cobra.Command{}, []string{"gun"}))
+	require.Error(t, tc.tufPublish(&cobra.Command{}, []string{"gun"}))
+	require.Error(t, tc.tufVerify(&cobra.Command{}, []string{"gun", "target", "file"}))
+	require.Error(t, tc.tufLookup(&cobra.Command{}, []string{"gun", "target"}))
+	require.Error(t, tc.tufList(&cobra.Command{}, []string{"gun"}))
+	require.Error(t, tc.tufAdd(&cobra.Command{}, []string{"gun", "target", "file"}))
+	require.Error(t, tc.tufRemove(&cobra.Command{}, []string{"gun", "target", "file"}))
+	require.Error(t, tc.tufWitness(&cobra.Command{}, []string{"gun", "targets/role"}))
+	tc.sha256 = "88b76b34ab83a9e4d5abe3697950fb73f940aab1aa5b534f80cf9de9708942be"
+	require.Error(t, tc.tufAddByHash(&cobra.Command{}, []string{"gun", "test1", "100"}))
 }

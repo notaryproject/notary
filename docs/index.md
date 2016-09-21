@@ -14,7 +14,9 @@ weight=4
 
 * [Getting Started](getting_started.md)
 * [Advanced Usage](advanced_usage.md)
+* [Command Reference](command_reference.md)
 * [Service Architecture](service_architecture.md)
 * [Running a Service](running_a_service.md)
 * [Configuration files](reference/index.md)
+* [Best Practices](best_practices.md)
 * [Changelog](changelog.md)

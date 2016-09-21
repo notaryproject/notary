@@ -19,6 +19,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 
+	"path/filepath"
+
 	"github.com/docker/notary"
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/cryptoservice"
@@ -30,7 +32,6 @@ import (
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
-	"path/filepath"
 )
 
 var ret = passphrase.ConstantRetriever("pass")
@@ -353,7 +354,7 @@ func TestRotateKeyRemoteServerManagesKey(t *testing.T) {
 	for _, role := range []string{data.CanonicalSnapshotRole, data.CanonicalTimestampRole} {
 		setUp(t)
 		// Temporary directory where test files will be created
-		tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+		tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 		defer os.RemoveAll(tempBaseDir)
 		require.NoError(t, err, "failed to create a temporary directory: %s", err)
 		gun := "docker.com/notary"
@@ -408,7 +409,7 @@ func TestRotateKeyRemoteServerManagesKey(t *testing.T) {
 func TestRotateKeyBothKeys(t *testing.T) {
 	setUp(t)
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	defer os.RemoveAll(tempBaseDir)
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
 	gun := "docker.com/notary"
@@ -467,7 +468,7 @@ func TestRotateKeyBothKeys(t *testing.T) {
 func TestRotateKeyRootIsInteractive(t *testing.T) {
 	setUp(t)
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	defer os.RemoveAll(tempBaseDir)
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
 	gun := "docker.com/notary"
@@ -539,10 +540,10 @@ func TestChangeKeyPassphraseNonexistentID(t *testing.T) {
 
 func TestExportKeys(t *testing.T) {
 	setUp(t)
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
-	output, err := ioutil.TempFile("/tmp", "notary-test-import-")
+	output, err := ioutil.TempFile("", "notary-test-import-")
 	require.NoError(t, err)
 	defer os.RemoveAll(output.Name())
 	k := &keyCommander{
@@ -569,6 +570,7 @@ func TestExportKeys(t *testing.T) {
 	require.NoError(t, err)
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	require.NoError(t, err)
 	err = fileStore.Set(filepath.Join(notary.NonRootKeysSubdir, "discworld/ankh"), bBytes)
 	require.NoError(t, err)
 	err = fileStore.Set(filepath.Join(notary.NonRootKeysSubdir, "discworld/morpork"), cBytes)
@@ -606,10 +608,10 @@ func TestExportKeys(t *testing.T) {
 
 func TestExportKeysByGUN(t *testing.T) {
 	setUp(t)
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
-	output, err := ioutil.TempFile("/tmp", "notary-test-import-")
+	output, err := ioutil.TempFile("", "notary-test-import-")
 	require.NoError(t, err)
 	defer os.RemoveAll(output.Name())
 	k := &keyCommander{
@@ -642,6 +644,7 @@ func TestExportKeysByGUN(t *testing.T) {
 	require.NoError(t, err)
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	require.NoError(t, err)
 	// we have to manually prepend the NonRootKeysSubdir because
 	// KeyStore would be expected to do this for us.
 	err = fileStore.Set(
@@ -686,10 +689,10 @@ func TestExportKeysByGUN(t *testing.T) {
 
 func TestExportKeysByID(t *testing.T) {
 	setUp(t)
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
-	output, err := ioutil.TempFile("/tmp", "notary-test-import-")
+	output, err := ioutil.TempFile("", "notary-test-import-")
 	require.NoError(t, err)
 	defer os.RemoveAll(output.Name())
 	k := &keyCommander{
@@ -719,9 +722,9 @@ func TestExportKeysByID(t *testing.T) {
 	bBytes := pem.EncodeToMemory(b)
 	b2Bytes := pem.EncodeToMemory(b2)
 	cBytes := pem.EncodeToMemory(c)
-	require.NoError(t, err)
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	require.NoError(t, err)
 	err = fileStore.Set("ankh/one", bBytes)
 	require.NoError(t, err)
 	err = fileStore.Set("ankh/two", b2Bytes)
@@ -747,10 +750,10 @@ func TestExportKeysByID(t *testing.T) {
 
 func TestExportKeysBadFlagCombo(t *testing.T) {
 	setUp(t)
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
-	output, err := ioutil.TempFile("/tmp", "notary-test-import-")
+	output, err := ioutil.TempFile("", "notary-test-import-")
 	require.NoError(t, err)
 	defer os.RemoveAll(output.Name())
 	k := &keyCommander{
@@ -770,21 +773,21 @@ func TestExportKeysBadFlagCombo(t *testing.T) {
 	require.Error(t, err)
 }
 
-func generateTempTestKeyFile(t *testing.T, role string) string {
+func TestImportKeysNonexistentFile(t *testing.T) {
 	setUp(t)
-	privKey, err := utils.GenerateECDSAKey(rand.Reader)
-	if err != nil {
-		return ""
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempBaseDir)
+	require.NoError(t, err)
+	k := &keyCommander{
+		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
+		configGetter: func() (*viper.Viper, error) {
+			v := viper.New()
+			v.SetDefault("trust_dir", tempBaseDir)
+			return v, nil
+		},
 	}
-	keyBytes, err := utils.KeyToPEM(privKey, role)
-	require.NoError(t, err)
 
-	tempPrivFile, err := ioutil.TempFile("/tmp", "privfile")
-	require.NoError(t, err)
-
-	// Write the private key to a file so we can import it
-	_, err = tempPrivFile.Write(keyBytes)
-	require.NoError(t, err)
-	tempPrivFile.Close()
-	return tempPrivFile.Name()
+	err = k.importKeys(&cobra.Command{}, []string{"Idontexist"})
+	require.Error(t, err)
 }

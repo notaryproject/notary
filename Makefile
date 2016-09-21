@@ -107,7 +107,7 @@ endif
 	@test -z "$$(go tool vet -printf=false . 2>&1 | grep -v vendor/ | tee /dev/stderr)"
 	# misspell - requires that the following be run first:
 	#    go get -u github.com/client9/misspell/cmd/misspell
-	@test -z "$$(find . -name '*' | grep -v vendor/ | grep -v bin/ | grep -v misc/ | grep -v .git/ | grep -v \.pdf | xargs misspell | tee /dev/stderr)"
+	@test -z "$$(find . -type f | grep -v vendor/ | grep -v bin/ | grep -v misc/ | grep -v .git/ | grep -v \.pdf | xargs misspell | tee /dev/stderr)"
 	# ineffassign - requires that the following be run first:
 	#    go get -u github.com/gordonklaus/ineffassign
 	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec ineffassign {} \; | tee /dev/stderr)"
@@ -126,7 +126,7 @@ test:
 	go test -tags "${NOTARY_BUILDTAGS}" $(TESTOPTS) $(PKGS)
 
 integration: TESTDB = mysql
-integration:
+integration: clean
 	buildscripts/integrationtest.sh $(TESTDB)
 
 testdb: TESTDB = mysql
@@ -192,8 +192,7 @@ shell: notary-dockerfile
 
 cross: notary-dockerfile
 	@rm -rf $(CURDIR)/cross
-	docker run --rm -v $(CURDIR)/cross:$(NOTARYDIR)/cross -e NOTARY_BUILDTAGS=$(NOTARY_BUILDTAGS) notary buildscripts/cross.sh $(GOOSES)
-
+	docker run --rm -v $(CURDIR)/cross:$(NOTARYDIR)/cross -e CTIMEVAR="${CTIMEVAR}" -e NOTARY_BUILDTAGS=$(NOTARY_BUILDTAGS) notary buildscripts/cross.sh $(GOOSES)
 
 clean:
 	@echo "+ $@"

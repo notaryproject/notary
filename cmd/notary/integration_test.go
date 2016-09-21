@@ -106,7 +106,7 @@ func TestInitWithRootKey(t *testing.T) {
 	// create encrypted root key
 	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	encryptedPEMPrivKey, err := utils.EncryptPrivateKey(privKey, data.CanonicalRootRole, testPassphrase)
+	encryptedPEMPrivKey, err := utils.EncryptPrivateKey(privKey, data.CanonicalRootRole, "", testPassphrase)
 	require.NoError(t, err)
 	encryptedPEMKeyFilename := filepath.Join(tempDir, "encrypted_key.key")
 	err = ioutil.WriteFile(encryptedPEMKeyFilename, encryptedPEMPrivKey, 0644)
@@ -154,7 +154,7 @@ func TestInitWithRootKey(t *testing.T) {
 	// instead of using a new retriever, we create a new key with a different pass
 	badPassPrivKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	badPassPEMPrivKey, err := utils.EncryptPrivateKey(badPassPrivKey, data.CanonicalRootRole, "bad_pass")
+	badPassPEMPrivKey, err := utils.EncryptPrivateKey(badPassPrivKey, data.CanonicalRootRole, "", "bad_pass")
 	require.NoError(t, err)
 	badPassPEMKeyFilename := filepath.Join(tempDir, "badpass_key.key")
 	err = ioutil.WriteFile(badPassPEMKeyFilename, badPassPEMPrivKey, 0644)
@@ -232,7 +232,7 @@ func TestClientTUFInteraction(t *testing.T) {
 	require.Contains(t, output, target)
 
 	// verify repo - empty file
-	output, err = runCommand(t, tempDir, "-s", server.URL, "verify", "gun", target)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "verify", "gun", target)
 	require.NoError(t, err)
 
 	// remove target
@@ -269,6 +269,7 @@ func TestClientDeleteTUFInteraction(t *testing.T) {
 	require.NoError(t, err)
 	cert, _, _ := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
 	_, err = certFile.Write(utils.CertToPEM(cert))
+	require.NoError(t, err)
 	defer os.Remove(certFile.Name())
 
 	var (
@@ -300,7 +301,7 @@ func TestClientDeleteTUFInteraction(t *testing.T) {
 	require.True(t, strings.Contains(string(output), target))
 
 	// add a delegation and publish
-	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", certFile.Name())
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", certFile.Name())
 	require.NoError(t, err)
 	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
 	require.NoError(t, err)
@@ -311,7 +312,7 @@ func TestClientDeleteTUFInteraction(t *testing.T) {
 	require.True(t, strings.Contains(string(output), "targets/delegation"))
 
 	// Delete the repo metadata locally, so no need for server URL
-	output, err = runCommand(t, tempDir, "delete", "gun")
+	_, err = runCommand(t, tempDir, "delete", "gun")
 	require.NoError(t, err)
 	assertLocalMetadataForGun(t, tempDir, "gun", false)
 
@@ -326,20 +327,20 @@ func TestClientDeleteTUFInteraction(t *testing.T) {
 	require.True(t, strings.Contains(string(output), "targets/delegation"))
 
 	// Trying to delete the repo with the remote flag fails if it's given a badly formed URL
-	output, err = runCommand(t, tempDir, "-s", "//invalidURLType", "delete", "gun", "--remote")
+	_, err = runCommand(t, tempDir, "-s", "//invalidURLType", "delete", "gun", "--remote")
 	require.Error(t, err)
 	// since the connection fails to parse the URL before we can delete anything, local data should exist
 	assertLocalMetadataForGun(t, tempDir, "gun", true)
 
 	// Trying to delete the repo with the remote flag fails if it's given a well-formed URL that doesn't point to a server
-	output, err = runCommand(t, tempDir, "-s", "https://invalid-server", "delete", "gun", "--remote")
+	_, err = runCommand(t, tempDir, "-s", "https://invalid-server", "delete", "gun", "--remote")
 	require.Error(t, err)
 	require.IsType(t, nstorage.ErrOffline{}, err)
 	// In this case, local notary metadata does not exist since local deletion operates first if we have a valid transport
 	assertLocalMetadataForGun(t, tempDir, "gun", false)
 
 	// Delete the repo remotely and locally, pointing to the correct server
-	output, err = runCommand(t, tempDir, "-s", server.URL, "delete", "gun", "--remote")
+	_, err = runCommand(t, tempDir, "-s", server.URL, "delete", "gun", "--remote")
 	require.NoError(t, err)
 	assertLocalMetadataForGun(t, tempDir, "gun", false)
 	_, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
@@ -347,7 +348,7 @@ func TestClientDeleteTUFInteraction(t *testing.T) {
 	require.IsType(t, client.ErrRepositoryNotExist{}, err)
 
 	// Silent success on extraneous deletes
-	output, err = runCommand(t, tempDir, "-s", server.URL, "delete", "gun", "--remote")
+	_, err = runCommand(t, tempDir, "-s", server.URL, "delete", "gun", "--remote")
 	require.NoError(t, err)
 	assertLocalMetadataForGun(t, tempDir, "gun", false)
 	_, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
@@ -756,11 +757,11 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	require.Contains(t, output, keyID2)
 
 	// Add a bunch of individual paths so we can test a delegation remove --all-paths
-	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--paths", "abcdef,123456")
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--paths", "abcdef,123456")
 	require.NoError(t, err)
 
 	// Add more individual paths so we can test a delegation remove --all-paths
-	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--paths", "banana/split,apple/crumble/pie,orange.peel,kiwi")
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--paths", "banana/split,apple/crumble/pie,orange.peel,kiwi")
 	require.NoError(t, err)
 
 	// publish repo
@@ -778,7 +779,7 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	require.Contains(t, output, "kiwi")
 
 	// Try adding "", and check that adding it with other paths clears out the others
-	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--paths", "\"\",grapefruit,pomegranate")
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--paths", "\"\",grapefruit,pomegranate")
 	require.NoError(t, err)
 
 	// publish repo
@@ -799,7 +800,7 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	require.NotContains(t, output, "pomegranate")
 
 	// Try removing just ""
-	output, err = runCommand(t, tempDir, "delegation", "remove", "gun", "targets/delegation", "--paths", "\"\"")
+	_, err = runCommand(t, tempDir, "delegation", "remove", "gun", "targets/delegation", "--paths", "\"\"")
 	require.NoError(t, err)
 
 	// publish repo
@@ -818,7 +819,7 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	require.NotContains(t, output, "\"\"")
 
 	// Remove --all-paths to clear out all paths from this delegation
-	output, err = runCommand(t, tempDir, "delegation", "remove", "gun", "targets/delegation", "--all-paths")
+	_, err = runCommand(t, tempDir, "delegation", "remove", "gun", "targets/delegation", "--all-paths")
 	require.NoError(t, err)
 
 	// publish repo
@@ -836,7 +837,7 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	require.NotContains(t, output, "kiwi")
 
 	// Check that we ignore other --paths if we pass in --all-paths on an add
-	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--all-paths", "--paths", "grapefruit,pomegranate")
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--all-paths", "--paths", "grapefruit,pomegranate")
 	require.NoError(t, err)
 
 	// publish repo
@@ -851,7 +852,7 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	require.NotContains(t, output, "pomegranate")
 
 	// Add those extra paths we ignored to set up the next test
-	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--paths", "grapefruit,pomegranate")
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/delegation", "--paths", "grapefruit,pomegranate")
 	require.NoError(t, err)
 
 	// publish repo
@@ -859,7 +860,7 @@ func TestClientDelegationsInteraction(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check that we ignore other --paths if we pass in --all-paths on a remove
-	output, err = runCommand(t, tempDir, "delegation", "remove", "gun", "targets/delegation", "--all-paths", "--paths", "pomegranate")
+	_, err = runCommand(t, tempDir, "delegation", "remove", "gun", "targets/delegation", "--all-paths", "--paths", "pomegranate")
 	require.NoError(t, err)
 
 	// publish repo
@@ -935,15 +936,11 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, output, "No delegations present in this repository.")
 
-	// publish repo
-	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
-	require.NoError(t, err)
-
 	// validate that we have all keys, including snapshot
 	assertNumKeys(t, tempDir, 1, 2, true)
 
 	// rotate the snapshot key to server
-	output, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", "snapshot", "-r")
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", "snapshot", "-r")
 	require.NoError(t, err)
 
 	// publish repo
@@ -986,7 +983,7 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, output, "No targets")
 
-	output, err = runCommand(t, tempDir, "-s", server.URL, "status", "gun")
+	_, err = runCommand(t, tempDir, "-s", server.URL, "status", "gun")
 	require.NoError(t, err)
 
 	// publish repo
@@ -1149,12 +1146,18 @@ func getUniqueKeys(t *testing.T, tempDir string) ([]string, []string) {
 			placeToGo map[string]bool
 			keyID     string
 		)
-		if strings.TrimSpace(parts[0]) == "root" {
+		if strings.TrimSpace(parts[0]) == data.CanonicalRootRole {
 			// no gun, so there are only 3 fields
 			placeToGo, keyID = rootMap, parts[1]
 		} else {
 			// gun comes between role and key ID
-			placeToGo, keyID = nonrootMap, parts[2]
+			if len(parts) == 3 {
+				// gun is empty as this may be a delegation key
+				placeToGo, keyID = nonrootMap, parts[1]
+			} else {
+				placeToGo, keyID = nonrootMap, parts[2]
+			}
+
 		}
 		// keys are 32-chars long (32 byte shasum, hex-encoded)
 		require.Len(t, keyID, 64)
@@ -1333,7 +1336,7 @@ func TestClientKeyPassphraseChange(t *testing.T) {
 	defer server.Close()
 
 	target := "sdgkadga"
-	tempFile, err := ioutil.TempFile("/tmp", "targetfile")
+	tempFile, err := ioutil.TempFile("", "targetfile")
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
@@ -1387,7 +1390,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestPurge(t *testing.T) {
+func TestPurgeSingleKey(t *testing.T) {
 	setUp(t)
 
 	tempDir := tempDirWithConfig(t, "{}")
@@ -1396,69 +1399,62 @@ func TestPurge(t *testing.T) {
 	server := setupServer()
 	defer server.Close()
 
-	startTime := time.Now()
-	endTime := startTime.AddDate(10, 0, 0)
-
 	// Setup certificates
 	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
-	privKey, err := utils.GenerateECDSAKey(rand.Reader)
-	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
-	require.NoError(t, err)
+
+	cert, _, keyID := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
 	_, err = tempFile.Write(utils.CertToPEM(cert))
 	require.NoError(t, err)
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
-	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
-	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
-	keyID, err := utils.CanonicalKeyID(parsedPubKey)
+
+	// Setup another certificate
+	tempFile2, err := ioutil.TempFile("", "pemfile2")
 	require.NoError(t, err)
 
-	delgName := "targets/delegation"
+	cert2, _, keyID2 := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
+	_, err = tempFile2.Write(utils.CertToPEM(cert2))
+	require.NoError(t, err)
+	tempFile2.Close()
+	defer os.Remove(tempFile2.Name())
+
+	delgName := "targets/delegation1"
+	delgName2 := "targets/delegation2"
 
 	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun")
 	require.NoError(t, err)
 
-	_, err = runCommand(t, tempDir, "delegation", "add", "gun", delgName, tempFile.Name(), "--all-paths")
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// Add two delegations with two keys
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", delgName, tempFile.Name(), tempFile2.Name(), "--all-paths")
+	require.NoError(t, err)
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", delgName2, tempFile.Name(), tempFile2.Name(), "--all-paths")
 	require.NoError(t, err)
 
 	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
 	require.NoError(t, err)
 
-	// remove targets key and ensure we fail to publish
-	out, err := runCommand(t, tempDir, "key", "list")
-	require.NoError(t, err)
-	lines := splitLines(out)
-	if len(lines) == 1 && lines[0] == "No signing keys found." {
-		t.Fail()
-	}
-	var targetsKeyID string
-	for _, line := range lines[2:] {
-		parts := strings.Fields(line)
-		if strings.TrimSpace(parts[0]) == data.CanonicalTargetsRole {
-			targetsKeyID = strings.TrimSpace(parts[2])
-			break
-		}
-	}
-
-	if targetsKeyID == "" {
-		t.Fail()
-	}
-
-	err = os.Remove(filepath.Join(tempDir, notary.PrivDir, notary.NonRootKeysSubdir, "gun", targetsKeyID+".key"))
-	require.NoError(t, err)
-
-	_, err = runCommand(t, tempDir, "delegation", "purge", "gun", "--key", keyID)
-	require.NoError(t, err)
-
-	// publish doesn't error because purge only updates the roles we have signing keys for
-	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
-	require.NoError(t, err)
-
-	// check the delegation wasn't removed
-	out, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	out, err := runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
 	require.NoError(t, err)
 	require.Contains(t, out, delgName)
+	require.Contains(t, out, delgName2)
+	require.Contains(t, out, keyID)
+	require.Contains(t, out, keyID2)
+
+	// auto-publish doesn't error because purge only updates the roles we have signing keys for
+	_, err = runCommand(t, tempDir, "delegation", "purge", "-s", server.URL, "-p", "gun", "--key", keyID)
+	require.NoError(t, err)
+
+	// check the delegations weren't removed, and that the key we purged isn't present
+	out, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.NotContains(t, out, keyID)
+	require.Contains(t, out, delgName)
+	require.Contains(t, out, delgName2)
+	require.Contains(t, out, keyID2)
 }
 
 // Initialize repo and test witnessing. The following steps are performed:
@@ -1473,6 +1469,8 @@ func TestPurge(t *testing.T) {
 //   9. witness the delegation
 //  10. list targets and ensure target is visible again
 //  11. witness an invalid role and check for error on publish
+//  12. check non-targets base roles all fail
+//  13. test auto-publish functionality
 func TestWitness(t *testing.T) {
 	setUp(t)
 
@@ -1496,7 +1494,7 @@ func TestWitness(t *testing.T) {
 	tempFile2, err := ioutil.TempFile("", "pemfile2")
 	require.NoError(t, err)
 
-	cert2, privKey2, _ := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
+	cert2, privKey2, keyID2 := generateCertPrivKeyPair(t, "gun", data.ECDSAKey)
 	_, err = tempFile2.Write(utils.CertToPEM(cert2))
 	require.NoError(t, err)
 	tempFile2.Close()
@@ -1602,7 +1600,7 @@ func TestWitness(t *testing.T) {
 	// 12. check non-targets base roles all fail
 	for _, role := range []string{data.CanonicalRootRole, data.CanonicalSnapshotRole, data.CanonicalTimestampRole} {
 		// clear any pending changes to ensure errors are only related to the specific role we're trying to witness
-		_, err = runCommand(t, tempDir, "status", "gun", "--reset")
+		_, err = runCommand(t, tempDir, "reset", "gun", "--all")
 		require.NoError(t, err)
 
 		_, err = runCommand(t, tempDir, "witness", "gun", role)
@@ -1611,6 +1609,34 @@ func TestWitness(t *testing.T) {
 		_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
 		require.Error(t, err)
 	}
+
+	// 13. test auto-publish functionality (just for witness)
+
+	// purge the old staged witness
+	_, err = runCommand(t, tempDir, "reset", "gun", "--all")
+	require.NoError(t, err)
+
+	// remove key2 and add back key1
+	_, err = runCommand(t, tempDir, "delegation", "add", "gun", delgName, tempFile.Name(), "--all-paths")
+	require.NoError(t, err)
+	_, err = runCommand(t, tempDir, "delegation", "remove", "gun", delgName, keyID2)
+	require.NoError(t, err)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// the role now won't show its target because it's invalid
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.NotContains(t, output, targetName)
+	require.NotContains(t, output, targetHash)
+
+	// auto-publish with witness, check that the target is back
+	_, err = runCommand(t, tempDir, "-s", server.URL, "witness", "-p", "gun", delgName)
+	require.NoError(t, err)
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, targetName)
+	require.Contains(t, output, targetHash)
 }
 
 func generateCertPrivKeyPair(t *testing.T, gun, keyAlgorithm string) (*x509.Certificate, data.PrivateKey, string) {
@@ -1652,7 +1678,6 @@ func TestClientTUFInitWithAutoPublish(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	var (
-		output       = ""
 		gun          = "MistsOfPandaria"
 		gunNoPublish = "Legion"
 
@@ -1673,7 +1698,7 @@ func TestClientTUFInitWithAutoPublish(t *testing.T) {
 	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "-p", gun)
 	require.NoError(t, err)
 	// list repo - expect empty list
-	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
+	output, err := runCommand(t, tempDir, "-s", server.URL, "list", gun)
 	require.NoError(t, err)
 	require.Equal(t, output, emptyList)
 
@@ -1704,7 +1729,6 @@ func TestClientTUFAddWithAutoPublish(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	var (
-		output          = ""
 		target          = "ShangXi"
 		target2         = "ChenStormstout"
 		targetNoPublish = "Shen-zinSu"
@@ -1722,7 +1746,7 @@ func TestClientTUFAddWithAutoPublish(t *testing.T) {
 	require.Equal(t, err, nstorage.ErrOffline{})
 	// check status, since we only fail the auto publishment in the previous step,
 	// the change should still exists.
-	output, err = runCommand(t, tempDir, "status", gun)
+	output, err := runCommand(t, tempDir, "status", gun)
 	require.NoError(t, err)
 	require.Contains(t, output, target)
 
@@ -1776,7 +1800,6 @@ func TestClientTUFRemoveWithAutoPublish(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	var (
-		output              = ""
 		target              = "ShangXi"
 		targetWillBeRemoved = "Shen-zinSu"
 		gun                 = "MistsOfPandaria"
@@ -1795,7 +1818,7 @@ func TestClientTUFRemoveWithAutoPublish(t *testing.T) {
 	_, err = runCommand(t, tempDir, "remove", "-s", server.URL, "-p", gun, targetWillBeRemoved, tempFile.Name())
 	require.NoError(t, err)
 	// list repo - expect target
-	output, err = runCommand(t, tempDir, "-s", server.URL, "list", gun)
+	output, err := runCommand(t, tempDir, "-s", server.URL, "list", gun)
 	require.NoError(t, err)
 	require.Contains(t, output, target)
 	require.False(t, strings.Contains(output, targetWillBeRemoved))
@@ -1836,6 +1859,7 @@ func TestClientDelegationAddWithAutoPublish(t *testing.T) {
 	require.NoError(t, err)
 
 	privKey, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
 	startTime := time.Now()
 	endTime := startTime.AddDate(10, 0, 0)
 	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
@@ -1865,7 +1889,7 @@ func TestClientDelegationAddWithAutoPublish(t *testing.T) {
 	require.Contains(t, output, "No delegations present in this repository.")
 
 	// add new valid delegation with single new cert, and no path
-	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile.Name())
+	_, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile.Name())
 	require.NoError(t, err)
 
 	// check status - no changelist
@@ -1894,6 +1918,7 @@ func TestClientDelegationRemoveWithAutoPublish(t *testing.T) {
 	require.NoError(t, err)
 
 	privKey, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
 	startTime := time.Now()
 	endTime := startTime.AddDate(10, 0, 0)
 	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
@@ -1918,7 +1943,7 @@ func TestClientDelegationRemoveWithAutoPublish(t *testing.T) {
 	require.NoError(t, err)
 
 	// add new valid delegation with single new cert, and no path
-	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile.Name())
+	_, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile.Name())
 	require.NoError(t, err)
 
 	// list delegations - we should see our added delegation, with no paths
@@ -1931,6 +1956,7 @@ func TestClientDelegationRemoveWithAutoPublish(t *testing.T) {
 	require.NoError(t, err)
 
 	privKey, err = utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
 	startTime = time.Now()
 	endTime = startTime.AddDate(10, 0, 0)
 	cert, err = cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
@@ -1947,7 +1973,7 @@ func TestClientDelegationRemoveWithAutoPublish(t *testing.T) {
 	require.NoError(t, err)
 
 	// add to the delegation by specifying the same role, this time add a scoped path
-	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile2.Name(), "--paths", "path")
+	_, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "add", "-p", "gun", "targets/delegation", tempFile2.Name(), "--paths", "path")
 	require.NoError(t, err)
 
 	// list delegations - we should see two keys
@@ -2027,4 +2053,504 @@ func TestClientTUFAddByHashWithAutoPublish(t *testing.T) {
 	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target1)
 	require.NoError(t, err)
 	require.Contains(t, output, target1)
+}
+
+// Tests import/export keys
+func TestClientKeyImport(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	var (
+		rootKeyID string
+	)
+
+	tempFile, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+	// close later, because we might need to write to it
+	defer os.Remove(tempFile.Name())
+
+	// -- tests --
+	// test 1, no path but role=root included with non-encrypted key
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+
+	pemBytes, err := utils.EncryptPrivateKey(privKey, data.CanonicalRootRole, "", "")
+	require.NoError(t, err)
+
+	nBytes, err := tempFile.Write(pemBytes)
+	require.NoError(t, err)
+	tempFile.Close()
+	require.Equal(t, len(pemBytes), nBytes)
+	rootKeyID = privKey.ID()
+
+	// import the key
+	_, err = runCommand(t, tempDir, "key", "import", tempFile.Name())
+	require.NoError(t, err)
+
+	// if there is hardware available, root will only be on hardware, and not
+	// on disk
+	newRoot, _ := assertNumKeys(t, tempDir, 1, 0, !rootOnHardware())
+	require.Equal(t, rootKeyID, newRoot[0])
+
+	// test 2, no path but role flag included with unencrypted key
+
+	tempFile2, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+	// close later, because we might need to write to it
+	defer os.Remove(tempFile2.Name())
+
+	privKey, err = utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+
+	pemBytes, err = utils.EncryptPrivateKey(privKey, "", "", "")
+	require.NoError(t, err)
+
+	nBytes, err = tempFile2.Write(pemBytes)
+	require.NoError(t, err)
+	tempFile2.Close()
+	require.Equal(t, len(pemBytes), nBytes)
+
+	// import the key
+	_, err = runCommand(t, tempDir, "key", "import", tempFile2.Name(), "-r", data.CanonicalRootRole)
+	require.NoError(t, err)
+
+	// if there is hardware available, root will only be on hardware, and not
+	// on disk
+	assertNumKeys(t, tempDir, 2, 0, !rootOnHardware())
+
+	// test 3, no path no role included with unencrypted key
+
+	tempFile3, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+	// close later, because we might need to write to it
+	defer os.Remove(tempFile3.Name())
+
+	privKey, err = utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+
+	pemBytes, err = utils.EncryptPrivateKey(privKey, "", "", "")
+	require.NoError(t, err)
+
+	nBytes, err = tempFile3.Write(pemBytes)
+	require.NoError(t, err)
+	tempFile3.Close()
+	require.Equal(t, len(pemBytes), nBytes)
+
+	// import the key
+	_, err = runCommand(t, tempDir, "key", "import", tempFile3.Name())
+	require.NoError(t, err)
+
+	// if there is hardware available, root will only be on hardware, and not
+	// on disk
+	assertNumKeys(t, tempDir, 2, 1, !rootOnHardware())
+	file, err := os.OpenFile(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, privKey.ID()+".key"), os.O_RDONLY, notary.PrivKeyPerms)
+	require.NoError(t, err)
+	filebytes, _ := ioutil.ReadAll(file)
+	require.Contains(t, string(filebytes), ("role: " + notary.DefaultImportRole))
+
+	// test 4, no path non root role with non canonical role and gun flag with unencrypted key
+
+	tempFile4, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+	// close later, because we might need to write to it
+	defer os.Remove(tempFile4.Name())
+
+	privKey, err = utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+
+	pemBytes, err = utils.EncryptPrivateKey(privKey, "", "", "")
+	require.NoError(t, err)
+
+	nBytes, err = tempFile4.Write(pemBytes)
+	require.NoError(t, err)
+	tempFile4.Close()
+	require.Equal(t, len(pemBytes), nBytes)
+	newKeyID := privKey.ID()
+
+	// import the key
+	_, err = runCommand(t, tempDir, "key", "import", tempFile4.Name(), "-r", "somerole", "-g", "somegun")
+	require.NoError(t, err)
+
+	// if there is hardware available, root will only be on hardware, and not
+	// on disk
+	assertNumKeys(t, tempDir, 2, 2, !rootOnHardware())
+	_, err = os.Open(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, newKeyID+".key"))
+	require.NoError(t, err)
+
+	// test 5, no path non root role with canonical role and gun flag with unencrypted key
+
+	tempFile5, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+	// close later, because we might need to write to it
+	defer os.Remove(tempFile5.Name())
+
+	privKey, err = utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+
+	pemBytes, err = utils.EncryptPrivateKey(privKey, "", "", "")
+	require.NoError(t, err)
+
+	nBytes, err = tempFile5.Write(pemBytes)
+	require.NoError(t, err)
+	tempFile5.Close()
+	require.Equal(t, len(pemBytes), nBytes)
+	newKeyID = privKey.ID()
+
+	// import the key
+	_, err = runCommand(t, tempDir, "key", "import", tempFile5.Name(), "-r", data.CanonicalSnapshotRole, "-g", "somegun")
+	require.NoError(t, err)
+
+	// if there is hardware available, root will only be on hardware, and not
+	// on disk
+	assertNumKeys(t, tempDir, 2, 3, !rootOnHardware())
+	_, err = os.Open(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, "somegun", newKeyID+".key"))
+	require.NoError(t, err)
+
+	// test6, no path but role=root included with encrypted key, should fail since we don't know what keyid to save to
+
+	tempFile6, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+	// close later, because we might need to write to it
+	defer os.Remove(tempFile6.Name())
+
+	privKey, err = utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+
+	pemBytes, err = utils.EncryptPrivateKey(privKey, data.CanonicalRootRole, "", testPassphrase)
+	require.NoError(t, err)
+
+	nBytes, err = tempFile6.Write(pemBytes)
+	require.NoError(t, err)
+	tempFile6.Close()
+	require.Equal(t, len(pemBytes), nBytes)
+
+	// import the key
+	_, err = runCommand(t, tempDir, "key", "import", tempFile6.Name())
+	require.NoError(t, err)
+
+	// if there is hardware available, root will only be on hardware, and not
+	// on disk
+	assertNumKeys(t, tempDir, 2, 3, !rootOnHardware())
+
+	// test7, non root key with no path with no gun
+
+	tempFile7, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+	// close later, because we might need to write to it
+	defer os.Remove(tempFile7.Name())
+
+	privKey, err = utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+
+	pemBytes, err = utils.EncryptPrivateKey(privKey, "", "", "")
+	require.NoError(t, err)
+
+	nBytes, err = tempFile7.Write(pemBytes)
+	require.NoError(t, err)
+	tempFile7.Close()
+	require.Equal(t, len(pemBytes), nBytes)
+	newKeyID = privKey.ID()
+
+	// import the key
+	_, err = runCommand(t, tempDir, "key", "import", tempFile7.Name(), "-r", "somerole")
+	require.NoError(t, err)
+
+	// if there is hardware available, root will only be on hardware, and not
+	// on disk
+	assertNumKeys(t, tempDir, 2, 4, !rootOnHardware())
+	_, err = os.Open(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, newKeyID+".key"))
+	require.NoError(t, err)
+
+	// test 8, non root canonical key with no gun
+
+	tempFile8, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+	// close later, because we might need to write to it
+	defer os.Remove(tempFile8.Name())
+
+	privKey, err = utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+
+	pemBytes, err = utils.EncryptPrivateKey(privKey, data.CanonicalSnapshotRole, "", "")
+	require.NoError(t, err)
+
+	nBytes, err = tempFile8.Write(pemBytes)
+	require.NoError(t, err)
+	tempFile8.Close()
+	require.Equal(t, len(pemBytes), nBytes)
+	newKeyID = privKey.ID()
+
+	// import the key
+	_, err = runCommand(t, tempDir, "key", "import", tempFile8.Name())
+	require.NoError(t, err)
+
+	// if there is hardware available, root will only be on hardware, and not
+	// on disk
+	assertNumKeys(t, tempDir, 2, 4, !rootOnHardware())
+	_, err = os.Open(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, newKeyID+".key"))
+	require.Error(t, err)
+}
+
+func TestAddDelImportKeyPublishFlow(t *testing.T) {
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	// Setup certificate for delegation role
+	tempFile, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+
+	privKey, err := utils.GenerateRSAKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	startTime := time.Now()
+	endTime := startTime.AddDate(10, 0, 0)
+	cert, err := cryptoservice.GenerateCertificate(privKey, "gun", startTime, endTime)
+	require.NoError(t, err)
+
+	// Setup key in a file for import
+	keyFile, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+	defer os.Remove(keyFile.Name())
+	pemBytes, err := utils.EncryptPrivateKey(privKey, "", "", "")
+	require.NoError(t, err)
+	nBytes, err := keyFile.Write(pemBytes)
+	require.NoError(t, err)
+	keyFile.Close()
+	require.Equal(t, len(pemBytes), nBytes)
+
+	_, err = tempFile.Write(utils.CertToPEM(cert))
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	rawPubBytes, _ := ioutil.ReadFile(tempFile.Name())
+	parsedPubKey, _ := utils.ParsePEMPublicKey(rawPubBytes)
+	canonicalKeyID, err := utils.CanonicalKeyID(parsedPubKey)
+	require.NoError(t, err)
+
+	// Set up targets for publishing
+	tempTargetFile, err := ioutil.TempFile("", "targetfile")
+	require.NoError(t, err)
+	tempTargetFile.Close()
+	defer os.Remove(tempTargetFile.Name())
+
+	var target = "sdgkadga"
+
+	var output string
+
+	// init repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun")
+	require.NoError(t, err)
+
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// list delegations - none yet
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, "No delegations present in this repository.")
+
+	// validate that we have all keys, including snapshot
+	assertNumKeys(t, tempDir, 1, 2, true)
+
+	// rotate the snapshot key to server
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalSnapshotRole, "-r")
+	require.NoError(t, err)
+
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// validate that we lost the snapshot signing key
+	_, signingKeyIDs := assertNumKeys(t, tempDir, 1, 1, true)
+	targetKeyID := signingKeyIDs[0]
+
+	// add new valid delegation with single new cert
+	output, err = runCommand(t, tempDir, "delegation", "add", "gun", "targets/releases", tempFile.Name(), "--paths", "\"\"")
+	require.NoError(t, err)
+	require.Contains(t, output, "Addition of delegation role")
+	require.Contains(t, output, canonicalKeyID)
+
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// list delegations - we should see our one delegation
+	output, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.NotContains(t, output, "No delegations present in this repository.")
+
+	// remove the targets key to demonstrate that delegates don't need this key
+	keyDir := filepath.Join(tempDir, "private", "tuf_keys")
+	require.NoError(t, os.Remove(filepath.Join(keyDir, "gun", targetKeyID+".key")))
+
+	// we are now set up with the first part, now import the delegation key- add a target- publish
+
+	// first test the negative case, should fail without the key import
+
+	// add a target using the delegation -- will only add to targets/releases
+	_, err = runCommand(t, tempDir, "add", "gun", target, tempTargetFile.Name(), "--roles", "targets/releases")
+	require.NoError(t, err)
+
+	// list targets for targets/releases - we should see no targets until we publish
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun", "--roles", "targets/releases")
+	require.NoError(t, err)
+	require.Contains(t, output, "No targets")
+
+	// check that our change is staged
+	output, err = runCommand(t, tempDir, "-s", server.URL, "status", "gun")
+	require.Contains(t, output, "targets/releases")
+	require.Contains(t, output, "sdgkadga")
+	require.NoError(t, err)
+
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.Error(t, err)
+	// list targets for targets/releases - we should not see our target!
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun", "--roles", "targets/releases")
+	require.NoError(t, err)
+	require.Contains(t, output, "No targets present")
+
+	// now test for the positive case, import the key and publish and it should work
+
+	// the changelist still exists so no need to add the target again
+	// just import the key and publish
+	output, err = runCommand(t, tempDir, "-s", server.URL, "status", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, "targets/releases")
+	require.Contains(t, output, "sdgkadga")
+
+	// import the key
+	_, err = runCommand(t, tempDir, "key", "import", keyFile.Name(), "-r", "targets/releases")
+	require.NoError(t, err)
+
+	// make sure that it has been imported fine
+	// if there is hardware available, root will only be on hardware, and not
+	// on disk
+	_, err = os.Open(filepath.Join(tempDir, "private", notary.NonRootKeysSubdir, privKey.ID()+".key"))
+	require.NoError(t, err)
+
+	// now try to publish
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// check that changelist is applied
+	output, err = runCommand(t, tempDir, "-s", server.URL, "status", "gun")
+	require.NoError(t, err)
+	require.NotContains(t, output, "targets/releases")
+
+	// list targets for targets/releases - we should see our target!
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun", "--roles", "targets/releases")
+	require.NoError(t, err)
+	require.NotContains(t, output, "No targets present")
+	require.Contains(t, output, "sdgkadga")
+	require.Contains(t, output, "targets/releases")
+}
+
+func TestExportImportFlow(t *testing.T) {
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	// init repo
+	_, err := runCommand(t, tempDir, "-s", server.URL, "init", "gun")
+	require.NoError(t, err)
+
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// list delegations - none yet
+	output, err := runCommand(t, tempDir, "-s", server.URL, "delegation", "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, "No delegations present in this repository.")
+
+	// validate that we have all keys, including snapshot
+	assertNumKeys(t, tempDir, 1, 2, true)
+
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "export", "-o", filepath.Join(tempDir, "exported"))
+	require.NoError(t, err)
+
+	// make sure the export has been done properly
+	from, err := os.OpenFile(filepath.Join(tempDir, "exported"), os.O_RDONLY, notary.PrivKeyPerms)
+	require.NoError(t, err)
+	defer from.Close()
+	fromBytes, _ := ioutil.ReadAll(from)
+	fromString := string(fromBytes)
+	require.Contains(t, fromString, "role: snapshot")
+	require.Contains(t, fromString, "role: root")
+	require.Contains(t, fromString, "role: targets")
+
+	// now setup new filestore
+	newTempDir := tempDirWithConfig(t, "{}")
+	defer os.Remove(newTempDir)
+
+	// and new server
+	newServer := setupServer()
+	defer newServer.Close()
+
+	// make sure there are no keys
+	if !rootOnHardware() {
+		assertNumKeys(t, newTempDir, 0, 0, true)
+	}
+
+	// import keys from our exported file
+	_, err = runCommand(t, newTempDir, "-s", newServer.URL, "key", "import", filepath.Join(tempDir, "exported"))
+	require.NoError(t, err)
+
+	// validate that we have all keys, including snapshot
+	assertNumKeys(t, newTempDir, 1, 2, !rootOnHardware())
+	root, signing := getUniqueKeys(t, newTempDir)
+
+	fileList := []string{}
+	err = filepath.Walk(newTempDir, func(path string, f os.FileInfo, err error) error {
+		fileList = append(fileList, path)
+		return nil
+	})
+	require.NoError(t, err)
+
+	if !rootOnHardware() {
+		// validate root is imported correctly
+		rootKey, err := os.OpenFile(filepath.Join(newTempDir, "private", notary.RootKeysSubdir, root[0]+".key"), os.O_RDONLY, notary.PrivKeyPerms)
+		require.NoError(t, err)
+		defer rootKey.Close()
+		rootBytes, _ := ioutil.ReadAll(rootKey)
+		rootString := string(rootBytes)
+		require.Contains(t, rootString, "role: root")
+	} else {
+		verifyRootKeyOnHardware(t, root[0])
+	}
+
+	// validate snapshot is imported correctly
+	snapKey, err := os.OpenFile(filepath.Join(newTempDir, "private", notary.NonRootKeysSubdir, "gun", signing[0]+".key"), os.O_RDONLY, notary.PrivKeyPerms)
+	require.NoError(t, err)
+	defer snapKey.Close()
+	snapBytes, _ := ioutil.ReadAll(snapKey)
+	snapString := string(snapBytes)
+	require.Contains(t, snapString, "gun: gun")
+	require.True(t, strings.Contains(snapString, "role: snapshot") || strings.Contains(snapString, "role: target"))
+
+	// validate targets is imported correctly
+	targKey, err := os.OpenFile(filepath.Join(newTempDir, "private", notary.NonRootKeysSubdir, "gun", signing[1]+".key"), os.O_RDONLY, notary.PrivKeyPerms)
+	require.NoError(t, err)
+	defer targKey.Close()
+	targBytes, _ := ioutil.ReadAll(targKey)
+	targString := string(targBytes)
+	require.Contains(t, targString, "gun: gun")
+	require.True(t, strings.Contains(snapString, "role: snapshot") || strings.Contains(snapString, "role: target"))
 }
