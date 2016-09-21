@@ -6,7 +6,6 @@ import (
 	"encoding/pem"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/docker/notary"
