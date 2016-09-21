@@ -3,7 +3,7 @@ package changelist
 import (
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -51,7 +51,7 @@ func TestErrorConditions(t *testing.T) {
 
 	cl, err := NewFileChangelist(tmpDir)
 	// Attempt to unmarshall a bad JSON file. Note: causes a WARN on the console.
-	ioutil.WriteFile(path.Join(tmpDir, "broken_file.change"), []byte{5}, 0644)
+	ioutil.WriteFile(filepath.Join(tmpDir, "broken_file.change"), []byte{5}, 0644)
 	noItems := cl.List()
 	require.Len(t, noItems, 0, "List returns zero items on bad JSON file error")
 
@@ -154,7 +154,7 @@ func TestFileChangeIterator(t *testing.T) {
 
 	// negative test case: bad JSON file to unmarshall via Next()
 	cl.Clear("")
-	ioutil.WriteFile(path.Join(tmpDir, "broken_file.change"), []byte{5}, 0644)
+	ioutil.WriteFile(filepath.Join(tmpDir, "broken_file.change"), []byte{5}, 0644)
 	it, err = cl.NewIterator()
 	require.Nil(t, err, "Error initializing iterator")
 	for it.HasNext() {
