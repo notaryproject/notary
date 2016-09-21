@@ -487,6 +487,7 @@ type TargetSignedStruct struct {
 
 // GetAllTargetMetadataByName searches the entire delegation role tree to find the specified target by name for all
 // roles, and returns a list of TargetSignedStructs for each time it finds the specified target.
+// If given an empty string for a target name, it will return back all targets signed into the repository in every role
 func (r *NotaryRepository) GetAllTargetMetadataByName(name string) ([]TargetSignedStruct, error) {
 	if err := r.Update(false); err != nil {
 		return nil, err
@@ -499,12 +500,22 @@ func (r *NotaryRepository) GetAllTargetMetadataByName(name string) ([]TargetSign
 		if tgt == nil {
 			return nil
 		}
-		// We found the target and validated path compatibility in our walk,
-		// so add it to our list
-		if resultMeta, foundTarget := tgt.Signed.Targets[name]; foundTarget {
+		// We found a target and validated path compatibility in our walk,
+		// so add it to our list if we have a match
+		// if we have an empty name, add all targets, else check if we have it
+		var targetMetaToAdd data.Files
+		if name == "" {
+			targetMetaToAdd = tgt.Signed.Targets
+		} else {
+			if meta, ok := tgt.Signed.Targets[name]; ok {
+				targetMetaToAdd = data.Files{name: meta}
+			}
+		}
+
+		for targetName, resultMeta := range targetMetaToAdd {
 			targetInfo := TargetSignedStruct{
 				Role:       validRole,
-				Target:     Target{Name: name, Hashes: resultMeta.Hashes, Length: resultMeta.Length},
+				Target:     Target{Name: targetName, Hashes: resultMeta.Hashes, Length: resultMeta.Length},
 				Signatures: tgt.Signatures,
 			}
 			targetInfoList = append(targetInfoList, targetInfo)
@@ -859,8 +870,9 @@ func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*TUFClient, e
 		if err := newBuilder.Load(data.CanonicalRootRole, rootJSON, minVersion, false); err != nil {
 			// Ok, the old root is expired - we want to download a new one.  But we want to use the
 			// old root to verify the new root, so bootstrap a new builder with the old builder
+			// but use the trustpinning to validate the new root
 			minVersion = oldBuilder.GetLoadedVersion(data.CanonicalRootRole)
-			newBuilder = oldBuilder.BootstrapNewBuilder()
+			newBuilder = oldBuilder.BootstrapNewBuilderWithNewTrustpin(r.trustPinning)
 		}
 	}
 
@@ -984,12 +996,10 @@ func (r *NotaryRepository) rootFileKeyChange(cl changelist.Changelist, role, act
 // DeleteTrustData removes the trust data stored for this repo in the TUF cache on the client side
 // Note that we will not delete any private key material from local storage
 func (r *NotaryRepository) DeleteTrustData(deleteRemote bool) error {
-	// Clear local TUF files and cache
-	if err := r.fileStore.RemoveAll(); err != nil {
+	// Remove the tufRepoPath directory, which includes local TUF metadata files and changelist information
+	if err := os.RemoveAll(r.tufRepoPath); err != nil {
 		return fmt.Errorf("error clearing TUF repo data: %v", err)
 	}
-	r.tufRepo = tuf.NewRepo(nil)
-
 	// Note that this will require admin permission in this NotaryRepository's roundtripper
 	if deleteRemote {
 		remote, err := getRemoteStore(r.baseURL, r.gun, r.roundTrip)

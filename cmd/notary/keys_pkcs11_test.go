@@ -26,10 +26,10 @@ func TestImportWithYubikey(t *testing.T) {
 		t.Skip("Must have Yubikey access.")
 	}
 	setUp(t)
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
-	input, err := ioutil.TempFile("/tmp", "notary-test-import-")
+	input, err := ioutil.TempFile("", "notary-test-import-")
 	require.NoError(t, err)
 	defer os.RemoveAll(input.Name())
 	k := &keyCommander{
@@ -98,7 +98,7 @@ func TestGetImporters(t *testing.T) {
 	if !yubikey.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
 	importers, err := getImporters(tempBaseDir, passphrase.ConstantRetriever("pass"))

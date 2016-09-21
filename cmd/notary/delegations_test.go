@@ -26,7 +26,7 @@ func setup(trustDir string) *delegationCommander {
 }
 
 func TestPurgeDelegationKeys(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	tmpDir, err := ioutil.TempDir("", "notary-cmd-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 
@@ -45,7 +45,7 @@ func TestPurgeDelegationKeys(t *testing.T) {
 
 func TestAddInvalidDelegationName(t *testing.T) {
 	// Setup certificate
-	tempFile, err := ioutil.TempFile("/tmp", "pemfile")
+	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
 	cert, _, err := generateValidTestCert()
 	require.NoError(t, err)
@@ -55,7 +55,7 @@ func TestAddInvalidDelegationName(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	// Setup commander
-	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	tmpDir, err := ioutil.TempDir("", "notary-cmd-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 	commander := setup(tmpDir)
@@ -67,7 +67,7 @@ func TestAddInvalidDelegationName(t *testing.T) {
 
 func TestAddInvalidDelegationCert(t *testing.T) {
 	// Setup certificate
-	tempFile, err := ioutil.TempFile("/tmp", "pemfile")
+	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
 	cert, _, err := generateExpiredTestCert()
 	require.NoError(t, err)
@@ -77,7 +77,7 @@ func TestAddInvalidDelegationCert(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	// Setup commander
-	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	tmpDir, err := ioutil.TempDir("", "notary-cmd-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 	commander := setup(tmpDir)
@@ -85,11 +85,16 @@ func TestAddInvalidDelegationCert(t *testing.T) {
 	// Should error due to expired cert
 	err = commander.delegationAdd(commander.GetCommand(), []string{"gun", "targets/delegation", tempFile.Name(), "--paths", "path"})
 	require.Error(t, err)
+
+	// Should error due to bad path
+	err = commander.delegationAdd(commander.GetCommand(), []string{"gun", "targets/delegation", "nonexistent-pathing", "--paths", "path"})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "file for public key does not exist")
 }
 
 func TestAddInvalidShortPubkeyCert(t *testing.T) {
 	// Setup certificate
-	tempFile, err := ioutil.TempFile("/tmp", "pemfile")
+	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
 	cert, _, err := generateShortRSAKeyTestCert()
 	require.NoError(t, err)
@@ -99,7 +104,7 @@ func TestAddInvalidShortPubkeyCert(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	// Setup commander
-	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	tmpDir, err := ioutil.TempDir("", "notary-cmd-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 	commander := setup(tmpDir)
@@ -111,7 +116,7 @@ func TestAddInvalidShortPubkeyCert(t *testing.T) {
 
 func TestRemoveInvalidDelegationName(t *testing.T) {
 	// Setup commander
-	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	tmpDir, err := ioutil.TempDir("", "notary-cmd-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 	commander := setup(tmpDir)
@@ -123,7 +128,7 @@ func TestRemoveInvalidDelegationName(t *testing.T) {
 
 func TestRemoveAllInvalidDelegationName(t *testing.T) {
 	// Setup commander
-	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	tmpDir, err := ioutil.TempDir("", "notary-cmd-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 	commander := setup(tmpDir)
@@ -135,7 +140,7 @@ func TestRemoveAllInvalidDelegationName(t *testing.T) {
 
 func TestAddInvalidNumArgs(t *testing.T) {
 	// Setup commander
-	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	tmpDir, err := ioutil.TempDir("", "notary-cmd-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 	commander := setup(tmpDir)
@@ -147,7 +152,7 @@ func TestAddInvalidNumArgs(t *testing.T) {
 
 func TestListInvalidNumArgs(t *testing.T) {
 	// Setup commander
-	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	tmpDir, err := ioutil.TempDir("", "notary-cmd-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 	commander := setup(tmpDir)
@@ -159,7 +164,7 @@ func TestListInvalidNumArgs(t *testing.T) {
 
 func TestRemoveInvalidNumArgs(t *testing.T) {
 	// Setup commander
-	tmpDir, err := ioutil.TempDir("/tmp", "notary-cmd-test-")
+	tmpDir, err := ioutil.TempDir("", "notary-cmd-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 	commander := setup(tmpDir)
