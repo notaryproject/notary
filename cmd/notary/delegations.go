@@ -296,6 +296,9 @@ func (d *delegationCommander) delegationAdd(cmd *cobra.Command, args []string) e
 			// Read public key bytes from PEM file
 			pubKeyBytes, err := ioutil.ReadFile(pubKeyPath)
 			if err != nil {
+				if os.IsNotExist(err) {
+					return fmt.Errorf("file for public key does not exist: %s", pubKeyPath)
+				}
 				return fmt.Errorf("unable to read public key from file: %s", pubKeyPath)
 			}
 
