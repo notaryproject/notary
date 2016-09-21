@@ -6,7 +6,7 @@
 + Introduce `notary delete` command to delete local and/or remote repo data [#895](https://github.com/docker/notary/pull/895)
 + Introduce `notary witness` command to stage signatures for specified roles [#875](https://github.com/docker/notary/pull/875)
 + Add `-p` flag to offline commands to attempt auto-publish [#886](https://github.com/docker/notary/pull/886) [#912](https://github.com/docker/notary/pull/912) [#923](https://github.com/docker/notary/pull/923)
-+ Add `--unstage` and `--reset` flags to `notary status` to manage staged changes [#856](https://github.com/docker/notary/pull/856)
++ Introduce `notary reset` command to manage staged changes [#959](https://github.com/docker/notary/pull/959) [#856](https://github.com/docker/notary/pull/856)
 + Add `--rootkey` flag to `notary init` to provide a private root key for a repo [#801](https://github.com/docker/notary/pull/801)
 + Introduce `notary delegation purge` command to remove a specified key from all delegations [#855](https://github.com/docker/notary/pull/855)
 + Removed HTTP endpoint from notary-signer [#870](https://github.com/docker/notary/pull/870)
