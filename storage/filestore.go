@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -17,7 +16,7 @@ import (
 
 // NewFilesystemStore creates a new store in a directory tree
 func NewFilesystemStore(baseDir, subDir, extension string) (*FilesystemStore, error) {
-	baseDir = path.Join(baseDir, subDir)
+	baseDir = filepath.Join(baseDir, subDir)
 
 	return NewFileStore(baseDir, extension, notary.PrivKeyPerms)
 }

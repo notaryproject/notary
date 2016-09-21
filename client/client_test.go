@@ -235,7 +235,7 @@ func newRepoToTestRepo(t *testing.T, existingRepo *NotaryRepository, newDir bool
 // role will fail.
 func TestInitRepositoryManagedRolesIncludingRoot(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
@@ -255,7 +255,7 @@ func TestInitRepositoryManagedRolesIncludingRoot(t *testing.T) {
 // invalid role will fail.
 func TestInitRepositoryManagedRolesInvalidRole(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
@@ -272,7 +272,7 @@ func TestInitRepositoryManagedRolesInvalidRole(t *testing.T) {
 // targets role will fail.
 func TestInitRepositoryManagedRolesIncludingTargets(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
@@ -289,7 +289,7 @@ func TestInitRepositoryManagedRolesIncludingTargets(t *testing.T) {
 // timestamp key is fine - that's what it already does, so no error.
 func TestInitRepositoryManagedRolesIncludingTimestamp(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
@@ -307,7 +307,7 @@ func TestInitRepositoryManagedRolesIncludingTimestamp(t *testing.T) {
 
 func TestInitRepositoryMultipleRootKeys(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
@@ -333,7 +333,7 @@ func TestInitRepositoryMultipleRootKeys(t *testing.T) {
 // the snapshot key is available
 func TestInitRepositoryNeedsRemoteTimestampKey(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
@@ -355,7 +355,7 @@ func TestInitRepositoryNeedsRemoteTimestampKey(t *testing.T) {
 // the snapshot key, even if the timestamp key is available
 func TestInitRepositoryNeedsRemoteSnapshotKey(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
@@ -1986,7 +1986,7 @@ func testPublishBadMetadata(t *testing.T, roleName string, repo *NotaryRepositor
 // If the repo is not initialized, calling repo.Publish() should return ErrRepoNotInitialized
 func TestNotInitializedOnPublish(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	defer os.RemoveAll(tempBaseDir)
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
 
@@ -2015,7 +2015,7 @@ func (cs cannotCreateKeys) Create(_, _, _ string) (data.PublicKey, error) {
 // remote key.
 func TestPublishSnapshotLocalKeysCreatedFirst(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	defer os.RemoveAll(tempBaseDir)
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
 	gun := "docker.com/notary"
@@ -2923,7 +2923,7 @@ func TestRotateRootKey(t *testing.T) {
 
 // If there is no local cache, notary operations return the remote error code
 func TestRemoteServerUnavailableNoLocalCache(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
 	defer os.RemoveAll(tempBaseDir)
 
@@ -3366,8 +3366,16 @@ func TestDeleteRepo(t *testing.T) {
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, true)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, true)
 
+	// Stage a change on the changelist
+	addTarget(t, repo, "someTarget", "../fixtures/intermediate-ca.crt", data.CanonicalTargetsRole)
+	// load the changelist for this repo and check that we have one staged change
+	cl, err := changelist.NewFileChangelist(
+		filepath.Join(repo.baseDir, "tuf", filepath.FromSlash(repo.gun), "changelist"))
+	require.NoError(t, err, "could not open changelist")
+	require.Len(t, cl.List(), 1)
+
 	// Delete all local trust data for repo
-	err := repo.DeleteTrustData(false)
+	err = repo.DeleteTrustData(false)
 	require.NoError(t, err)
 
 	// Assert no metadata for this repo exists locally
@@ -3375,6 +3383,13 @@ func TestDeleteRepo(t *testing.T) {
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, false)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, false)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTimestampRole, false)
+
+	// Assert the changelist is cleared of staged changes
+	require.Len(t, cl.List(), 0)
+
+	// Check that the tuf/<GUN> directory itself is gone
+	_, err = os.Stat(repo.tufRepoPath)
+	require.Error(t, err)
 
 	// Assert keys for this repo exist locally
 	requireRepoHasExpectedKeys(t, repo, rootKeyID, true)
@@ -3393,6 +3408,14 @@ func TestDeleteRemoteRepo(t *testing.T) {
 
 	require.NoError(t, repo.Publish())
 
+	// Stage a change on this repo's changelist
+	addTarget(t, repo, "someTarget", "../fixtures/intermediate-ca.crt", data.CanonicalTargetsRole)
+	// load the changelist for this repo and check that we have one staged change
+	repoCl, err := changelist.NewFileChangelist(
+		filepath.Join(repo.baseDir, "tuf", filepath.FromSlash(repo.gun), "changelist"))
+	require.NoError(t, err, "could not open changelist")
+	require.Len(t, repoCl.List(), 1)
+
 	// Create another repo to ensure it stays intact
 	livingGun := "stayingAlive"
 	longLivingRepo, _ := initializeRepo(t, data.ECDSAKey, livingGun, ts.URL, false)
@@ -3400,14 +3423,23 @@ func TestDeleteRemoteRepo(t *testing.T) {
 
 	require.NoError(t, longLivingRepo.Publish())
 
+	// Stage a change on the long living repo
+	addTarget(t, longLivingRepo, "someLivingTarget", "../fixtures/intermediate-ca.crt", data.CanonicalTargetsRole)
+	// load the changelist for this repo and check that we have one staged change
+	longLivingCl, err := changelist.NewFileChangelist(
+		filepath.Join(longLivingRepo.baseDir, "tuf", filepath.FromSlash(longLivingRepo.gun), "changelist"))
+	require.NoError(t, err, "could not open changelist")
+	require.Len(t, longLivingCl.List(), 1)
+
 	// Assert initialization was successful before we delete
 	requireRepoHasExpectedKeys(t, repo, rootKeyID, true)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalRootRole, true)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, true)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, true)
+	require.Len(t, repoCl.List(), 1)
 
 	// Delete all local and remote trust data for one repo
-	err := repo.DeleteTrustData(true)
+	err = repo.DeleteTrustData(true)
 	require.NoError(t, err)
 
 	// Assert no metadata for that repo exists locally
@@ -3415,6 +3447,13 @@ func TestDeleteRemoteRepo(t *testing.T) {
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, false)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, false)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTimestampRole, false)
+
+	// Assert the changelist is cleared of staged changes
+	require.Len(t, repoCl.List(), 0)
+
+	// Check that the tuf/<GUN> directory itself is gone
+	_, err = os.Stat(repo.tufRepoPath)
+	require.Error(t, err)
 
 	// Assert keys for this repo still exist locally
 	requireRepoHasExpectedKeys(t, repo, rootKeyID, true)
@@ -3439,10 +3478,13 @@ func TestDeleteRemoteRepo(t *testing.T) {
 	require.IsType(t, store.ErrMetaNotFound{}, err)
 	require.Nil(t, meta)
 
-	// Check that the other repo was unaffected
+	// Check that the other repo was unaffected: first check local metadata and changelist
 	requireRepoHasExpectedMetadata(t, longLivingRepo, data.CanonicalRootRole, true)
 	requireRepoHasExpectedMetadata(t, longLivingRepo, data.CanonicalTargetsRole, true)
 	requireRepoHasExpectedMetadata(t, longLivingRepo, data.CanonicalSnapshotRole, true)
+	require.Len(t, longLivingCl.List(), 1)
+
+	// Check that the other repo's remote data is unaffected
 	remoteStore, err = getRemoteStore(longLivingRepo.baseURL, longLivingRepo.gun, longLivingRepo.roundTrip)
 	require.NoError(t, err)
 	meta, err = remoteStore.GetSized(data.CanonicalRootRole, store.NoSizeLimit)
@@ -3461,38 +3503,6 @@ func TestDeleteRemoteRepo(t *testing.T) {
 	// Try deleting again with an invalid server URL
 	repo.baseURL = "invalid"
 	require.Error(t, repo.DeleteTrustData(true))
-}
-
-type brokenRemoveFilestore struct {
-	store.MetadataStore
-}
-
-func (s *brokenRemoveFilestore) RemoveAll() error {
-	return fmt.Errorf("can't remove from this broken filestore")
-}
-
-// TestDeleteRepoBadFilestore tests that we properly error when trying to remove against a faulty filestore
-func TestDeleteRepoBadFilestore(t *testing.T) {
-	gun := "docker.com/notary"
-
-	ts, _, _ := simpleTestServer(t)
-	defer ts.Close()
-
-	repo, rootKeyID := initializeRepo(t, data.ECDSAKey, gun, ts.URL, false)
-	defer os.RemoveAll(repo.baseDir)
-
-	// Assert initialization was successful before we delete
-	requireRepoHasExpectedKeys(t, repo, rootKeyID, true)
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalRootRole, true)
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, true)
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, true)
-
-	// Make the filestore faulty on remove
-	repo.fileStore = &brokenRemoveFilestore{repo.fileStore}
-
-	// Delete all local trust data for repo, require an error on the filestore removal
-	err := repo.DeleteTrustData(false)
-	require.Error(t, err)
 }
 
 // Test that we get a correct list of roles with keys and signatures
@@ -3746,6 +3756,57 @@ func TestGetAllTargetInfo(t *testing.T) {
 		}
 	}
 	require.Len(t, makeSureWeHitEachCase, 2)
+
+	// calling with the empty string "" name will get us back all targets signed in all roles
+	targetSignatureData, err = repo.GetAllTargetMetadataByName("")
+	require.NoError(t, err)
+	require.Len(t, targetSignatureData, 7)
+
+	makeSureWeHitEachCase = make(map[string]struct{})
+	for _, tarSigStr := range targetSignatureData {
+		switch tarSigStr.Role.Name {
+		// targets has current and latest
+		case data.CanonicalTargetsRole:
+			if tarSigStr.Target.Name == "current" {
+				require.Equal(t, tarSigStr.Target, *targetsCurrentTarget)
+			} else {
+				require.Equal(t, tarSigStr.Target, *targetsLatestTarget)
+			}
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, repo.CryptoService.ListKeys(data.CanonicalTargetsRole)[0], tarSigStr.Signatures[0].KeyID)
+			makeSureWeHitEachCase[tarSigStr.Role.Name+tarSigStr.Target.Name] = struct{}{}
+
+		// targets/level1 has current and other
+		case "targets/level1":
+			if tarSigStr.Target.Name == "current" {
+				require.Equal(t, tarSigStr.Target, *level1CurrentTarget)
+			} else {
+				require.Equal(t, tarSigStr.Target, *level1OtherTarget)
+			}
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, key1.ID(), tarSigStr.Signatures[0].KeyID)
+			makeSureWeHitEachCase[tarSigStr.Role.Name+tarSigStr.Target.Name] = struct{}{}
+
+		// targets/level2 has current and level2
+		case "targets/level2":
+			if tarSigStr.Target.Name == "current" {
+				require.Equal(t, tarSigStr.Target, *level2CurrentTarget)
+			} else {
+				require.Equal(t, tarSigStr.Target, *level2Level2Target)
+			}
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, key2.ID(), tarSigStr.Signatures[0].KeyID)
+			makeSureWeHitEachCase[tarSigStr.Role.Name+tarSigStr.Target.Name] = struct{}{}
+
+		// targets/level1/level2 has level2
+		case "targets/level1/level2":
+			require.Len(t, tarSigStr.Signatures, 1)
+			require.Equal(t, key3.ID(), tarSigStr.Signatures[0].KeyID)
+			require.Equal(t, tarSigStr.Target, *level1Level2Level2Target)
+			makeSureWeHitEachCase[tarSigStr.Role.Name+tarSigStr.Target.Name] = struct{}{}
+		}
+	}
+	require.Len(t, makeSureWeHitEachCase, 7)
 
 	// nonexistent targets
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("level23")

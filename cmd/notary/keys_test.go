@@ -352,7 +352,7 @@ func TestRotateKeyRemoteServerManagesKey(t *testing.T) {
 	for _, role := range []string{data.CanonicalSnapshotRole, data.CanonicalTimestampRole} {
 		setUp(t)
 		// Temporary directory where test files will be created
-		tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+		tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 		defer os.RemoveAll(tempBaseDir)
 		require.NoError(t, err, "failed to create a temporary directory: %s", err)
 		gun := "docker.com/notary"
@@ -407,7 +407,7 @@ func TestRotateKeyRemoteServerManagesKey(t *testing.T) {
 func TestRotateKeyBothKeys(t *testing.T) {
 	setUp(t)
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	defer os.RemoveAll(tempBaseDir)
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
 	gun := "docker.com/notary"
@@ -466,7 +466,7 @@ func TestRotateKeyBothKeys(t *testing.T) {
 func TestRotateKeyRootIsInteractive(t *testing.T) {
 	setUp(t)
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	defer os.RemoveAll(tempBaseDir)
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
 	gun := "docker.com/notary"
@@ -538,10 +538,10 @@ func TestChangeKeyPassphraseNonexistentID(t *testing.T) {
 
 func TestExportKeys(t *testing.T) {
 	setUp(t)
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
-	output, err := ioutil.TempFile("/tmp", "notary-test-import-")
+	output, err := ioutil.TempFile("", "notary-test-import-")
 	require.NoError(t, err)
 	defer os.RemoveAll(output.Name())
 	k := &keyCommander{
@@ -612,10 +612,10 @@ func TestExportKeys(t *testing.T) {
 
 func TestExportKeysByGUN(t *testing.T) {
 	setUp(t)
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
-	output, err := ioutil.TempFile("/tmp", "notary-test-import-")
+	output, err := ioutil.TempFile("", "notary-test-import-")
 	require.NoError(t, err)
 	defer os.RemoveAll(output.Name())
 	k := &keyCommander{
@@ -660,6 +660,8 @@ func TestExportKeysByGUN(t *testing.T) {
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
 	require.NoError(t, err)
+	// we have to manually prepend the NonRootKeysSubdir because
+	// KeyStore would be expected to do this for us.
 	err = fileStore.Set(
 		"12345",
 		bBytes,
@@ -702,10 +704,10 @@ func TestExportKeysByGUN(t *testing.T) {
 
 func TestExportKeysByID(t *testing.T) {
 	setUp(t)
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
-	output, err := ioutil.TempFile("/tmp", "notary-test-import-")
+	output, err := ioutil.TempFile("", "notary-test-import-")
 	require.NoError(t, err)
 	defer os.RemoveAll(output.Name())
 	k := &keyCommander{
@@ -763,10 +765,10 @@ func TestExportKeysByID(t *testing.T) {
 
 func TestExportKeysBadFlagCombo(t *testing.T) {
 	setUp(t)
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
-	output, err := ioutil.TempFile("/tmp", "notary-test-import-")
+	output, err := ioutil.TempFile("", "notary-test-import-")
 	require.NoError(t, err)
 	defer os.RemoveAll(output.Name())
 	k := &keyCommander{
@@ -788,7 +790,7 @@ func TestExportKeysBadFlagCombo(t *testing.T) {
 
 func TestImportKeysNonexistentFile(t *testing.T) {
 	setUp(t)
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
 	require.NoError(t, err)

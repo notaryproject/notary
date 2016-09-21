@@ -152,6 +152,7 @@ var exampleValidCommands = []string{
 	"init repo",
 	"list repo",
 	"status repo",
+	"reset repo --all",
 	"publish repo",
 	"add repo v1 somefile",
 	"addhash repo targetv1 --sha256 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 10",
@@ -524,10 +525,34 @@ func TestConfigFileTrustPinning(t *testing.T) {
 	require.Equal(t, "root-ca.crt", trustPin.CA["repo4"])
 }
 
+// sets the env vars to empty, and returns a function to reset them at the end
+func cleanupAndSetEnvVars() func() {
+	orig := map[string]string{
+		"NOTARY_ROOT_PASSPHRASE":       "",
+		"NOTARY_TARGETS_PASSPHRASE":    "",
+		"NOTARY_SNAPSHOT_PASSPHRASE":   "",
+		"NOTARY_DELEGATION_PASSPHRASE": "",
+	}
+	for envVar := range orig {
+		orig[envVar] = os.Getenv(envVar)
+		os.Setenv(envVar, "")
+	}
+
+	return func() {
+		for envVar, value := range orig {
+			if value == "" {
+				os.Unsetenv(envVar)
+			} else {
+				os.Setenv(envVar, value)
+			}
+		}
+	}
+}
+
 func TestPassphraseRetrieverCaching(t *testing.T) {
+	defer cleanupAndSetEnvVars()()
 	// Only set up one passphrase environment var first for root
 	require.NoError(t, os.Setenv("NOTARY_ROOT_PASSPHRASE", "root_passphrase"))
-	defer os.Clearenv()
 
 	// Check that root is cached
 	retriever := getPassphraseRetriever()
@@ -580,9 +605,9 @@ func TestPassphraseRetrieverCaching(t *testing.T) {
 }
 
 func TestPassphraseRetrieverDelegationRoleCaching(t *testing.T) {
+	defer cleanupAndSetEnvVars()()
 	// Only set up one passphrase environment var first for delegations
 	require.NoError(t, os.Setenv("NOTARY_DELEGATION_PASSPHRASE", "delegation_passphrase"))
-	defer os.Clearenv()
 
 	// Check that any delegation role is cached
 	retriever := getPassphraseRetriever()

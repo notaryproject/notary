@@ -4,6 +4,11 @@ package main
 
 import (
 	"encoding/pem"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"testing"
+
 	"github.com/docker/notary"
 	"github.com/docker/notary/cryptoservice"
 	"github.com/docker/notary/passphrase"
@@ -13,17 +18,14 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
-	"os"
-	"testing"
 )
 
 func TestImportKeysNoYubikey(t *testing.T) {
 	setUp(t)
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
-	input, err := ioutil.TempFile("/tmp", "notary-test-import-")
+	input, err := ioutil.TempFile("", "notary-test-import-")
 	require.NoError(t, err)
 	defer os.RemoveAll(input.Name())
 	k := &keyCommander{
@@ -83,10 +85,10 @@ func TestImportKeysNoYubikey(t *testing.T) {
 
 func TestExportImportKeysNoYubikey(t *testing.T) {
 	setUp(t)
-	exportTempDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	exportTempDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(exportTempDir)
-	tempfile, err := ioutil.TempFile("/tmp", "notary-test-import-")
+	tempfile, err := ioutil.TempFile("", "notary-test-import-")
 	require.NoError(t, err)
 	tempfile.Close()
 	defer os.RemoveAll(tempfile.Name())
@@ -121,7 +123,7 @@ func TestExportImportKeysNoYubikey(t *testing.T) {
 
 	exportCommander.exportKeys(&cobra.Command{}, nil)
 
-	importTempDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	importTempDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(importTempDir)
 	importCommander := &keyCommander{
