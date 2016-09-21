@@ -235,7 +235,7 @@ func newRepoToTestRepo(t *testing.T, existingRepo *NotaryRepository, newDir bool
 // role will fail.
 func TestInitRepositoryManagedRolesIncludingRoot(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
@@ -255,7 +255,7 @@ func TestInitRepositoryManagedRolesIncludingRoot(t *testing.T) {
 // invalid role will fail.
 func TestInitRepositoryManagedRolesInvalidRole(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
@@ -272,7 +272,7 @@ func TestInitRepositoryManagedRolesInvalidRole(t *testing.T) {
 // targets role will fail.
 func TestInitRepositoryManagedRolesIncludingTargets(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
@@ -289,7 +289,7 @@ func TestInitRepositoryManagedRolesIncludingTargets(t *testing.T) {
 // timestamp key is fine - that's what it already does, so no error.
 func TestInitRepositoryManagedRolesIncludingTimestamp(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
@@ -307,7 +307,7 @@ func TestInitRepositoryManagedRolesIncludingTimestamp(t *testing.T) {
 
 func TestInitRepositoryMultipleRootKeys(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
@@ -333,7 +333,7 @@ func TestInitRepositoryMultipleRootKeys(t *testing.T) {
 // the snapshot key is available
 func TestInitRepositoryNeedsRemoteTimestampKey(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
@@ -355,7 +355,7 @@ func TestInitRepositoryNeedsRemoteTimestampKey(t *testing.T) {
 // the snapshot key, even if the timestamp key is available
 func TestInitRepositoryNeedsRemoteSnapshotKey(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
@@ -1986,7 +1986,7 @@ func testPublishBadMetadata(t *testing.T, roleName string, repo *NotaryRepositor
 // If the repo is not initialized, calling repo.Publish() should return ErrRepoNotInitialized
 func TestNotInitializedOnPublish(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	defer os.RemoveAll(tempBaseDir)
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
 
@@ -2015,7 +2015,7 @@ func (cs cannotCreateKeys) Create(_, _, _ string) (data.PublicKey, error) {
 // remote key.
 func TestPublishSnapshotLocalKeysCreatedFirst(t *testing.T) {
 	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	defer os.RemoveAll(tempBaseDir)
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
 	gun := "docker.com/notary"
@@ -2923,7 +2923,7 @@ func TestRotateRootKey(t *testing.T) {
 
 // If there is no local cache, notary operations return the remote error code
 func TestRemoteServerUnavailableNoLocalCache(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
 	defer os.RemoveAll(tempBaseDir)
 

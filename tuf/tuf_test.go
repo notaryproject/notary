@@ -109,14 +109,18 @@ func writeRepo(t *testing.T, dir string, repo *Repo) {
 }
 
 func TestInitRepo(t *testing.T) {
+	testDir, err := ioutil.TempDir("", "testdir")
+	require.NoError(t, err)
+	defer os.RemoveAll(testDir)
+
 	ed25519 := signed.NewEd25519()
 	repo := initRepo(t, ed25519)
-	writeRepo(t, "/tmp/tufrepo", repo)
+	writeRepo(t, testDir, repo)
 	// after signing a new repo, there are only 4 roles: the 4 base roles
 	require.Len(t, repo.Root.Signed.Roles, 4)
 
 	// can't use getBaseRole because it's not a valid real role
-	_, err := repo.Root.BuildBaseRole("root.1")
+	_, err = repo.Root.BuildBaseRole("root.1")
 	require.Error(t, err)
 }
 
