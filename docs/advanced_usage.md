@@ -190,7 +190,8 @@ Forced removal (including all keys and paths) of delegation role targets/release
 You can remove individual keys and/or paths by passing keys as arguments, and/or
 paths under the `--paths` flag. Use `--all-paths` to clear all paths for this
 role. If you specify all key IDs currently in the delegation role, you will be left
-with a role that is unusable as it will not have enough valid signatures.
+with a role that is unusable as it will not have enough valid signatures (see the
+next section for details on how to recover such a role).
 
 To add targets to a specified delegation role, we can use the `notary add`
 command with the `--roles` flag.
@@ -219,6 +220,29 @@ the same flag:
 
 ```
 $ notary remove example/collections delegation/path/target --roles=targets/releases
+```
+
+## Recovering a delegation
+
+It is possible for delegations to get into a state where they delegation file is not
+signed by any currently valid keys. This will typically happen when the key that has 
+signed the latest version of the delegation file is removed from the list of valid keys
+for the role. Even when a new valid key is added to the delegation
+role, clients will refuse to pull the existing file due to signature verification failure.
+However the existence of the delegation file will cause the server to reject a new delegation
+file set to version `0`. 
+
+The `notary witness` command (added in notary v0.4.0) adds signatures to an existing 
+invalid delegation file to make it valid again. The holder of any key that is valid for 
+the delegation must `witness` the role to sign it with their key.
+
+IMPORTANT: all existing targets in the role being witnessed are preserved. It is up to the 
+new signer to keep or remove existing content once they have claimed it.
+
+```
+$ notary witness example/collections targets/releases
+The following roles were successfully marked for witnessing on the next publish:
+	- targets/releases
 ```
 
 ## Use delegations with content trust

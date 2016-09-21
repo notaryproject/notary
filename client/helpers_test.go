@@ -789,6 +789,7 @@ func TestApplyChangelistCreatesDelegation(t *testing.T) {
 	err = repo.UpdateDelegationKeys("targets/level1", []data.PublicKey{newKey}, []string{}, 1)
 	require.NoError(t, err)
 	err = repo.UpdateDelegationPaths("targets/level1", []string{""}, []string{}, false)
+	require.NoError(t, err)
 	delete(repo.Targets, "targets/level1")
 
 	hash := sha256.Sum256([]byte{})

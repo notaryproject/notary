@@ -60,6 +60,8 @@ const (
 	MemoryBackend    = "memory"
 	SQLiteBackend    = "sqlite3"
 	RethinkDBBackend = "rethinkdb"
+
+	DefaultImportRole = "delegation"
 )
 
 // NotaryDefaultExpiries is the construct used to configure the default expiry times of

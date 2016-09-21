@@ -97,7 +97,7 @@ services:
       env_file: buildscripts/env.list
       links:
         - server:notary-server
-      command: buildscripts/testclient.sh
+      command: buildscripts/testclient.py
 volumes:
     rdb-01-data:
         external: false

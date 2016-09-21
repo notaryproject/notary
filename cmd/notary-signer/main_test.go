@@ -82,7 +82,7 @@ func TestGetAddrAndTLSConfigSuccess(t *testing.T) {
 
 // If a default alias is not provided to a DB backend, an error is returned.
 func TestSetupCryptoServicesDBStoreNoDefaultAlias(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("/tmp", "sqlite3")
+	tmpFile, err := ioutil.TempFile("", "sqlite3")
 	require.NoError(t, err)
 	tmpFile.Close()
 	defer os.Remove(tmpFile.Name())
@@ -145,7 +145,7 @@ func TestSetupCryptoServicesRethinkDBStoreConnectionFails(t *testing.T) {
 // separately, so this doesn't test all the possible cases of storage
 // success/failure).
 func TestSetupCryptoServicesDBStoreSuccess(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("/tmp", "sqlite3")
+	tmpFile, err := ioutil.TempFile("", "sqlite3")
 	require.NoError(t, err)
 	tmpFile.Close()
 	defer os.Remove(tmpFile.Name())

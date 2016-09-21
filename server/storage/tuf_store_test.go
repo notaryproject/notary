@@ -11,6 +11,7 @@ import (
 // Produce a series of tufMeta objects and updates given a TUF repo
 func metaFromRepo(t *testing.T, gun string, version int) map[string]StoredTUFMeta {
 	tufRepo, _, err := testutils.EmptyRepo(gun, "targets/a", "targets/a/b")
+	require.NoError(t, err)
 
 	tufRepo.Root.Signed.Version = version - 1
 	tufRepo.Timestamp.Signed.Version = version - 1

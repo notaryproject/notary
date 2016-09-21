@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"syscall"
@@ -289,7 +290,7 @@ func TestGetTrustServiceTLSFailure(t *testing.T) {
 
 // Just to ensure that errors are propagated
 func TestGetStoreInvalid(t *testing.T) {
-	config := `{"storage": {"backend": "asdf", "db_url": "/tmp/1234"}}`
+	config := `{"storage": {"backend": "asdf", "db_url": "doesnt_matter_what_value_this_is"}}`
 
 	var registerCalled = 0
 
@@ -301,7 +302,7 @@ func TestGetStoreInvalid(t *testing.T) {
 }
 
 func TestGetStoreDBStore(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("/tmp", "sqlite3")
+	tmpFile, err := ioutil.TempFile("", "sqlite3")
 	require.NoError(t, err)
 	tmpFile.Close()
 	defer os.Remove(tmpFile.Name())
@@ -417,8 +418,10 @@ func TestSampleConfig(t *testing.T) {
 }
 
 func TestSignalHandle(t *testing.T) {
-	f, err := os.Create("/tmp/testSignalHandle.json")
-	defer os.Remove(f.Name())
+	tempdir, err := ioutil.TempDir("", "test-signal-handle")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempdir)
+	f, err := os.Create(filepath.Join(tempdir, "testSignalHandle.json"))
 	require.NoError(t, err)
 
 	f.WriteString(`{"logging": {"level": "info"}}`)

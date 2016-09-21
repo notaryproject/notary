@@ -26,10 +26,10 @@ func TestImportWithYubikey(t *testing.T) {
 		t.Skip("Must have Yubikey access.")
 	}
 	setUp(t)
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
-	input, err := ioutil.TempFile("/tmp", "notary-test-import-")
+	input, err := ioutil.TempFile("", "notary-test-import-")
 	require.NoError(t, err)
 	defer os.RemoveAll(input.Name())
 	k := &keyCommander{
@@ -83,6 +83,7 @@ func TestImportWithYubikey(t *testing.T) {
 	require.Error(t, err) // c is non-root, should not be in yubikey
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
+	require.NoError(t, err)
 	_, err = fileStore.Get("ankh")
 	require.Error(t, err) // b should only be in yubikey, not in filestore
 
@@ -98,7 +99,7 @@ func TestGetImporters(t *testing.T) {
 	if !yubikey.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
-	tempBaseDir, err := ioutil.TempDir("/tmp", "notary-test-")
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
 	importers, err := getImporters(tempBaseDir, passphrase.ConstantRetriever("pass"))

@@ -35,6 +35,7 @@ func TestValidationErrorFormat(t *testing.T) {
 		"key",
 		http.DefaultTransport,
 	)
+	require.NoError(t, err)
 
 	repo, _, err := testutils.EmptyRepo("docker.com/notary")
 	require.NoError(t, err)

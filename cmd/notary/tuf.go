@@ -77,6 +77,12 @@ var cmdTUFStatusTemplate = usageTemplate{
 	Long:  "Displays status of unpublished changes to the local trusted collection identified by the Globally Unique Name.",
 }
 
+var cmdTUFResetTemplate = usageTemplate{
+	Use:   "reset [ GUN ]",
+	Short: "Resets unpublished changes for the local trusted collection.",
+	Long:  "Resets unpublished changes for the local trusted collection identified by the Globally Unique Name.",
+}
+
 var cmdTUFVerifyTemplate = usageTemplate{
 	Use:   "verify [ GUN ] <target>",
 	Short: "Verifies if the content is included in the remote trusted collection",
@@ -110,8 +116,8 @@ type tufCommander struct {
 	output string
 	quiet  bool
 
+	resetAll          bool
 	deleteIdx         []int
-	reset             bool
 	archiveChangelist string
 
 	deleteRemote bool
@@ -125,10 +131,12 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmdTUFInit.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
 	cmd.AddCommand(cmdTUFInit)
 
-	cmdStatus := cmdTUFStatusTemplate.ToCommand(t.tufStatus)
-	cmdStatus.Flags().IntSliceVarP(&t.deleteIdx, "unstage", "u", nil, "Numbers of changes to delete, as shown in status list")
-	cmdStatus.Flags().BoolVar(&t.reset, "reset", false, "Reset the changelist for the GUN by deleting all pending changes")
-	cmd.AddCommand(cmdStatus)
+	cmd.AddCommand(cmdTUFStatusTemplate.ToCommand(t.tufStatus))
+
+	cmdReset := cmdTUFResetTemplate.ToCommand(t.tufReset)
+	cmdReset.Flags().IntSliceVarP(&t.deleteIdx, "number", "n", nil, "Numbers of specific changes to exclusively reset, as shown in status list")
+	cmdReset.Flags().BoolVar(&t.resetAll, "all", false, "Reset all changes shown in the status list")
+	cmd.AddCommand(cmdReset)
 
 	cmd.AddCommand(cmdTUFPublishTemplate.ToCommand(t.tufPublish))
 	cmd.AddCommand(cmdTUFLookupTemplate.ToCommand(t.tufLookup))
@@ -162,6 +170,7 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmd.AddCommand(cmdTUFVerify)
 
 	cmdWitness := cmdWitnessTemplate.ToCommand(t.tufWitness)
+	cmdWitness.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
 	cmd.AddCommand(cmdWitness)
 
 	cmdTUFDeleteGUN := cmdTUFDeleteTemplate.ToCommand(t.tufDeleteGUN)
@@ -203,7 +212,7 @@ func (t *tufCommander) tufWitness(cmd *cobra.Command, args []string) error {
 		strings.Join(success, "\n\t- "),
 	)
 
-	return nil
+	return maybeAutoPublish(cmd, t.autoPublish, gun, config, t.retriever)
 }
 
 func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
@@ -333,6 +342,9 @@ func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
 	gun := args[0]
 
 	trustPin, err := getTrustPinning(config)
+	if err != nil {
+		return err
+	}
 
 	// Only initialize a roundtripper if we get the remote flag
 	var rt http.RoundTripper
@@ -403,12 +415,12 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 	if len(rootKeyList) < 1 {
 		cmd.Println("No root keys found. Generating a new root key...")
 		rootPublicKey, err := nRepo.CryptoService.Create(data.CanonicalRootRole, "", data.ECDSAKey)
-		rootKeyID = rootPublicKey.ID()
 		if err != nil {
 			return err
 		}
+		rootKeyID = rootPublicKey.ID()
 	} else {
-		// Choses the first root key available, which is initialization specific
+		// Chooses the first root key available, which is initialization specific
 		// but should return the HW one first.
 		rootKeyID = rootKeyList[0]
 		cmd.Printf("Root key found, using: %s\n", rootKeyID)
@@ -549,14 +561,6 @@ func (t *tufCommander) tufStatus(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if t.reset {
-		return cl.Clear(t.archiveChangelist)
-	}
-
-	if len(t.deleteIdx) > 0 {
-		return cl.Remove(t.deleteIdx)
-	}
-
 	if len(cl.List()) == 0 {
 		cmd.Printf("No unpublished changes for %s\n", gun)
 		return nil
@@ -580,6 +584,44 @@ func (t *tufCommander) tufStatus(cmd *cobra.Command, args []string) error {
 	}
 	tw.Flush()
 	return nil
+}
+
+func (t *tufCommander) tufReset(cmd *cobra.Command, args []string) error {
+	if len(args) < 1 {
+		cmd.Usage()
+		return fmt.Errorf("Must specify a GUN")
+	}
+	if !t.resetAll && len(t.deleteIdx) < 1 {
+		cmd.Usage()
+		return fmt.Errorf("Must specify changes to reset with -n or the --all flag")
+	}
+
+	config, err := t.configGetter()
+	if err != nil {
+		return err
+	}
+	gun := args[0]
+
+	trustPin, err := getTrustPinning(config)
+	if err != nil {
+		return err
+	}
+
+	nRepo, err := notaryclient.NewNotaryRepository(
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin)
+	if err != nil {
+		return err
+	}
+
+	cl, err := nRepo.GetChangelist()
+	if err != nil {
+		return err
+	}
+
+	if t.resetAll {
+		return cl.Clear(t.archiveChangelist)
+	}
+	return cl.Remove(t.deleteIdx)
 }
 
 func (t *tufCommander) tufPublish(cmd *cobra.Command, args []string) error {
@@ -719,14 +761,16 @@ func (ps passwordStore) Basic(u *url.URL) (string, string) {
 
 	username := strings.TrimSpace(string(userIn))
 
-	if term.IsTerminal(0) {
-		state, err := term.SaveState(0)
+	// If typing on the terminal, we do not want the terminal to echo the
+	// password that is typed (so it doesn't display)
+	if term.IsTerminal(os.Stdin.Fd()) {
+		state, err := term.SaveState(os.Stdin.Fd())
 		if err != nil {
 			logrus.Errorf("error saving terminal state, cannot retrieve password: %s", err)
 			return "", ""
 		}
-		term.DisableEcho(0, state)
-		defer term.RestoreTerminal(0, state)
+		term.DisableEcho(os.Stdin.Fd(), state)
+		defer term.RestoreTerminal(os.Stdin.Fd(), state)
 	}
 
 	fmt.Fprintf(os.Stdout, "Enter password: ")

@@ -40,12 +40,22 @@ var (
 	// ErrTooManyAttempts is returned if the maximum number of passphrase
 	// entry attempts is reached.
 	ErrTooManyAttempts = errors.New("Too many attempts")
+
+	// ErrNoInput is returned if we do not have a valid input method for passphrases
+	ErrNoInput = errors.New("Please either use environment variables or STDIN with a terminal to provide key passphrases")
 )
 
 // PromptRetriever returns a new Retriever which will provide a prompt on stdin
-// and stdout to retrieve a passphrase. The passphrase will be cached such that
+// and stdout to retrieve a passphrase. stdin will be checked if it is a terminal,
+// else the PromptRetriever will error when attempting to retrieve a passphrase.
+// Upon successful passphrase retrievals, the passphrase will be cached such that
 // subsequent prompts will produce the same passphrase.
 func PromptRetriever() notary.PassRetriever {
+	if !term.IsTerminal(os.Stdin.Fd()) {
+		return func(string, string, bool, int) (string, bool, error) {
+			return "", false, ErrNoInput
+		}
+	}
 	return PromptRetrieverWithInOut(os.Stdin, os.Stdout, nil)
 }
 
@@ -85,13 +95,13 @@ func (br *boundRetriever) requestPassphrase(keyName, alias string, createNew boo
 
 	// If typing on the terminal, we do not want the terminal to echo the
 	// password that is typed (so it doesn't display)
-	if term.IsTerminal(0) {
-		state, err := term.SaveState(0)
+	if term.IsTerminal(os.Stdin.Fd()) {
+		state, err := term.SaveState(os.Stdin.Fd())
 		if err != nil {
 			return "", false, err
 		}
-		term.DisableEcho(0, state)
-		defer term.RestoreTerminal(0, state)
+		term.DisableEcho(os.Stdin.Fd(), state)
+		defer term.RestoreTerminal(os.Stdin.Fd(), state)
 	}
 
 	indexOfLastSeparator := strings.LastIndex(keyName, string(filepath.Separator))
