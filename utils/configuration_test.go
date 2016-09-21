@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -471,16 +472,19 @@ func TestParseViperWithInvalidFile(t *testing.T) {
 }
 
 func TestParseViperWithValidFile(t *testing.T) {
-	file, err := os.Create("/tmp/Chronicle_Of_Dark_Secrets.json")
+	testDir, err := ioutil.TempDir("", "testdir")
 	require.NoError(t, err)
-	defer os.Remove(file.Name())
+	defer os.RemoveAll(testDir)
+
+	file, err := os.Create(filepath.Join(testDir, "Chronicle_Of_Dark_Secrets.json"))
+	require.NoError(t, err)
 
 	file.WriteString(`{"logging": {"level": "debug"}}`)
 
 	v := viper.New()
 	SetupViper(v, envPrefix)
 
-	err = ParseViper(v, "/tmp/Chronicle_Of_Dark_Secrets.json")
+	err = ParseViper(v, file.Name())
 	require.NoError(t, err)
 
 	require.Equal(t, "debug", v.GetString("logging.level"))
