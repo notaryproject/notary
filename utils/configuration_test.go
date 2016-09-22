@@ -536,7 +536,7 @@ func TestAdjustLogLevel(t *testing.T) {
 	}
 }
 
-func TestSetSignalTrap(t *testing.T) {
+func testSetSignalTrap(t *testing.T) {
 	var signalsPassedOn map[string]struct{}
 
 	signalHandler := func(s os.Signal) {
@@ -559,4 +559,17 @@ func TestSetSignalTrap(t *testing.T) {
 		require.Len(t, signalsPassedOn, 0)
 		require.NotNil(t, signalsPassedOn[s.String()])
 	}
+}
+
+// TODO: undo this extra indirection, needed for mocking notary.NotarySupportedSignals being empty, when we have
+// a windows CI system running
+func TestSetSignalTrap(t *testing.T) {
+	testSetSignalTrap(t)
+}
+
+func TestSetSignalTrapMockWindows(t *testing.T) {
+	old := notary.NotarySupportedSignals
+	notary.NotarySupportedSignals = nil
+	testSetSignalTrap(t)
+	notary.NotarySupportedSignals = old
 }
