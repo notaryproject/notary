@@ -6,8 +6,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/notary/utils"
 	"github.com/docker/notary/version"
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -64,6 +66,11 @@ func main() {
 
 	if flagStorage.debug {
 		log.Println("RPC server listening on", signerConfig.GRPCAddr)
+	}
+
+	c := utils.SetupSignalTrap(utils.LogLevelSignalHandle)
+	if c != nil {
+		defer signal.Stop(c)
 	}
 
 	grpcServer.Serve(lis)
