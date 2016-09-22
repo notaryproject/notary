@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"reflect"
+	"syscall"
 	"testing"
 
 	"github.com/Sirupsen/logrus"
@@ -559,4 +561,29 @@ func TestAdjustLogLevel(t *testing.T) {
 	logrus.SetLevel(logrus.PanicLevel)
 	err = AdjustLogLevel(optDecrement)
 	require.Error(t, err)
+}
+
+func TestSetSignalTrap(t *testing.T) {
+	var signalsPassedOn map[string]struct{}
+
+	signalHandler := func(s os.Signal) {
+		signalsPassedOn := make(map[string]struct{})
+		signalsPassedOn[s.String()] = struct{}{}
+	}
+	c := SetupSignalTrap(signalHandler)
+
+	if len(notary.NotarySupportedSignals) == 0 { // currently, windows only
+		require.Nil(t, c)
+	} else {
+		require.NotNil(t, c)
+		defer signal.Stop(c)
+	}
+
+	for _, s := range notary.NotarySupportedSignals {
+		syscallSignal, ok := s.(syscall.Signal)
+		require.True(t, ok)
+		require.NoError(t, syscall.Kill(syscall.Getpid(), syscallSignal))
+		require.Len(t, signalsPassedOn, 0)
+		require.NotNil(t, signalsPassedOn[s.String()])
+	}
 }
