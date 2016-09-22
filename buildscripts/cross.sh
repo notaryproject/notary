@@ -7,15 +7,10 @@
 
 GOARCH="amd64"
 
-if [[ "${NOTARY_BUILDTAGS}" == *pkcs11* ]]; then
-	export CGO_ENABLED=1
-else
-	export CGO_ENABLED=0
-fi
-
-
 for os in "$@"; do
 	export GOOS="${os}"
+	BUILDTAGS="${NOTARY_BUILDTAGS}"
+	OUTFILE=notary
 
 	if [[ "${GOOS}" == "darwin" ]]; then
 		export CC="o64-clang"
@@ -24,18 +19,29 @@ for os in "$@"; do
 		# darwin binaries can't be compiled to be completely static with the -static flag
 		LDFLAGS="-s"
 	else
+		# no building with Cgo.  Also no building with pkcs11
+		if [[ "${GOOS}" == "windows" ]]; then
+			BUILDTAGS=
+			OUTFILE=notary.exe
+		fi
 		unset CC
 		unset CXX
 		LDFLAGS="-extldflags -static"
+	fi
+
+	if [[ "${BUILDTAGS}" == *pkcs11* ]]; then
+		export CGO_ENABLED=1
+	else
+		export CGO_ENABLED=0
 	fi
 
 	mkdir -p "${NOTARYDIR}/cross/${GOOS}/${GOARCH}";
 
 	set -x;
 	go build \
-		-o "${NOTARYDIR}/cross/${GOOS}/${GOARCH}/notary" \
+		-o "${NOTARYDIR}/cross/${GOOS}/${GOARCH}/${OUTFILE}" \
 		-a \
-		-tags "${NOTARY_BUILDTAGS}" \
+		-tags "${BUILDTAGS}" \
 		-ldflags "-w ${CTIMEVAR} ${LDFLAGS}"  \
 		./cmd/notary;
 	set +x;
