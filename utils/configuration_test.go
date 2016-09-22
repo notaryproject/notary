@@ -492,75 +492,48 @@ func TestParseViperWithValidFile(t *testing.T) {
 	require.Equal(t, "debug", v.GetString("logging.level"))
 }
 
+type logLevelTests struct {
+	startLevel logrus.Level
+	endLevel   logrus.Level
+	increment  bool
+}
+
+const (
+	optIncrement = true
+	optDecrement = false
+)
+
+var logLevelExpectations = []logLevelTests{
+	// highest: Debug, lowest: Panic.  Incrementing brings everything up one level, except debug which is max level
+	{startLevel: logrus.DebugLevel, increment: optIncrement, endLevel: logrus.DebugLevel},
+	{startLevel: logrus.InfoLevel, increment: optIncrement, endLevel: logrus.DebugLevel},
+	{startLevel: logrus.WarnLevel, increment: optIncrement, endLevel: logrus.InfoLevel},
+	{startLevel: logrus.ErrorLevel, increment: optIncrement, endLevel: logrus.WarnLevel},
+	{startLevel: logrus.FatalLevel, increment: optIncrement, endLevel: logrus.ErrorLevel},
+	{startLevel: logrus.PanicLevel, increment: optIncrement, endLevel: logrus.FatalLevel},
+
+	// highest: Debug, lowest: Panic.  Decrementing brings everything down one level, except panic which is min level
+	{startLevel: logrus.DebugLevel, increment: optDecrement, endLevel: logrus.InfoLevel},
+	{startLevel: logrus.InfoLevel, increment: optDecrement, endLevel: logrus.WarnLevel},
+	{startLevel: logrus.WarnLevel, increment: optDecrement, endLevel: logrus.ErrorLevel},
+	{startLevel: logrus.ErrorLevel, increment: optDecrement, endLevel: logrus.FatalLevel},
+	{startLevel: logrus.FatalLevel, increment: optDecrement, endLevel: logrus.PanicLevel},
+	{startLevel: logrus.PanicLevel, increment: optDecrement, endLevel: logrus.PanicLevel},
+}
+
 func TestAdjustLogLevel(t *testing.T) {
+	for _, expt := range logLevelExpectations {
+		logrus.SetLevel(expt.startLevel)
+		err := AdjustLogLevel(expt.increment)
 
-	// To indicate increment or decrement the logging level
-	optIncrement := true
-	optDecrement := false
+		if expt.startLevel == expt.endLevel {
+			require.Error(t, err) // because if it didn't change, that means AdjustLogLevel failed
+		} else {
+			require.NoError(t, err)
+		}
 
-	// Debug is the highest level for now, so we expected a error here
-	logrus.SetLevel(logrus.DebugLevel)
-	err := AdjustLogLevel(optIncrement)
-	require.Error(t, err)
-	// Debug -> Info
-	logrus.SetLevel(logrus.DebugLevel)
-	err = AdjustLogLevel(optDecrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.InfoLevel, logrus.GetLevel())
-
-	// Info -> Debug
-	logrus.SetLevel(logrus.InfoLevel)
-	err = AdjustLogLevel(optIncrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.DebugLevel, logrus.GetLevel())
-	// Info -> Warn
-	logrus.SetLevel(logrus.InfoLevel)
-	err = AdjustLogLevel(optDecrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.WarnLevel, logrus.GetLevel())
-
-	// Warn -> Info
-	logrus.SetLevel(logrus.WarnLevel)
-	err = AdjustLogLevel(optIncrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.InfoLevel, logrus.GetLevel())
-	// Warn -> Error
-	logrus.SetLevel(logrus.WarnLevel)
-	err = AdjustLogLevel(optDecrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.ErrorLevel, logrus.GetLevel())
-
-	// Error -> Warn
-	logrus.SetLevel(logrus.ErrorLevel)
-	err = AdjustLogLevel(optIncrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.WarnLevel, logrus.GetLevel())
-	// Error -> Fatal
-	logrus.SetLevel(logrus.ErrorLevel)
-	err = AdjustLogLevel(optDecrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.FatalLevel, logrus.GetLevel())
-
-	// Fatal -> Error
-	logrus.SetLevel(logrus.FatalLevel)
-	err = AdjustLogLevel(optIncrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.ErrorLevel, logrus.GetLevel())
-	// Fatal -> Panic
-	logrus.SetLevel(logrus.FatalLevel)
-	err = AdjustLogLevel(optDecrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.PanicLevel, logrus.GetLevel())
-
-	// Panic -> Fatal
-	logrus.SetLevel(logrus.PanicLevel)
-	err = AdjustLogLevel(optIncrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.FatalLevel, logrus.GetLevel())
-	// Panic is the lowest level for now, so we expected a error here
-	logrus.SetLevel(logrus.PanicLevel)
-	err = AdjustLogLevel(optDecrement)
-	require.Error(t, err)
+		require.Equal(t, expt.endLevel, logrus.GetLevel())
+	}
 }
 
 func TestSetSignalTrap(t *testing.T) {
