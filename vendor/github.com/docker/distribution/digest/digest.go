@@ -28,7 +28,15 @@ type Digest string
 
 // NewDigest returns a Digest from alg and a hash.Hash object.
 func NewDigest(alg Algorithm, h hash.Hash) Digest {
-	return Digest(fmt.Sprintf("%s:%x", alg, h.Sum(nil)))
+	return NewDigestFromBytes(alg, h.Sum(nil))
+}
+
+// NewDigestFromBytes returns a new digest from the byte contents of p.
+// Typically, this can come from hash.Hash.Sum(...) or xxx.SumXXX(...)
+// functions. This is also useful for rebuilding digests from binary
+// serializations.
+func NewDigestFromBytes(alg Algorithm, p []byte) Digest {
+	return Digest(fmt.Sprintf("%s:%x", alg, p))
 }
 
 // NewDigestFromHex returns a Digest from alg and a the hex encoded digest.
@@ -69,18 +77,7 @@ func FromReader(rd io.Reader) (Digest, error) {
 
 // FromBytes digests the input and returns a Digest.
 func FromBytes(p []byte) Digest {
-	digester := Canonical.New()
-
-	if _, err := digester.Hash().Write(p); err != nil {
-		// Writes to a Hash should never fail. None of the existing
-		// hash implementations in the stdlib or hashes vendored
-		// here can return errors from Write. Having a panic in this
-		// condition instead of having FromBytes return an error value
-		// avoids unnecessary error handling paths in all callers.
-		panic("write to hash function returned error: " + err.Error())
-	}
-
-	return digester.Digest()
+	return Canonical.FromBytes(p)
 }
 
 // Validate checks that the contents of d is a valid digest, returning an
