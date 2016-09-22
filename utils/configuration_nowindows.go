@@ -25,5 +25,5 @@ func LogLevelSignalHandle(sig os.Signal) {
 		}
 	}
 
-	fmt.Println("Successfully setting log level to ", logrus.GetLevel())
+	fmt.Println("Successfully setting log level to", logrus.GetLevel())
 }

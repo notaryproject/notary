@@ -3,8 +3,6 @@
 package utils
 
 import (
-	"io/ioutil"
-	"os"
 	"syscall"
 	"testing"
 
@@ -13,21 +11,14 @@ import (
 )
 
 func TestLogLevelSignalHandle(t *testing.T) {
-	tempdir, err := ioutil.TempDir("", "test-signal-handle")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempdir)
+	signalOperation := map[bool]syscall.Signal{
+		optIncrement: syscall.SIGUSR1,
+		optDecrement: syscall.SIGUSR2,
+	}
 
-	logrus.SetLevel(logrus.InfoLevel)
-
-	// Info + SIGUSR1 -> Debug
-	LogLevelSignalHandle(syscall.SIGUSR1)
-	require.Equal(t, logrus.GetLevel(), logrus.DebugLevel)
-
-	// Debug + SIGUSR1 -> Debug
-	LogLevelSignalHandle(syscall.SIGUSR1)
-	require.Equal(t, logrus.GetLevel(), logrus.DebugLevel)
-
-	// Debug + SIGUSR2-> Info
-	LogLevelSignalHandle(syscall.SIGUSR2)
-	require.Equal(t, logrus.GetLevel(), logrus.InfoLevel)
+	for _, expt := range logLevelExpectations {
+		logrus.SetLevel(expt.startLevel)
+		LogLevelSignalHandle(signalOperation[expt.increment])
+		require.Equal(t, expt.endLevel, logrus.GetLevel())
+	}
 }
