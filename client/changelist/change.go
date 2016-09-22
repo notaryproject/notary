@@ -20,7 +20,7 @@ const (
 // all changes in Snapshot and Timestamp are programmatically
 // generated base on Root and Targets changes.
 const (
-	TypeRootRole          = "role"
+	TypeBaseRole          = "role"
 	TypeTargetsTarget     = "target"
 	TypeTargetsDelegation = "delegation"
 	TypeWitness           = "witness"
