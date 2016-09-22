@@ -70,7 +70,7 @@ func parseSignerConfig(configFilePath string, doBootstrap bool) (signer.Config, 
 	}
 
 	// setup the cryptoservices
-	cryptoServices, err := setUpCryptoservices(config, []string{notary.MySQLBackend, notary.MemoryBackend, notary.PostgresBackend, notary.RethinkDBBackend}, doBootstrap)
+	cryptoServices, err := setUpCryptoservices(config, notary.NotarySupportedBackends, doBootstrap)
 	if err != nil {
 		return signer.Config{}, err
 	}
