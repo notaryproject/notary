@@ -348,11 +348,13 @@ func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
 
 	// Only initialize a roundtripper if we get the remote flag
 	var rt http.RoundTripper
+	var remoteDeleteInfo string
 	if t.deleteRemote {
 		rt, err = getTransport(config, gun, admin)
 		if err != nil {
 			return err
 		}
+		remoteDeleteInfo = " and remote"
 	}
 
 	nRepo, err := notaryclient.NewNotaryRepository(
@@ -362,9 +364,13 @@ func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cmd.Printf("Deleting trust data for repository %s.\n", gun)
+	cmd.Printf("Deleting trust data for repository %s\n", gun)
 
-	return nRepo.DeleteTrustData(t.deleteRemote)
+	if err := nRepo.DeleteTrustData(t.deleteRemote); err != nil {
+		return err
+	}
+	cmd.Printf("Successfully deleted local%s trust data for repository %s\n", remoteDeleteInfo, gun)
+	return nil
 }
 
 func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
@@ -619,9 +625,15 @@ func (t *tufCommander) tufReset(cmd *cobra.Command, args []string) error {
 	}
 
 	if t.resetAll {
-		return cl.Clear(t.archiveChangelist)
+		err = cl.Clear(t.archiveChangelist)
+	} else {
+		err = cl.Remove(t.deleteIdx)
 	}
-	return cl.Remove(t.deleteIdx)
+	// If it was a success, print to terminal
+	if err == nil {
+		cmd.Printf("Successfully reset specified changes for repository %s\n", gun)
+	}
+	return err
 }
 
 func (t *tufCommander) tufPublish(cmd *cobra.Command, args []string) error {
@@ -654,10 +666,7 @@ func (t *tufCommander) tufPublish(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err = nRepo.Publish(); err != nil {
-		return err
-	}
-	return nil
+	return publishAndPrintToCLI(cmd, nRepo, gun)
 }
 
 func (t *tufCommander) tufRemove(cmd *cobra.Command, args []string) error {
@@ -1005,5 +1014,13 @@ func maybeAutoPublish(cmd *cobra.Command, doPublish bool, gun string, config *vi
 	}
 
 	cmd.Println("Auto-publishing changes to", gun)
-	return nRepo.Publish()
+	return publishAndPrintToCLI(cmd, nRepo, gun)
+}
+
+func publishAndPrintToCLI(cmd *cobra.Command, nRepo *notaryclient.NotaryRepository, gun string) error {
+	if err := nRepo.Publish(); err != nil {
+		return err
+	}
+	cmd.Printf("Successfully published changes for repository %s\n", gun)
+	return nil
 }
