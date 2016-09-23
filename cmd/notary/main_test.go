@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -343,10 +344,10 @@ func TestConfigFileTLSCanBeRelativeToConfigOrAbsolute(t *testing.T) {
 		"remote_server": {
 			"url": "%s",
 			"root_ca": "root-ca.crt",
-			"tls_client_cert": "%s",
+			"tls_client_cert": %s,
 			"tls_client_key": "notary-server.key"
 		}
-	}`, s.URL, filepath.Join(tempDir, "notary-server.crt"))
+	}`, s.URL, strconv.Quote(filepath.Join(tempDir, "notary-server.crt")))
 	configFile.Close()
 
 	// copy the certs to be relative to the config directory

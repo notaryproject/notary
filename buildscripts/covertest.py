@@ -32,7 +32,7 @@ def get_coverprofile_filename(pkg, buildtags):
         buildtags = "." + buildtags.replace(' ', '.')
     return pkg.replace('/', '-').replace(' ', '_') + buildtags + ".coverage.txt"
 
-def run_test_with_coverage(buildtags="", coverdir=".cover", pkgs=None, opts="", covermode="count"):
+def run_test_with_coverage(buildtags="", coverdir=".cover", pkgs=None, opts="", covermode="atomic"):
     """
     Run go test with coverage over the the given packages, with the following options
     """
