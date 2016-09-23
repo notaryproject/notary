@@ -7,10 +7,12 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/signal"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/health"
 	"github.com/docker/notary/server"
+	"github.com/docker/notary/utils"
 	"github.com/docker/notary/version"
 )
 
@@ -61,7 +63,10 @@ func main() {
 		logrus.Fatal(err.Error())
 	}
 
-	setupSignalTrap()
+	c := utils.SetupSignalTrap(utils.LogLevelSignalHandle)
+	if c != nil {
+		defer signal.Stop(c)
+	}
 
 	if flagStorage.doBootstrap {
 		err = bootstrap(ctx)
