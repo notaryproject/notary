@@ -13,5 +13,7 @@ case $CIRCLE_NODE_INDEX in
    SKIPENVCHECK=1 make TESTDB=rethink integration
    ;;
 4) docker run --rm -e NOTARY_BUILDTAGS=pkcs11 notary_client make lint
+   SKIPENVCHECK=1 make TESTDB=postgresql testdb
+   SKIPENVCHECK=1 make TESTDB=postgresql integration
    ;;
 esac

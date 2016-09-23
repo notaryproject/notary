@@ -25,6 +25,7 @@ import (
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/utils"
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 	"github.com/spf13/viper"
 	"golang.org/x/net/context"
 	gorethink "gopkg.in/dancannon/gorethink.v2"
@@ -90,7 +91,7 @@ func getStore(configuration *viper.Viper, hRegister healthRegister, doBootstrap 
 	switch backend {
 	case notary.MemoryBackend:
 		return storage.NewMemStorage(), nil
-	case notary.MySQLBackend, notary.SQLiteBackend:
+	case notary.MySQLBackend, notary.SQLiteBackend, notary.PostgresBackend:
 		storeConfig, err := utils.ParseSQLStorage(configuration)
 		if err != nil {
 			return nil, err

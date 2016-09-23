@@ -8,8 +8,11 @@ case ${db} in
   rethink*)
     db="rethink"
     ;;
+  postgresql*)
+    db="postgresql"
+    ;;
   *)
-    echo "Usage: $0 (mysql|rethink)"
+    echo "Usage: $0 (mysql|rethink|postgresql)"
     exit 1
     ;;
 esac
