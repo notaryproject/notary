@@ -1,6 +1,6 @@
-// +build mysqldb
+// +build postgresqldb
 
-// Initializes a MySQL DB for testing purposes
+// Initializes a PostgreSQL DB for testing purposes
 
 package storage
 
@@ -10,20 +10,21 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/docker/notary"
 	"github.com/jinzhu/gorm"
+	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/require"
 )
 
 func init() {
-	// Get the MYSQL connection string from an environment variable
+	// Get the PostgreSQL connection string from an environment variable
 	dburl := os.Getenv("DBURL")
 	if dburl == "" {
-		logrus.Fatal("MYSQL environment variable not set")
+		logrus.Fatal("PostgreSQL environment variable not set")
 	}
 
 	for i := 0; i <= 30; i++ {
-		gormDB, err := gorm.Open("mysql", dburl)
+		gormDB, err := gorm.Open(notary.PostgresBackend, dburl)
 		if err == nil {
 			err := gormDB.DB().Ping()
 			if err == nil {
@@ -38,14 +39,14 @@ func init() {
 
 	sqldbSetup = func(t *testing.T) (*SQLStorage, func()) {
 		var cleanup1 = func() {
-			gormDB, err := gorm.Open("mysql", dburl)
+			gormDB, err := gorm.Open(notary.PostgresBackend, dburl)
 			require.NoError(t, err)
 
 			// drop all tables, if they exist
 			gormDB.DropTable(&TUFFile{})
 		}
 		cleanup1()
-		dbStore := SetupSQLDB(t, "mysql", dburl)
+		dbStore := SetupSQLDB(t, notary.PostgresBackend, dburl)
 		return dbStore, func() {
 			dbStore.DB.Close()
 			cleanup1()

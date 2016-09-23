@@ -60,6 +60,7 @@ const (
 
 	MySQLBackend     = "mysql"
 	MemoryBackend    = "memory"
+	PostgresBackend  = "postgres"
 	SQLiteBackend    = "sqlite3"
 	RethinkDBBackend = "rethinkdb"
 
@@ -88,4 +89,13 @@ var NotaryDefaultExpiries = map[string]time.Duration{
 var NotarySupportedSignals = []os.Signal{
 	syscall.SIGUSR1,
 	syscall.SIGUSR2,
+}
+
+// NotarySupportedBackends contains the backends we would like to support at present
+var NotarySupportedBackends = []string{
+	MemoryBackend,
+	MySQLBackend,
+	SQLiteBackend,
+	RethinkDBBackend,
+	PostgresBackend,
 }

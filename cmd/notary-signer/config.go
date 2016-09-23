@@ -70,7 +70,7 @@ func parseSignerConfig(configFilePath string, doBootstrap bool) (signer.Config, 
 	}
 
 	// setup the cryptoservices
-	cryptoServices, err := setUpCryptoservices(config, []string{notary.MySQLBackend, notary.MemoryBackend, notary.RethinkDBBackend}, doBootstrap)
+	cryptoServices, err := setUpCryptoservices(config, notary.NotarySupportedBackends, doBootstrap)
 	if err != nil {
 		return signer.Config{}, err
 	}
@@ -144,7 +144,7 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, d
 		} else {
 			keyService = keydbstore.NewCachedKeyService(s)
 		}
-	case notary.MySQLBackend, notary.SQLiteBackend:
+	case notary.MySQLBackend, notary.SQLiteBackend, notary.PostgresBackend:
 		storeConfig, err := utils.ParseSQLStorage(configuration)
 		if err != nil {
 			return nil, err
