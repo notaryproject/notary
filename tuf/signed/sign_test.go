@@ -350,11 +350,11 @@ func TestSignFailingKeys(t *testing.T) {
 func TestErrInsufficientSignaturesMessaging(t *testing.T) {
 	require.Contains(t,
 		ErrInsufficientSignatures{NeededKeys: 2, MissingKeyIDs: []string{"ID1", "ID2"}}.Error(),
-		"need 2 keys from: ID1, ID2")
+		"need 2 keys from 2 possible keys (ID1, ID2)")
 	require.Contains(t,
 		ErrInsufficientSignatures{FoundKeys: 1, NeededKeys: 2, MissingKeyIDs: []string{"ID1", "ID2"}}.Error(),
-		"got 1 of 2 needed keys, other candidates: ID1, ID2")
-	require.Equal(t,
-		"cannot sign because while 2 signatures are needed, an insufficient number of valid signing keys have been specified",
-		ErrInsufficientSignatures{FoundKeys: 1, NeededKeys: 2, MissingKeyIDs: []string{}}.Error())
+		"found 1 of 2 needed keys - 2 other possible keys (ID1, ID2)")
+	require.Contains(t,
+		ErrInsufficientSignatures{FoundKeys: 1, NeededKeys: 2, MissingKeyIDs: []string{}}.Error(),
+		"found 1 of 2 needed keys - 0 other possible keys")
 }
