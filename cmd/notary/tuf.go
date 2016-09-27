@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/ssh/terminal"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
@@ -755,7 +757,8 @@ type passwordStore struct {
 }
 
 func (ps passwordStore) Basic(u *url.URL) (string, string) {
-	if ps.anonymous {
+	// if it's not a terminal, don't wait on input
+	if ps.anonymous || !terminal.IsTerminal(int(os.Stdin.Fd())) {
 		return "", ""
 	}
 
@@ -793,6 +796,15 @@ func (ps passwordStore) Basic(u *url.URL) (string, string) {
 	password := strings.TrimSpace(string(userIn))
 
 	return username, password
+}
+
+// to comply with the CredentialStore interface
+func (ps passwordStore) RefreshToken(u *url.URL, service string) string {
+	return ""
+}
+
+// to comply with the CredentialStore interface
+func (ps passwordStore) SetRefreshToken(u *url.URL, service string, token string) {
 }
 
 type httpAccess int

@@ -345,3 +345,16 @@ func TestSignFailingKeys(t *testing.T) {
 	require.Error(t, err)
 	require.IsType(t, FailingPrivateKeyErr{}, err)
 }
+
+// make sure we produce readable error messages
+func TestErrInsufficientSignaturesMessaging(t *testing.T) {
+	require.Contains(t,
+		ErrInsufficientSignatures{NeededKeys: 2, MissingKeyIDs: []string{"ID1", "ID2"}}.Error(),
+		"need 2 keys from 2 possible keys (ID1, ID2)")
+	require.Contains(t,
+		ErrInsufficientSignatures{FoundKeys: 1, NeededKeys: 2, MissingKeyIDs: []string{"ID1", "ID2"}}.Error(),
+		"found 1 of 2 needed keys - 2 other possible keys (ID1, ID2)")
+	require.Contains(t,
+		ErrInsufficientSignatures{FoundKeys: 1, NeededKeys: 2, MissingKeyIDs: []string{}}.Error(),
+		"found 1 of 2 needed keys - 0 other possible keys")
+}
