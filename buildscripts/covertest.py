@@ -101,13 +101,13 @@ class CoverageRunner(object):
         package recursive dependencies, as well as the recursive test dependencies for that package.
         """
         return self.recursive_pkg_deps[pkg].union(
-            *[self.recursive_pkg_deps[test_import] for test_import in self.test_imports[pkg]])
+            *[self.recursive_pkg_deps[test_import] for test_import in self.test_imports.get(pkg, ())])
 
     def run(self, pkgs=(), testopts="", covermode="atomic", debug=False):
         """
         Run go test with coverage over the the given packages, with the following given options
         """
-        pkgs = [pkg for pkg in pkgs if pkg in self.test_imports] or self.test_imports.keys()
+        pkgs = pkgs or self.test_imports.keys()
         pkgs.sort()
 
         cmds = []
@@ -117,11 +117,13 @@ class CoverageRunner(object):
 
         for pkg in pkgs:
             pkg_deps = self.get_pkg_recursive_deps(pkg)
-            cmd = ["go", "test"] + testopts.split() + list(self.tag_args) + [
-                "-covermode", covermode,
-                "-coverprofile", self.get_coverprofile_filename(pkg),
-                "-coverpkg", ",".join(pkg_deps),
-                pkg]
+            cmd = ["go", "test"] + list(self.tag_args)
+            if pkg in self.test_imports:
+                cmd += testopts.split() + [
+                        "-covermode", covermode,
+                        "-coverprofile", self.get_coverprofile_filename(pkg),
+                        "-coverpkg", ",".join(pkg_deps)]
+            cmd += [pkg]
             if debug:
                 print("\t" + " ".join(cmd))
             cmds.append((cmd, pkg_deps))
