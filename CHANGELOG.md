@@ -1,6 +1,11 @@
 # Changelog
 
-## [v0.4.0](https://github.com/docker/notary/releases/tag/v0.4.0) 8/11/2016
+## [v0.4.1](https://github.com/docker/notary/releases/tag/v0.4.0) 9/27/2016
++ Preliminary Windows support for notary client [#970](https://github.com/docker/notary/pull/970)
++ Output message to CLI when repo changes have been successfully published [#974](https://github.com/docker/notary/pull/974)
++ Improved error messages for client authentication errors and for the witness command [#972](https://github.com/docker/notary/pull/972)
+
+## [v0.4.0](https://github.com/docker/notary/releases/tag/v0.4.0) 9/21/2016
 + Server-managed key rotations [#889](https://github.com/docker/notary/pull/889)
 + Remove `timestamp_keys` table, which stored redundant information [#889](https://github.com/docker/notary/pull/889)
 + Introduce `notary delete` command to delete local and/or remote repo data [#895](https://github.com/docker/notary/pull/895)

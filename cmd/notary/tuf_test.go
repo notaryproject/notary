@@ -3,10 +3,12 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/docker/distribution/registry/client/auth"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
@@ -218,4 +220,19 @@ func TestGetTrustPinningErrors(t *testing.T) {
 	require.Error(t, tc.tufWitness(&cobra.Command{}, []string{"gun", "targets/role"}))
 	tc.sha256 = "88b76b34ab83a9e4d5abe3697950fb73f940aab1aa5b534f80cf9de9708942be"
 	require.Error(t, tc.tufAddByHash(&cobra.Command{}, []string{"gun", "test1", "100"}))
+}
+
+func TestPasswordStore(t *testing.T) {
+	myurl, err := url.Parse("https://docker.io")
+	require.NoError(t, err)
+
+	// whether or not we're anonymous, because this isn't a terminal,
+	for _, ps := range []auth.CredentialStore{passwordStore{}, passwordStore{anonymous: true}} {
+		username, passwd := ps.Basic(myurl)
+		require.Equal(t, "", username)
+		require.Equal(t, "", passwd)
+
+		ps.SetRefreshToken(myurl, "someService", "token") // doesn't return an error, just want to make sure no state changes
+		require.Equal(t, "", ps.RefreshToken(myurl, "someService"))
+	}
 }

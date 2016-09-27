@@ -2,6 +2,7 @@ package distribution
 
 import (
 	"fmt"
+	"mime"
 
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/digest"
@@ -25,7 +26,7 @@ type Manifest interface {
 // specific data is passed into the function which creates the builder.
 type ManifestBuilder interface {
 	// Build creates the manifest from his builder.
-	Build() (Manifest, error)
+	Build(ctx context.Context) (Manifest, error)
 
 	// References returns a list of objects which have been added to this
 	// builder. The dependencies are returned in the order they were added,
@@ -52,12 +53,12 @@ type ManifestService interface {
 	// Delete removes the manifest specified by the given digest. Deleting
 	// a manifest that doesn't exist will return ErrManifestNotFound
 	Delete(ctx context.Context, dgst digest.Digest) error
+}
 
-	// Enumerate fills 'manifests' with the manifests in this service up
-	// to the size of 'manifests' and returns 'n' for the number of entries
-	// which were filled.  'last' contains an offset in the manifest set
-	// and can be used to resume iteration.
-	//Enumerate(ctx context.Context, manifests []Manifest, last Manifest) (n int, err error)
+// ManifestEnumerator enables iterating over manifests
+type ManifestEnumerator interface {
+	// Enumerate calls ingester for each manifest.
+	Enumerate(ctx context.Context, ingester func(digest.Digest) error) error
 }
 
 // Describable is an interface for descriptors
@@ -68,7 +69,9 @@ type Describable interface {
 // ManifestMediaTypes returns the supported media types for manifests.
 func ManifestMediaTypes() (mediaTypes []string) {
 	for t := range mappings {
-		mediaTypes = append(mediaTypes, t)
+		if t != "" {
+			mediaTypes = append(mediaTypes, t)
+		}
 	}
 	return
 }
@@ -78,12 +81,26 @@ type UnmarshalFunc func([]byte) (Manifest, Descriptor, error)
 
 var mappings = make(map[string]UnmarshalFunc, 0)
 
-// UnmarshalManifest looks up manifest unmarshall functions based on
+// UnmarshalManifest looks up manifest unmarshal functions based on
 // MediaType
-func UnmarshalManifest(mediatype string, p []byte) (Manifest, Descriptor, error) {
+func UnmarshalManifest(ctHeader string, p []byte) (Manifest, Descriptor, error) {
+	// Need to look up by the actual media type, not the raw contents of
+	// the header. Strip semicolons and anything following them.
+	var mediatype string
+	if ctHeader != "" {
+		var err error
+		mediatype, _, err = mime.ParseMediaType(ctHeader)
+		if err != nil {
+			return nil, Descriptor{}, err
+		}
+	}
+
 	unmarshalFunc, ok := mappings[mediatype]
 	if !ok {
-		return nil, Descriptor{}, fmt.Errorf("unsupported manifest mediatype: %s", mediatype)
+		unmarshalFunc, ok = mappings[""]
+		if !ok {
+			return nil, Descriptor{}, fmt.Errorf("unsupported manifest mediatype and no default available: %s", mediatype)
+		}
 	}
 
 	return unmarshalFunc(p)
