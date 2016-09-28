@@ -616,7 +616,7 @@ func TestRemoveKey(t *testing.T) {
 		require.True(t, os.IsNotExist(err), "file should not exist")
 	}
 
-	// removing a non-existant key should not error
+	// removing a non-existent key should not error
 	require.NoError(t, store.RemoveKey("nope"))
 }
 
