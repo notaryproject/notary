@@ -4,6 +4,7 @@
 + Preliminary Windows support for notary client [#970](https://github.com/docker/notary/pull/970)
 + Output message to CLI when repo changes have been successfully published [#974](https://github.com/docker/notary/pull/974)
 + Improved error messages for client authentication errors and for the witness command [#972](https://github.com/docker/notary/pull/972)
++ Support for finding keys that are anywhere in the notary directory's "private" directory, not just under "private/root_keys" or "private/tuf_keys" [#981](https://github.com/docker/notary/pull/981)
 
 ## [v0.4.0](https://github.com/docker/notary/releases/tag/v0.4.0) 9/21/2016
 + Server-managed key rotations [#889](https://github.com/docker/notary/pull/889)
