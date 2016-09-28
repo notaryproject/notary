@@ -1,5 +1,19 @@
 """
 Script that automates trusted pull/pushes on different docker versions.
+
+Usage: python buildscripts/dockertest.py
+
+- assumes that this is run from the root notary directory
+- assumes that bin/client already exists
+- assumes you are logged in with docker
+
+- environment variables to provide:
+    - DEBUG=true - produce debug output
+    - DOCKER_CONTENT_TRUST_SERVER=<notary server url> test against a non-local
+      notary server
+    - NOTARY_SERVER_USERNAME=<username> login creds username to notary server
+    - NOTARY_SERVER_PASSPHRASE=<passwd> login creds password to notary server
+    - DOCKER_USERNAME=<username> docker hub login username
 """
 
 from __future__ import print_function
@@ -33,7 +47,7 @@ DOWNLOAD_DOCKERS = {
     "1.12": ("https://get.docker.com", "docker-1.12.1"),
 }
 
-NOTARY_VERSION = "0.3.0"     # only version that will work with docker < 1.13
+NOTARY_VERSION = "0.4.1"     # only version that will work with docker < 1.13
 NOTARY_BINARY = "bin/notary"
 
 # please replace with private registry if you want to test against a private
@@ -131,7 +145,7 @@ def download_docker(download_dir="/tmp"):
 
 def verify_notary():
     """
-    Check that notary is hte right version
+    Check that notary is the right version
     """
     if not os.path.isfile(NOTARY_BINARY):
         raise Exception("notary client does not exist: " + NOTARY_BINARY)
@@ -247,15 +261,23 @@ def clear_keys():
             raise
 
 
-def run_cmd(cmd, fileoutput):
+def run_cmd(cmd, fileoutput, input=None):
     """
     Takes a string command, runs it, and returns the output even if it fails.
     """
     print("$ " + cmd)
     fileoutput.write("$ {cmd}\n".format(cmd=cmd))
 
-    process = subprocess.Popen(cmd.split(), env=_ENV, stderr=subprocess.STDOUT,
-                               stdout=subprocess.PIPE)
+    if input is not None:
+        process = subprocess.Popen(
+            cmd.split(), env=_ENV, stderr=subprocess.STDOUT,
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+        process.stdin.write(input)
+        process.stdin.close()
+    else:
+        process = subprocess.Popen(cmd.split(), env=_ENV, stderr=subprocess.STDOUT,
+                                   stdout=subprocess.PIPE)
     output = ""
     while process.poll() is None:
         line = process.stdout.readline()
@@ -343,6 +365,18 @@ def push(fout, docker_version, image, tag):
     return sha, size
 
 
+def get_notary_usernamepass():
+    """
+    Gets the username password for the notary server
+    """
+    username = os.getenv("NOTARY_SERVER_USERNAME")
+    passwd = os.getenv("NOTARY_SERVER_PASSPHRASE")
+
+    if username and passwd:
+        return username + "\n" + passwd + "\n"
+    return None
+
+
 def notary_list(fout, repo):
     """
     Calls notary list on the repo and returns a list of lists of tags, shas,
@@ -352,7 +386,7 @@ def notary_list(fout, repo):
     output = run_cmd(
         "{notary}{debug} -d {trustdir} list {gun}".format(
             notary=NOTARY_CLIENT, trustdir=_TRUST_DIR, gun=repo, debug=DEBUG),
-        fout)
+        fout, input=get_notary_usernamepass())
     lines = output.strip().split("\n")
     assert len(lines) >= 3, "not enough targets"
     return [line.strip().split() for line in lines[2:]]
@@ -552,11 +586,11 @@ def rotate_to_server_snapshot(fout, image):
     run_cmd(
         "{notary}{debug} -d {trustdir} key rotate {gun} snapshot -r".format(
             notary=NOTARY_CLIENT, trustdir=_TRUST_DIR, gun=image, debug=DEBUG),
-        fout)
+        fout, input=get_notary_usernamepass())
     run_cmd(
         "{notary}{debug} -d {trustdir} publish {gun}".format(
             notary=NOTARY_CLIENT, trustdir=_TRUST_DIR, gun=image, debug=DEBUG),
-        fout)
+        fout, input=get_notary_usernamepass())
 
 
 def test_all_docker_versions():
