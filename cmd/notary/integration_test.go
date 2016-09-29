@@ -1477,6 +1477,8 @@ func TestPurgeSingleKey(t *testing.T) {
 //  11. witness an invalid role and check for error on publish
 //  12. check non-targets base roles all fail
 //  13. test auto-publish functionality
+//  14. remove all keys from the delegation and publish
+//  15. witnessing the delegation should now fail
 func TestWitness(t *testing.T) {
 	setUp(t)
 
@@ -1643,6 +1645,12 @@ func TestWitness(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, output, targetName)
 	require.Contains(t, output, targetHash)
+
+	_, err = runCommand(t, tempDir, "-s", server.URL, "delegation", "remove", "-p", "gun", delgName, keyID, keyID2)
+	require.NoError(t, err)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "witness", "-p", "gun", delgName)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "role does not specify enough valid signing keys to meet its required threshold")
 }
 
 func generateCertPrivKeyPair(t *testing.T, gun, keyAlgorithm string) (*x509.Certificate, data.PrivateKey, string) {

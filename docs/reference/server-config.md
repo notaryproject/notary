@@ -362,9 +362,11 @@ Example:
 </table>
 
 ## Hot logging level reload
-We don't support completely reloading notary configuration files yet at present. What we support for now is:
+We don't support completely reloading notary configuration files yet at present. What we support for Linux and OSX now is:
 - increase logging level by signaling `SIGUSR1`
 - decrease logging level by signaling `SIGUSR2`
+
+No signals and no dynamic logging level changes are supported for Windows yet.
 
 Example:
 

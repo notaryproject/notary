@@ -240,7 +240,11 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	return nRepo.RotateKey(rotateKeyRole, k.rotateKeyServerManaged)
+	if err := nRepo.RotateKey(rotateKeyRole, k.rotateKeyServerManaged); err != nil {
+		return err
+	}
+	cmd.Printf("Successfully rotated %s key for repository %s\n", rotateKeyRole, gun)
+	return nil
 }
 
 func removeKeyInteractively(keyStores []trustmanager.KeyStore, keyID string,
