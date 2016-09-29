@@ -210,6 +210,44 @@ The environment variables for the older passwords are optional, but Notary
 Signer will not be able to decrypt older keys if they are not provided, and
 attempts to sign data using those keys will fail.
 
+## Hot logging level reload
+We don't support completely reloading notary signer configuration files yet at present. What we support for Linux and OSX now is:
+- increase logging level by signaling `SIGUSR1`
+- decrease logging level by signaling `SIGUSR2`
+
+No signals and no dynamic logging level changes are supported for Windows yet.
+
+Example:
+
+To increase logging level
+```
+$ kill -s SIGUSR1 PID
+
+or
+
+$ docker exec -i CONTAINER_ID kill -s SIGUSR1 PID
+```
+
+To decrease logging level
+```
+$ kill -s SIGUSR2 PID
+
+or
+
+$ docker exec -i CONTAINER_ID kill -s SIGUSR2 PID
+```
+PID is the process id of `notary-signer` and it may not the PID 1 process if you are running
+the container with some kind of wrapper startup script or something.
+
+You can get the PID of `notary-signer` through
+```
+$ docker exec CONTAINER_ID ps aux
+
+or
+
+$ ps aux | grep "notary-signer -config" | grep -v "grep"
+```
+
 
 ## Related information
 

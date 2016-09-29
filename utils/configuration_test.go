@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"reflect"
+	"syscall"
 	"testing"
 
 	"github.com/Sirupsen/logrus"
@@ -490,73 +492,84 @@ func TestParseViperWithValidFile(t *testing.T) {
 	require.Equal(t, "debug", v.GetString("logging.level"))
 }
 
+type logLevelTests struct {
+	startLevel logrus.Level
+	endLevel   logrus.Level
+	increment  bool
+}
+
+const (
+	optIncrement = true
+	optDecrement = false
+)
+
+var logLevelExpectations = []logLevelTests{
+	// highest: Debug, lowest: Panic.  Incrementing brings everything up one level, except debug which is max level
+	{startLevel: logrus.DebugLevel, increment: optIncrement, endLevel: logrus.DebugLevel},
+	{startLevel: logrus.InfoLevel, increment: optIncrement, endLevel: logrus.DebugLevel},
+	{startLevel: logrus.WarnLevel, increment: optIncrement, endLevel: logrus.InfoLevel},
+	{startLevel: logrus.ErrorLevel, increment: optIncrement, endLevel: logrus.WarnLevel},
+	{startLevel: logrus.FatalLevel, increment: optIncrement, endLevel: logrus.ErrorLevel},
+	{startLevel: logrus.PanicLevel, increment: optIncrement, endLevel: logrus.FatalLevel},
+
+	// highest: Debug, lowest: Panic.  Decrementing brings everything down one level, except panic which is min level
+	{startLevel: logrus.DebugLevel, increment: optDecrement, endLevel: logrus.InfoLevel},
+	{startLevel: logrus.InfoLevel, increment: optDecrement, endLevel: logrus.WarnLevel},
+	{startLevel: logrus.WarnLevel, increment: optDecrement, endLevel: logrus.ErrorLevel},
+	{startLevel: logrus.ErrorLevel, increment: optDecrement, endLevel: logrus.FatalLevel},
+	{startLevel: logrus.FatalLevel, increment: optDecrement, endLevel: logrus.PanicLevel},
+	{startLevel: logrus.PanicLevel, increment: optDecrement, endLevel: logrus.PanicLevel},
+}
+
 func TestAdjustLogLevel(t *testing.T) {
+	for _, expt := range logLevelExpectations {
+		logrus.SetLevel(expt.startLevel)
+		err := AdjustLogLevel(expt.increment)
 
-	// To indicate increment or decrement the logging level
-	optIncrement := true
-	optDecrement := false
+		if expt.startLevel == expt.endLevel {
+			require.Error(t, err) // because if it didn't change, that means AdjustLogLevel failed
+		} else {
+			require.NoError(t, err)
+		}
 
-	// Debug is the highest level for now, so we expected a error here
-	logrus.SetLevel(logrus.DebugLevel)
-	err := AdjustLogLevel(optIncrement)
-	require.Error(t, err)
-	// Debug -> Info
-	logrus.SetLevel(logrus.DebugLevel)
-	err = AdjustLogLevel(optDecrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.InfoLevel, logrus.GetLevel())
+		require.Equal(t, expt.endLevel, logrus.GetLevel())
+	}
+}
 
-	// Info -> Debug
-	logrus.SetLevel(logrus.InfoLevel)
-	err = AdjustLogLevel(optIncrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.DebugLevel, logrus.GetLevel())
-	// Info -> Warn
-	logrus.SetLevel(logrus.InfoLevel)
-	err = AdjustLogLevel(optDecrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.WarnLevel, logrus.GetLevel())
+func testSetSignalTrap(t *testing.T) {
+	var signalsPassedOn map[string]struct{}
 
-	// Warn -> Info
-	logrus.SetLevel(logrus.WarnLevel)
-	err = AdjustLogLevel(optIncrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.InfoLevel, logrus.GetLevel())
-	// Warn -> Error
-	logrus.SetLevel(logrus.WarnLevel)
-	err = AdjustLogLevel(optDecrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.ErrorLevel, logrus.GetLevel())
+	signalHandler := func(s os.Signal) {
+		signalsPassedOn := make(map[string]struct{})
+		signalsPassedOn[s.String()] = struct{}{}
+	}
+	c := SetupSignalTrap(signalHandler)
 
-	// Error -> Warn
-	logrus.SetLevel(logrus.ErrorLevel)
-	err = AdjustLogLevel(optIncrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.WarnLevel, logrus.GetLevel())
-	// Error -> Fatal
-	logrus.SetLevel(logrus.ErrorLevel)
-	err = AdjustLogLevel(optDecrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.FatalLevel, logrus.GetLevel())
+	if len(notary.NotarySupportedSignals) == 0 { // currently, windows only
+		require.Nil(t, c)
+	} else {
+		require.NotNil(t, c)
+		defer signal.Stop(c)
+	}
 
-	// Fatal -> Error
-	logrus.SetLevel(logrus.FatalLevel)
-	err = AdjustLogLevel(optIncrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.ErrorLevel, logrus.GetLevel())
-	// Fatal -> Panic
-	logrus.SetLevel(logrus.FatalLevel)
-	err = AdjustLogLevel(optDecrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.PanicLevel, logrus.GetLevel())
+	for _, s := range notary.NotarySupportedSignals {
+		syscallSignal, ok := s.(syscall.Signal)
+		require.True(t, ok)
+		require.NoError(t, syscall.Kill(syscall.Getpid(), syscallSignal))
+		require.Len(t, signalsPassedOn, 0)
+		require.NotNil(t, signalsPassedOn[s.String()])
+	}
+}
 
-	// Panic -> Fatal
-	logrus.SetLevel(logrus.PanicLevel)
-	err = AdjustLogLevel(optIncrement)
-	require.NoError(t, err)
-	require.Equal(t, logrus.FatalLevel, logrus.GetLevel())
-	// Panic is the lowest level for now, so we expected a error here
-	logrus.SetLevel(logrus.PanicLevel)
-	err = AdjustLogLevel(optDecrement)
-	require.Error(t, err)
+// TODO: undo this extra indirection, needed for mocking notary.NotarySupportedSignals being empty, when we have
+// a windows CI system running
+func TestSetSignalTrap(t *testing.T) {
+	testSetSignalTrap(t)
+}
+
+func TestSetSignalTrapMockWindows(t *testing.T) {
+	old := notary.NotarySupportedSignals
+	notary.NotarySupportedSignals = nil
+	testSetSignalTrap(t)
+	notary.NotarySupportedSignals = old
 }

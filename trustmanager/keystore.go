@@ -173,26 +173,12 @@ func (s *GenericKeyStore) AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error
 func (s *GenericKeyStore) GetKey(name string) (data.PrivateKey, string, error) {
 	s.Lock()
 	defer s.Unlock()
-	// If this is a bare key ID without the gun, prepend the gun so the filestore lookup succeeds
-	if keyInfo, ok := s.keyInfoMap[name]; ok {
-		name = filepath.Join(keyInfo.Gun, name)
-	}
-
 	cachedKeyEntry, ok := s.cachedKeys[name]
 	if ok {
 		return cachedKeyEntry.key, cachedKeyEntry.alias, nil
 	}
 
-	keyAlias, legacy, err := getKeyRole(s.store, name)
-	if err != nil {
-		return nil, "", err
-	}
-
-	if legacy {
-		name = name + "_" + keyAlias
-	}
-
-	keyBytes, err := s.store.Get(filepath.Join(getSubdir(keyAlias), name))
+	keyBytes, _, keyAlias, err := getKey(s.store, name)
 	if err != nil {
 		return nil, "", err
 	}
@@ -218,25 +204,18 @@ func (s *GenericKeyStore) ListKeys() map[string]KeyInfo {
 func (s *GenericKeyStore) RemoveKey(keyID string) error {
 	s.Lock()
 	defer s.Unlock()
-	// If this is a bare key ID without the gun, prepend the gun so the filestore lookup succeeds
-	if keyInfo, ok := s.keyInfoMap[keyID]; ok {
-		keyID = filepath.Join(keyInfo.Gun, keyID)
-	}
 
-	role, legacy, err := getKeyRole(s.store, keyID)
-	if err != nil {
+	_, filename, _, err := getKey(s.store, keyID)
+	switch err.(type) {
+	case ErrKeyNotFound, nil:
+		break
+	default:
 		return err
 	}
 
 	delete(s.cachedKeys, keyID)
 
-	name := keyID
-	if legacy {
-		name = keyID + "_" + role
-	}
-
-	// being in a subdirectory is for backwards compatibliity
-	err = s.store.Remove(filepath.Join(getSubdir(role), name))
+	err = s.store.Remove(filename) // removing a file that doesn't exist doesn't fail
 	if err != nil {
 		return err
 	}
@@ -276,11 +255,11 @@ func KeyInfoFromPEM(pemBytes []byte, filename string) (string, KeyInfo, error) {
 	return keyID, KeyInfo{Gun: gun, Role: role}, nil
 }
 
-// getKeyRole finds the role for the given keyID. It attempts to look
-// both in the newer format PEM headers, and also in the legacy filename
-// format. It returns: the role, whether it was found in the legacy format
-// (true == legacy), and an error
-func getKeyRole(s Storage, keyID string) (string, bool, error) {
+// getKey finds the key and role for the given keyID. It attempts to
+// look both in the newer format PEM headers, and also in the legacy filename
+// format. It returns: the key bytes, the filename it was found under, the role,
+// and an error
+func getKey(s Storage, keyID string) ([]byte, string, string, error) {
 	name := strings.TrimSpace(strings.TrimSuffix(filepath.Base(keyID), filepath.Ext(keyID)))
 
 	for _, file := range s.ListFiles() {
@@ -289,21 +268,21 @@ func getKeyRole(s Storage, keyID string) (string, bool, error) {
 		if strings.HasPrefix(filename, name) {
 			d, err := s.Get(file)
 			if err != nil {
-				return "", false, err
+				return nil, "", "", err
 			}
 			block, _ := pem.Decode(d)
 			if block != nil {
 				if role, ok := block.Headers["role"]; ok {
-					return role, false, nil
+					return d, file, role, nil
 				}
 			}
 
 			role := strings.TrimPrefix(filename, name+"_")
-			return role, true, nil
+			return d, file, role, nil
 		}
 	}
 
-	return "", false, ErrKeyNotFound{KeyID: keyID}
+	return nil, "", "", ErrKeyNotFound{KeyID: keyID}
 }
 
 // Assumes 2 subdirectories, 1 containing root keys and 1 containing TUF keys

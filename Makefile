@@ -13,7 +13,7 @@ endif
 CTIMEVAR=-X $(NOTARY_PKG)/version.GitCommit=$(GITCOMMIT) -X $(NOTARY_PKG)/version.NotaryVersion=$(NOTARY_VERSION)
 GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
 GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
-GOOSES = darwin linux
+GOOSES = darwin linux windows
 NOTARY_BUILDTAGS ?= pkcs11
 NOTARYDIR := /go/src/github.com/docker/notary
 

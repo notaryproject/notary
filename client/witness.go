@@ -1,10 +1,11 @@
 package client
 
 import (
+	"path/filepath"
+
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/tuf"
 	"github.com/docker/notary/tuf/data"
-	"path/filepath"
 )
 
 // Witness creates change objects to witness (i.e. re-sign) the given
@@ -41,7 +42,18 @@ func witnessTargets(repo *tuf.Repo, invalid *tuf.Repo, role string) error {
 		r.Dirty = true
 		return nil
 	}
-	if invalid != nil {
+
+	if roleObj, err := repo.GetDelegationRole(role); err == nil && invalid != nil {
+		// A role with a threshold > len(keys) is technically invalid, but we let it build in the builder because
+		// we want to be able to download the role (which may still have targets on it), add more keys, and then
+		// witness the role, thus bringing it back to valid.  However, if no keys have been added before witnessing,
+		// then it is still an invalid role, and can't be witnessed because nothing can bring it back to valid.
+		if roleObj.Threshold > len(roleObj.Keys) {
+			return data.ErrInvalidRole{
+				Role:   role,
+				Reason: "role does not specify enough valid signing keys to meet its required threshold",
+			}
+		}
 		if r, ok := invalid.Targets[role]; ok {
 			// role is recognized but invalid, move to valid data and mark for re-signing
 			repo.Targets[role] = r
