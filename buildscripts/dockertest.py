@@ -1,5 +1,19 @@
 """
 Script that automates trusted pull/pushes on different docker versions.
+
+Usage: python buildscripts/dockertest.py
+
+- assumes that this is run from the root notary directory
+- assumes that bin/client already exists
+- assumes you are logged in with docker
+
+- environment variables to provide:
+    - DEBUG=true - produce debug output
+    - DOCKER_CONTENT_TRUST_SERVER=<notary server url> test against a non-local
+      notary server
+    - NOTARY_SERVER_USERNAME=<username> login creds username to notary server
+    - NOTARY_SERVER_PASSPHRASE=<passwd> login creds password to notary server
+    - DOCKER_USERNAME=<username> docker hub login username
 """
 
 from __future__ import print_function
@@ -30,8 +44,11 @@ DOCKERS = {}
 DOWNLOAD_DOCKERS = {
     "1.10": ("https://get.docker.com", "docker-1.10.3"),
     "1.11": ("https://get.docker.com", "docker-1.11.2"),
-    "1.12": ("https://get.docker.com", "docker-1.12.0"),
+    "1.12": ("https://get.docker.com", "docker-1.12.1"),
 }
+
+NOTARY_VERSION = "0.4.1"     # only version that will work with docker < 1.13
+NOTARY_BINARY = "bin/notary"
 
 # please replace with private registry if you want to test against a private
 # registry
@@ -47,24 +64,31 @@ REPO_PREFIX = "docker_test"
 # Assumes default docker config dir
 DEFAULT_DOCKER_CONFIG = os.path.expanduser("~/.docker")
 
-# Assumes the trust server will be run using compose if DOCKER_CONTENT_TRUST_SERVER is not specified
+# Assumes the trust server will be run using compose if
+# DOCKER_CONTENT_TRUST_SERVER is not specified
 DEFAULT_NOTARY_SERVER = "https://notary-server:4443"
 
 # please enter a custom trust server location if you do not wish to use a local
-# docker-compose instantiation.  If testing against Docker Hub's notary server or
-# another trust server, please also ensure that this script does not pick up incorrect TLS
-# certificates from ~/.notary/config.json by default
-TRUST_SERVER =  os.getenv('DOCKER_CONTENT_TRUST_SERVER', DEFAULT_NOTARY_SERVER)
+# docker-compose instantiation.  If testing against Docker Hub's notary server
+# or another trust server, please also ensure that this script does not pick up
+# incorrect TLS certificates from ~/.notary/config.json by default
+TRUST_SERVER = os.getenv('DOCKER_CONTENT_TRUST_SERVER', DEFAULT_NOTARY_SERVER)
+
 
 # Assumes the test will be run with `python misc/dockertest.py` from
 # the root of the notary repo after binaries are built
 # also overrides the notary server location if need be
 if TRUST_SERVER != DEFAULT_NOTARY_SERVER:
-    NOTARY_CLIENT = "bin/notary -s {0}".format(TRUST_SERVER)
+    NOTARY_CLIENT = "{client} -s {server}".format(
+        client=NOTARY_BINARY, server=TRUST_SERVER)
 else:
-    NOTARY_CLIENT = "bin/notary -c cmd/notary/config.json"
+    NOTARY_CLIENT = "{client} -c cmd/notary/config.json".format(
+        client=NOTARY_BINARY)
+
+DEBUG = " -D" if os.getenv('DEBUG') else ""
 
 # ---- setup ----
+
 
 def download_docker(download_dir="/tmp"):
     """
@@ -92,9 +116,13 @@ def download_docker(download_dir="/tmp"):
 
         if not os.path.isfile(tarfilename):
             url = urljoin(
-                # as of 1.10 docker downloads are tar-ed due to potentially containing containerd etc.
-                # note that for windows (which we don't currently support), it's a .zip file
-                domain, "/".join(["builds", system, architecture, binary+".tgz"]))
+                # as of 1.10 docker downloads are tar-ed due to potentially
+                # containing containerd etc.
+                # note that for windows (which we don't currently support),
+                # it's a .zip file
+                domain, "/".join(
+                    ["builds", system, architecture, binary+".tgz"]))
+
             print("Downloading", url)
             downloadfile.retrieve(url, tarfilename)
 
@@ -110,7 +138,27 @@ def download_docker(download_dir="/tmp"):
                 os.chmod(fname, 0755)
 
         if not os.path.isfile(DOCKERS[version]):
-            raise Exception("Extracted {0} to {1} but could not find {1}".format(tarfilename, extractdir, filename))
+            raise Exception(
+                "Extracted {tar} to {loc} but could not find {docker}".format(
+                    tar=tarfilename, loc=extractdir, docker=DOCKERS[version]))
+
+
+def verify_notary():
+    """
+    Check that notary is the right version
+    """
+    if not os.path.isfile(NOTARY_BINARY):
+        raise Exception("notary client does not exist: " + NOTARY_BINARY)
+
+    output = subprocess.check_output([NOTARY_BINARY, "version"]).strip()
+    lines = output.split("\n")
+    if len(lines) != 3:
+        print(output)
+        raise Exception("notary version output invalid")
+
+    if lines[1].split()[-1] > NOTARY_VERSION:
+        print(output)
+        raise Exception("notary version too high: must be <= " + NOTARY_VERSION)
 
 
 def setup():
@@ -118,12 +166,19 @@ def setup():
     Ensure we are set up to run the test
     """
     download_docker()
+    verify_notary()
+    # ensure that we have the alpine image
+    subprocess.call("docker pull alpine".split())
+
     # copy the docker config dir over so we don't break anything in real docker
     # config directory
     os.mkdir(_TEMP_DOCKER_CONFIG_DIR)
+
     # copy any docker creds over so we can push
     configfile = os.path.join(_TEMP_DOCKER_CONFIG_DIR, "config.json")
-    shutil.copyfile(os.path.join(DEFAULT_DOCKER_CONFIG, "config.json"), configfile)
+    shutil.copyfile(
+        os.path.join(DEFAULT_DOCKER_CONFIG, "config.json"), configfile)
+
     # always clean up the config file so creds aren't left in this temp directory
     atexit.register(os.remove, configfile)
     defaulttlsdir = os.path.join(DEFAULT_DOCKER_CONFIG, "tls")
@@ -192,6 +247,7 @@ def clear_tuf():
         if "No such file or directory" not in str(ex):
             raise
 
+
 def clear_keys():
     """
     Removes the TUF keys in trust directory, since the key format changed
@@ -205,27 +261,39 @@ def clear_keys():
             raise
 
 
-def run_cmd(cmd, fileoutput):
+def run_cmd(cmd, fileoutput, input=None):
     """
     Takes a string command, runs it, and returns the output even if it fails.
     """
     print("$ " + cmd)
-    fileoutput.write("$ {0}\n".format(cmd))
-    try:
-        output = subprocess.check_output(cmd.split(), stderr=subprocess.STDOUT,
-                                         env=_ENV)
-    except subprocess.CalledProcessError as ex:
-        print(ex.output)
-        fileoutput.write(ex.output)
-        raise
+    fileoutput.write("$ {cmd}\n".format(cmd=cmd))
+
+    if input is not None:
+        process = subprocess.Popen(
+            cmd.split(), env=_ENV, stderr=subprocess.STDOUT,
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+        process.stdin.write(input)
+        process.stdin.close()
     else:
-        if output:
-            print(output)
-            fileoutput.write(output)
-        return output
-    finally:
-        print()
-        fileoutput.write("\n")
+        process = subprocess.Popen(cmd.split(), env=_ENV, stderr=subprocess.STDOUT,
+                                   stdout=subprocess.PIPE)
+    output = ""
+    while process.poll() is None:
+        line = process.stdout.readline()
+        print(line.strip("\n"))
+        fileoutput.write(line)
+        if "level=debug" not in line:
+            output += line
+
+    retcode = process.poll()
+    print()
+    fileoutput.write("\n")
+
+    if retcode:
+        raise subprocess.CalledProcessError(retcode, cmd, output=output)
+
+    return output
 
 
 def rmi(fout, docker_version, image, tag):
@@ -234,11 +302,13 @@ def rmi(fout, docker_version, image, tag):
     """
     try:
         run_cmd(
-            "{0} rmi {1}:{2}".format(DOCKERS[docker_version], image, tag),
+            "{docker} rmi {image}:{tag}".format(
+                docker=DOCKERS[docker_version], image=image, tag=tag),
             fout)
     except subprocess.CalledProcessError as ex:
         if "could not find image" not in str(ex):
             raise
+
 
 def assert_equality(actual, expected):
     """
@@ -255,9 +325,10 @@ def pull(fout, docker_version, image, tag, expected_sha):
     """
     clear_tuf()
     rmi(fout, docker_version, image, tag)
-    output = run_cmd("{0} pull {1}:{2}".format(DOCKERS[docker_version],
-                                               image, tag),
-                     fout)
+    output = run_cmd(
+        "{docker}{debug} pull {image}:{tag}".format(
+            docker=DOCKERS[docker_version], image=image, tag=tag, debug=DEBUG),
+        fout)
     sha = _DIGEST_REGEX.search(output).group(1)
     assert_equality(sha, expected_sha)
 
@@ -271,13 +342,15 @@ def push(fout, docker_version, image, tag):
 
     # tag image with the docker version
     run_cmd(
-        "{0} tag alpine {1}:{2}".format(DOCKERS[docker_version], image, tag),
+        "{docker} tag alpine {image}:{tag}".format(
+            docker=DOCKERS[docker_version], image=image, tag=tag),
         fout)
 
     # push!
-    output = run_cmd("{0} push {1}:{2}".format(DOCKERS[docker_version],
-                                               image, tag),
-                     fout)
+    output = run_cmd(
+        "{docker}{debug} push {image}:{tag}".format(
+            docker=DOCKERS[docker_version], image=image, tag=tag, debug=DEBUG),
+        fout)
     sha = _DIGEST_REGEX.search(output).group(1)
     size = _SIZE_REGEX.search(output).group(1)
 
@@ -292,6 +365,18 @@ def push(fout, docker_version, image, tag):
     return sha, size
 
 
+def get_notary_usernamepass():
+    """
+    Gets the username password for the notary server
+    """
+    username = os.getenv("NOTARY_SERVER_USERNAME")
+    passwd = os.getenv("NOTARY_SERVER_PASSPHRASE")
+
+    if username and passwd:
+        return username + "\n" + passwd + "\n"
+    return None
+
+
 def notary_list(fout, repo):
     """
     Calls notary list on the repo and returns a list of lists of tags, shas,
@@ -299,7 +384,9 @@ def notary_list(fout, repo):
     """
     clear_tuf()
     output = run_cmd(
-        "{0} -d {1} list {2}".format(NOTARY_CLIENT, _TRUST_DIR, repo), fout)
+        "{notary}{debug} -d {trustdir} list {gun}".format(
+            notary=NOTARY_CLIENT, trustdir=_TRUST_DIR, gun=repo, debug=DEBUG),
+        fout, input=get_notary_usernamepass())
     lines = output.strip().split("\n")
     assert len(lines) >= 3, "not enough targets"
     return [line.strip().split() for line in lines[2:]]
@@ -312,13 +399,16 @@ def test_build(fout, image, docker_version):
     clear_tuf()
     # build
     # simple dockerfile to test building with trust
-    dockerfile = "FROM {0}:{1}\nRUN sh\n".format(image, docker_version)
+    dockerfile = "FROM {image}:{tag}\nRUN sh\n".format(
+        image=image, tag=docker_version)
     tempdir_dockerfile = os.path.join(_TEMPDIR, "Dockerfile")
     with open(tempdir_dockerfile, 'wb') as ftemp:
-      ftemp.write(dockerfile)
+        ftemp.write(dockerfile)
 
     output = run_cmd(
-        "{0} build {1}".format(DOCKERS[docker_version], _TEMPDIR), fout)
+        "{docker}{debug} build {context}".format(
+            docker=DOCKERS[docker_version], context=_TEMPDIR, debug=DEBUG),
+        fout)
 
     build_result = _BUILD_REGEX.findall(output)
     assert len(build_result) >= 0, "build did not succeed"
@@ -335,7 +425,8 @@ def test_pull_a(fout, docker_version, image, expected_tags):
 
     # pull -a
     output = run_cmd(
-        "{0} pull -a {1}".format(DOCKERS[docker_version], image), fout)
+        "{docker}{debug} pull -a {image}".format(
+            docker=DOCKERS[docker_version], image=image, debug=DEBUG), fout)
     pulled_tags = _PULL_A_REGEX.findall(output)
 
     assert_equality(len(pulled_tags), len(expected_tags))
@@ -395,7 +486,9 @@ def test_run(fout, image, docker_version):
     clear_tuf()
     # run
     output = run_cmd(
-        "{0} run -it --rm {1}:{2} echo SUCCESS".format(DOCKERS[docker_version], image, docker_version), fout)
+        "{docker}{debug} run -it --rm {image}:{tag} echo SUCCESS".format(
+            docker=DOCKERS[docker_version], image=image, tag=docker_version,
+            debug=DEBUG), fout)
     assert "SUCCESS" in output, "run did not succeed"
 
 
@@ -491,12 +584,13 @@ def rotate_to_server_snapshot(fout, image):
     Uses the notary client to rotate the snapshot key to be server-managed.
     """
     run_cmd(
-        "{0} -d {1} key rotate {2} snapshot -r".format(
-            NOTARY_CLIENT, _TRUST_DIR, image),
-        fout)
+        "{notary}{debug} -d {trustdir} key rotate {gun} snapshot -r".format(
+            notary=NOTARY_CLIENT, trustdir=_TRUST_DIR, gun=image, debug=DEBUG),
+        fout, input=get_notary_usernamepass())
     run_cmd(
-        "{0} -d {1} publish {2}".format(NOTARY_CLIENT, _TRUST_DIR, image),
-        fout)
+        "{notary}{debug} -d {trustdir} publish {gun}".format(
+            notary=NOTARY_CLIENT, trustdir=_TRUST_DIR, gun=image, debug=DEBUG),
+        fout, input=get_notary_usernamepass())
 
 
 def test_all_docker_versions():
