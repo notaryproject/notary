@@ -5,6 +5,8 @@ package utils
 import (
 	"crypto/tls"
 	"fmt"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 
@@ -243,4 +245,21 @@ func AdjustLogLevel(increment bool) error {
 
 	logrus.SetLevel(lvl)
 	return nil
+}
+
+// SetupSignalTrap is a utility to trap supported signals hand handle them (currently by increasing logging)
+func SetupSignalTrap(handler func(os.Signal)) chan os.Signal {
+	if len(notary.NotarySupportedSignals) == 0 {
+		return nil
+
+	}
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, notary.NotarySupportedSignals...)
+	go func() {
+		for {
+			handler(<-c)
+		}
+	}()
+
+	return c
 }
