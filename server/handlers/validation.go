@@ -23,7 +23,7 @@ import (
 // validation was successful. This allows the snapshot to be
 // created and added if snapshotting has been delegated to the
 // server
-func validateUpdate(cs signed.CryptoService, gun string, updates []storage.MetaUpdate, store storage.MetaStore) ([]storage.MetaUpdate, error) {
+func validateUpdate(cs signed.CryptoService, gun string, updates []storage.MetaUpdate, store storage.MetaStore, allowInit bool) ([]storage.MetaUpdate, error) {
 
 	// some delegated targets role may be invalid based on other updates
 	// that have been made by other clients. We'll rebuild the slice of
@@ -39,6 +39,9 @@ func validateUpdate(cs signed.CryptoService, gun string, updates []storage.MetaU
 	if err := loadFromStore(gun, data.CanonicalRootRole, builder, store); err != nil {
 		if _, ok := err.(storage.ErrNotFound); !ok {
 			return nil, err
+		} else if !allowInit {
+			logrus.Debug("Attempted to init repository without admin * permission required by server")
+			return nil, validation.ErrValidation{Msg: "server does not allow initializing this repository with this permission level"}
 		}
 	}
 

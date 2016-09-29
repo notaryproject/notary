@@ -42,6 +42,7 @@ type Config struct {
 	AuthMethod                   string
 	AuthOpts                     interface{}
 	RepoPrefixes                 []string
+	RequireAdminInit             bool
 	ConsistentCacheControlConfig utils.CacheControlConfig
 	CurrentCacheControlConfig    utils.CacheControlConfig
 }
@@ -144,6 +145,12 @@ func RootHandler(ac auth.AccessController, ctx context.Context, trust signed.Cry
 	r := mux.NewRouter()
 	r.Methods("GET").Path("/v2/").Handler(authWrapper(handlers.MainHandler))
 
+	r.Methods("POST").Path("/v2/{imageName:.*}/_trust/tuf/init").Handler(createHandler(_serverEndpoint{
+		OperationName:       "InitTUF",
+		ErrorIfGUNInvalid:   invalidGUNErr,
+		ServerHandler:       handlers.AtomicInitHandler,
+		PermissionsRequired: []string{"*"},
+	}))
 	r.Methods("POST").Path("/v2/{imageName:.*}/_trust/tuf/").Handler(createHandler(_serverEndpoint{
 		OperationName:       "UpdateTUF",
 		ErrorIfGUNInvalid:   invalidGUNErr,
