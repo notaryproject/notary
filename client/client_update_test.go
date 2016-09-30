@@ -172,6 +172,45 @@ func TestUpdateSucceedsEvenIfCannotWriteExistingRepo(t *testing.T) {
 	}
 }
 
+// If there is no local cache, update will error if it can't connect to the server.  Otherwise
+// it uses the local cache.
+func TestUpdateInOfflineMode(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
+	// invalid URL, no cache - errors
+	invalidURLRepo := newBlankRepo(t, "https://nothisdoesnotexist.com")
+	defer os.RemoveAll(invalidURLRepo.baseDir)
+	err := invalidURLRepo.Update(false)
+	require.Error(t, err)
+	require.IsType(t, store.NetworkError{}, err)
+
+	// offline client: no cache - errors
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+	require.NoError(t, err, "failed to create a temporary directory: %s", err)
+	defer os.RemoveAll(tempBaseDir)
+
+	offlineRepo, err := NewNotaryRepository(tempBaseDir, "docker.com/notary", "https://nope",
+		nil, passphrase.ConstantRetriever("pass"), trustpinning.TrustPinConfig{})
+	require.NoError(t, err)
+	err = offlineRepo.Update(false)
+	require.Error(t, err)
+	require.IsType(t, store.ErrOffline{}, err)
+
+	// set existing metadata on the repo
+	serverMeta, _, err := testutils.NewRepoMetadata("docker.com/notary", metadataDelegations...)
+	require.NoError(t, err)
+	for name, metaBytes := range serverMeta {
+		require.NoError(t, invalidURLRepo.fileStore.Set(name, metaBytes))
+		require.NoError(t, offlineRepo.fileStore.Set(name, metaBytes))
+	}
+
+	// both of these can read from cache and load repo
+	require.NoError(t, invalidURLRepo.Update(false))
+	require.NoError(t, offlineRepo.Update(false))
+}
+
 type swizzleFunc func(*testutils.MetadataSwizzler, string) error
 type swizzleExpectations struct {
 	desc       string
