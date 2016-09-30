@@ -26,6 +26,12 @@ func (rt *TestRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 	return http.DefaultClient.Do(req)
 }
 
+type failRoundTripper struct{}
+
+func (ft failRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return nil, fmt.Errorf("FAIL")
+}
+
 func TestHTTPStoreGetSized(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(testRoot))
@@ -46,6 +52,19 @@ func TestHTTPStoreGetSized(t *testing.T) {
 	p := &data.Signed{}
 	err = json.Unmarshal(j, p)
 	require.NoError(t, err)
+
+	// if there is a network error, it gets translated to NetworkError
+	store, err = NewHTTPStore(
+		server.URL,
+		"metadata",
+		"txt",
+		"key",
+		failRoundTripper{},
+	)
+	require.NoError(t, err)
+	_, err = store.GetSized("root", 4801)
+	require.IsType(t, NetworkError{}, err)
+	require.Equal(t, "FAIL", err.Error())
 }
 
 // Test that passing -1 to httpstore's GetSized will return all content
@@ -71,16 +90,18 @@ func TestHTTPStoreGetAllMeta(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestSetMultiMeta(t *testing.T) {
+func TestSetSingleAndSetMultiMeta(t *testing.T) {
 	metas := map[string][]byte{
 		"root":    []byte("root data"),
 		"targets": []byte("targets data"),
 	}
 
+	var updates map[string][]byte
+
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		reader, err := r.MultipartReader()
 		require.NoError(t, err)
-		updates := make(map[string][]byte)
+		updates = make(map[string][]byte)
 		for {
 			part, err := reader.NextPart()
 			if err == io.EOF {
@@ -90,21 +111,44 @@ func TestSetMultiMeta(t *testing.T) {
 			updates[role], err = ioutil.ReadAll(part)
 			require.NoError(t, err)
 		}
-		rd, rok := updates["root"]
-		require.True(t, rok)
-		require.Equal(t, rd, metas["root"])
-
-		td, tok := updates["targets"]
-		require.True(t, tok)
-		require.Equal(t, td, metas["targets"])
-
 	}
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
 	store, err := NewHTTPStore(server.URL, "metadata", "json", "key", http.DefaultTransport)
 	require.NoError(t, err)
 
-	store.SetMulti(metas)
+	require.NoError(t, store.SetMulti(metas))
+	require.Len(t, updates, 2)
+	rd, rok := updates["root"]
+	require.True(t, rok)
+	require.Equal(t, rd, metas["root"])
+	td, tok := updates["targets"]
+	require.True(t, tok)
+	require.Equal(t, td, metas["targets"])
+
+	require.NoError(t, store.Set("root", metas["root"]))
+	require.Len(t, updates, 1)
+	rd, rok = updates["root"]
+	require.True(t, rok)
+	require.Equal(t, rd, metas["root"])
+
+	// if there is a network error, it gets translated to NetworkError
+	store, err = NewHTTPStore(
+		server.URL,
+		"metadata",
+		"txt",
+		"key",
+		failRoundTripper{},
+	)
+	require.NoError(t, err)
+
+	err = store.SetMulti(metas)
+	require.IsType(t, NetworkError{}, err)
+	require.Equal(t, "FAIL", err.Error())
+
+	err = store.Set("root", metas["root"])
+	require.IsType(t, NetworkError{}, err)
+	require.Equal(t, "FAIL", err.Error())
 }
 
 func testErrorCode(t *testing.T, errorCode int, errType error) {
@@ -204,10 +248,25 @@ func TestHTTPStoreRemoveAll(t *testing.T) {
 
 	err = store.RemoveAll()
 	require.NoError(t, err)
+
+	// if there is a network error, it gets translated to NetworkError
+	store, err = NewHTTPStore(
+		server.URL,
+		"metadata",
+		"txt",
+		"key",
+		failRoundTripper{},
+	)
+	require.NoError(t, err)
+	err = store.RemoveAll()
+	require.IsType(t, NetworkError{}, err)
+	require.Equal(t, "FAIL", err.Error())
 }
 
 func TestHTTPStoreRotateKey(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "POST", r.Method)
+		require.Equal(t, "/metadata/snapshot.key", r.URL.Path)
 		w.Write([]byte(testRootKey))
 	}
 	server := httptest.NewServer(http.HandlerFunc(handler))
@@ -218,6 +277,48 @@ func TestHTTPStoreRotateKey(t *testing.T) {
 	pubKeyBytes, err := store.RotateKey(data.CanonicalSnapshotRole)
 	require.NoError(t, err)
 	require.Equal(t, pubKeyBytes, []byte(testRootKey))
+
+	// if there is a network error, it gets translated to NetworkError
+	store, err = NewHTTPStore(
+		server.URL,
+		"metadata",
+		"txt",
+		"key",
+		failRoundTripper{},
+	)
+	require.NoError(t, err)
+	_, err = store.RotateKey(data.CanonicalSnapshotRole)
+	require.IsType(t, NetworkError{}, err)
+	require.Equal(t, "FAIL", err.Error())
+}
+
+func TestHTTPStoreGetKey(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "GET", r.Method)
+		require.Equal(t, "/metadata/snapshot.key", r.URL.Path)
+		w.Write([]byte(testRootKey))
+	}
+	server := httptest.NewServer(http.HandlerFunc(handler))
+	defer server.Close()
+	store, err := NewHTTPStore(server.URL, "metadata", "json", "key", http.DefaultTransport)
+	require.NoError(t, err)
+
+	pubKeyBytes, err := store.GetKey(data.CanonicalSnapshotRole)
+	require.NoError(t, err)
+	require.Equal(t, pubKeyBytes, []byte(testRootKey))
+
+	// if there is a network error, it gets translated to NetworkError
+	store, err = NewHTTPStore(
+		server.URL,
+		"metadata",
+		"txt",
+		"key",
+		failRoundTripper{},
+	)
+	require.NoError(t, err)
+	_, err = store.GetKey(data.CanonicalSnapshotRole)
+	require.IsType(t, NetworkError{}, err)
+	require.Equal(t, "FAIL", err.Error())
 }
 
 func TestHTTPOffline(t *testing.T) {
