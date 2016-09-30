@@ -193,11 +193,7 @@ func TestValidateRootWithPinnedCert(t *testing.T) {
 func TestValidateRootWithPinnedCertAndIntermediates(t *testing.T) {
 	now := time.Now()
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-
-	pass := func(keyName, alias string, createNew bool, attempts int) (passphrase string, giveup bool, err error) {
-		return "password", false, nil
-	}
-	memStore := trustmanager.NewKeyMemoryStore(pass)
+	memStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memStore)
 
 	// generate CA cert
@@ -1007,12 +1003,70 @@ func generateExpiredTestingCertificate(rootKey data.PrivateKey, gun string) (*x5
 	return cryptoservice.GenerateCertificate(rootKey, gun, startTime, startTime.AddDate(1, 0, 0))
 }
 
+func TestParsePEMPublicKey(t *testing.T) {
+	gun := "notary"
+	memStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
+	cs := cryptoservice.NewCryptoService(memStore)
+
+	// can parse ECDSA PEM
+	ecdsaPubKey, err := cs.Create("root", "docker.io/notary/test", data.ECDSAKey)
+	require.NoError(t, err)
+	ecdsaPemBytes := pem.EncodeToMemory(&pem.Block{
+		Type:    "PUBLIC KEY",
+		Headers: nil,
+		Bytes:   ecdsaPubKey.Public(),
+	})
+
+	ecdsaParsedPubKey, err := utils.ParsePEMPublicKey(ecdsaPemBytes)
+	require.NoError(t, err, "no key: %s", ecdsaParsedPubKey.Public())
+
+	// can parse certificates
+	ecdsaPrivKey, _, err := memStore.GetKey(ecdsaPubKey.ID())
+	require.NoError(t, err)
+	cert, err := generateTestingCertificate(ecdsaPrivKey, gun, notary.Day*30)
+	require.NoError(t, err)
+	ecdsaPubKeyFromCert, err := utils.ParsePEMPublicKey(utils.CertToPEM(cert))
+	require.NoError(t, err)
+
+	thatData := []byte{1, 2, 3, 4}
+	sig, err := ecdsaPrivKey.Sign(rand.Reader, thatData, nil)
+	require.NoError(t, err)
+	err = signed.ECDSAVerifier{}.Verify(ecdsaPubKeyFromCert, sig, thatData)
+	require.NoError(t, err)
+
+	// can parse RSA PEM
+	rsaPubKey, err := cs.Create("root", "docker.io/notary/test2", data.RSAKey)
+	require.NoError(t, err)
+	rsaPemBytes := pem.EncodeToMemory(&pem.Block{
+		Type:    "PUBLIC KEY",
+		Headers: nil,
+		Bytes:   rsaPubKey.Public(),
+	})
+	_, err = utils.ParsePEMPublicKey(rsaPemBytes)
+	require.NoError(t, err)
+
+	// unsupported key type
+	unsupportedPemBytes := pem.EncodeToMemory(&pem.Block{
+		Type:    "PRIVATE KEY",
+		Headers: nil,
+		Bytes:   []byte{0, 0, 0, 0},
+	})
+	_, err = utils.ParsePEMPublicKey(unsupportedPemBytes)
+	require.Error(t, err)
+
+	// bad key
+	badPemBytes := pem.EncodeToMemory(&pem.Block{
+		Type:    "PUBLIC KEY",
+		Headers: nil,
+		Bytes:   []byte{0, 0, 0, 0},
+	})
+	_, err = utils.ParsePEMPublicKey(badPemBytes)
+	require.Error(t, err)
+}
+
 func TestCheckingCertExpiry(t *testing.T) {
 	gun := "notary"
-	pass := func(keyName, alias string, createNew bool, attempts int) (passphrase string, giveup bool, err error) {
-		return "password", false, nil
-	}
-	memStore := trustmanager.NewKeyMemoryStore(pass)
+	memStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memStore)
 	testPubKey, err := cs.Create(data.CanonicalRootRole, gun, data.ECDSAKey)
 	require.NoError(t, err)
@@ -1088,11 +1142,7 @@ func TestCheckingCertExpiry(t *testing.T) {
 func TestValidateRootWithExpiredIntermediate(t *testing.T) {
 	now := time.Now()
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-
-	pass := func(keyName, alias string, createNew bool, attempts int) (passphrase string, giveup bool, err error) {
-		return "password", false, nil
-	}
-	memStore := trustmanager.NewKeyMemoryStore(pass)
+	memStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memStore)
 
 	// generate CA cert
