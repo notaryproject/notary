@@ -116,7 +116,7 @@ func (c *TUFClient) downloadTimestamp() error {
 	switch remoteErr.(type) {
 	case nil:
 		return nil
-	case store.ErrMetaNotFound, store.ErrServerUnavailable:
+	case store.ErrMetaNotFound, store.ErrServerUnavailable, store.ErrOffline, store.NetworkError:
 		break
 	default:
 		return remoteErr

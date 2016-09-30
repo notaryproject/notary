@@ -33,6 +33,15 @@ type ErrServerUnavailable struct {
 	code int
 }
 
+// NetworkError represents any kind of network error when attempting to make a request
+type NetworkError struct {
+	Wrapped error
+}
+
+func (n NetworkError) Error() string {
+	return n.Wrapped.Error()
+}
+
 func (err ErrServerUnavailable) Error() string {
 	if err.code == 401 {
 		return fmt.Sprintf("you are not authorized to perform this operation: server returned 401.")
@@ -152,7 +161,7 @@ func (s HTTPStore) GetSized(name string, size int64) ([]byte, error) {
 	}
 	resp, err := s.roundTrip.RoundTrip(req)
 	if err != nil {
-		return nil, err
+		return nil, NetworkError{Wrapped: err}
 	}
 	defer resp.Body.Close()
 	if err := translateStatusToError(resp, name); err != nil {
@@ -174,22 +183,9 @@ func (s HTTPStore) GetSized(name string, size int64) ([]byte, error) {
 	return body, nil
 }
 
-// Set uploads a piece of TUF metadata to the server
+// Set sends a single piece of metadata to the TUF server
 func (s HTTPStore) Set(name string, blob []byte) error {
-	url, err := s.buildMetaURL("")
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequest("POST", url.String(), bytes.NewReader(blob))
-	if err != nil {
-		return err
-	}
-	resp, err := s.roundTrip.RoundTrip(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	return translateStatusToError(resp, "POST "+name)
+	return s.SetMulti(map[string][]byte{name: blob})
 }
 
 // Remove always fails, because we should never be able to delete metadata
@@ -239,7 +235,7 @@ func (s HTTPStore) SetMulti(metas map[string][]byte) error {
 	}
 	resp, err := s.roundTrip.RoundTrip(req)
 	if err != nil {
-		return err
+		return NetworkError{Wrapped: err}
 	}
 	defer resp.Body.Close()
 	// if this 404's something is pretty wrong
@@ -258,7 +254,7 @@ func (s HTTPStore) RemoveAll() error {
 	}
 	resp, err := s.roundTrip.RoundTrip(req)
 	if err != nil {
-		return err
+		return NetworkError{Wrapped: err}
 	}
 	defer resp.Body.Close()
 	return translateStatusToError(resp, "DELETE metadata for GUN endpoint")
@@ -299,7 +295,7 @@ func (s HTTPStore) GetKey(role string) ([]byte, error) {
 	}
 	resp, err := s.roundTrip.RoundTrip(req)
 	if err != nil {
-		return nil, err
+		return nil, NetworkError{Wrapped: err}
 	}
 	defer resp.Body.Close()
 	if err := translateStatusToError(resp, role+" key"); err != nil {
@@ -324,7 +320,7 @@ func (s HTTPStore) RotateKey(role string) ([]byte, error) {
 	}
 	resp, err := s.roundTrip.RoundTrip(req)
 	if err != nil {
-		return nil, err
+		return nil, NetworkError{Wrapped: err}
 	}
 	defer resp.Body.Close()
 	if err := translateStatusToError(resp, role+" key"); err != nil {
