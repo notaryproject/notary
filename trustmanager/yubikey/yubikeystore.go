@@ -448,43 +448,17 @@ func yubiRemoveKey(ctx IPKCS11Ctx, session pkcs11.SessionHandle, pkcs11KeyID []b
 
 func yubiListKeys(ctx IPKCS11Ctx, session pkcs11.SessionHandle) (keys map[string]yubiSlot, err error) {
 	keys = make(map[string]yubiSlot)
-	findTemplate := []*pkcs11.Attribute{
-		pkcs11.NewAttribute(pkcs11.CKA_TOKEN, true),
-		//pkcs11.NewAttribute(pkcs11.CKA_ID, pkcs11KeyID),
-		pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_CERTIFICATE),
-	}
 
 	attrTemplate := []*pkcs11.Attribute{
 		pkcs11.NewAttribute(pkcs11.CKA_ID, []byte{0}),
 		pkcs11.NewAttribute(pkcs11.CKA_VALUE, []byte{0}),
 	}
 
-	if err = ctx.FindObjectsInit(session, findTemplate); err != nil {
-		logrus.Debugf("Failed to init: %s", err.Error())
-		return
-	}
-	objs, b, err := ctx.FindObjects(session, numSlots)
-	for err == nil {
-		var o []pkcs11.ObjectHandle
-		o, b, err = ctx.FindObjects(session, numSlots)
-		if err != nil {
-			continue
-		}
-		if len(o) == 0 {
-			break
-		}
-		objs = append(objs, o...)
-	}
+	objs, err := listObjects(ctx, session)
 	if err != nil {
-		logrus.Debugf("Failed to find: %s %v", err.Error(), b)
-		if len(objs) == 0 {
-			return nil, err
-		}
+		return nil, err
 	}
-	if err = ctx.FindObjectsFinal(session); err != nil {
-		logrus.Debugf("Failed to finalize: %s", err.Error())
-		return
-	}
+
 	if len(objs) == 0 {
 		return nil, errors.New("No keys found in yubikey.")
 	}
@@ -543,6 +517,43 @@ func yubiListKeys(ctx IPKCS11Ctx, session pkcs11.SessionHandle) (keys map[string
 		}
 	}
 	return
+}
+
+func listObjects(ctx IPKCS11Ctx, session pkcs11.SessionHandle) ([]pkcs11.ObjectHandle, error) {
+	findTemplate := []*pkcs11.Attribute{
+		pkcs11.NewAttribute(pkcs11.CKA_TOKEN, true),
+		//pkcs11.NewAttribute(pkcs11.CKA_ID, pkcs11KeyID),
+		pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_CERTIFICATE),
+	}
+
+	if err := ctx.FindObjectsInit(session, findTemplate); err != nil {
+		logrus.Debugf("Failed to init: %s", err.Error())
+		return nil, err
+	}
+
+	objs, b, err := ctx.FindObjects(session, numSlots)
+	for err == nil {
+		var o []pkcs11.ObjectHandle
+		o, b, err = ctx.FindObjects(session, numSlots)
+		if err != nil {
+			continue
+		}
+		if len(o) == 0 {
+			break
+		}
+		objs = append(objs, o...)
+	}
+	if err != nil {
+		logrus.Debugf("Failed to find: %s %v", err.Error(), b)
+		if len(objs) == 0 {
+			return nil, err
+		}
+	}
+	if err := ctx.FindObjectsFinal(session); err != nil {
+		logrus.Debugf("Failed to finalize: %s", err.Error())
+		return nil, err
+	}
+	return objs, nil
 }
 
 func getNextEmptySlot(ctx IPKCS11Ctx, session pkcs11.SessionHandle) ([]byte, error) {

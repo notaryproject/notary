@@ -24,6 +24,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/notary"
+	"github.com/docker/notary/client"
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/cryptoservice"
 	"github.com/docker/notary/passphrase"
@@ -3763,6 +3764,32 @@ func TestGetAllTargetInfo(t *testing.T) {
 	require.Len(t, targetSignatureData, 7)
 
 	makeSureWeHitEachCase = make(map[string]struct{})
+	checkSignatures(
+		t,
+		targetSignatureData,
+		makeSureWeHitEachCase,
+		repo,
+		*targetsCurrentTarget,
+		*targetsLatestTarget,
+		*level1CurrentTarget,
+		*level1OtherTarget,
+		*level2CurrentTarget,
+		*level2Level2Target,
+		*level1Level2Level2Target,
+	)
+	require.Len(t, makeSureWeHitEachCase, 7)
+
+	// nonexistent targets
+	targetSignatureData, err = repo.GetAllTargetMetadataByName("level23")
+	require.Error(t, err)
+	require.Nil(t, targetSignatureData)
+	targetSignatureData, err = repo.GetAllTargetMetadataByName("invalid")
+	require.Error(t, err)
+	require.Nil(t, targetSignatureData)
+}
+
+func checkSignatures(t *testing.T, targetSignatureData []TargetSignedStruct, makeSureWeHitEachCase map[string]struct{}, repo *client.NotaryRepository,
+	targetsCurrentTarget, targetsLatestTarget, level1CurrentTarget, leve1OtherTarget, level2CurrentTarget, level2Level2Target, level1Level2Level2Target *Target) {
 	for _, tarSigStr := range targetSignatureData {
 		switch tarSigStr.Role.Name {
 		// targets has current and latest
@@ -3806,13 +3833,4 @@ func TestGetAllTargetInfo(t *testing.T) {
 			makeSureWeHitEachCase[tarSigStr.Role.Name+tarSigStr.Target.Name] = struct{}{}
 		}
 	}
-	require.Len(t, makeSureWeHitEachCase, 7)
-
-	// nonexistent targets
-	targetSignatureData, err = repo.GetAllTargetMetadataByName("level23")
-	require.Error(t, err)
-	require.Nil(t, targetSignatureData)
-	targetSignatureData, err = repo.GetAllTargetMetadataByName("invalid")
-	require.Error(t, err)
-	require.Nil(t, targetSignatureData)
 }
