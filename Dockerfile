@@ -1,4 +1,4 @@
-FROM golang:1.6.3
+FROM golang:1.7.1
 
 RUN apt-get update && apt-get install -y \
 	curl \
