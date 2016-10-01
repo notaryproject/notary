@@ -153,20 +153,7 @@ func (tr *Repo) RemoveBaseKeys(role string, keyIDs ...string) error {
 
 	// also, whichever role had keys removed needs to be re-signed
 	// root has already been marked dirty.
-	switch role {
-	case data.CanonicalSnapshotRole:
-		if tr.Snapshot != nil {
-			tr.Snapshot.Dirty = true
-		}
-	case data.CanonicalTargetsRole:
-		if target, ok := tr.Targets[data.CanonicalTargetsRole]; ok {
-			target.Dirty = true
-		}
-	case data.CanonicalTimestampRole:
-		if tr.Timestamp != nil {
-			tr.Timestamp.Dirty = true
-		}
-	}
+	tr.markRoleDirty(role)
 
 	// determine which keys are no longer in use by any roles
 	for roleName, r := range tr.Root.Signed.Roles {
@@ -195,6 +182,23 @@ func (tr *Repo) RemoveBaseKeys(role string, keyIDs ...string) error {
 	}
 	tr.Root.Dirty = true
 	return nil
+}
+
+func (tr *Repo) markRoleDirty(role string) {
+	switch role {
+	case data.CanonicalSnapshotRole:
+		if tr.Snapshot != nil {
+			tr.Snapshot.Dirty = true
+		}
+	case data.CanonicalTargetsRole:
+		if target, ok := tr.Targets[data.CanonicalTargetsRole]; ok {
+			target.Dirty = true
+		}
+	case data.CanonicalTimestampRole:
+		if tr.Timestamp != nil {
+			tr.Timestamp.Dirty = true
+		}
+	}
 }
 
 // GetBaseRole gets a base role from this repo's metadata
