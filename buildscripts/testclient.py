@@ -333,6 +333,10 @@ def wait_for_server(server, timeout_in_seconds):
         raise Exception(
             "Could not connect to {0} after {1} seconds.".format(server, timeout_in_seconds))
 
+    # sleep for 30 extra seconds to wait for the server to connect to the signer
+    sleep(30)
+
+
 def run():
     """
     Run the client tests
