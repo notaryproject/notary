@@ -3,12 +3,14 @@ package main
 import (
 	"fmt"
 
-	"github.com/docker/notary/storage"
 	"golang.org/x/net/context"
+
+	"github.com/docker/notary"
+	"github.com/docker/notary/storage"
 )
 
 func bootstrap(ctx context.Context) error {
-	s := ctx.Value("metaStore")
+	s := ctx.Value(notary.CtxKey("metaStore"))
 	if s == nil {
 		return fmt.Errorf("no store set during bootstrapping")
 	}

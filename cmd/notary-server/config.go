@@ -259,13 +259,13 @@ func parseServerConfig(configFilePath string, hRegister healthRegister, doBootst
 	if err != nil {
 		return nil, server.Config{}, err
 	}
-	ctx = context.WithValue(ctx, "keyAlgorithm", keyAlgo)
+	ctx = context.WithValue(ctx, notary.CtxKey("keyAlgorithm"), keyAlgo)
 
 	store, err := getStore(config, hRegister, doBootstrap)
 	if err != nil {
 		return nil, server.Config{}, err
 	}
-	ctx = context.WithValue(ctx, "metaStore", store)
+	ctx = context.WithValue(ctx, notary.CtxKey("metaStore"), store)
 
 	currentCache, consistentCache, err := getCacheConfig(config)
 	if err != nil {
