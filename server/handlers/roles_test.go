@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 
+	"github.com/docker/notary"
 	"github.com/docker/notary/server/errors"
 	"github.com/docker/notary/server/storage"
 	"github.com/docker/notary/tuf/data"
@@ -26,9 +27,9 @@ func TestGetMaybeServerSignedNoCrypto(t *testing.T) {
 func TestGetMaybeServerSignedNoKey(t *testing.T) {
 	crypto := signed.NewEd25519()
 	store := storage.NewMemStorage()
-	ctx := context.WithValue(context.Background(), "metaStore", store)
-	ctx = context.WithValue(ctx, "cryptoService", crypto)
-	ctx = context.WithValue(ctx, "keyAlgorithm", data.ED25519Key)
+	ctx := context.WithValue(context.Background(), notary.CtxKey("metaStore"), store)
+	ctx = context.WithValue(ctx, notary.CtxKey("cryptoService"), crypto)
+	ctx = context.WithValue(ctx, notary.CtxKey("keyAlgorithm"), data.ED25519Key)
 
 	_, _, err := getMaybeServerSigned(
 		ctx,

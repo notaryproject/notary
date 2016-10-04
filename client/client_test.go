@@ -126,12 +126,12 @@ func simpleTestServer(t *testing.T, roles ...string) (
 func fullTestServer(t *testing.T) *httptest.Server {
 	// Set up server
 	ctx := context.WithValue(
-		context.Background(), "metaStore", storage.NewMemStorage())
+		context.Background(), notary.CtxKey("metaStore"), storage.NewMemStorage())
 
 	// Do not pass one of the const KeyAlgorithms here as the value! Passing a
 	// string is in itself good test that we are handling it correctly as we
 	// will be receiving a string from the configuration.
-	ctx = context.WithValue(ctx, "keyAlgorithm", "ecdsa")
+	ctx = context.WithValue(ctx, notary.CtxKey("keyAlgorithm"), "ecdsa")
 
 	// Eat the logs instead of spewing them out
 	var b bytes.Buffer
