@@ -522,7 +522,6 @@ func yubiListKeys(ctx IPKCS11Ctx, session pkcs11.SessionHandle) (keys map[string
 func listObjects(ctx IPKCS11Ctx, session pkcs11.SessionHandle) ([]pkcs11.ObjectHandle, error) {
 	findTemplate := []*pkcs11.Attribute{
 		pkcs11.NewAttribute(pkcs11.CKA_TOKEN, true),
-		//pkcs11.NewAttribute(pkcs11.CKA_ID, pkcs11KeyID),
 		pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_CERTIFICATE),
 	}
 

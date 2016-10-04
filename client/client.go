@@ -983,8 +983,8 @@ func checkRotationInput(role string, serverManaged bool) error {
 	// We currently support remotely managing timestamp and snapshot keys
 	canBeRemoteKey := role == data.CanonicalTimestampRole || role == data.CanonicalSnapshotRole
 	// And locally managing root, targets, and snapshot keys
-	canBeLocalKey := (role == data.CanonicalSnapshotRole || role == data.CanonicalTargetsRole ||
-		role == data.CanonicalRootRole)
+	canBeLocalKey := role == data.CanonicalSnapshotRole || role == data.CanonicalTargetsRole ||
+		role == data.CanonicalRootRole
 
 	switch {
 	case !data.ValidRole(role) || data.IsDelegation(role):
