@@ -39,11 +39,9 @@ By following these simple rules you will get better and faster feedback on your 
    - bad title: "It doesn't work with my docker"
    - good title: "Publish fail: 400 error with E_INVALID_DIGEST"
  2. copy the output of:
-   - `docker version`
-   - `docker info`
-   - `docker exec <registry-container> registry -version`
- 3. copy the command line you used to run `notary` or launch `notaryserver`
- 4. if relevant, copy your `notaryserver` logs that show the error
+   - `notary version` or `docker version`
+ 3. Run `notary` or `docker` with the `-D` option for debug output, and please include a copy of the command and the output.
+ 4. If relevant, copy your `notaryserver` and `notarysigner` logs that show the error (this is likely the output from running `docker-compose up`)
 
 ## Contributing a patch for a known bug, or a small correction
 
@@ -64,6 +62,8 @@ Some simple rules to ensure quick merge:
  - clearly point to the issue(s) you want to fix in your PR comment (e.g., `closes #12345`)
  - prefer multiple (smaller) PRs addressing individual issues over a big one trying to address multiple issues at once
  - if you need to amend your PR following comments, please squash instead of adding more commits
+ - if fixing a bug or adding a feature, please add or update the relevant `CHANGELOG.md` entry with your pull request number
+   and a description of the change
 
 ## Contributing new features
 
@@ -83,3 +83,8 @@ It's mandatory to:
  - write tests for any new code
 
 Complying to these simple rules will greatly accelerate the review process, and will ensure you have a pleasant experience in contributing code to the Registry.
+
+## Review and Development notes
+
+- All merges require LGTMs from any 2 maintainers.
+- We use the git flow model (as best we can) using the `releases` branch as the stable branch, and the `master` branch as the development branch.  When we get near a potential release, a release branch (`release/<semver>`) will be created from `master`.  Any PRs that should go into the release should be made against that branch.  Hotfixes for a minor release will be added to the branch `hotfox/<semver>`.
