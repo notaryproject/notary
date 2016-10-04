@@ -8,6 +8,7 @@ import (
 	ctxu "github.com/docker/distribution/context"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/auth"
+	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
@@ -51,8 +52,8 @@ func (root *rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log := ctxu.GetRequestLogger(ctx)
 	ctx, w = ctxu.WithResponseWriter(ctx, w)
 	ctx = ctxu.WithLogger(ctx, log)
-	ctx = context.WithValue(ctx, "repo", vars["imageName"])
-	ctx = context.WithValue(ctx, "cryptoService", root.trust)
+	ctx = context.WithValue(ctx, notary.CtxKeyRepo, vars["imageName"])
+	ctx = context.WithValue(ctx, notary.CtxKeyCryptoSvc, root.trust)
 
 	defer func() {
 		ctxu.GetResponseLogger(ctx).Info("response completed")
