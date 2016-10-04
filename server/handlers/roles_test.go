@@ -27,9 +27,9 @@ func TestGetMaybeServerSignedNoCrypto(t *testing.T) {
 func TestGetMaybeServerSignedNoKey(t *testing.T) {
 	crypto := signed.NewEd25519()
 	store := storage.NewMemStorage()
-	ctx := context.WithValue(context.Background(), notary.CtxKey("metaStore"), store)
-	ctx = context.WithValue(ctx, notary.CtxKey("cryptoService"), crypto)
-	ctx = context.WithValue(ctx, notary.CtxKey("keyAlgorithm"), data.ED25519Key)
+	ctx := context.WithValue(context.Background(), notary.CtxKeyMetaStore, store)
+	ctx = context.WithValue(ctx, notary.CtxKeyCryptoSvc, crypto)
+	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ED25519Key)
 
 	_, _, err := getMaybeServerSigned(
 		ctx,

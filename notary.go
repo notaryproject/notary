@@ -9,4 +9,4 @@ type PassRetriever func(keyName, alias string, createNew bool, attempts int) (pa
 // CtxKey is a wrapper type for use in context.WithValue() to satisfy golint
 // https://github.com/golang/go/issues/17293
 // https://github.com/golang/lint/pull/245
-type CtxKey string
+type CtxKey int

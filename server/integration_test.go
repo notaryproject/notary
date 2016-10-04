@@ -23,8 +23,8 @@ import (
 // Ensures that the httpstore can interpret the errors returned from the server
 func TestValidationErrorFormat(t *testing.T) {
 	ctx := context.WithValue(
-		context.Background(), notary.CtxKey("metaStore"), storage.NewMemStorage())
-	ctx = context.WithValue(ctx, notary.CtxKey("keyAlgorithm"), data.ED25519Key)
+		context.Background(), notary.CtxKeyMetaStore, storage.NewMemStorage())
+	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ED25519Key)
 
 	handler := RootHandler(nil, ctx, signed.NewEd25519(), nil, nil, nil)
 	server := httptest.NewServer(handler)

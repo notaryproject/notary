@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+
 	"github.com/docker/notary"
 	"github.com/docker/notary/server/errors"
 	"github.com/docker/notary/server/storage"
@@ -53,7 +54,7 @@ func getRole(ctx context.Context, store storage.MetaStore, gun, role, checksum s
 // might be generated and signed due to expiry of the previous one or updates
 // to other roles.
 func getMaybeServerSigned(ctx context.Context, store storage.MetaStore, gun, role string) (*time.Time, []byte, error) {
-	cryptoServiceVal := ctx.Value(notary.CtxKey("cryptoService"))
+	cryptoServiceVal := ctx.Value(notary.CtxKeyCryptoSvc)
 	cryptoService, ok := cryptoServiceVal.(signed.CryptoService)
 	if !ok {
 		return nil, nil, errors.ErrNoCryptoService.WithDetail(nil)
