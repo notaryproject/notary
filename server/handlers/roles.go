@@ -53,7 +53,7 @@ func getRole(ctx context.Context, store storage.MetaStore, gun, role, checksum s
 // might be generated and signed due to expiry of the previous one or updates
 // to other roles.
 func getMaybeServerSigned(ctx context.Context, store storage.MetaStore, gun, role string) (*time.Time, []byte, error) {
-	cryptoServiceVal := ctx.Value("cryptoService")
+	cryptoServiceVal := ctx.Value(notary.CtxKey("cryptoService"))
 	cryptoService, ok := cryptoServiceVal.(signed.CryptoService)
 	if !ok {
 		return nil, nil, errors.ErrNoCryptoService.WithDetail(nil)
