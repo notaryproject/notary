@@ -66,9 +66,9 @@ func runCommand(t *testing.T, tempDir string, args ...string) (string, error) {
 }
 
 func setupServerHandler(metaStore storage.MetaStore) http.Handler {
-	ctx := context.WithValue(context.Background(), notary.CtxKey("metaStore"), metaStore)
+	ctx := context.WithValue(context.Background(), notary.CtxKeyMetaStore, metaStore)
 
-	ctx = context.WithValue(ctx, notary.CtxKey("keyAlgorithm"), data.ECDSAKey)
+	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ECDSAKey)
 
 	// Eat the logs instead of spewing them out
 	var b bytes.Buffer

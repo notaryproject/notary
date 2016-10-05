@@ -70,6 +70,14 @@ const (
 	HealthCheckOverall       = "grpc.health.v1.Health.Overall"
 )
 
+// enum to use for setting and retrieving values from contexts
+const (
+	CtxKeyMetaStore CtxKey = iota
+	CtxKeyKeyAlgo
+	CtxKeyCryptoSvc
+	CtxKeyRepo
+)
+
 // NotaryDefaultExpiries is the construct used to configure the default expiry times of
 // the various role files.
 var NotaryDefaultExpiries = map[string]time.Duration{

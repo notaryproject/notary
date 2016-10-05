@@ -63,8 +63,8 @@ func TestRepoPrefixMatches(t *testing.T) {
 	meta, cs, err := testutils.NewRepoMetadata(gun)
 	require.NoError(t, err)
 
-	ctx := context.WithValue(context.Background(), notary.CtxKey("metaStore"), storage.NewMemStorage())
-	ctx = context.WithValue(ctx, notary.CtxKey("keyAlgorithm"), data.ED25519Key)
+	ctx := context.WithValue(context.Background(), notary.CtxKeyMetaStore, storage.NewMemStorage())
+	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ED25519Key)
 
 	snChecksumBytes := sha256.Sum256(meta[data.CanonicalSnapshotRole])
 
@@ -104,8 +104,8 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 	require.NoError(t, err)
 	s := storage.NewMemStorage()
 
-	ctx := context.WithValue(context.Background(), notary.CtxKey("metaStore"), s)
-	ctx = context.WithValue(ctx, notary.CtxKey("keyAlgorithm"), data.ED25519Key)
+	ctx := context.WithValue(context.Background(), notary.CtxKeyMetaStore, s)
+	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ED25519Key)
 
 	snChecksumBytes := sha256.Sum256(meta[data.CanonicalSnapshotRole])
 
@@ -161,8 +161,8 @@ func TestMetricsEndpoint(t *testing.T) {
 // GetKeys supports only the timestamp and snapshot key endpoints
 func TestGetKeysEndpoint(t *testing.T) {
 	ctx := context.WithValue(
-		context.Background(), notary.CtxKey("metaStore"), storage.NewMemStorage())
-	ctx = context.WithValue(ctx, notary.CtxKey("keyAlgorithm"), data.ED25519Key)
+		context.Background(), notary.CtxKeyMetaStore, storage.NewMemStorage())
+	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ED25519Key)
 
 	handler := RootHandler(nil, ctx, signed.NewEd25519(), nil, nil, nil)
 	ts := httptest.NewServer(handler)
@@ -231,9 +231,9 @@ func TestGetRoleByHash(t *testing.T) {
 	})
 
 	ctx := context.WithValue(
-		context.Background(), notary.CtxKey("metaStore"), store)
+		context.Background(), notary.CtxKeyMetaStore, store)
 
-	ctx = context.WithValue(ctx, notary.CtxKey("keyAlgorithm"), data.ED25519Key)
+	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ED25519Key)
 
 	ccc := utils.NewCacheControlConfig(10, false)
 	handler := RootHandler(nil, ctx, signed.NewEd25519(), ccc, ccc, nil)
@@ -275,9 +275,9 @@ func TestGetCurrentRole(t *testing.T) {
 	})
 
 	ctx := context.WithValue(
-		context.Background(), notary.CtxKey("metaStore"), store)
+		context.Background(), notary.CtxKeyMetaStore, store)
 
-	ctx = context.WithValue(ctx, notary.CtxKey("keyAlgorithm"), data.ED25519Key)
+	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ED25519Key)
 
 	ccc := utils.NewCacheControlConfig(10, false)
 	handler := RootHandler(nil, ctx, signed.NewEd25519(), ccc, ccc, nil)
@@ -308,8 +308,8 @@ func verifyGetResponse(t *testing.T, r *http.Response, expectedBytes []byte) {
 // RotateKey supports only timestamp and snapshot key rotation
 func TestRotateKeyEndpoint(t *testing.T) {
 	ctx := context.WithValue(
-		context.Background(), notary.CtxKey("metaStore"), storage.NewMemStorage())
-	ctx = context.WithValue(ctx, notary.CtxKey("keyAlgorithm"), data.ED25519Key)
+		context.Background(), notary.CtxKeyMetaStore, storage.NewMemStorage())
+	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ED25519Key)
 
 	ccc := utils.NewCacheControlConfig(10, false)
 	handler := RootHandler(nil, ctx, signed.NewEd25519(), ccc, ccc, nil)
