@@ -10,7 +10,7 @@ import (
 )
 
 func bootstrap(ctx context.Context) error {
-	s := ctx.Value(notary.CtxKey("metaStore"))
+	s := ctx.Value(notary.CtxKeyMetaStore)
 	if s == nil {
 		return fmt.Errorf("no store set during bootstrapping")
 	}

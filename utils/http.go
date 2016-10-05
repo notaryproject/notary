@@ -53,8 +53,8 @@ func (root *rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log := ctxu.GetRequestLogger(ctx)
 	ctx, w = ctxu.WithResponseWriter(ctx, w)
 	ctx = ctxu.WithLogger(ctx, log)
-	ctx = context.WithValue(ctx, notary.CtxKey("repo"), vars["imageName"])
-	ctx = context.WithValue(ctx, notary.CtxKey("cryptoService"), root.trust)
+	ctx = context.WithValue(ctx, notary.CtxKeyRepo, vars["imageName"])
+	ctx = context.WithValue(ctx, notary.CtxKeyCryptoSvc, root.trust)
 
 	defer func() {
 		ctxu.GetResponseLogger(ctx).Info("response completed")
