@@ -496,73 +496,9 @@ func TestGetConsistentInfo(t *testing.T) {
 	require.NoError(t, err)
 
 	builder := tuf.NewRepoBuilder(gun, nil, trustpinning.TrustPinConfig{})
-	// if neither snapshot nor timestamp are loaded, no matter how much other data is loaded, consistent info
-	// is empty except for timestamp: timestamps have no checksums, and the length is always -1
-	for _, roleToLoad := range []string{data.CanonicalRootRole, data.CanonicalTargetsRole} {
-		require.NoError(t, builder.Load(roleToLoad, meta[roleToLoad], 1, false))
-		for _, checkName := range append(data.BaseRoles, extraMeta...) {
-			ci := builder.GetConsistentInfo(checkName)
-			require.Equal(t, checkName, ci.ConsistentName())
-
-			switch checkName {
-			case data.CanonicalTimestampRole:
-				// timestamp's size is always the max timestamp size
-				require.True(t, ci.ChecksumKnown())
-				require.Equal(t, notary.MaxTimestampSize, ci.Length())
-			default:
-				require.False(t, ci.ChecksumKnown())
-				require.Equal(t, int64(-1), ci.Length())
-			}
-		}
-	}
-
-	// once timestamp is loaded, we can get the consistent info for snapshot but nothing else
-	require.NoError(t, builder.Load(data.CanonicalTimestampRole, meta[data.CanonicalTimestampRole], 1, false))
-	for _, checkName := range append(data.BaseRoles, extraMeta...) {
-		ci := builder.GetConsistentInfo(checkName)
-
-		switch checkName {
-		case data.CanonicalSnapshotRole:
-			cName := utils.ConsistentName(data.CanonicalSnapshotRole,
-				repo.Timestamp.Signed.Meta[data.CanonicalSnapshotRole].Hashes[notary.SHA256])
-			require.Equal(t, cName, ci.ConsistentName())
-			require.True(t, ci.ChecksumKnown())
-			require.True(t, ci.Length() > -1)
-		case data.CanonicalTimestampRole:
-			// timestamp's canonical name is always "timestamp" and its size is always the max
-			// timestamp size
-			require.Equal(t, data.CanonicalTimestampRole, ci.ConsistentName())
-			require.True(t, ci.ChecksumKnown())
-			require.Equal(t, notary.MaxTimestampSize, ci.Length())
-		default:
-			require.Equal(t, checkName, ci.ConsistentName())
-			require.False(t, ci.ChecksumKnown())
-			require.Equal(t, int64(-1), ci.Length())
-		}
-	}
-
-	// once the snapshot is loaded, we can get real consistent info for all loaded roles
-	require.NoError(t, builder.Load(data.CanonicalSnapshotRole, meta[data.CanonicalSnapshotRole], 1, false))
-	for _, checkName := range data.BaseRoles {
-		ci := builder.GetConsistentInfo(checkName)
-		require.True(t, ci.ChecksumKnown(), "%s's checksum is not known", checkName)
-
-		switch checkName {
-		case data.CanonicalTimestampRole:
-			// timestamp's canonical name is always "timestamp" and its size is always -1
-			require.Equal(t, data.CanonicalTimestampRole, ci.ConsistentName())
-			require.Equal(t, notary.MaxTimestampSize, ci.Length())
-		default:
-			fileInfo := repo.Snapshot.Signed.Meta
-			if checkName == data.CanonicalSnapshotRole {
-				fileInfo = repo.Timestamp.Signed.Meta
-			}
-
-			cName := utils.ConsistentName(checkName, fileInfo[checkName].Hashes[notary.SHA256])
-			require.Equal(t, cName, ci.ConsistentName())
-			require.True(t, ci.Length() > -1)
-		}
-	}
+	checkTimestampSnapshotRequired(t, meta, extraMeta, builder)
+	checkOnlySnapshotConsistentAfterTimestamp(t, repo, meta, extraMeta, builder)
+	checkOtherRolesConsistentAfterSnapshot(t, repo, meta, builder)
 
 	// the fake roles have invalid-ish checksums: the ConsistentInfos for those will return
 	// non-consistent names but non -1 sizes
@@ -604,6 +540,80 @@ func TestGetConsistentInfo(t *testing.T) {
 			require.Equal(t, checkName, ci.ConsistentName())
 			require.False(t, ci.ChecksumKnown())
 			require.Equal(t, int64(-1), ci.Length())
+		}
+	}
+}
+
+func checkTimestampSnapshotRequired(t *testing.T, meta map[string][]byte, extraMeta []string, builder tuf.RepoBuilder) {
+	// if neither snapshot nor timestamp are loaded, no matter how much other data is loaded, consistent info
+	// is empty except for timestamp: timestamps have no checksums, and the length is always -1
+	for _, roleToLoad := range []string{data.CanonicalRootRole, data.CanonicalTargetsRole} {
+		require.NoError(t, builder.Load(roleToLoad, meta[roleToLoad], 1, false))
+		for _, checkName := range append(data.BaseRoles, extraMeta...) {
+			ci := builder.GetConsistentInfo(checkName)
+			require.Equal(t, checkName, ci.ConsistentName())
+
+			switch checkName {
+			case data.CanonicalTimestampRole:
+				// timestamp's size is always the max timestamp size
+				require.True(t, ci.ChecksumKnown())
+				require.Equal(t, notary.MaxTimestampSize, ci.Length())
+			default:
+				require.False(t, ci.ChecksumKnown())
+				require.Equal(t, int64(-1), ci.Length())
+			}
+		}
+	}
+}
+
+func checkOnlySnapshotConsistentAfterTimestamp(t *testing.T, repo *tuf.Repo, meta map[string][]byte, extraMeta []string, builder tuf.RepoBuilder) {
+	// once timestamp is loaded, we can get the consistent info for snapshot but nothing else
+	require.NoError(t, builder.Load(data.CanonicalTimestampRole, meta[data.CanonicalTimestampRole], 1, false))
+	for _, checkName := range append(data.BaseRoles, extraMeta...) {
+		ci := builder.GetConsistentInfo(checkName)
+
+		switch checkName {
+		case data.CanonicalSnapshotRole:
+			cName := utils.ConsistentName(data.CanonicalSnapshotRole,
+				repo.Timestamp.Signed.Meta[data.CanonicalSnapshotRole].Hashes[notary.SHA256])
+			require.Equal(t, cName, ci.ConsistentName())
+			require.True(t, ci.ChecksumKnown())
+			require.True(t, ci.Length() > -1)
+		case data.CanonicalTimestampRole:
+			// timestamp's canonical name is always "timestamp" and its size is always the max
+			// timestamp size
+			require.Equal(t, data.CanonicalTimestampRole, ci.ConsistentName())
+			require.True(t, ci.ChecksumKnown())
+			require.Equal(t, notary.MaxTimestampSize, ci.Length())
+		default:
+			require.Equal(t, checkName, ci.ConsistentName())
+			require.False(t, ci.ChecksumKnown())
+			require.Equal(t, int64(-1), ci.Length())
+		}
+	}
+}
+
+func checkOtherRolesConsistentAfterSnapshot(t *testing.T, repo *tuf.Repo, meta map[string][]byte, builder tuf.RepoBuilder) {
+	// once the snapshot is loaded, we can get real consistent info for all loaded roles
+	require.NoError(t, builder.Load(data.CanonicalSnapshotRole, meta[data.CanonicalSnapshotRole], 1, false))
+	for _, checkName := range data.BaseRoles {
+		ci := builder.GetConsistentInfo(checkName)
+		require.True(t, ci.ChecksumKnown(), "%s's checksum is not known", checkName)
+
+		switch checkName {
+		case data.CanonicalTimestampRole:
+			// timestamp's canonical name is always "timestamp" and its size is always -1
+			require.Equal(t, data.CanonicalTimestampRole, ci.ConsistentName())
+			require.Equal(t, notary.MaxTimestampSize, ci.Length())
+		default:
+			fileInfo := repo.Snapshot.Signed.Meta
+			if checkName == data.CanonicalSnapshotRole {
+				fileInfo = repo.Timestamp.Signed.Meta
+			}
+
+			cName := utils.ConsistentName(checkName, fileInfo[checkName].Hashes[notary.SHA256])
+			require.Equal(t, cName, ci.ConsistentName())
+			require.True(t, ci.Length() > -1)
 		}
 	}
 }

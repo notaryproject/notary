@@ -1294,13 +1294,21 @@ func testUpdateRemoteCorruptValidChecksum(t *testing.T, opts updateOpts, expt sw
 		}
 	}
 	err := repo.Update(opts.forWrite)
+	checkErrors(t, err, shouldErr, expt.expectErrs, msg)
+
+	if opts.checkRepo != nil {
+		opts.checkRepo(repo, serverSwizzler)
+	}
+}
+
+func checkErrors(t *testing.T, err error, shouldErr bool, expectedErrs []interface{}, msg string) {
 	if shouldErr {
 		require.Error(t, err, "expected failure updating when %s", msg)
 
 		errType := reflect.TypeOf(err)
 		isExpectedType := false
 		var expectedTypes []string
-		for _, expectErr := range expt.expectErrs {
+		for _, expectErr := range expectedErrs {
 			expectedType := reflect.TypeOf(expectErr)
 			isExpectedType = isExpectedType || errType == expectedType
 			expectedTypes = append(expectedTypes, expectedType.String())
@@ -1310,10 +1318,6 @@ func testUpdateRemoteCorruptValidChecksum(t *testing.T, opts updateOpts, expt sw
 
 	} else {
 		require.NoError(t, err, "expected no failure updating when %s", msg)
-	}
-
-	if opts.checkRepo != nil {
-		opts.checkRepo(repo, serverSwizzler)
 	}
 }
 

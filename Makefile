@@ -92,7 +92,7 @@ endif
 
 # run all lint functionality - excludes Godep directory, vendoring, binaries, python tests, and git files
 lint:
-	@echo "+ $@: golint, go vet, go fmt, misspell, ineffassign"
+	@echo "+ $@: golint, go vet, go fmt, gocycle, misspell, ineffassign"
 	# golint
 	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec golint {} \; | tee /dev/stderr)"
 	# gofmt
@@ -104,6 +104,8 @@ else
 	@test -z "$(shell find . -iname *test*.go | grep -v _test.go | grep -v vendor | xargs -r echo "This file should end with '_test':"  | tee /dev/stderr)"
 endif
 	@test -z "$$(go tool vet -printf=false . 2>&1 | grep -v vendor/ | tee /dev/stderr)"
+	# gocyclo - we require cyclomatic complexity to be < 16
+	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec "gocyclo -over 15 {}" \; | tee /dev/stderr)"
 	# misspell - requires that the following be run first:
 	#    go get -u github.com/client9/misspell/cmd/misspell
 	@test -z "$$(find . -type f | grep -v vendor/ | grep -v bin/ | grep -v misc/ | grep -v .git/ | grep -v \.pdf | xargs misspell | tee /dev/stderr)"
