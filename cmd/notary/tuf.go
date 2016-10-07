@@ -198,7 +198,7 @@ func (t *tufCommander) tufWitness(cmd *cobra.Command, args []string) error {
 
 	// no online operations are performed by add so the transport argument
 	// should be nil
-	nRepo, err := notaryclient.NewNotaryRepository(
+	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin)
 	if err != nil {
 		return err
@@ -271,7 +271,7 @@ func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 
 	// no online operations are performed by add so the transport argument
 	// should be nil
-	nRepo, err := notaryclient.NewNotaryRepository(
+	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin)
 	if err != nil {
 		return err
@@ -322,7 +322,7 @@ func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 
 	// no online operations are performed by add so the transport argument
 	// should be nil
-	nRepo, err := notaryclient.NewNotaryRepository(
+	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin)
 	if err != nil {
 		return err
@@ -370,7 +370,7 @@ func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
 		remoteDeleteInfo = " and remote"
 	}
 
-	nRepo, err := notaryclient.NewNotaryRepository(
+	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
 
 	if err != nil {
@@ -408,7 +408,7 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	nRepo, err := notaryclient.NewNotaryRepository(
+	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
 	if err != nil {
 		return err
@@ -497,7 +497,7 @@ func (t *tufCommander) tufList(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	nRepo, err := notaryclient.NewNotaryRepository(
+	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
 	if err != nil {
 		return err
@@ -537,7 +537,7 @@ func (t *tufCommander) tufLookup(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	nRepo, err := notaryclient.NewNotaryRepository(
+	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
 	if err != nil {
 		return err
@@ -569,7 +569,7 @@ func (t *tufCommander) tufStatus(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	nRepo, err := notaryclient.NewNotaryRepository(
+	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin)
 	if err != nil {
 		return err
@@ -626,7 +626,7 @@ func (t *tufCommander) tufReset(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	nRepo, err := notaryclient.NewNotaryRepository(
+	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin)
 	if err != nil {
 		return err
@@ -673,7 +673,7 @@ func (t *tufCommander) tufPublish(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	nRepo, err := notaryclient.NewNotaryRepository(
+	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
 	if err != nil {
 		return err
@@ -701,7 +701,7 @@ func (t *tufCommander) tufRemove(cmd *cobra.Command, args []string) error {
 
 	// no online operation are performed by remove so the transport argument
 	// should be nil.
-	repo, err := notaryclient.NewNotaryRepository(
+	repo, err := notaryclient.NewFileCachedNotaryRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, t.retriever, trustPin)
 	if err != nil {
 		return err
@@ -745,7 +745,7 @@ func (t *tufCommander) tufVerify(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	nRepo, err := notaryclient.NewNotaryRepository(
+	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
 	if err != nil {
 		return err
@@ -1017,7 +1017,7 @@ func maybeAutoPublish(cmd *cobra.Command, doPublish bool, gun string, config *vi
 		return err
 	}
 
-	nRepo, err := notaryclient.NewNotaryRepository(
+	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, passRetriever, trustPin)
 	if err != nil {
 		return err
