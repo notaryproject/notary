@@ -15,7 +15,7 @@ import (
 	"github.com/docker/notary/tuf/signed"
 )
 
-// ContextHandler defines an alterate HTTP handler interface which takes in
+// ContextHandler defines an alternate HTTP handler interface which takes in
 // a context for authorization and returns an HTTP application error.
 type ContextHandler func(ctx context.Context, w http.ResponseWriter, r *http.Request) error
 
@@ -80,14 +80,14 @@ func (root *rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctx = authCtx
 	}
 	if err := root.handler(ctx, w, r); err != nil {
-		if httpErr, ok := err.(errcode.ErrorCoder); ok {
+		if httpErr, ok := err.(errcode.Error); ok {
 			// info level logging for non-5XX http errors
 			httpErrCode := httpErr.ErrorCode().Descriptor().HTTPStatusCode
 			if httpErrCode >= http.StatusInternalServerError {
 				// error level logging for 5XX http errors
-				log.Error(httpErr)
+				log.Errorf("%s: %s: %v", httpErr.ErrorCode().Error(), httpErr.Message, httpErr.Detail)
 			} else {
-				log.Info(httpErr)
+				log.Infof("%s: %s: %v", httpErr.ErrorCode().Error(), httpErr.Message, httpErr.Detail)
 			}
 		}
 		e := errcode.ServeJSON(w, err)
