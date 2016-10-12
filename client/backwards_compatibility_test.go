@@ -86,7 +86,7 @@ func Test0Dot1Migration(t *testing.T) {
 	ts := fullTestServer(t)
 	defer ts.Close()
 
-	_, err = NewNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
+	_, err = NewFileCachedNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
@@ -133,7 +133,7 @@ func Test0Dot3Migration(t *testing.T) {
 	ts := fullTestServer(t)
 	defer ts.Close()
 
-	_, err = NewNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
+	_, err = NewFileCachedNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
@@ -189,7 +189,7 @@ func Test0Dot1RepoFormat(t *testing.T) {
 	ts := fullTestServer(t)
 	defer ts.Close()
 
-	repo, err := NewNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
+	repo, err := NewFileCachedNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
@@ -204,7 +204,7 @@ func Test0Dot1RepoFormat(t *testing.T) {
 
 	// delete the timestamp metadata, since the server will ignore the uploaded
 	// one and try to create a new one from scratch, which will be the wrong version
-	require.NoError(t, repo.fileStore.Remove(data.CanonicalTimestampRole))
+	require.NoError(t, repo.cache.Remove(data.CanonicalTimestampRole))
 
 	// rotate the timestamp key, since the server doesn't have that one
 	err = repo.RotateKey(data.CanonicalTimestampRole, true)
@@ -249,7 +249,7 @@ func Test0Dot3RepoFormat(t *testing.T) {
 	ts := fullTestServer(t)
 	defer ts.Close()
 
-	repo, err := NewNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
+	repo, err := NewFileCachedNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
@@ -263,7 +263,7 @@ func Test0Dot3RepoFormat(t *testing.T) {
 
 	// delete the timestamp metadata, since the server will ignore the uploaded
 	// one and try to create a new one from scratch, which will be the wrong version
-	require.NoError(t, repo.fileStore.Remove(data.CanonicalTimestampRole))
+	require.NoError(t, repo.cache.Remove(data.CanonicalTimestampRole))
 
 	// rotate the timestamp key, since the server doesn't have that one
 	err = repo.RotateKey(data.CanonicalTimestampRole, true)
@@ -315,7 +315,7 @@ func TestDownloading0Dot1RepoFormat(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(repoDir)
 
-	repo, err := NewNotaryRepository(repoDir, gun, ts.URL, http.DefaultTransport,
+	repo, err := NewFileCachedNotaryRepository(repoDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
@@ -340,7 +340,7 @@ func TestDownloading0Dot3RepoFormat(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(repoDir)
 
-	repo, err := NewNotaryRepository(repoDir, gun, ts.URL, http.DefaultTransport,
+	repo, err := NewFileCachedNotaryRepository(repoDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
