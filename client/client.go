@@ -25,54 +25,13 @@ import (
 	"github.com/docker/notary/tuf/utils"
 )
 
-func init() {
-	data.SetDefaultExpiryTimes(notary.NotaryDefaultExpiries)
-}
-
-// ErrRepoNotInitialized is returned when trying to publish an uninitialized
-// notary repository
-type ErrRepoNotInitialized struct{}
-
-func (err ErrRepoNotInitialized) Error() string {
-	return "repository has not been initialized"
-}
-
-// ErrInvalidRemoteRole is returned when the server is requested to manage
-// a key type that is not permitted
-type ErrInvalidRemoteRole struct {
-	Role string
-}
-
-func (err ErrInvalidRemoteRole) Error() string {
-	return fmt.Sprintf(
-		"notary does not permit the server managing the %s key", err.Role)
-}
-
-// ErrInvalidLocalRole is returned when the client wants to manage
-// a key type that is not permitted
-type ErrInvalidLocalRole struct {
-	Role string
-}
-
-func (err ErrInvalidLocalRole) Error() string {
-	return fmt.Sprintf(
-		"notary does not permit the client managing the %s key", err.Role)
-}
-
-// ErrRepositoryNotExist is returned when an action is taken on a remote
-// repository that doesn't exist
-type ErrRepositoryNotExist struct {
-	remote string
-	gun    string
-}
-
-func (err ErrRepositoryNotExist) Error() string {
-	return fmt.Sprintf("%s does not have trust data for %s", err.remote, err.gun)
-}
-
 const (
 	tufDir = "tuf"
 )
+
+func init() {
+	data.SetDefaultExpiryTimes(notary.NotaryDefaultExpiries)
+}
 
 // NotaryRepository stores all the information needed to operate on a notary
 // repository.
@@ -81,7 +40,7 @@ type NotaryRepository struct {
 	gun           string
 	baseURL       string
 	tufRepoPath   string
-	fileStore     store.MetadataStore
+	cache         store.MetadataStore
 	CryptoService signed.CryptoService
 	tufRepo       *tuf.Repo
 	invalid       *tuf.Repo // known data that was parsable but deemed invalid
@@ -89,10 +48,44 @@ type NotaryRepository struct {
 	trustPinning  trustpinning.TrustPinConfig
 }
 
+// NewFileCachedNotaryRepository is a wrapper for NewNotaryRepository that initializes
+// a file cache from the provided repository and local config information
+func NewFileCachedNotaryRepository(baseDir, gun, baseURL string, rt http.RoundTripper,
+	retriever notary.PassRetriever, trustPinning trustpinning.TrustPinConfig) (
+	*NotaryRepository, error) {
+
+	cache, err := store.NewFilesystemStore(
+		filepath.Join(baseDir, tufDir, filepath.FromSlash(gun)),
+		"metadata",
+		"json",
+	)
+	if err != nil {
+		return nil, err
+	}
+	return NewNotaryRepository(baseDir, gun, baseURL, rt, cache, retriever, trustPinning)
+}
+
+// NewNotaryRepository is a helper method that returns a new notary repository.
+// It takes the base directory under where all the trust files will be stored
+// (This is normally defaults to "~/.notary" or "~/.docker/trust" when enabling
+// docker content trust).
+func NewNotaryRepository(baseDir, gun, baseURL string, rt http.RoundTripper, cache store.MetadataStore,
+	retriever notary.PassRetriever, trustPinning trustpinning.TrustPinConfig) (
+	*NotaryRepository, error) {
+
+	keyStores, err := getKeyStores(baseDir, retriever)
+	if err != nil {
+		return nil, err
+	}
+
+	return repositoryFromKeystores(baseDir, gun, baseURL, rt, cache,
+		keyStores, trustPinning)
+}
+
 // repositoryFromKeystores is a helper function for NewNotaryRepository that
 // takes some basic NotaryRepository parameters as well as keystores (in order
 // of usage preference), and returns a NotaryRepository.
-func repositoryFromKeystores(baseDir, gun, baseURL string, rt http.RoundTripper,
+func repositoryFromKeystores(baseDir, gun, baseURL string, rt http.RoundTripper, cache store.MetadataStore,
 	keyStores []trustmanager.KeyStore, trustPin trustpinning.TrustPinConfig) (*NotaryRepository, error) {
 
 	cryptoService := cryptoservice.NewCryptoService(keyStores...)
@@ -107,15 +100,7 @@ func repositoryFromKeystores(baseDir, gun, baseURL string, rt http.RoundTripper,
 		trustPinning:  trustPin,
 	}
 
-	fileStore, err := store.NewFilesystemStore(
-		nRepo.tufRepoPath,
-		"metadata",
-		"json",
-	)
-	if err != nil {
-		return nil, err
-	}
-	nRepo.fileStore = fileStore
+	nRepo.cache = cache
 
 	return nRepo, nil
 }
@@ -741,7 +726,7 @@ func (r *NotaryRepository) bootstrapRepo() error {
 	logrus.Debugf("Loading trusted collection.")
 
 	for _, role := range data.BaseRoles {
-		jsonBytes, err := r.fileStore.GetSized(role, store.NoSizeLimit)
+		jsonBytes, err := r.cache.GetSized(role, store.NoSizeLimit)
 		if err != nil {
 			if _, ok := err.(store.ErrMetaNotFound); ok &&
 				// server snapshots are supported, and server timestamp management
@@ -773,7 +758,7 @@ func (r *NotaryRepository) saveMetadata(ignoreSnapshot bool) error {
 	if err != nil {
 		return err
 	}
-	err = r.fileStore.Set(data.CanonicalRootRole, rootJSON)
+	err = r.cache.Set(data.CanonicalRootRole, rootJSON)
 	if err != nil {
 		return err
 	}
@@ -794,7 +779,7 @@ func (r *NotaryRepository) saveMetadata(ignoreSnapshot bool) error {
 	for role, blob := range targetsToSave {
 		parentDir := filepath.Dir(role)
 		os.MkdirAll(parentDir, 0755)
-		r.fileStore.Set(role, blob)
+		r.cache.Set(role, blob)
 	}
 
 	if ignoreSnapshot {
@@ -806,7 +791,7 @@ func (r *NotaryRepository) saveMetadata(ignoreSnapshot bool) error {
 		return err
 	}
 
-	return r.fileStore.Set(data.CanonicalSnapshotRole, snapshotJSON)
+	return r.cache.Set(data.CanonicalSnapshotRole, snapshotJSON)
 }
 
 // returns a properly constructed ErrRepositoryNotExist error based on this
@@ -877,7 +862,7 @@ func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*TUFClient, e
 	// during update which will cause us to download a new root and perform a rotation.
 	// If we have an old root, and it's valid, then we overwrite the newBuilder to be one
 	// preloaded with the old root or one which uses the old root for trust bootstrapping.
-	if rootJSON, err := r.fileStore.GetSized(data.CanonicalRootRole, store.NoSizeLimit); err == nil {
+	if rootJSON, err := r.cache.GetSized(data.CanonicalRootRole, store.NoSizeLimit); err == nil {
 		// if we can't load the cached root, fail hard because that is how we pin trust
 		if err := oldBuilder.Load(data.CanonicalRootRole, rootJSON, minVersion, true); err != nil {
 			return nil, err
@@ -918,7 +903,7 @@ func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*TUFClient, e
 				return nil, err
 			}
 
-			err = r.fileStore.Set(data.CanonicalRootRole, tmpJSON)
+			err = r.cache.Set(data.CanonicalRootRole, tmpJSON)
 			if err != nil {
 				// if we can't write cache we should still continue, just log error
 				logrus.Errorf("could not save root to cache: %s", err.Error())
@@ -932,7 +917,7 @@ func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*TUFClient, e
 		return nil, ErrRepoNotInitialized{}
 	}
 
-	return NewTUFClient(oldBuilder, newBuilder, remote, r.fileStore), nil
+	return NewTUFClient(oldBuilder, newBuilder, remote, r.cache), nil
 }
 
 // RotateKey removes all existing keys associated with the role, and either
