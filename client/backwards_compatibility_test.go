@@ -303,9 +303,9 @@ func TestDownloading0Dot1RepoFormat(t *testing.T) {
 	gun := "docker.com/notary0.1/samplerepo"
 	passwd := "randompass"
 
-	metaCache, err := store.NewFilesystemStore(
-		filepath.Join("../fixtures/compatibility/notary0.1/tuf", filepath.FromSlash(gun)),
-		"metadata", "json")
+	metaCache, err := store.NewFileStore(
+		filepath.Join("../fixtures/compatibility/notary0.1/tuf", filepath.FromSlash(gun), "metadata"),
+		"json")
 	require.NoError(t, err)
 
 	ts := readOnlyServer(t, metaCache, http.StatusNotFound, gun)
@@ -328,9 +328,9 @@ func TestDownloading0Dot3RepoFormat(t *testing.T) {
 	gun := "docker.com/notary0.3/tst"
 	passwd := "randompass"
 
-	metaCache, err := store.NewFilesystemStore(
-		filepath.Join("../fixtures/compatibility/notary0.3/tuf", filepath.FromSlash(gun)),
-		"metadata", "json")
+	metaCache, err := store.NewFileStore(
+		filepath.Join("../fixtures/compatibility/notary0.3/tuf", filepath.FromSlash(gun), "metadata"),
+		"json")
 	require.NoError(t, err)
 
 	ts := readOnlyServer(t, metaCache, http.StatusNotFound, gun)
