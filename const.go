@@ -1,6 +1,8 @@
 package notary
 
-import "time"
+import (
+	"time"
+)
 
 // application wide constants
 const (
@@ -68,6 +70,11 @@ const (
 	HealthCheckKeyManagement = "grpc.health.v1.Health.KeyManagement"
 	HealthCheckSigner        = "grpc.health.v1.Health.Signer"
 	HealthCheckOverall       = "grpc.health.v1.Health.Overall"
+
+	// PrivExecPerms indicates the file permissions for directory
+	// and PrivNoExecPerms for file.
+	PrivExecPerms   = 0700
+	PrivNoExecPerms = 0600
 )
 
 // enum to use for setting and retrieving values from contexts

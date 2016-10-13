@@ -54,9 +54,8 @@ func NewFileCachedNotaryRepository(baseDir, gun, baseURL string, rt http.RoundTr
 	retriever notary.PassRetriever, trustPinning trustpinning.TrustPinConfig) (
 	*NotaryRepository, error) {
 
-	cache, err := store.NewFilesystemStore(
-		filepath.Join(baseDir, tufDir, filepath.FromSlash(gun)),
-		"metadata",
+	cache, err := store.NewFileStore(
+		filepath.Join(baseDir, tufDir, filepath.FromSlash(gun), "metadata"),
 		"json",
 	)
 	if err != nil {
