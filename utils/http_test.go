@@ -25,7 +25,7 @@ func MockBetterErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.
 }
 
 func TestRootHandlerFactory(t *testing.T) {
-	hand := RootHandlerFactory(nil, context.Background(), &signed.Ed25519{})
+	hand := RootHandlerFactory(context.Background(), nil, &signed.Ed25519{})
 	handler := hand(MockContextHandler)
 	if _, ok := interface{}(handler).(http.Handler); !ok {
 		t.Fatalf("A rootHandler must implement the http.Handler interface")
@@ -40,7 +40,7 @@ func TestRootHandlerFactory(t *testing.T) {
 }
 
 func TestRootHandlerError(t *testing.T) {
-	hand := RootHandlerFactory(nil, context.Background(), &signed.Ed25519{})
+	hand := RootHandlerFactory(context.Background(), nil, &signed.Ed25519{})
 	handler := hand(MockBetterErrorHandler)
 
 	ts := httptest.NewServer(handler)

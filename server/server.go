@@ -126,7 +126,7 @@ type _serverEndpoint struct {
 func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.CryptoService,
 	consistent, current utils.CacheControlConfig, repoPrefixes []string) http.Handler {
 
-	authWrapper := utils.RootHandlerFactory(ac, ctx, trust)
+	authWrapper := utils.RootHandlerFactory(ctx, ac, trust)
 
 	createHandler := func(opts _serverEndpoint) http.Handler {
 		var wrapped http.Handler
