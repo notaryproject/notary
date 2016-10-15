@@ -80,7 +80,7 @@ func Run(ctx context.Context, conf Config) error {
 	svr := http.Server{
 		Addr: conf.Addr,
 		Handler: RootHandler(
-			ac, ctx, conf.Trust,
+			ctx, ac, conf.Trust,
 			conf.ConsistentCacheControlConfig, conf.CurrentCacheControlConfig,
 			conf.RepoPrefixes),
 	}
@@ -123,7 +123,7 @@ type _serverEndpoint struct {
 
 // RootHandler returns the handler that routes all the paths from / for the
 // server.
-func RootHandler(ac auth.AccessController, ctx context.Context, trust signed.CryptoService,
+func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.CryptoService,
 	consistent, current utils.CacheControlConfig, repoPrefixes []string) http.Handler {
 
 	authWrapper := utils.RootHandlerFactory(ac, ctx, trust)
