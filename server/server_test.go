@@ -69,7 +69,7 @@ func TestRepoPrefixMatches(t *testing.T) {
 	snChecksumBytes := sha256.Sum256(meta[data.CanonicalSnapshotRole])
 
 	// successful gets
-	handler := RootHandler(nil, ctx, cs, nil, nil, []string{"docker.io"})
+	handler := RootHandler(ctx, nil, cs, nil, nil, []string{"docker.io"})
 	ts := httptest.NewServer(handler)
 
 	url := fmt.Sprintf("%s/v2/%s/_trust/tuf/", ts.URL, gun)
@@ -110,7 +110,7 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 	snChecksumBytes := sha256.Sum256(meta[data.CanonicalSnapshotRole])
 
 	// successful gets
-	handler := RootHandler(nil, ctx, cs, nil, nil, []string{"nope"})
+	handler := RootHandler(ctx, nil, cs, nil, nil, []string{"nope"})
 	ts := httptest.NewServer(handler)
 
 	url := fmt.Sprintf("%s/v2/%s/_trust/tuf/", ts.URL, gun)
@@ -148,7 +148,7 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 }
 
 func TestMetricsEndpoint(t *testing.T) {
-	handler := RootHandler(nil, context.Background(), signed.NewEd25519(),
+	handler := RootHandler(context.Background(), nil, signed.NewEd25519(),
 		nil, nil, nil)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
@@ -164,7 +164,7 @@ func TestGetKeysEndpoint(t *testing.T) {
 		context.Background(), notary.CtxKeyMetaStore, storage.NewMemStorage())
 	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ED25519Key)
 
-	handler := RootHandler(nil, ctx, signed.NewEd25519(), nil, nil, nil)
+	handler := RootHandler(ctx, nil, signed.NewEd25519(), nil, nil, nil)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
@@ -236,7 +236,7 @@ func TestGetRoleByHash(t *testing.T) {
 	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ED25519Key)
 
 	ccc := utils.NewCacheControlConfig(10, false)
-	handler := RootHandler(nil, ctx, signed.NewEd25519(), ccc, ccc, nil)
+	handler := RootHandler(ctx, nil, signed.NewEd25519(), ccc, ccc, nil)
 	serv := httptest.NewServer(handler)
 	defer serv.Close()
 
@@ -280,7 +280,7 @@ func TestGetCurrentRole(t *testing.T) {
 	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ED25519Key)
 
 	ccc := utils.NewCacheControlConfig(10, false)
-	handler := RootHandler(nil, ctx, signed.NewEd25519(), ccc, ccc, nil)
+	handler := RootHandler(ctx, nil, signed.NewEd25519(), ccc, ccc, nil)
 	serv := httptest.NewServer(handler)
 	defer serv.Close()
 
@@ -312,7 +312,7 @@ func TestRotateKeyEndpoint(t *testing.T) {
 	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ED25519Key)
 
 	ccc := utils.NewCacheControlConfig(10, false)
-	handler := RootHandler(nil, ctx, signed.NewEd25519(), ccc, ccc, nil)
+	handler := RootHandler(ctx, nil, signed.NewEd25519(), ccc, ccc, nil)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
