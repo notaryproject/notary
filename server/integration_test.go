@@ -25,7 +25,7 @@ func TestValidationErrorFormat(t *testing.T) {
 		context.Background(), notary.CtxKeyMetaStore, storage.NewMemStorage())
 	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ED25519Key)
 
-	handler := RootHandler(nil, ctx, signed.NewEd25519(), nil, nil, nil)
+	handler := RootHandler(ctx, nil, signed.NewEd25519(), nil, nil, nil)
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
