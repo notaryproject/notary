@@ -33,7 +33,7 @@ type rootHandler struct {
 // Context creator and authorizer.  The returned factory allows creating
 // new rootHandlers from the alternate http handler contextHandler and
 // a scope.
-func RootHandlerFactory(auth auth.AccessController, ctx context.Context, trust signed.CryptoService) func(ContextHandler, ...string) *rootHandler {
+func RootHandlerFactory(ctx context.Context, auth auth.AccessController, trust signed.CryptoService) func(ContextHandler, ...string) *rootHandler {
 	return func(handler ContextHandler, actions ...string) *rootHandler {
 		return &rootHandler{
 			handler: handler,

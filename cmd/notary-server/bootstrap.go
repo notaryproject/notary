@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/docker/notary"
 	"github.com/docker/notary/storage"
 	"golang.org/x/net/context"
 )
