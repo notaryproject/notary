@@ -26,7 +26,7 @@ import (
 	"github.com/docker/notary/tuf/testutils/interfaces"
 	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
-	health "google.golang.org/grpc/health"
+	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 

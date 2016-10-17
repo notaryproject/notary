@@ -2,7 +2,6 @@ package testutils
 
 import (
 	"fmt"
-	"math/rand"
 	"sort"
 	"testing"
 	"time"
@@ -15,7 +14,7 @@ import (
 	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
 
-	tuf "github.com/docker/notary/tuf"
+	"github.com/docker/notary/tuf"
 	"github.com/docker/notary/tuf/signed"
 )
 
@@ -139,17 +138,6 @@ func CopyRepoMetadata(from map[string][]byte) map[string][]byte {
 		copied[roleName] = metaBytes
 	}
 	return copied
-}
-
-// RandomByteSlice generates some random data to be used for testing only
-func RandomByteSlice(maxSize int) []byte {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	contentSize := r.Intn(maxSize)
-	content := make([]byte, contentSize)
-	for i := range content {
-		content[i] = byte(r.Int63() & 0xff)
-	}
-	return content
 }
 
 // SignAndSerialize calls Sign and then Serialize to get the repo metadata out
