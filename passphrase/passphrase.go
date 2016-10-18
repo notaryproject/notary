@@ -18,8 +18,6 @@ import (
 const (
 	idBytesToDisplay            = 7
 	tufRootAlias                = "root"
-	tufTargetsAlias             = "targets"
-	tufSnapshotAlias            = "snapshot"
 	tufRootKeyGenerationWarning = `You are about to create a new root signing key passphrase. This passphrase
 will be used to protect the most sensitive key in your signing system. Please
 choose a long, complex passphrase and be careful to keep the password and the
