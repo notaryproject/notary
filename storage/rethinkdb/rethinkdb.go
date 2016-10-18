@@ -8,8 +8,6 @@ import (
 	"gopkg.in/dancannon/gorethink.v2"
 )
 
-var session *gorethink.Session
-
 // Timing can be embedded into other gorethink models to
 // add time tracking fields
 type Timing struct {

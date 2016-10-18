@@ -38,12 +38,6 @@ func NewFileStore(baseDir, fileExt string, perms os.FileMode) (*FilesystemStore,
 	}, nil
 }
 
-// NewSimpleFileStore is a convenience wrapper to create a world readable,
-// owner writeable filestore
-func NewSimpleFileStore(baseDir, fileExt string) (*FilesystemStore, error) {
-	return NewFileStore(baseDir, fileExt, notary.PubCertPerms)
-}
-
 // NewPrivateKeyFileStorage initializes a new filestore for private keys, appending
 // the notary.PrivDir to the baseDir.
 func NewPrivateKeyFileStorage(baseDir, fileExt string) (*FilesystemStore, error) {
