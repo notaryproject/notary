@@ -373,7 +373,7 @@ func TestCreatePrivateDirectory(t *testing.T) {
 	dirPath := filepath.Join(tempBaseDir, testDir)
 
 	// Call createDirectory
-	createDirectory(dirPath, notary.PrivKeyPerms)
+	createDirectory(dirPath, notary.PrivExecPerms)
 
 	// Check to see if file exists
 	fi, err := os.Stat(dirPath)

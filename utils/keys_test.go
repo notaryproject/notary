@@ -238,7 +238,7 @@ func TestExport2InOneFile(t *testing.T) {
 func TestImportKeys(t *testing.T) {
 	s := NewTestImportStore()
 
-	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivKeyPerms)
+	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivExecPerms)
 	b := &pem.Block{
 		Headers: make(map[string]string),
 	}
@@ -286,7 +286,7 @@ func TestImportKeys(t *testing.T) {
 func TestImportNoPath(t *testing.T) {
 	s := NewTestImportStore()
 
-	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivKeyPerms)
+	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivExecPerms)
 	defer from.Close()
 	fromBytes, _ := ioutil.ReadAll(from)
 
@@ -311,7 +311,7 @@ func TestImportNoPath(t *testing.T) {
 func TestNonRootPathInference(t *testing.T) {
 	s := NewTestImportStore()
 
-	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivKeyPerms)
+	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivExecPerms)
 	defer from.Close()
 	fromBytes, _ := ioutil.ReadAll(from)
 
@@ -329,7 +329,7 @@ func TestNonRootPathInference(t *testing.T) {
 func TestBlockHeaderPrecedenceRoleAndGun(t *testing.T) {
 	s := NewTestImportStore()
 
-	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivKeyPerms)
+	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivExecPerms)
 	defer from.Close()
 	fromBytes, _ := ioutil.ReadAll(from)
 	b, _ := pem.Decode(fromBytes)
@@ -357,7 +357,7 @@ func TestBlockHeaderPrecedenceGunFromPath(t *testing.T) {
 	// this is a proof of concept that if we have legacy fixtures with nested paths, we infer the gun from them correctly
 	s := NewTestImportStore()
 
-	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivKeyPerms)
+	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivExecPerms)
 	defer from.Close()
 	fromBytes, _ := ioutil.ReadAll(from)
 	b, _ := pem.Decode(fromBytes)
@@ -440,7 +440,7 @@ func TestImportKeys2InOneFile(t *testing.T) {
 func TestImportKeys2InOneFileNoPath(t *testing.T) {
 	s := NewTestImportStore()
 
-	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivKeyPerms)
+	from, _ := os.OpenFile("../fixtures/secure.example.com.key", os.O_RDONLY, notary.PrivExecPerms)
 	defer from.Close()
 	fromBytes, _ := ioutil.ReadAll(from)
 	b, _ := pem.Decode(fromBytes)
