@@ -114,10 +114,7 @@ endif
 	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec ineffassign {} \; | tee /dev/stderr)"
 	# gas - requires that the following be run first:
 	#    go get -u github.com/HewlettPackard/gas
-	@gas -skip=vendor -skip=*/*_test.go -skip=*/*/*_test.go -fmt=json -out=gas_output.json ./...
-	ifeq ("$(shell node -p "require('./gas_output.json').metrics.found"), "0")
-		$(error gas issues found: $(shell node -p "require('./gas_output.json').metrics.found"))
-	endif
+	@gas -skip=vendor -skip=*/*_test.go -skip=*/*/*_test.go -fmt=csv -out=gas_output.csv ./... && test -z "$$(cat gas_output.csv | tee /dev/stderr)"
 
 build:
 	@echo "+ $@"
