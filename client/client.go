@@ -776,8 +776,7 @@ func (r *NotaryRepository) saveMetadata(ignoreSnapshot bool) error {
 	}
 
 	for role, blob := range targetsToSave {
-		parentDir := filepath.Dir(role)
-		os.MkdirAll(parentDir, 0755)
+		// If the parent directory does not exist, the cache.Set will create it
 		r.cache.Set(role, blob)
 	}
 
