@@ -2163,7 +2163,7 @@ func TestClientKeyImport(t *testing.T) {
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
 	assertNumKeys(t, tempDir, 2, 1, !rootOnHardware())
-	file, err := os.OpenFile(filepath.Join(tempDir, notary.PrivDir, privKey.ID()+".key"), os.O_RDONLY, notary.PrivKeyPerms)
+	file, err := os.OpenFile(filepath.Join(tempDir, notary.PrivDir, privKey.ID()+".key"), os.O_RDONLY, notary.PrivExecPerms)
 	require.NoError(t, err)
 	filebytes, _ := ioutil.ReadAll(file)
 	require.Contains(t, string(filebytes), ("role: " + notary.DefaultImportRole))
@@ -2193,7 +2193,7 @@ func TestClientKeyImport(t *testing.T) {
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
 	assertNumKeys(t, tempDir, 2, 2, !rootOnHardware())
-	file, err = os.OpenFile(filepath.Join(tempDir, notary.PrivDir, privKey.ID()+".key"), os.O_RDONLY, notary.PrivKeyPerms)
+	file, err = os.OpenFile(filepath.Join(tempDir, notary.PrivDir, privKey.ID()+".key"), os.O_RDONLY, notary.PrivExecPerms)
 	require.NoError(t, err)
 	filebytes, _ = ioutil.ReadAll(file)
 	require.Contains(t, string(filebytes), ("role: " + "somerole"))
@@ -2224,7 +2224,7 @@ func TestClientKeyImport(t *testing.T) {
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
 	assertNumKeys(t, tempDir, 2, 3, !rootOnHardware())
-	file, err = os.OpenFile(filepath.Join(tempDir, notary.PrivDir, privKey.ID()+".key"), os.O_RDONLY, notary.PrivKeyPerms)
+	file, err = os.OpenFile(filepath.Join(tempDir, notary.PrivDir, privKey.ID()+".key"), os.O_RDONLY, notary.PrivExecPerms)
 	require.NoError(t, err)
 	filebytes, _ = ioutil.ReadAll(file)
 	require.Contains(t, string(filebytes), ("role: " + data.CanonicalSnapshotRole))
@@ -2281,7 +2281,7 @@ func TestClientKeyImport(t *testing.T) {
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
 	assertNumKeys(t, tempDir, 2, 4, !rootOnHardware())
-	file, err = os.OpenFile(filepath.Join(tempDir, notary.PrivDir, privKey.ID()+".key"), os.O_RDONLY, notary.PrivKeyPerms)
+	file, err = os.OpenFile(filepath.Join(tempDir, notary.PrivDir, privKey.ID()+".key"), os.O_RDONLY, notary.PrivExecPerms)
 	require.NoError(t, err)
 	filebytes, _ = ioutil.ReadAll(file)
 	require.Contains(t, string(filebytes), ("role: " + "somerole"))
@@ -2505,7 +2505,7 @@ func TestExportImportFlow(t *testing.T) {
 	require.NoError(t, err)
 
 	// make sure the export has been done properly
-	from, err := os.OpenFile(filepath.Join(tempDir, "exported"), os.O_RDONLY, notary.PrivKeyPerms)
+	from, err := os.OpenFile(filepath.Join(tempDir, "exported"), os.O_RDONLY, notary.PrivExecPerms)
 	require.NoError(t, err)
 	defer from.Close()
 	fromBytes, _ := ioutil.ReadAll(from)
@@ -2544,7 +2544,7 @@ func TestExportImportFlow(t *testing.T) {
 
 	if !rootOnHardware() {
 		// validate root is imported correctly
-		rootKey, err := os.OpenFile(filepath.Join(newTempDir, notary.PrivDir, root[0]+".key"), os.O_RDONLY, notary.PrivKeyPerms)
+		rootKey, err := os.OpenFile(filepath.Join(newTempDir, notary.PrivDir, root[0]+".key"), os.O_RDONLY, notary.PrivExecPerms)
 		require.NoError(t, err)
 		defer rootKey.Close()
 		rootBytes, _ := ioutil.ReadAll(rootKey)
@@ -2555,7 +2555,7 @@ func TestExportImportFlow(t *testing.T) {
 	}
 
 	// validate snapshot is imported correctly
-	snapKey, err := os.OpenFile(filepath.Join(newTempDir, notary.PrivDir, signing[0]+".key"), os.O_RDONLY, notary.PrivKeyPerms)
+	snapKey, err := os.OpenFile(filepath.Join(newTempDir, notary.PrivDir, signing[0]+".key"), os.O_RDONLY, notary.PrivExecPerms)
 	require.NoError(t, err)
 	defer snapKey.Close()
 	snapBytes, _ := ioutil.ReadAll(snapKey)
@@ -2564,7 +2564,7 @@ func TestExportImportFlow(t *testing.T) {
 	require.True(t, strings.Contains(snapString, "role: snapshot") || strings.Contains(snapString, "role: target"))
 
 	// validate targets is imported correctly
-	targKey, err := os.OpenFile(filepath.Join(newTempDir, notary.PrivDir, signing[1]+".key"), os.O_RDONLY, notary.PrivKeyPerms)
+	targKey, err := os.OpenFile(filepath.Join(newTempDir, notary.PrivDir, signing[1]+".key"), os.O_RDONLY, notary.PrivExecPerms)
 	require.NoError(t, err)
 	defer targKey.Close()
 	targBytes, _ := ioutil.ReadAll(targKey)

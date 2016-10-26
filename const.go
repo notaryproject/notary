@@ -1,6 +1,8 @@
 package notary
 
-import "time"
+import (
+	"time"
+)
 
 // application wide constants
 const (
@@ -12,10 +14,6 @@ const (
 	MinRSABitSize = 2048
 	// MinThreshold requires a minimum of one threshold for roles; currently we do not support a higher threshold
 	MinThreshold = 1
-	// PrivKeyPerms are the file permissions to use when writing private keys to disk
-	PrivKeyPerms = 0700
-	// PubCertPerms are the file permissions to use when writing public certificates to disk
-	PubCertPerms = 0755
 	// Sha256HexSize is how big a Sha256 hex is in number of characters
 	Sha256HexSize = 64
 	// Sha512HexSize is how big a Sha512 hex is in number of characters
@@ -68,6 +66,11 @@ const (
 	HealthCheckKeyManagement = "grpc.health.v1.Health.KeyManagement"
 	HealthCheckSigner        = "grpc.health.v1.Health.Signer"
 	HealthCheckOverall       = "grpc.health.v1.Health.Overall"
+
+	// PrivExecPerms indicates the file permissions for directory
+	// and PrivNoExecPerms for file.
+	PrivExecPerms   = 0700
+	PrivNoExecPerms = 0600
 )
 
 // enum to use for setting and retrieving values from contexts

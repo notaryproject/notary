@@ -14,17 +14,10 @@ import (
 	"github.com/docker/notary"
 )
 
-// NewFilesystemStore creates a new store in a directory tree
-func NewFilesystemStore(baseDir, subDir, extension string) (*FilesystemStore, error) {
-	baseDir = filepath.Join(baseDir, subDir)
-
-	return NewFileStore(baseDir, extension, notary.PrivKeyPerms)
-}
-
 // NewFileStore creates a fully configurable file store
-func NewFileStore(baseDir, fileExt string, perms os.FileMode) (*FilesystemStore, error) {
+func NewFileStore(baseDir, fileExt string) (*FilesystemStore, error) {
 	baseDir = filepath.Clean(baseDir)
-	if err := createDirectory(baseDir, perms); err != nil {
+	if err := createDirectory(baseDir, notary.PrivExecPerms); err != nil {
 		return nil, err
 	}
 	if !strings.HasPrefix(fileExt, ".") {
@@ -34,7 +27,6 @@ func NewFileStore(baseDir, fileExt string, perms os.FileMode) (*FilesystemStore,
 	return &FilesystemStore{
 		baseDir: baseDir,
 		ext:     fileExt,
-		perms:   perms,
 	}, nil
 }
 
@@ -42,7 +34,7 @@ func NewFileStore(baseDir, fileExt string, perms os.FileMode) (*FilesystemStore,
 // the notary.PrivDir to the baseDir.
 func NewPrivateKeyFileStorage(baseDir, fileExt string) (*FilesystemStore, error) {
 	baseDir = filepath.Join(baseDir, notary.PrivDir)
-	myStore, err := NewFileStore(baseDir, fileExt, notary.PrivKeyPerms)
+	myStore, err := NewFileStore(baseDir, fileExt)
 	myStore.migrateTo0Dot4()
 	return myStore, err
 }
@@ -50,14 +42,13 @@ func NewPrivateKeyFileStorage(baseDir, fileExt string) (*FilesystemStore, error)
 // NewPrivateSimpleFileStore is a wrapper to create an owner readable/writeable
 // _only_ filestore
 func NewPrivateSimpleFileStore(baseDir, fileExt string) (*FilesystemStore, error) {
-	return NewFileStore(baseDir, fileExt, notary.PrivKeyPerms)
+	return NewFileStore(baseDir, fileExt)
 }
 
 // FilesystemStore is a store in a locally accessible directory
 type FilesystemStore struct {
 	baseDir string
 	ext     string
-	perms   os.FileMode
 }
 
 func (f *FilesystemStore) moveKeyTo0Dot4Location(file string) {
@@ -94,7 +85,7 @@ func (f *FilesystemStore) migrateTo0Dot4() {
 			logrus.Warn("The directory for root keys is an unsafe value, we are not going to delete the directory. Please delete it manually")
 		} else {
 			// root_keys exists, migrate things from it
-			listOnlyRootKeysDirStore, _ := NewFileStore(rootKeysSubDir, f.ext, notary.PrivKeyPerms)
+			listOnlyRootKeysDirStore, _ := NewFileStore(rootKeysSubDir, f.ext)
 			for _, file := range listOnlyRootKeysDirStore.ListFiles() {
 				f.moveKeyTo0Dot4Location(filepath.Join(notary.RootKeysSubdir, file))
 			}
@@ -109,7 +100,7 @@ func (f *FilesystemStore) migrateTo0Dot4() {
 			logrus.Warn("The directory for non root keys is an unsafe value, we are not going to delete the directory. Please delete it manually")
 		} else {
 			// tuf_keys exists, migrate things from it
-			listOnlyNonRootKeysDirStore, _ := NewFileStore(nonRootKeysSubDir, f.ext, notary.PrivKeyPerms)
+			listOnlyNonRootKeysDirStore, _ := NewFileStore(nonRootKeysSubDir, f.ext)
 			for _, file := range listOnlyNonRootKeysDirStore.ListFiles() {
 				f.moveKeyTo0Dot4Location(filepath.Join(notary.NonRootKeysSubdir, file))
 			}
@@ -146,7 +137,7 @@ func (f *FilesystemStore) GetSized(name string, size int64) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	file, err := os.OpenFile(p, os.O_RDONLY, f.perms)
+	file, err := os.OpenFile(p, os.O_RDONLY, notary.PrivNoExecPerms)
 	if err != nil {
 		if os.IsNotExist(err) {
 			err = ErrMetaNotFound{Resource: name}
@@ -206,7 +197,7 @@ func (f *FilesystemStore) Set(name string, meta []byte) error {
 	}
 
 	// Ensures the parent directories of the file we are about to write exist
-	err = os.MkdirAll(filepath.Dir(fp), f.perms)
+	err = os.MkdirAll(filepath.Dir(fp), notary.PrivExecPerms)
 	if err != nil {
 		return err
 	}
@@ -215,7 +206,7 @@ func (f *FilesystemStore) Set(name string, meta []byte) error {
 	os.RemoveAll(fp)
 
 	// Write the file to disk
-	if err = ioutil.WriteFile(fp, meta, f.perms); err != nil {
+	if err = ioutil.WriteFile(fp, meta, notary.PrivNoExecPerms); err != nil {
 		return err
 	}
 	return nil
