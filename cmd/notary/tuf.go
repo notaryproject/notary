@@ -923,16 +923,8 @@ func tokenAuth(trustServerURL string, baseTransport *http.Transport, gun string,
 
 	tokenHandler := auth.NewTokenHandler(authTransport, ps, gun, actions...)
 	basicHandler := auth.NewBasicHandler(ps)
-
-	modifier := auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler)
-
-	if permission != readOnly {
-		return newAuthRoundTripper(transport.NewTransport(baseTransport, modifier)), nil
-	}
-
-	// Try to authenticate read only repositories using basic username/password authentication
-	return newAuthRoundTripper(transport.NewTransport(baseTransport, modifier),
-		transport.NewTransport(baseTransport, auth.NewAuthorizer(challengeManager, auth.NewTokenHandler(authTransport, passwordStore{anonymous: false}, gun, actions...)))), nil
+	modifier := transport.RequestModifier(auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
+	return transport.NewTransport(baseTransport, modifier), nil
 }
 
 func getRemoteTrustServer(config *viper.Viper) string {
@@ -968,38 +960,6 @@ func getTrustPinning(config *viper.Viper) (trustpinning.TrustPinConfig, error) {
 		Certs:       resultCertMap,
 	}, nil
 }
-
-// authRoundTripper tries to authenticate the requests via multiple HTTP transactions (until first succeed)
-type authRoundTripper struct {
-	trippers []http.RoundTripper
-}
-
-func newAuthRoundTripper(trippers ...http.RoundTripper) http.RoundTripper {
-	return &authRoundTripper{trippers: trippers}
-}
-
-func (a *authRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-
-	var resp *http.Response
-	// Try all run all transactions
-	for _, t := range a.trippers {
-		var err error
-		resp, err = t.RoundTrip(req)
-		// Reject on error
-		if err != nil {
-			return resp, err
-		}
-
-		// Stop when request is authorized/unknown error
-		if resp.StatusCode != http.StatusUnauthorized {
-			return resp, nil
-		}
-	}
-
-	// Return the last response
-	return resp, nil
-}
-
 func maybeAutoPublish(cmd *cobra.Command, doPublish bool, gun string, config *viper.Viper, passRetriever notary.PassRetriever) error {
 
 	if !doPublish {
