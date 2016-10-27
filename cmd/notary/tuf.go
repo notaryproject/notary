@@ -907,7 +907,7 @@ func tokenAuth(trustServerURL string, baseTransport *http.Transport, gun string,
 		return nil, err
 	}
 
-	ps := passwordStore{anonymous: permission == readOnly}
+	ps := passwordStore{anonymous: false}
 
 	var actions []string
 	switch permission {
