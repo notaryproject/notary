@@ -119,6 +119,11 @@ type _serverEndpoint struct {
 	IncludeCacheHeaders bool
 	CacheControlConfig  utils.CacheControlConfig
 	PermissionsRequired []string
+	// ImageNameAt defaults to 0, which will cause the image name to be looked
+	// up in the URL segment. Therefore only need to set it when in some other
+	// place.
+	ImageNameAt        utils.ImageNameLocation
+	SkipFilterPrefixes bool
 }
 
 // RootHandler returns the handler that routes all the paths from / for the
@@ -130,11 +135,13 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 
 	createHandler := func(opts _serverEndpoint) http.Handler {
 		var wrapped http.Handler
-		wrapped = authWrapper(opts.ServerHandler, opts.PermissionsRequired...)
+		wrapped = authWrapper(opts.ServerHandler, opts.ImageNameAt, opts.PermissionsRequired...)
 		if opts.IncludeCacheHeaders {
 			wrapped = utils.WrapWithCacheHandler(opts.CacheControlConfig, wrapped)
 		}
-		wrapped = filterImagePrefixes(repoPrefixes, opts.ErrorIfGUNInvalid, wrapped)
+		if !opts.SkipFilterPrefixes {
+			wrapped = filterImagePrefixes(repoPrefixes, opts.ErrorIfGUNInvalid, wrapped)
+		}
 		return prometheus.InstrumentHandlerWithOpts(prometheusOpts(opts.OperationName), wrapped)
 	}
 
@@ -142,7 +149,7 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 	notFoundError := errors.ErrMetadataNotFound.WithDetail(nil)
 
 	r := mux.NewRouter()
-	r.Methods("GET").Path("/v2/").Handler(authWrapper(handlers.MainHandler))
+	r.Methods("GET").Path("/v2/").Handler(authWrapper(handlers.MainHandler, utils.NoImageName))
 
 	r.Methods("POST").Path("/v2/{imageName:.*}/_trust/tuf/").Handler(createHandler(_serverEndpoint{
 		OperationName:       "UpdateTUF",
@@ -186,11 +193,18 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 		ServerHandler:       handlers.DeleteHandler,
 		PermissionsRequired: []string{"*"},
 	}))
+	r.Methods("GET").Path("/v2/changefeed/_trust").Handler(createHandler(_serverEndpoint{
+		OperationName:       "Changefeed",
+		ServerHandler:       handlers.Changefeed,
+		PermissionsRequired: []string{"*"},
+		ImageNameAt:         utils.ImageInQueryString,
+		SkipFilterPrefixes:  true,
+	}))
 
 	r.Methods("GET").Path("/_notary_server/health").HandlerFunc(health.StatusHandler)
 	r.Methods("GET").Path("/metrics").Handler(prometheus.Handler())
 	r.Methods("GET", "POST", "PUT", "HEAD", "DELETE").Path("/{other:.*}").Handler(
-		authWrapper(handlers.NotFoundHandler))
+		authWrapper(handlers.NotFoundHandler, utils.NoImageName))
 
 	return r
 }

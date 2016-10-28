@@ -40,3 +40,13 @@ type ErrNoKey struct {
 func (err ErrNoKey) Error() string {
 	return fmt.Sprintf("Error, no timestamp key found for %s", err.gun)
 }
+
+// ErrBadChangeID indicates the change ID provided by the user is not
+// valid for some reason, i.e. it is out of bounds
+type ErrBadChangeID struct {
+	id string
+}
+
+func (err ErrBadChangeID) Error() string {
+	return fmt.Sprintf("Error, the change ID \"%s\" is not valid", err.id)
+}

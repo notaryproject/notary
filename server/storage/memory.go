@@ -8,6 +8,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"strconv"
+
+	"github.com/docker/notary/tuf/data"
 )
 
 type key struct {
@@ -31,6 +35,20 @@ func (k verList) Less(i, j int) bool {
 	return k[i].version < k[j].version
 }
 
+type change struct {
+	id         int
+	gun        string
+	ver        int
+	checksum   string
+	recordedAt time.Time
+}
+
+func (c change) ChangeID() string      { return fmt.Sprintf("%d", c.id) }
+func (c change) GUN() string           { return c.gun }
+func (c change) Version() int          { return c.ver }
+func (c change) Checksum() string      { return c.checksum }
+func (c change) RecordedAt() time.Time { return c.recordedAt }
+
 // MemStorage is really just designed for dev and testing. It is very
 // inefficient in many scenarios
 type MemStorage struct {
@@ -38,6 +56,7 @@ type MemStorage struct {
 	tufMeta   map[string]verList
 	keys      map[string]map[string]*key
 	checksums map[string]map[string]ver
+	changes   []Change
 }
 
 // NewMemStorage instantiates a memStorage instance
@@ -71,7 +90,23 @@ func (st *MemStorage) UpdateCurrent(gun string, update MetaUpdate) error {
 		st.checksums[gun] = make(map[string]ver)
 	}
 	st.checksums[gun][checksum] = version
+	if update.Role == data.CanonicalTimestampRole {
+		st.writeChange(gun, update.Version, checksum)
+	}
 	return nil
+}
+
+// writeChange must only be called by a function already holding a lock on
+// the MemStorage. Behaviour is undefined otherwise
+func (st *MemStorage) writeChange(gun string, version int, checksum string) {
+	c := change{
+		id:         len(st.changes),
+		gun:        gun,
+		ver:        version,
+		checksum:   checksum,
+		recordedAt: time.Now(),
+	}
+	st.changes = append(st.changes, c)
 }
 
 // UpdateMany updates multiple TUF records
@@ -118,6 +153,9 @@ func (st *MemStorage) UpdateMany(gun string, updates []MetaUpdate) error {
 			st.checksums[gun] = make(map[string]ver)
 		}
 		st.checksums[gun][checksum] = version
+		if u.Role == data.CanonicalTimestampRole {
+			st.writeChange(gun, u.Version, checksum)
+		}
 	}
 	return nil
 }
@@ -156,6 +194,25 @@ func (st *MemStorage) Delete(gun string) error {
 	}
 	delete(st.checksums, gun)
 	return nil
+}
+
+// GetChanges returns a []Change starting from but excluding the record
+// identified by changeID. In the context of the memory store, changeID
+// is simply an index into st.changes. The ID of a change, and its index
+// are equal, therefore, we want to return results starting at index
+// changeID+1 to match the exclusivity of the interface definition.
+func (st *MemStorage) GetChanges(changeID string, pageSize int, filterName string, reversed bool) ([]Change, error) {
+	id, err := strconv.ParseInt(changeID, 10, 32)
+	size := len(st.changes)
+	if err != nil || size <= int(id) {
+		return nil, ErrBadChangeID{id: changeID}
+	}
+	start := int(id) + 1
+	end := start + pageSize
+	if end >= size {
+		return st.changes[start:], nil
+	}
+	return st.changes[start:end], nil
 }
 
 func entryKey(gun, role string) string {
