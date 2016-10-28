@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/notary/tuf/data"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 )
@@ -54,24 +55,46 @@ func (db *SQLStorage) UpdateCurrent(gun string, update MetaUpdate) error {
 	if !exists.RecordNotFound() {
 		return ErrOldVersion{}
 	}
+
+	// only take out the transaction once we're about to start writing
+	tx, rb, err := db.getTransaction()
+	if err != nil {
+		return err
+	}
+
 	checksum := sha256.Sum256(update.Data)
-	return translateOldVersionError(db.Create(&TUFFile{
+	hexChecksum := hex.EncodeToString(checksum[:])
+
+	// write new TUFFile entry
+	if err = translateOldVersionError(tx.Create(&TUFFile{
 		Gun:     gun,
 		Role:    update.Role,
 		Version: update.Version,
-		Sha256:  hex.EncodeToString(checksum[:]),
+		Sha256:  hexChecksum,
 		Data:    update.Data,
-	}).Error)
-}
-
-// UpdateMany atomically updates many TUF records in a single transaction
-func (db *SQLStorage) UpdateMany(gun string, updates []MetaUpdate) error {
-	tx := db.Begin()
-	if tx.Error != nil {
-		return tx.Error
+	}).Error); err != nil {
+		return rb(err)
 	}
 
-	rollback := func(err error) error {
+	// If we're publishing a timestamp, update the changefeed as this is
+	// technically an new version of the TUF repo
+	if update.Role == data.CanonicalTimestampRole {
+		if err := db.writeChangefeed(tx, gun, update.Version, hexChecksum); err != nil {
+			return rb(err)
+		}
+	}
+	return tx.Commit().Error
+}
+
+type rollback func(error) error
+
+func (db *SQLStorage) getTransaction() (*gorm.DB, rollback, error) {
+	tx := db.Begin()
+	if tx.Error != nil {
+		return nil, nil, tx.Error
+	}
+
+	rb := func(err error) error {
 		if rxErr := tx.Rollback().Error; rxErr != nil {
 			logrus.Error("Failed on Tx rollback with error: ", rxErr.Error())
 			return rxErr
@@ -79,6 +102,15 @@ func (db *SQLStorage) UpdateMany(gun string, updates []MetaUpdate) error {
 		return err
 	}
 
+	return tx, rb, nil
+}
+
+// UpdateMany atomically updates many TUF records in a single transaction
+func (db *SQLStorage) UpdateMany(gun string, updates []MetaUpdate) error {
+	tx, rb, err := db.getTransaction()
+	if err != nil {
+		return err
+	}
 	var (
 		query *gorm.DB
 		added = make(map[uint]bool)
@@ -92,7 +124,7 @@ func (db *SQLStorage) UpdateMany(gun string, updates []MetaUpdate) error {
 			gun, update.Role, update.Version).First(&TUFFile{})
 
 		if !query.RecordNotFound() {
-			return rollback(ErrOldVersion{})
+			return rb(ErrOldVersion{})
 		}
 
 		var row TUFFile
@@ -105,16 +137,30 @@ func (db *SQLStorage) UpdateMany(gun string, updates []MetaUpdate) error {
 		}).Attrs("data", update.Data).Attrs("sha256", hexChecksum).FirstOrCreate(&row)
 
 		if query.Error != nil {
-			return rollback(translateOldVersionError(query.Error))
+			return rb(translateOldVersionError(query.Error))
 		}
 		// it's previously been added, which means it's a duplicate entry
 		// in the same transaction
 		if _, ok := added[row.ID]; ok {
-			return rollback(ErrOldVersion{})
+			return rb(ErrOldVersion{})
+		}
+		if update.Role == data.CanonicalTimestampRole {
+			if err := db.writeChangefeed(tx, gun, update.Version, hexChecksum); err != nil {
+				return rb(err)
+			}
 		}
 		added[row.ID] = true
 	}
 	return tx.Commit().Error
+}
+
+func (db *SQLStorage) writeChangefeed(tx *gorm.DB, gun string, version int, checksum string) error {
+	cf := &Changefeed{
+		Gun:    gun,
+		Ver:    version,
+		Sha256: checksum,
+	}
+	return tx.Create(cf).Error
 }
 
 // GetCurrent gets a specific TUF record
@@ -170,4 +216,26 @@ func (db *SQLStorage) CheckHealth() error {
 			"Cannot access table: %s", TUFFile{}.TableName())
 	}
 	return nil
+}
+
+// GetChanges returns up to pageSize changes starting from changeID.
+func (db *SQLStorage) GetChanges(changeID string, pageSize int, filterName string, reversed bool) ([]Change, error) {
+	var (
+		changes []Change
+		query   = &db.DB
+	)
+	if filterName != "" {
+		query = query.Where("gun = ?", filterName)
+	}
+	if reversed {
+		query = query.Where("id < ?", changeID).Order("id desc")
+	} else {
+		query = query.Where("id > ?", changeID).Order("id asc")
+	}
+
+	res := query.Limit(pageSize).Find(&changes)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	return changes, nil
 }

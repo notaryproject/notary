@@ -19,8 +19,8 @@ func SetupSQLDB(t *testing.T, dbtype, dburl string) *SQLStorage {
 	require.NoError(t, err)
 
 	// Create the DB tables
-	err = CreateTUFTable(dbStore.DB)
-	require.NoError(t, err)
+	require.NoError(t, CreateTUFTable(dbStore.DB))
+	require.NoError(t, CreateChangefeedTable(dbStore.DB))
 
 	// verify that the tables are empty
 	var count int

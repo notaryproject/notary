@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -28,32 +29,68 @@ type rootHandler struct {
 	context context.Context
 	trust   signed.CryptoService
 	//cachePool redis.Pool
+	imageNameAt ImageNameLocation
+}
+
+// ImageNameLocation is used to define where the auth code should read the image name
+// from. For most repo operations, it will be ImageInURL, i.e. it's the segments between
+// `/v2/` and `/_trust`. For the changefeed however, an image name is optional, and if
+// present will be found in the query string.
+type ImageNameLocation int
+
+// Constants for different image locations
+const (
+	ImageInURL = iota
+	ImageInQueryString
+	NoImageName
+)
+
+func parseImageName(loc ImageNameLocation, r *http.Request) (string, error) {
+	switch loc {
+	case ImageInURL:
+		vars := mux.Vars(r)
+		return vars["imageName"], nil
+	case ImageInQueryString:
+		qs := r.URL.Query()
+		imageName := qs.Get("filter")
+		if imageName == "" {
+			// no image name means global feed
+			imageName = "*"
+		}
+		return imageName, nil
+	case NoImageName:
+		// legacy behaviour resulted in an empty string when the URL route
+		// didn't define an image name
+		return "", nil
+	}
+	return "", errors.New("Unrecognized location for image name")
 }
 
 // RootHandlerFactory creates a new rootHandler factory  using the given
 // Context creator and authorizer.  The returned factory allows creating
 // new rootHandlers from the alternate http handler contextHandler and
 // a scope.
-func RootHandlerFactory(ctx context.Context, auth auth.AccessController, trust signed.CryptoService) func(ContextHandler, ...string) *rootHandler {
-	return func(handler ContextHandler, actions ...string) *rootHandler {
+func RootHandlerFactory(ctx context.Context, auth auth.AccessController, trust signed.CryptoService) func(ContextHandler, ImageNameLocation, ...string) *rootHandler {
+	return func(handler ContextHandler, imageNameAt ImageNameLocation, actions ...string) *rootHandler {
 		return &rootHandler{
-			handler: handler,
-			auth:    auth,
-			actions: actions,
-			context: ctx,
-			trust:   trust,
+			handler:     handler,
+			auth:        auth,
+			actions:     actions,
+			context:     ctx,
+			trust:       trust,
+			imageNameAt: imageNameAt,
 		}
 	}
 }
 
 // ServeHTTP serves an HTTP request and implements the http.Handler interface.
 func (root *rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	ctx := ctxu.WithRequest(root.context, r)
-	log := ctxu.GetRequestLogger(ctx)
+	var (
+		ctx = ctxu.WithRequest(root.context, r)
+		log = ctxu.GetRequestLogger(ctx)
+	)
 	ctx, w = ctxu.WithResponseWriter(ctx, w)
 	ctx = ctxu.WithLogger(ctx, log)
-	ctx = context.WithValue(ctx, notary.CtxKeyRepo, vars["imageName"])
 	ctx = context.WithValue(ctx, notary.CtxKeyCryptoSvc, root.trust)
 
 	defer func() {
@@ -61,41 +98,68 @@ func (root *rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if root.auth != nil {
-		access := buildAccessRecords(vars["imageName"], root.actions...)
-		var authCtx context.Context
-		var err error
-		if authCtx, err = root.auth.Authorized(ctx, access...); err != nil {
-			if challenge, ok := err.(auth.Challenge); ok {
-				// Let the challenge write the response.
-				challenge.SetHeaders(w)
-
-				if err := errcode.ServeJSON(w, errcode.ErrorCodeUnauthorized.WithDetail(access)); err != nil {
-					log.Errorf("failed to serve challenge response: %s", err.Error())
-				}
-				return
-			}
-			errcode.ServeJSON(w, errcode.ErrorCodeUnauthorized)
+		imageName, err := parseImageName(root.imageNameAt, r)
+		if err != nil {
+			log.Error(err)
+			serveError(log, w, err)
 			return
 		}
-		ctx = authCtx
+		ctx = context.WithValue(ctx, notary.CtxKeyRepo, imageName)
+		if ctx, err = root.doAuth(ctx, imageName, w); err != nil {
+			// errors have already been logged/output to w inside doAuth
+			// just return
+			return
+		}
 	}
 	if err := root.handler(ctx, w, r); err != nil {
-		if httpErr, ok := err.(errcode.Error); ok {
-			// info level logging for non-5XX http errors
-			httpErrCode := httpErr.ErrorCode().Descriptor().HTTPStatusCode
-			if httpErrCode >= http.StatusInternalServerError {
-				// error level logging for 5XX http errors
-				log.Errorf("%s: %s: %v", httpErr.ErrorCode().Error(), httpErr.Message, httpErr.Detail)
-			} else {
-				log.Infof("%s: %s: %v", httpErr.ErrorCode().Error(), httpErr.Message, httpErr.Detail)
-			}
-		}
-		e := errcode.ServeJSON(w, err)
-		if e != nil {
-			log.Error(e)
-		}
-		return
+		serveError(log, w, err)
 	}
+}
+
+func serveError(log ctxu.Logger, w http.ResponseWriter, err error) {
+	if httpErr, ok := err.(errcode.Error); ok {
+		// info level logging for non-5XX http errors
+		httpErrCode := httpErr.ErrorCode().Descriptor().HTTPStatusCode
+		if httpErrCode >= http.StatusInternalServerError {
+			// error level logging for 5XX http errors
+			log.Errorf("%s: %s: %v", httpErr.ErrorCode().Error(), httpErr.Message, httpErr.Detail)
+		} else {
+			log.Infof("%s: %s: %v", httpErr.ErrorCode().Error(), httpErr.Message, httpErr.Detail)
+		}
+	}
+	e := errcode.ServeJSON(w, err)
+	if e != nil {
+		log.Error(e)
+	}
+	return
+}
+
+func (root *rootHandler) doAuth(ctx context.Context, imageName string, w http.ResponseWriter) (context.Context, error) {
+	var access []auth.Access
+	if imageName == "*" {
+		access = buildCatalogRecord(root.actions...)
+	} else {
+		access = buildAccessRecords(imageName, root.actions...)
+	}
+
+	log := ctxu.GetRequestLogger(ctx)
+	var authCtx context.Context
+	var err error
+	if authCtx, err = root.auth.Authorized(ctx, access...); err != nil {
+		if challenge, ok := err.(auth.Challenge); ok {
+			// Let the challenge write the response.
+			challenge.SetHeaders(w)
+
+			if err := errcode.ServeJSON(w, errcode.ErrorCodeUnauthorized.WithDetail(access)); err != nil {
+				log.Errorf("failed to serve challenge response: %s", err.Error())
+				return nil, err
+			}
+			return nil, err
+		}
+		errcode.ServeJSON(w, errcode.ErrorCodeUnauthorized)
+		return nil, err
+	}
+	return authCtx, nil
 }
 
 func buildAccessRecords(repo string, actions ...string) []auth.Access {
@@ -105,6 +169,20 @@ func buildAccessRecords(repo string, actions ...string) []auth.Access {
 			Resource: auth.Resource{
 				Type: "repository",
 				Name: repo,
+			},
+			Action: action,
+		})
+	}
+	return requiredAccess
+}
+
+func buildCatalogRecord(actions ...string) []auth.Access {
+	requiredAccess := make([]auth.Access, 0, len(actions))
+	for _, action := range actions {
+		requiredAccess = append(requiredAccess, auth.Access{
+			Resource: auth.Resource{
+				Type: "registry",
+				Name: "catalog",
 			},
 			Action: action,
 		})

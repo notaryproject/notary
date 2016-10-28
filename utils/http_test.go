@@ -26,7 +26,7 @@ func MockBetterErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.
 
 func TestRootHandlerFactory(t *testing.T) {
 	hand := RootHandlerFactory(context.Background(), nil, &signed.Ed25519{})
-	handler := hand(MockContextHandler)
+	handler := hand(MockContextHandler, NoImageName)
 	if _, ok := interface{}(handler).(http.Handler); !ok {
 		t.Fatalf("A rootHandler must implement the http.Handler interface")
 	}
@@ -41,7 +41,7 @@ func TestRootHandlerFactory(t *testing.T) {
 
 func TestRootHandlerError(t *testing.T) {
 	hand := RootHandlerFactory(context.Background(), nil, &signed.Ed25519{})
-	handler := hand(MockBetterErrorHandler)
+	handler := hand(MockBetterErrorHandler, NoImageName)
 
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
@@ -246,4 +246,7 @@ func TestWrapWithCacheHeaderNoCacheControlCacheControlHeader(t *testing.T) {
 	// RFC1123 does not include nanoseconds
 	nowToNearestSecond := now.Add(time.Duration(-1 * now.Nanosecond()))
 	require.True(t, lastModified.Equal(nowToNearestSecond))
+}
+
+func TestParseImageName(t *testing.T) {
 }

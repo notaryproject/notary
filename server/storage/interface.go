@@ -39,4 +39,28 @@ type MetaStore interface {
 	// Delete removes all metadata for a given GUN.  It does not return an
 	// error if no metadata exists for the given GUN.
 	Delete(gun string) error
+
+	// GetChanges returns an ordered slice of changes. It starts from
+	// the change matching changeID, but excludes this change from the results
+	// on the assumption that if a user provides an ID, they've seen that change.
+	// If changeID is 0, it starts from the
+	// beginning, and if changeID is -1, it starts from the most recent
+	// change. The number of results returned is limited by pageSize.
+	// Reversed indicates we are fetching pages going backwards in time, the
+	// default being to fetch pageSize from changeID going forwards in time.
+	GetChanges(changeID string, pageSize int, filterName string, reversed bool) ([]Change, error)
+}
+
+// Change implements the minimal interface to get the change data.
+type Change interface {
+	// ChangeID returns the unique ID for this update
+	ChangeID() string
+	// GUN returns the GUN for this update
+	GUN() string
+	// Version returns the timestamp version for the published update
+	Version() int
+	// Checksum returns the timestamp.json checksum for the published update
+	Checksum() string
+	// RecordedAt returns the time at which the update was recorded
+	RecordedAt() time.Time
 }

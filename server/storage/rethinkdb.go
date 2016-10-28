@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -273,4 +274,9 @@ func (rdb RethinkDB) CheckHealth() error {
 	}
 	defer res.Close()
 	return nil
+}
+
+// GetChanges is not implemented for RethinkDB
+func (rdb RethinkDB) GetChanges(changeID string, pageSize int, filterName string, reversed bool) ([]Change, error) {
+	return nil, errors.New("Not Implemented")
 }
