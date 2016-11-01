@@ -6,3 +6,21 @@ CREATE TABLE `changefeed` (
     `sha256` CHAR(64) DEFAULT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+INSERT INTO `changefeed` (
+        `created_at`,
+        `gun`,
+        `version`,
+        `sha256` 
+    ) (SELECT
+        `created_at`,
+        `gun`,
+        `version`,
+        `sha256`
+    FROM
+        `tuf_files`
+    WHERE
+        `role` = "timestamp"
+    ORDER BY
+        `created_at` ASC
+);

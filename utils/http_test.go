@@ -248,5 +248,35 @@ func TestWrapWithCacheHeaderNoCacheControlCacheControlHeader(t *testing.T) {
 	require.True(t, lastModified.Equal(nowToNearestSecond))
 }
 
+// TestParseImageName tests the query string, no image name, and error
+// paths. The URL path is tested in various other tests and it's a pain
+// to get mux all set up for this test.
 func TestParseImageName(t *testing.T) {
+	r, err := http.NewRequest(
+		"GET",
+		"https://notary/v2/changefeed/_trust/?filter=docker.io/library/alpine",
+		nil,
+	)
+	require.NoError(t, err)
+	name, err := parseImageName(ImageInQueryString, r)
+	require.Equal(t, "docker.io/library/alpine", name)
+	require.NoError(t, err)
+
+	r, err = http.NewRequest(
+		"GET",
+		"https://notary/v2/changefeed/_trust/",
+		nil,
+	)
+	require.NoError(t, err)
+	name, err = parseImageName(ImageInQueryString, r)
+	require.Equal(t, "*", name)
+	require.NoError(t, err)
+
+	name, err = parseImageName(NoImageName, r)
+	require.Equal(t, "", name)
+	require.NoError(t, err)
+
+	name, err = parseImageName(-1, r)
+	require.Equal(t, "", name)
+	require.Error(t, err)
 }
