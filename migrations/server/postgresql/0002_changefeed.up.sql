@@ -5,3 +5,21 @@ CREATE TABLE "changefeed" (
     "version" integer NOT NULL,
     "sha256" CHAR(64) DEFAULT NULL
 );
+
+INSERT INTO "changefeed" (
+        "created_at",
+        "gun",
+        "version",
+        "sha256" 
+    ) (SELECT
+        "created_at",
+        "gun",
+        "version",
+        "sha256"
+    FROM
+        "tuf_files"
+    WHERE
+        "role" = "timestamp"
+    ORDER BY
+        "created_at" ASC
+);
