@@ -10,6 +10,7 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
+	"strconv"
 )
 
 // SQLStorage implements a versioned store using a relational database.
@@ -155,12 +156,12 @@ func (db *SQLStorage) UpdateMany(gun string, updates []MetaUpdate) error {
 }
 
 func (db *SQLStorage) writeChangefeed(tx *gorm.DB, gun string, version int, checksum string) error {
-	cf := &Changefeed{
-		Gun:    gun,
-		Ver:    version,
-		Sha256: checksum,
+	c := &Change{
+		GUN:     gun,
+		Version: version,
+		Sha256:  checksum,
 	}
-	return tx.Create(cf).Error
+	return tx.Create(c).Error
 }
 
 // GetCurrent gets a specific TUF record
@@ -223,19 +224,40 @@ func (db *SQLStorage) GetChanges(changeID string, pageSize int, filterName strin
 	var (
 		changes []Change
 		query   = &db.DB
+		id, err = strconv.ParseInt(changeID, 10, 32)
 	)
+	if err != nil {
+		return nil, err
+	}
+	if id < 0 {
+		// do what I mean, not what I said
+		reversed = true
+	}
+
 	if filterName != "" {
 		query = query.Where("gun = ?", filterName)
 	}
 	if reversed {
-		query = query.Where("id < ?", changeID).Order("id desc")
+		if id > 0 {
+			// only set the id check if we're not starting from "latest"
+			query = query.Where("id < ?", id)
+		}
+		query = query.Order("id desc")
 	} else {
-		query = query.Where("id > ?", changeID).Order("id asc")
+		query = query.Where("id > ?", id).Order("id asc")
 	}
 
 	res := query.Limit(pageSize).Find(&changes)
 	if res.Error != nil {
 		return nil, res.Error
 	}
+
+	if reversed {
+		// results are currently newest to oldest, should be oldest to newest
+		for i, j := 0, len(changes)-1; i < j; i, j = i+1, j-1 {
+			changes[i], changes[j] = changes[j], changes[i]
+		}
+	}
+
 	return changes, nil
 }

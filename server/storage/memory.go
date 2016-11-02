@@ -5,11 +5,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"strconv"
 
 	"github.com/docker/notary/tuf/data"
 )
@@ -34,20 +33,6 @@ func (k verList) Swap(i, j int) { k[i], k[j] = k[j], k[i] }
 func (k verList) Less(i, j int) bool {
 	return k[i].version < k[j].version
 }
-
-type change struct {
-	id         int
-	gun        string
-	ver        int
-	checksum   string
-	recordedAt time.Time
-}
-
-func (c change) ChangeID() string      { return fmt.Sprintf("%d", c.id) }
-func (c change) GUN() string           { return c.gun }
-func (c change) Version() int          { return c.ver }
-func (c change) Checksum() string      { return c.checksum }
-func (c change) RecordedAt() time.Time { return c.recordedAt }
 
 // MemStorage is really just designed for dev and testing. It is very
 // inefficient in many scenarios
@@ -99,12 +84,12 @@ func (st *MemStorage) UpdateCurrent(gun string, update MetaUpdate) error {
 // writeChange must only be called by a function already holding a lock on
 // the MemStorage. Behaviour is undefined otherwise
 func (st *MemStorage) writeChange(gun string, version int, checksum string) {
-	c := change{
-		id:         len(st.changes),
-		gun:        gun,
-		ver:        version,
-		checksum:   checksum,
-		recordedAt: time.Now(),
+	c := Change{
+		ID:        uint(len(st.changes) + 1),
+		GUN:       gun,
+		Version:   version,
+		Sha256:    checksum,
+		CreatedAt: time.Now(),
 	}
 	st.changes = append(st.changes, c)
 }
@@ -198,21 +183,93 @@ func (st *MemStorage) Delete(gun string) error {
 
 // GetChanges returns a []Change starting from but excluding the record
 // identified by changeID. In the context of the memory store, changeID
-// is simply an index into st.changes. The ID of a change, and its index
-// are equal, therefore, we want to return results starting at index
-// changeID+1 to match the exclusivity of the interface definition.
+// is simply an index into st.changes. The ID of a change is its
+// index+1, both to match the SQL implementations, and so that the first
+// change can be retrieved by providing ID 0.
 func (st *MemStorage) GetChanges(changeID string, pageSize int, filterName string, reversed bool) ([]Change, error) {
 	id, err := strconv.ParseInt(changeID, 10, 32)
-	size := len(st.changes)
-	if err != nil || size <= int(id) {
-		return nil, ErrBadChangeID{id: changeID}
+	if err != nil {
+		return nil, err
 	}
-	start := int(id) + 1
-	end := start + pageSize
-	if end >= size {
-		return st.changes[start:], nil
+	var (
+		start     = int(id)
+		toInspect []Change
+	)
+	if err != nil {
+		return nil, err
 	}
-	return st.changes[start:end], nil
+	if len(st.changes) <= int(id) && !reversed {
+		// no records to return as we're essentially trying to retrieve
+		// changes that haven't happened yet.
+		return nil, nil
+	}
+
+	// technically only -1 is a valid negative input, but we're going to be
+	// broad in what we accept here to reduce the need to error and instead
+	// act in a "do what I mean not what I say" fashion. Same logic for
+	// requesting changeID < 0 but not asking for reversed, we're just going
+	// to force it to be reversed.
+	if start < 0 {
+		reversed = true
+		// need to add one so we don't later slice off the last element
+		// when calculating toInspect.
+		start = len(st.changes) + 1
+	}
+	// reduce to only look at changes we're interested in
+	if reversed {
+		if start > len(st.changes) {
+			toInspect = st.changes
+		} else {
+			toInspect = st.changes[:start-1]
+		}
+	} else {
+		toInspect = st.changes[start:]
+	}
+
+	// if we're not doing any filtering
+	if filterName == "" {
+		// if the pageSize is larger than the total records
+		// that could be returned, return them all
+		if pageSize >= len(toInspect) {
+			return toInspect, nil
+		}
+		// if we're going backwards, return the last pageSize records
+		if reversed {
+			return toInspect[len(toInspect)-pageSize:], nil
+		}
+		// otherwise return pageSize records from front
+		return toInspect[:pageSize], nil
+	}
+
+	return getFilteredChanges(toInspect, filterName, pageSize, reversed), nil
+}
+
+func getFilteredChanges(toInspect []Change, filterName string, pageSize int, reversed bool) []Change {
+	res := make([]Change, 0, pageSize)
+	if reversed {
+		for i := len(toInspect) - 1; i >= 0; i-- {
+			if toInspect[i].GUN == filterName {
+				res = append(res, toInspect[i])
+			}
+			if len(res) == pageSize {
+				break
+			}
+		}
+		// results are currently newest to oldest, should be oldest to newest
+		for i, j := 0, len(res)-1; i < j; i, j = i+1, j-1 {
+			res[i], res[j] = res[j], res[i]
+		}
+	} else {
+		for _, c := range toInspect {
+			if c.GUN == filterName {
+				res = append(res, c)
+			}
+			if len(res) == pageSize {
+				break
+			}
+		}
+	}
+	return res
 }
 
 func entryKey(gun, role string) string {

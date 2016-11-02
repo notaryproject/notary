@@ -5,6 +5,7 @@ package storage
 import (
 	"testing"
 
+	"github.com/docker/notary/tuf/data"
 	"github.com/stretchr/testify/require"
 )
 
@@ -89,4 +90,118 @@ func TestGetChecksumNotFound(t *testing.T) {
 	_, _, err := s.GetChecksum("gun", "root", "12345")
 	require.Error(t, err)
 	require.IsType(t, ErrNotFound{}, err)
+}
+
+func TestMemoryGetChanges(t *testing.T) {
+	s := NewMemStorage()
+
+	// non-int changeID
+	c, err := s.GetChanges("foo", 10, "", false)
+	require.Error(t, err)
+	require.Len(t, c, 0)
+
+	// add some records
+	require.NoError(t, s.UpdateMany("alpine", []MetaUpdate{
+		{
+			Role:    data.CanonicalTimestampRole,
+			Version: 1,
+			Data:    []byte{},
+		},
+		{
+			Role:    data.CanonicalTimestampRole,
+			Version: 2,
+			Data:    []byte{},
+		},
+		{
+			Role:    data.CanonicalTimestampRole,
+			Version: 3,
+			Data:    []byte{},
+		},
+		{
+			Role:    data.CanonicalTimestampRole,
+			Version: 4,
+			Data:    []byte{},
+		},
+	}))
+	require.NoError(t, s.UpdateMany("busybox", []MetaUpdate{
+		{
+			Role:    data.CanonicalTimestampRole,
+			Version: 1,
+			Data:    []byte{},
+		},
+		{
+			Role:    data.CanonicalTimestampRole,
+			Version: 2,
+			Data:    []byte{},
+		},
+		{
+			Role:    data.CanonicalTimestampRole,
+			Version: 3,
+			Data:    []byte{},
+		},
+		{
+			Role:    data.CanonicalTimestampRole,
+			Version: 4,
+			Data:    []byte{},
+		},
+	}))
+
+	c, err = s.GetChanges("0", 8, "", false)
+	require.NoError(t, err)
+	require.Len(t, c, 8)
+	for i := 0; i < 4; i++ {
+		require.Equal(t, uint(i+1), c[i].ID)
+		require.Equal(t, "alpine", c[i].GUN)
+		require.Equal(t, i+1, c[i].Version)
+	}
+	for i := 4; i < 8; i++ {
+		require.Equal(t, uint(i+1), c[i].ID)
+		require.Equal(t, "busybox", c[i].GUN)
+		require.Equal(t, i-3, c[i].Version)
+	}
+
+	c, err = s.GetChanges("-1", 4, "", false)
+	require.NoError(t, err)
+	require.Len(t, c, 4)
+	for i := 0; i < 4; i++ {
+		require.Equal(t, uint(i+5), c[i].ID)
+		require.Equal(t, "busybox", c[i].GUN)
+		require.Equal(t, i+1, c[i].Version)
+	}
+
+	c, err = s.GetChanges("10", 4, "", false)
+	require.NoError(t, err)
+	require.Len(t, c, 0)
+
+	c, err = s.GetChanges("10", 4, "", true)
+	require.NoError(t, err)
+	require.Len(t, c, 4)
+	for i := 0; i < 4; i++ {
+		require.Equal(t, uint(i+5), c[i].ID)
+		require.Equal(t, "busybox", c[i].GUN)
+		require.Equal(t, i+1, c[i].Version)
+	}
+
+	c, err = s.GetChanges("7", 4, "", true)
+	require.NoError(t, err)
+	require.Len(t, c, 4)
+	for i := 0; i < 2; i++ {
+		require.Equal(t, uint(i+3), c[i].ID)
+		require.Equal(t, "alpine", c[i].GUN)
+		require.Equal(t, i+3, c[i].Version)
+	}
+	for i := 2; i < 4; i++ {
+		require.Equal(t, uint(i+3), c[i].ID)
+		require.Equal(t, "busybox", c[i].GUN)
+		require.Equal(t, i-1, c[i].Version)
+	}
+
+	c, err = s.GetChanges("0", 8, "busybox", false)
+	require.NoError(t, err)
+	require.Len(t, c, 4)
+	for i := 0; i < 4; i++ {
+		require.Equal(t, uint(i+5), c[i].ID)
+		require.Equal(t, "busybox", c[i].GUN)
+		require.Equal(t, i+1, c[i].Version)
+	}
 }
