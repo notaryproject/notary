@@ -19,7 +19,7 @@ INSERT INTO "changefeed" (
     FROM
         "tuf_files"
     WHERE
-        "role" = "timestamp"
+        "role" = 'timestamp'
     ORDER BY
         "created_at" ASC
 );

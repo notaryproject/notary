@@ -36,7 +36,7 @@ func Changefeed(ctx context.Context, w http.ResponseWriter, r *http.Request) err
 		imageName = "*"
 	}
 	pageSizeStr := qs.Get("page_size")
-	pageSize, err := strconv.ParseInt(pageSizeStr, 10, 32)
+	pageSize, err := strconv.ParseUint(pageSizeStr, 10, 32)
 	if err != nil {
 		logger.Errorf("400 GET invalid pageSize: %s", pageSizeStr)
 		return errors.ErrInvalidParams.WithDetail("invalid pageSize parameter, must be an integer >= 0")
@@ -53,13 +53,6 @@ func Changefeed(ctx context.Context, w http.ResponseWriter, r *http.Request) err
 	if err != nil {
 		logger.Errorf("500 GET could not retrieve records: %s", err.Error())
 		return errors.ErrUnknown.WithDetail(err)
-	}
-
-	// if reversed, we need to flip the list order so oldest is first
-	if reversed {
-		for i, j := 0, len(changes)-1; i < j; i, j = i+1, j-1 {
-			changes[i], changes[j] = changes[j], changes[i]
-		}
 	}
 
 	out, err := json.Marshal(&changefeedResponse{

@@ -176,17 +176,18 @@ func buildAccessRecords(repo string, actions ...string) []auth.Access {
 	return requiredAccess
 }
 
+// buildCatalogRecord returns the only valid format for the catalog
+// resource. Only admins can get this access level from the token
+// server.
 func buildCatalogRecord(actions ...string) []auth.Access {
-	requiredAccess := make([]auth.Access, 0, len(actions))
-	for _, action := range actions {
-		requiredAccess = append(requiredAccess, auth.Access{
-			Resource: auth.Resource{
-				Type: "registry",
-				Name: "catalog",
-			},
-			Action: action,
-		})
-	}
+	requiredAccess := []auth.Access{{
+		Resource: auth.Resource{
+			Type: "registry",
+			Name: "catalog",
+		},
+		Action: "*",
+	}}
+
 	return requiredAccess
 }
 

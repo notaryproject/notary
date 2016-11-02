@@ -50,17 +50,3 @@ type MetaStore interface {
 	// default being to fetch pageSize from changeID going forwards in time.
 	GetChanges(changeID string, pageSize int, filterName string, reversed bool) ([]Change, error)
 }
-
-// Change implements the minimal interface to get the change data.
-type Change interface {
-	// ChangeID returns the unique ID for this update
-	ChangeID() string
-	// GUN returns the GUN for this update
-	GUN() string
-	// Version returns the timestamp version for the published update
-	Version() int
-	// Checksum returns the timestamp.json checksum for the published update
-	Checksum() string
-	// RecordedAt returns the time at which the update was recorded
-	RecordedAt() time.Time
-}

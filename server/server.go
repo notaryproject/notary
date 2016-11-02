@@ -196,7 +196,7 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 	r.Methods("GET").Path("/v2/changefeed/_trust").Handler(createHandler(_serverEndpoint{
 		OperationName:       "Changefeed",
 		ServerHandler:       handlers.Changefeed,
-		PermissionsRequired: []string{"*"},
+		PermissionsRequired: []string{"pull"},
 		ImageNameAt:         utils.ImageInQueryString,
 		SkipFilterPrefixes:  true,
 	}))
