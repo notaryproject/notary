@@ -6,6 +6,8 @@ CREATE TABLE "changefeed" (
     "sha256" CHAR(64) DEFAULT NULL
 );
 
+CREATE INDEX "idx_changefeed_gun" ON "changefeed" ("gun");
+
 INSERT INTO "changefeed" (
         "created_at",
         "gun",

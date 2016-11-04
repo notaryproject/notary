@@ -4,7 +4,8 @@ CREATE TABLE `changefeed` (
     `gun` varchar(255) NOT NULL,
     `version` int(11) NOT NULL,
     `sha256` CHAR(64) DEFAULT NULL,
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    INDEX `idx_changefeed_gun` (`gun`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 INSERT INTO `changefeed` (
