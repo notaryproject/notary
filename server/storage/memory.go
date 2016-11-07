@@ -88,7 +88,7 @@ func (st *MemStorage) writeChange(gun string, version int, checksum string) {
 		ID:        uint(len(st.changes) + 1),
 		GUN:       gun,
 		Version:   version,
-		Sha256:    checksum,
+		SHA256:    checksum,
 		CreatedAt: time.Now(),
 	}
 	st.changes = append(st.changes, c)
