@@ -159,7 +159,7 @@ func (db *SQLStorage) writeChangefeed(tx *gorm.DB, gun string, version int, chec
 	c := &Change{
 		GUN:     gun,
 		Version: version,
-		Sha256:  checksum,
+		SHA256:  checksum,
 	}
 	return tx.Create(c).Error
 }

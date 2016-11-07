@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -11,9 +12,10 @@ import (
 	"time"
 
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/notary/tuf/signed"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
+
+	"github.com/docker/notary/tuf/signed"
 )
 
 func MockContextHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
@@ -279,4 +281,113 @@ func TestParseImageName(t *testing.T) {
 	name, err = parseImageName(-1, r)
 	require.Equal(t, "", name)
 	require.Error(t, err)
+}
+
+func TestBuildCatalogRecord(t *testing.T) {
+	r := buildCatalogRecord()
+	require.Len(t, r, 1)
+	r0 := r[0]
+	require.Equal(t, "registry", r0.Resource.Type)
+	require.Equal(t, "catalog", r0.Resource.Name)
+	require.Equal(t, "*", r0.Action)
+}
+
+func TestDoAuthNonWildcardImage(t *testing.T) {
+	// success
+	ac := TestingAccessController{}
+	r := rootHandler{
+		auth: ac,
+	}
+	rec := httptest.NewRecorder()
+	_, err := r.doAuth(
+		context.Background(),
+		"docker.io/library/alpine",
+		rec,
+	)
+	require.NoError(t, err)
+	require.Equal(t, 200, rec.Code)
+
+	// challenge error
+	e := TestingAuthChallenge{}
+	ac = TestingAccessController{
+		Err: &e,
+	}
+	r = rootHandler{
+		auth: ac,
+	}
+	rec = httptest.NewRecorder()
+	_, err = r.doAuth(
+		context.Background(),
+		"docker.io/library/alpine",
+		rec,
+	)
+	require.Error(t, err)
+	require.True(t, e.SetHeadersCalled)
+	require.Equal(t, http.StatusUnauthorized, rec.Code)
+
+	// non-challenge error
+	ac = TestingAccessController{
+		Err: errors.New("Non challenge error"),
+	}
+	r = rootHandler{
+		auth: ac,
+	}
+	rec = httptest.NewRecorder()
+	_, err = r.doAuth(
+		context.Background(),
+		"docker.io/library/alpine",
+		rec,
+	)
+	require.Error(t, err)
+	require.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+func TestDoAuthWildcardImage(t *testing.T) {
+	// success
+	ac := TestingAccessController{}
+	r := rootHandler{
+		auth: ac,
+	}
+	rec := httptest.NewRecorder()
+	_, err := r.doAuth(
+		context.Background(),
+		"*",
+		rec,
+	)
+	require.NoError(t, err)
+	require.Equal(t, 200, rec.Code)
+
+	// challenge error
+	e := TestingAuthChallenge{}
+	ac = TestingAccessController{
+		Err: &e,
+	}
+	r = rootHandler{
+		auth: ac,
+	}
+	rec = httptest.NewRecorder()
+	_, err = r.doAuth(
+		context.Background(),
+		"*",
+		rec,
+	)
+	require.Error(t, err)
+	require.True(t, e.SetHeadersCalled)
+	require.Equal(t, http.StatusUnauthorized, rec.Code)
+
+	// non-challenge error
+	ac = TestingAccessController{
+		Err: errors.New("Non challenge error"),
+	}
+	r = rootHandler{
+		auth: ac,
+	}
+	rec = httptest.NewRecorder()
+	_, err = r.doAuth(
+		context.Background(),
+		"*",
+		rec,
+	)
+	require.Error(t, err)
+	require.Equal(t, http.StatusUnauthorized, rec.Code)
 }

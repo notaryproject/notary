@@ -34,13 +34,14 @@ type rootHandler struct {
 
 // ImageNameLocation is used to define where the auth code should read the image name
 // from. For most repo operations, it will be ImageInURL, i.e. it's the segments between
-// `/v2/` and `/_trust`. For the changefeed however, an image name is optional, and if
+// `/v2/` and `/_trust`, i.e. `/v2/docker.io/library/alpine/_trust/tuf/targets.json`.
+// For the changefeed however, an image name is optional, and if
 // present will be found in the query string.
 type ImageNameLocation int
 
 // Constants for different image locations
 const (
-	ImageInURL = iota
+	ImageInURL ImageNameLocation = iota
 	ImageInQueryString
 	NoImageName
 )

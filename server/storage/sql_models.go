@@ -27,7 +27,7 @@ type Change struct {
 	CreatedAt time.Time
 	GUN       string `gorm:"column:gun" sql:"type:varchar(255);not null"`
 	Version   int    `sql:"not null"`
-	Sha256    string `sql:"type:varchar(64);"`
+	SHA256    string `gorm:"column:sha256" sql:"type:varchar(64);"`
 }
 
 // TableName sets a specific table name for Changefeed

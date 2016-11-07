@@ -160,6 +160,15 @@ func TestMemoryGetChanges(t *testing.T) {
 		require.Equal(t, i-3, c[i].Version)
 	}
 
+	c, err = s.GetChanges("0", 4, "", false)
+	require.NoError(t, err)
+	require.Len(t, c, 4)
+	for i := 0; i < 4; i++ {
+		require.Equal(t, uint(i+1), c[i].ID)
+		require.Equal(t, "alpine", c[i].GUN)
+		require.Equal(t, i+1, c[i].Version)
+	}
+
 	c, err = s.GetChanges("-1", 4, "", false)
 	require.NoError(t, err)
 	require.Len(t, c, 4)
@@ -194,6 +203,15 @@ func TestMemoryGetChanges(t *testing.T) {
 		require.Equal(t, uint(i+3), c[i].ID)
 		require.Equal(t, "busybox", c[i].GUN)
 		require.Equal(t, i-1, c[i].Version)
+	}
+
+	c, err = s.GetChanges("7", 2, "alpine", true)
+	require.NoError(t, err)
+	require.Len(t, c, 2)
+	for i := 0; i < 2; i++ {
+		require.Equal(t, uint(i+3), c[i].ID)
+		require.Equal(t, "alpine", c[i].GUN)
+		require.Equal(t, i+3, c[i].Version)
 	}
 
 	c, err = s.GetChanges("0", 8, "busybox", false)
