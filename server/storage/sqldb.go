@@ -4,13 +4,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary/tuf/data"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
-	"strconv"
 )
 
 // SQLStorage implements a versioned store using a relational database.
@@ -230,7 +230,8 @@ func (db *SQLStorage) GetChanges(changeID string, pageSize int, filterName strin
 		return nil, err
 	}
 	if id < 0 {
-		// do what I mean, not what I said
+		// do what I mean, not what I said, i.e. if I passed a negative number for the ID
+		// it's assumed I mean "start from latest and go backwards"
 		reversed = true
 	}
 
