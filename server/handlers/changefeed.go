@@ -23,13 +23,10 @@ type changefeedResponse struct {
 func Changefeed(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	var (
 		logger                         = ctxu.GetLogger(ctx)
-		s                              = ctx.Value(notary.CtxKeyMetaStore)
 		qs                             = r.URL.Query()
 		imageName                      = qs.Get("filter")
-		pageSizeStr                    = qs.Get("page_size")
 		changeID                       = qs.Get("change_id")
-		reversedStr                    = qs.Get("reversed")
-		store, pageSize, reversed, err = checkChangefeedInputs(logger, s, pageSizeStr, reversedStr)
+		store, pageSize, reversed, err = checkChangefeedInputs(logger, ctx.Value(notary.CtxKeyMetaStore), qs.Get("page_size"), qs.Get("reversed"))
 	)
 	if err != nil {
 		// err already logged and in correct format.
