@@ -246,7 +246,7 @@ func TestSQLGetChanges(t *testing.T) {
 	defer cleanup()
 
 	// non-int changeID
-	c, err := s.GetChanges("foo", 10, "", false)
+	c, err := s.GetChanges("foo", 10, "")
 	require.Error(t, err)
 	require.Len(t, c, 0)
 
@@ -297,7 +297,7 @@ func TestSQLGetChanges(t *testing.T) {
 	}))
 
 	// check non-error cases
-	c, err = s.GetChanges("0", 8, "", false)
+	c, err = s.GetChanges("0", 8, "")
 	require.NoError(t, err)
 	require.Len(t, c, 8)
 
@@ -312,7 +312,7 @@ func TestSQLGetChanges(t *testing.T) {
 		require.Equal(t, i-3, c[i].Version)
 	}
 
-	c, err = s.GetChanges("-1", 4, "", false)
+	c, err = s.GetChanges("-1", 4, "")
 	require.NoError(t, err)
 	require.Len(t, c, 4)
 	for i := 0; i < 4; i++ {
@@ -321,11 +321,11 @@ func TestSQLGetChanges(t *testing.T) {
 		require.Equal(t, i+1, c[i].Version)
 	}
 
-	c, err = s.GetChanges("10", 4, "", false)
+	c, err = s.GetChanges("10", 4, "")
 	require.NoError(t, err)
 	require.Len(t, c, 0)
 
-	c, err = s.GetChanges("10", 4, "", true)
+	c, err = s.GetChanges("10", -4, "")
 	require.NoError(t, err)
 	require.Len(t, c, 4)
 	for i := 0; i < 4; i++ {
@@ -334,7 +334,7 @@ func TestSQLGetChanges(t *testing.T) {
 		require.Equal(t, i+1, c[i].Version)
 	}
 
-	c, err = s.GetChanges("7", 4, "", true)
+	c, err = s.GetChanges("7", -4, "")
 	require.NoError(t, err)
 	require.Len(t, c, 4)
 	for i := 0; i < 2; i++ {
@@ -348,7 +348,7 @@ func TestSQLGetChanges(t *testing.T) {
 		require.Equal(t, i-1, c[i].Version)
 	}
 
-	c, err = s.GetChanges("0", 8, "busybox", false)
+	c, err = s.GetChanges("0", 8, "busybox")
 	require.NoError(t, err)
 	require.Len(t, c, 4)
 	for i := 0; i < 4; i++ {
