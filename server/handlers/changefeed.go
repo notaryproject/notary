@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 
 	ctxu "github.com/docker/distribution/context"
 	"golang.org/x/net/context"

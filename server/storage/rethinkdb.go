@@ -277,6 +277,6 @@ func (rdb RethinkDB) CheckHealth() error {
 }
 
 // GetChanges is not implemented for RethinkDB
-func (rdb RethinkDB) GetChanges(changeID string, pageSize int, filterName string, reversed bool) ([]Change, error) {
+func (rdb RethinkDB) GetChanges(changeID string, pageSize int, filterName string) ([]Change, error) {
 	return nil, errors.New("Not Implemented")
 }
