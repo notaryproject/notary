@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -28,58 +27,20 @@ type rootHandler struct {
 	actions []string
 	context context.Context
 	trust   signed.CryptoService
-	//cachePool redis.Pool
-	imageNameAt ImageNameLocation
-}
-
-// ImageNameLocation is used to define where the auth code should read the image name
-// from. For most repo operations, it will be ImageInURL, i.e. it's the segments between
-// `/v2/` and `/_trust`, i.e. `/v2/docker.io/library/alpine/_trust/tuf/targets.json`.
-// For the changefeed however, an image name is optional, and if
-// present will be found in the query string.
-type ImageNameLocation int
-
-// Constants for different image locations
-const (
-	ImageInURL ImageNameLocation = iota
-	ImageInQueryString
-	NoImageName
-)
-
-func parseImageName(loc ImageNameLocation, r *http.Request) (string, error) {
-	switch loc {
-	case ImageInURL:
-		vars := mux.Vars(r)
-		return vars["imageName"], nil
-	case ImageInQueryString:
-		qs := r.URL.Query()
-		imageName := qs.Get("filter")
-		if imageName == "" {
-			// no image name means global feed
-			imageName = "*"
-		}
-		return imageName, nil
-	case NoImageName:
-		// legacy behaviour resulted in an empty string when the URL route
-		// didn't define an image name
-		return "", nil
-	}
-	return "", errors.New("Unrecognized location for image name")
 }
 
 // RootHandlerFactory creates a new rootHandler factory  using the given
 // Context creator and authorizer.  The returned factory allows creating
 // new rootHandlers from the alternate http handler contextHandler and
 // a scope.
-func RootHandlerFactory(ctx context.Context, auth auth.AccessController, trust signed.CryptoService) func(ContextHandler, ImageNameLocation, ...string) *rootHandler {
-	return func(handler ContextHandler, imageNameAt ImageNameLocation, actions ...string) *rootHandler {
+func RootHandlerFactory(ctx context.Context, auth auth.AccessController, trust signed.CryptoService) func(ContextHandler, ...string) *rootHandler {
+	return func(handler ContextHandler, actions ...string) *rootHandler {
 		return &rootHandler{
-			handler:     handler,
-			auth:        auth,
-			actions:     actions,
-			context:     ctx,
-			trust:       trust,
-			imageNameAt: imageNameAt,
+			handler: handler,
+			auth:    auth,
+			actions: actions,
+			context: ctx,
+			trust:   trust,
 		}
 	}
 }
@@ -87,8 +48,10 @@ func RootHandlerFactory(ctx context.Context, auth auth.AccessController, trust s
 // ServeHTTP serves an HTTP request and implements the http.Handler interface.
 func (root *rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
-		ctx = ctxu.WithRequest(root.context, r)
-		log = ctxu.GetRequestLogger(ctx)
+		err  error
+		ctx  = ctxu.WithRequest(root.context, r)
+		log  = ctxu.GetRequestLogger(ctx)
+		vars = mux.Vars(r)
 	)
 	ctx, w = ctxu.WithResponseWriter(ctx, w)
 	ctx = ctxu.WithLogger(ctx, log)
@@ -99,14 +62,8 @@ func (root *rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if root.auth != nil {
-		imageName, err := parseImageName(root.imageNameAt, r)
-		if err != nil {
-			log.Error(err)
-			serveError(log, w, err)
-			return
-		}
-		ctx = context.WithValue(ctx, notary.CtxKeyRepo, imageName)
-		if ctx, err = root.doAuth(ctx, imageName, w); err != nil {
+		ctx = context.WithValue(ctx, notary.CtxKeyRepo, vars["imageName"])
+		if ctx, err = root.doAuth(ctx, vars["imageName"], w); err != nil {
 			// errors have already been logged/output to w inside doAuth
 			// just return
 			return
@@ -137,7 +94,7 @@ func serveError(log ctxu.Logger, w http.ResponseWriter, err error) {
 
 func (root *rootHandler) doAuth(ctx context.Context, imageName string, w http.ResponseWriter) (context.Context, error) {
 	var access []auth.Access
-	if imageName == "*" {
+	if imageName == "" {
 		access = buildCatalogRecord(root.actions...)
 	} else {
 		access = buildAccessRecords(imageName, root.actions...)

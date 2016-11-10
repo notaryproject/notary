@@ -28,7 +28,7 @@ func MockBetterErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.
 
 func TestRootHandlerFactory(t *testing.T) {
 	hand := RootHandlerFactory(context.Background(), nil, &signed.Ed25519{})
-	handler := hand(MockContextHandler, NoImageName)
+	handler := hand(MockContextHandler)
 	if _, ok := interface{}(handler).(http.Handler); !ok {
 		t.Fatalf("A rootHandler must implement the http.Handler interface")
 	}
@@ -43,7 +43,7 @@ func TestRootHandlerFactory(t *testing.T) {
 
 func TestRootHandlerError(t *testing.T) {
 	hand := RootHandlerFactory(context.Background(), nil, &signed.Ed25519{})
-	handler := hand(MockBetterErrorHandler, NoImageName)
+	handler := hand(MockBetterErrorHandler)
 
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
@@ -250,39 +250,6 @@ func TestWrapWithCacheHeaderNoCacheControlCacheControlHeader(t *testing.T) {
 	require.True(t, lastModified.Equal(nowToNearestSecond))
 }
 
-// TestParseImageName tests the query string, no image name, and error
-// paths. The URL path is tested in various other tests and it's a pain
-// to get mux all set up for this test.
-func TestParseImageName(t *testing.T) {
-	r, err := http.NewRequest(
-		"GET",
-		"https://notary/v2/changefeed/_trust/?filter=docker.io/library/alpine",
-		nil,
-	)
-	require.NoError(t, err)
-	name, err := parseImageName(ImageInQueryString, r)
-	require.Equal(t, "docker.io/library/alpine", name)
-	require.NoError(t, err)
-
-	r, err = http.NewRequest(
-		"GET",
-		"https://notary/v2/changefeed/_trust/",
-		nil,
-	)
-	require.NoError(t, err)
-	name, err = parseImageName(ImageInQueryString, r)
-	require.Equal(t, "*", name)
-	require.NoError(t, err)
-
-	name, err = parseImageName(NoImageName, r)
-	require.Equal(t, "", name)
-	require.NoError(t, err)
-
-	name, err = parseImageName(-1, r)
-	require.Equal(t, "", name)
-	require.Error(t, err)
-}
-
 func TestBuildCatalogRecord(t *testing.T) {
 	r := buildCatalogRecord()
 	require.Len(t, r, 1)
@@ -351,7 +318,7 @@ func TestDoAuthWildcardImage(t *testing.T) {
 	rec := httptest.NewRecorder()
 	_, err := r.doAuth(
 		context.Background(),
-		"*",
+		"",
 		rec,
 	)
 	require.NoError(t, err)
@@ -368,7 +335,7 @@ func TestDoAuthWildcardImage(t *testing.T) {
 	rec = httptest.NewRecorder()
 	_, err = r.doAuth(
 		context.Background(),
-		"*",
+		"",
 		rec,
 	)
 	require.Error(t, err)
@@ -385,7 +352,7 @@ func TestDoAuthWildcardImage(t *testing.T) {
 	rec = httptest.NewRecorder()
 	_, err = r.doAuth(
 		context.Background(),
-		"*",
+		"",
 		rec,
 	)
 	require.Error(t, err)

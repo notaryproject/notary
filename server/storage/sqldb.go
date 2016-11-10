@@ -213,7 +213,29 @@ func isReadErr(q *gorm.DB, row TUFFile) error {
 // Delete deletes all the records for a specific GUN - we have to do a hard delete using Unscoped
 // otherwise we can't insert for that GUN again
 func (db *SQLStorage) Delete(gun string) error {
-	return db.Unscoped().Where(&TUFFile{Gun: gun}).Delete(TUFFile{}).Error
+	tx, rb, err := db.getTransaction()
+	if err != nil {
+		return err
+	}
+	if err := func() error {
+		res := tx.Unscoped().Where(&TUFFile{Gun: gun}).Delete(TUFFile{})
+		if err := res.Error; err != nil {
+			return err
+		}
+		// if there weren't actually any records for the GUN, don't write
+		// a deletion change record.
+		if res.RowsAffected == 0 {
+			return nil
+		}
+		c := &Change{
+			GUN:      gun,
+			Deletion: true,
+		}
+		return tx.Create(c).Error
+	}(); err != nil {
+		return rb(err)
+	}
+	return tx.Commit().Error
 }
 
 // CheckHealth asserts that the tuf_files table is present
@@ -234,11 +256,16 @@ func (db *SQLStorage) GetChanges(changeID string, records int, filterName string
 	var (
 		changes []Change
 		query   = &db.DB
-
-		id, err = strconv.ParseInt(changeID, 10, 32)
+		id      int64
+		err     error
 	)
-	if err != nil {
-		return nil, err
+	if changeID == "" {
+		id = 0
+	} else {
+		id, err = strconv.ParseInt(changeID, 10, 32)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// do what I mean, not what I said, i.e. if I passed a negative number for the ID

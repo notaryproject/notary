@@ -51,7 +51,7 @@ func getContext(h handlerState) context.Context {
 
 func TestMainHandlerGet(t *testing.T) {
 	hand := utils.RootHandlerFactory(context.Background(), nil, &signed.Ed25519{})
-	handler := hand(MainHandler, utils.NoImageName)
+	handler := hand(MainHandler)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
@@ -63,7 +63,7 @@ func TestMainHandlerGet(t *testing.T) {
 
 func TestMainHandlerNotGet(t *testing.T) {
 	hand := utils.RootHandlerFactory(context.Background(), nil, &signed.Ed25519{})
-	handler := hand(MainHandler, utils.NoImageName)
+	handler := hand(MainHandler)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
