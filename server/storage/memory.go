@@ -178,6 +178,13 @@ func (st *MemStorage) Delete(gun string) error {
 		}
 	}
 	delete(st.checksums, gun)
+	c := Change{
+		ID:        uint(len(st.changes) + 1),
+		GUN:       gun,
+		Deletion:  true,
+		CreatedAt: time.Now(),
+	}
+	st.changes = append(st.changes, c)
 	return nil
 }
 
@@ -187,9 +194,17 @@ func (st *MemStorage) Delete(gun string) error {
 // index+1, both to match the SQL implementations, and so that the first
 // change can be retrieved by providing ID 0.
 func (st *MemStorage) GetChanges(changeID string, records int, filterName string) ([]Change, error) {
-	id, err := strconv.ParseInt(changeID, 10, 32)
-	if err != nil {
-		return nil, err
+	var (
+		id  int64
+		err error
+	)
+	if changeID == "" {
+		id = 0
+	} else {
+		id, err = strconv.ParseInt(changeID, 10, 32)
+		if err != nil {
+			return nil, err
+		}
 	}
 	var (
 		start     = int(id)

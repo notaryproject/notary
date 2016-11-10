@@ -3,7 +3,8 @@ CREATE TABLE "changefeed" (
     "created_at" timestamp DEFAULT CURRENT_TIMESTAMP,
     "gun" varchar(255) NOT NULL,
     "version" integer NOT NULL,
-    "sha256" CHAR(64) DEFAULT NULL
+    "sha256" CHAR(64) DEFAULT NULL,
+    "deletion" BOOLEAN DEFAULT FALSE
 );
 
 CREATE INDEX "idx_changefeed_gun" ON "changefeed" ("gun");

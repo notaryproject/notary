@@ -28,6 +28,7 @@ type Change struct {
 	GUN       string `gorm:"column:gun" sql:"type:varchar(255);not null"`
 	Version   int    `sql:"not null"`
 	SHA256    string `gorm:"column:sha256" sql:"type:varchar(64);"`
+	Deletion  bool
 }
 
 // TableName sets a specific table name for Changefeed

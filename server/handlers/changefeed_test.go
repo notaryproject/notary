@@ -17,7 +17,6 @@ type changefeedArgs struct {
 	imageName string
 	changeID  string
 	pageSize  int64
-	reversed  bool
 }
 
 type changefeedTest struct {
@@ -39,7 +38,6 @@ func Test_changefeed(t *testing.T) {
 				imageName: "",
 				changeID:  "0",
 				pageSize:  notary.DefaultPageSize,
-				reversed:  false,
 			},
 			want:    []byte("{\"count\":0,\"records\":null}"),
 			wantErr: false,
@@ -52,7 +50,6 @@ func Test_changefeed(t *testing.T) {
 				imageName: "",
 				changeID:  "not_a_number",
 				pageSize:  notary.DefaultPageSize,
-				reversed:  false,
 			},
 			want:    nil,
 			wantErr: true,
@@ -79,7 +76,6 @@ func Test_checkChangefeedInputs(t *testing.T) {
 		logger ctxu.Logger
 		s      interface{}
 		ps     string
-		rev    string
 	}
 	s := storage.NewMemStorage()
 	tests := []struct {
@@ -87,7 +83,6 @@ func Test_checkChangefeedInputs(t *testing.T) {
 		args         args
 		wantStore    storage.MetaStore
 		wantPageSize int64
-		wantReversed bool
 		wantErr      bool
 	}{
 		// Error cases
@@ -118,7 +113,6 @@ func Test_checkChangefeedInputs(t *testing.T) {
 			},
 			wantStore:    s,
 			wantPageSize: notary.DefaultPageSize,
-			wantReversed: false,
 		},
 		{
 			name: "Non-zero Page Size",
@@ -129,55 +123,16 @@ func Test_checkChangefeedInputs(t *testing.T) {
 			},
 			wantStore:    s,
 			wantPageSize: 10,
-			wantReversed: false,
-		},
-		{
-			name: "Reversed \"1\"",
-			args: args{
-				logger: logrus.New(),
-				s:      s,
-				ps:     "10",
-				rev:    "1",
-			},
-			wantStore:    s,
-			wantPageSize: 10,
-			wantReversed: true,
-		},
-		{
-			name: "Reversed \"true\"",
-			args: args{
-				logger: logrus.New(),
-				s:      s,
-				ps:     "10",
-				rev:    "true",
-			},
-			wantStore:    s,
-			wantPageSize: 10,
-			wantReversed: true,
-		},
-		{
-			name: "Reversed \"True\"",
-			args: args{
-				logger: logrus.New(),
-				s:      s,
-				ps:     "10",
-				rev:    "True",
-			},
-			wantStore:    s,
-			wantPageSize: 10,
-			wantReversed: true,
 		},
 		{
 			name: "Reversed \"false\"",
 			args: args{
 				logger: logrus.New(),
 				s:      s,
-				ps:     "10",
-				rev:    "false",
+				ps:     "-10",
 			},
 			wantStore:    s,
-			wantPageSize: 10,
-			wantReversed: false,
+			wantPageSize: -10,
 		},
 	}
 	for _, tt := range tests {
