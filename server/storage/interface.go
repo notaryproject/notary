@@ -49,5 +49,5 @@ type MetaStore interface {
 	// Reversed indicates we are fetching pages going backwards in time, the
 	// default being to fetch pageSize from changeID going forwards in time.
 	// The returned []Change should always be ordered oldest to newest.
-	GetChanges(changeID string, pageSize int, filterName string, reversed bool) ([]Change, error)
+	GetChanges(changeID string, records int, filterName string) ([]Change, error)
 }

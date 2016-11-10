@@ -186,7 +186,7 @@ func (st *MemStorage) Delete(gun string) error {
 // is simply an index into st.changes. The ID of a change is its
 // index+1, both to match the SQL implementations, and so that the first
 // change can be retrieved by providing ID 0.
-func (st *MemStorage) GetChanges(changeID string, pageSize int, filterName string, reversed bool) ([]Change, error) {
+func (st *MemStorage) GetChanges(changeID string, records int, filterName string) ([]Change, error) {
 	id, err := strconv.ParseInt(changeID, 10, 32)
 	if err != nil {
 		return nil, err
@@ -198,6 +198,13 @@ func (st *MemStorage) GetChanges(changeID string, pageSize int, filterName strin
 	if err != nil {
 		return nil, err
 	}
+
+	reversed := id < 0
+	if records < 0 {
+		reversed = true
+		records = -records
+	}
+
 	if len(st.changes) <= int(id) && !reversed {
 		// no records to return as we're essentially trying to retrieve
 		// changes that haven't happened yet.
@@ -210,7 +217,6 @@ func (st *MemStorage) GetChanges(changeID string, pageSize int, filterName strin
 	// requesting changeID < 0 but not asking for reversed, we're just going
 	// to force it to be reversed.
 	if start < 0 {
-		reversed = true
 		// need to add one so we don't later slice off the last element
 		// when calculating toInspect.
 		start = len(st.changes) + 1
@@ -230,28 +236,28 @@ func (st *MemStorage) GetChanges(changeID string, pageSize int, filterName strin
 	if filterName == "" {
 		// if the pageSize is larger than the total records
 		// that could be returned, return them all
-		if pageSize >= len(toInspect) {
+		if records >= len(toInspect) {
 			return toInspect, nil
 		}
 		// if we're going backwards, return the last pageSize records
 		if reversed {
-			return toInspect[len(toInspect)-pageSize:], nil
+			return toInspect[len(toInspect)-records:], nil
 		}
 		// otherwise return pageSize records from front
-		return toInspect[:pageSize], nil
+		return toInspect[:records], nil
 	}
 
-	return getFilteredChanges(toInspect, filterName, pageSize, reversed), nil
+	return getFilteredChanges(toInspect, filterName, records, reversed), nil
 }
 
-func getFilteredChanges(toInspect []Change, filterName string, pageSize int, reversed bool) []Change {
-	res := make([]Change, 0, pageSize)
+func getFilteredChanges(toInspect []Change, filterName string, records int, reversed bool) []Change {
+	res := make([]Change, 0, records)
 	if reversed {
 		for i := len(toInspect) - 1; i >= 0; i-- {
 			if toInspect[i].GUN == filterName {
 				res = append(res, toInspect[i])
 			}
-			if len(res) == pageSize {
+			if len(res) == records {
 				break
 			}
 		}
@@ -264,7 +270,7 @@ func getFilteredChanges(toInspect []Change, filterName string, pageSize int, rev
 			if c.GUN == filterName {
 				res = append(res, c)
 			}
-			if len(res) == pageSize {
+			if len(res) == records {
 				break
 			}
 		}

@@ -66,23 +66,28 @@ func (db *SQLStorage) UpdateCurrent(gun string, update MetaUpdate) error {
 	checksum := sha256.Sum256(update.Data)
 	hexChecksum := hex.EncodeToString(checksum[:])
 
-	// write new TUFFile entry
-	if err = translateOldVersionError(tx.Create(&TUFFile{
-		Gun:     gun,
-		Role:    update.Role,
-		Version: update.Version,
-		Sha256:  hexChecksum,
-		Data:    update.Data,
-	}).Error); err != nil {
-		return rb(err)
-	}
-
-	// If we're publishing a timestamp, update the changefeed as this is
-	// technically an new version of the TUF repo
-	if update.Role == data.CanonicalTimestampRole {
-		if err := db.writeChangefeed(tx, gun, update.Version, hexChecksum); err != nil {
-			return rb(err)
+	if err := func() error {
+		// write new TUFFile entry
+		if err = translateOldVersionError(tx.Create(&TUFFile{
+			Gun:     gun,
+			Role:    update.Role,
+			Version: update.Version,
+			Sha256:  hexChecksum,
+			Data:    update.Data,
+		}).Error); err != nil {
+			return err
 		}
+
+		// If we're publishing a timestamp, update the changefeed as this is
+		// technically an new version of the TUF repo
+		if update.Role == data.CanonicalTimestampRole {
+			if err := db.writeChangefeed(tx, gun, update.Version, hexChecksum); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return rb(err)
 	}
 	return tx.Commit().Error
 }
@@ -116,41 +121,46 @@ func (db *SQLStorage) UpdateMany(gun string, updates []MetaUpdate) error {
 		query *gorm.DB
 		added = make(map[uint]bool)
 	)
-	for _, update := range updates {
-		// This looks like the same logic as UpdateCurrent, but if we just
-		// called, version ordering in the updates list must be enforced
-		// (you cannot insert the version 2 before version 1).  And we do
-		// not care about monotonic ordering in the updates.
-		query = db.Where("gun = ? and role = ? and version >= ?",
-			gun, update.Role, update.Version).First(&TUFFile{})
+	if err := func() error {
+		for _, update := range updates {
+			// This looks like the same logic as UpdateCurrent, but if we just
+			// called, version ordering in the updates list must be enforced
+			// (you cannot insert the version 2 before version 1).  And we do
+			// not care about monotonic ordering in the updates.
+			query = db.Where("gun = ? and role = ? and version >= ?",
+				gun, update.Role, update.Version).First(&TUFFile{})
 
-		if !query.RecordNotFound() {
-			return rb(ErrOldVersion{})
-		}
-
-		var row TUFFile
-		checksum := sha256.Sum256(update.Data)
-		hexChecksum := hex.EncodeToString(checksum[:])
-		query = tx.Where(map[string]interface{}{
-			"gun":     gun,
-			"role":    update.Role,
-			"version": update.Version,
-		}).Attrs("data", update.Data).Attrs("sha256", hexChecksum).FirstOrCreate(&row)
-
-		if query.Error != nil {
-			return rb(translateOldVersionError(query.Error))
-		}
-		// it's previously been added, which means it's a duplicate entry
-		// in the same transaction
-		if _, ok := added[row.ID]; ok {
-			return rb(ErrOldVersion{})
-		}
-		if update.Role == data.CanonicalTimestampRole {
-			if err := db.writeChangefeed(tx, gun, update.Version, hexChecksum); err != nil {
-				return rb(err)
+			if !query.RecordNotFound() {
+				return ErrOldVersion{}
 			}
+
+			var row TUFFile
+			checksum := sha256.Sum256(update.Data)
+			hexChecksum := hex.EncodeToString(checksum[:])
+			query = tx.Where(map[string]interface{}{
+				"gun":     gun,
+				"role":    update.Role,
+				"version": update.Version,
+			}).Attrs("data", update.Data).Attrs("sha256", hexChecksum).FirstOrCreate(&row)
+
+			if query.Error != nil {
+				return translateOldVersionError(query.Error)
+			}
+			// it's previously been added, which means it's a duplicate entry
+			// in the same transaction
+			if _, ok := added[row.ID]; ok {
+				return ErrOldVersion{}
+			}
+			if update.Role == data.CanonicalTimestampRole {
+				if err := db.writeChangefeed(tx, gun, update.Version, hexChecksum); err != nil {
+					return err
+				}
+			}
+			added[row.ID] = true
 		}
-		added[row.ID] = true
+		return nil
+	}(); err != nil {
+		return rb(err)
 	}
 	return tx.Commit().Error
 }
@@ -220,19 +230,23 @@ func (db *SQLStorage) CheckHealth() error {
 }
 
 // GetChanges returns up to pageSize changes starting from changeID.
-func (db *SQLStorage) GetChanges(changeID string, pageSize int, filterName string, reversed bool) ([]Change, error) {
+func (db *SQLStorage) GetChanges(changeID string, records int, filterName string) ([]Change, error) {
 	var (
 		changes []Change
 		query   = &db.DB
+
 		id, err = strconv.ParseInt(changeID, 10, 32)
 	)
 	if err != nil {
 		return nil, err
 	}
-	if id < 0 {
-		// do what I mean, not what I said, i.e. if I passed a negative number for the ID
-		// it's assumed I mean "start from latest and go backwards"
+
+	// do what I mean, not what I said, i.e. if I passed a negative number for the ID
+	// it's assumed I mean "start from latest and go backwards"
+	reversed := id < 0
+	if records < 0 {
 		reversed = true
+		records = -records
 	}
 
 	if filterName != "" {
@@ -248,7 +262,7 @@ func (db *SQLStorage) GetChanges(changeID string, pageSize int, filterName strin
 		query = query.Where("id > ?", id).Order("id asc")
 	}
 
-	res := query.Limit(pageSize).Find(&changes)
+	res := query.Limit(records).Find(&changes)
 	if res.Error != nil {
 		return nil, res.Error
 	}

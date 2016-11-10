@@ -22,25 +22,25 @@ type changefeedResponse struct {
 // Changefeed returns a list of changes according to the provided filters
 func Changefeed(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	var (
-		logger                         = ctxu.GetLogger(ctx)
-		qs                             = r.URL.Query()
-		imageName                      = qs.Get("filter")
-		changeID                       = qs.Get("change_id")
-		store, pageSize, reversed, err = checkChangefeedInputs(logger, ctx.Value(notary.CtxKeyMetaStore), qs.Get("page_size"), qs.Get("reversed"))
+		logger              = ctxu.GetLogger(ctx)
+		qs                  = r.URL.Query()
+		imageName           = qs.Get("filter")
+		changeID            = qs.Get("change_id")
+		store, records, err = checkChangefeedInputs(logger, ctx.Value(notary.CtxKeyMetaStore), qs.Get("records"))
 	)
 	if err != nil {
 		// err already logged and in correct format.
 		return err
 	}
-	out, err := changefeed(logger, store, imageName, changeID, pageSize, reversed)
+	out, err := changefeed(logger, store, imageName, changeID, records)
 	if err == nil {
 		w.Write(out)
 	}
 	return err
 }
 
-func changefeed(logger ctxu.Logger, store storage.MetaStore, imageName, changeID string, pageSize uint64, reversed bool) ([]byte, error) {
-	changes, err := store.GetChanges(changeID, int(pageSize), imageName, reversed)
+func changefeed(logger ctxu.Logger, store storage.MetaStore, imageName, changeID string, records int64) ([]byte, error) {
+	changes, err := store.GetChanges(changeID, int(records), imageName)
 	if err != nil {
 		logger.Errorf("500 GET could not retrieve records: %s", err.Error())
 		return nil, errors.ErrUnknown.WithDetail(err)
@@ -56,8 +56,8 @@ func changefeed(logger ctxu.Logger, store storage.MetaStore, imageName, changeID
 	return out, nil
 }
 
-func checkChangefeedInputs(logger ctxu.Logger, s interface{}, ps, rev string) (
-	store storage.MetaStore, pageSize uint64, reversed bool, err error) {
+func checkChangefeedInputs(logger ctxu.Logger, s interface{}, r string) (
+	store storage.MetaStore, pageSize int64, err error) {
 
 	store, ok := s.(storage.MetaStore)
 	if !ok {
@@ -65,15 +65,14 @@ func checkChangefeedInputs(logger ctxu.Logger, s interface{}, ps, rev string) (
 		err = errors.ErrNoStorage.WithDetail(nil)
 		return
 	}
-	pageSize, err = strconv.ParseUint(ps, 10, 32)
+	pageSize, err = strconv.ParseInt(r, 10, 32)
 	if err != nil {
-		logger.Errorf("400 GET invalid pageSize: %s", ps)
+		logger.Errorf("400 GET invalid pageSize: %s", r)
 		err = errors.ErrInvalidParams.WithDetail("invalid pageSize parameter, must be an integer >= 0")
 		return
 	}
 	if pageSize == 0 {
 		pageSize = notary.DefaultPageSize
 	}
-	reversed = rev == "1" || strings.ToLower(rev) == "true"
 	return
 }
