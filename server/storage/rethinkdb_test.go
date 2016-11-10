@@ -120,7 +120,7 @@ func TestRDBTUFFileJSONUnmarshallingFailure(t *testing.T) {
 
 func TestRethinkDBGetChanges(t *testing.T) {
 	s := NewRethinkDBStorage("dbname", "user", "pwd", nil)
-	c, err := s.GetChanges("foo", 10, "", false)
+	c, err := s.GetChanges("foo", 10, "")
 	require.Error(t, err)
 	require.Nil(t, c)
 	require.Contains(t, err.Error(), "Not Implemented")

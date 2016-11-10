@@ -16,7 +16,7 @@ type changefeedArgs struct {
 	store     storage.MetaStore
 	imageName string
 	changeID  string
-	pageSize  uint64
+	pageSize  int64
 	reversed  bool
 }
 
@@ -64,7 +64,7 @@ func Test_changefeed(t *testing.T) {
 
 func runChangefeedTests(t *testing.T, tests []changefeedTest) {
 	for _, tt := range tests {
-		got, err := changefeed(tt.args.logger, tt.args.store, tt.args.imageName, tt.args.changeID, tt.args.pageSize, tt.args.reversed)
+		got, err := changefeed(tt.args.logger, tt.args.store, tt.args.imageName, tt.args.changeID, tt.args.pageSize)
 		if tt.wantErr {
 			require.Error(t, err,
 				"%q. changefeed() error = %v, wantErr %v", tt.name, err, tt.wantErr)
@@ -86,7 +86,7 @@ func Test_checkChangefeedInputs(t *testing.T) {
 		name         string
 		args         args
 		wantStore    storage.MetaStore
-		wantPageSize uint64
+		wantPageSize int64
 		wantReversed bool
 		wantErr      bool
 	}{
@@ -181,7 +181,7 @@ func Test_checkChangefeedInputs(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		gotStore, gotPageSize, gotReversed, err := checkChangefeedInputs(tt.args.logger, tt.args.s, tt.args.ps, tt.args.rev)
+		gotStore, gotPageSize, err := checkChangefeedInputs(tt.args.logger, tt.args.s, tt.args.ps)
 		if tt.wantErr {
 			require.Error(t, err,
 				"%q. checkChangefeedInputs() error = %v, wantErr %v", tt.name, err, tt.wantErr)
@@ -192,7 +192,5 @@ func Test_checkChangefeedInputs(t *testing.T) {
 		require.Equal(t, tt.wantPageSize, gotPageSize,
 			"%q. checkChangefeedInputs() gotPageSize = %v, want %v", tt.name, gotPageSize, tt.wantPageSize)
 
-		require.Equal(t, tt.wantReversed, gotReversed,
-			"%q. checkChangefeedInputs() gotReversed = %v, want %v", tt.name, gotReversed, tt.wantReversed)
 	}
 }
