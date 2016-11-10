@@ -87,4 +87,9 @@ Complying to these simple rules will greatly accelerate the review process, and 
 ## Review and Development notes
 
 - All merges require LGTMs from any 2 maintainers.
-- We use the git flow model (as best we can) using the `releases` branch as the stable branch, and the `master` branch as the development branch.  When we get near a potential release, a release branch (`release/<semver>`) will be created from `master`.  Any PRs that should go into the release should be made against that branch.  Hotfixes for a minor release will be added to the branch `hotfox/<semver>`.
+- We use the git flow model (as best we can) using the `releases` branch as the stable branch, and the `master` branch as the development branch.  When we get near a potential release, a release branch (`release/<semver>`) will be created from `master`.  Any PRs that should go into the release should be made against that branch.  Hotfixes for a minor release will be added to the branch `hotfix/<semver>`.
+
+## Vendoring new dependency versions
+
+We use [VNDR](https://github.com/LK4D4/vndr); please update `vendor.conf` with the new dependency or the new version, and run
+`vndr <top level package name>`.
