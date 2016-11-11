@@ -90,6 +90,7 @@ func (st *MemStorage) writeChange(gun string, version int, checksum string) {
 		Version:   version,
 		SHA256:    checksum,
 		CreatedAt: time.Now(),
+		Category:  changeCategoryUpdate,
 	}
 	st.changes = append(st.changes, c)
 }
@@ -172,16 +173,21 @@ func (st *MemStorage) GetChecksum(gun, role, checksum string) (*time.Time, []byt
 func (st *MemStorage) Delete(gun string) error {
 	st.lock.Lock()
 	defer st.lock.Unlock()
+	l := len(st.tufMeta)
 	for k := range st.tufMeta {
 		if strings.HasPrefix(k, gun) {
 			delete(st.tufMeta, k)
 		}
 	}
+	if l == len(st.tufMeta) {
+		// we didn't delete anything, don't write change.
+		return nil
+	}
 	delete(st.checksums, gun)
 	c := Change{
 		ID:        uint(len(st.changes) + 1),
 		GUN:       gun,
-		Deletion:  true,
+		Category:  changeCategoryDeletion,
 		CreatedAt: time.Now(),
 	}
 	st.changes = append(st.changes, c)

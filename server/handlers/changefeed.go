@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -69,7 +70,9 @@ func checkChangefeedInputs(logger ctxu.Logger, s interface{}, r string) (
 	pageSize, err = strconv.ParseInt(r, 10, 32)
 	if err != nil {
 		logger.Errorf("400 GET invalid pageSize: %s", r)
-		err = errors.ErrInvalidParams.WithDetail("invalid records parameter, must be an integer >= 0")
+		err = errors.ErrInvalidParams.WithDetail(
+			fmt.Sprintf("invalid records parameter: %s", err.Error()),
+		)
 		return
 	}
 	if pageSize == 0 {

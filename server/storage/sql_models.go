@@ -6,6 +6,11 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+const (
+	changeCategoryUpdate   = "update"
+	changeCategoryDeletion = "deletion"
+)
+
 // TUFFile represents a TUF file in the database
 type TUFFile struct {
 	gorm.Model
@@ -23,12 +28,12 @@ func (g TUFFile) TableName() string {
 
 // Change defines the the fields required for an object in the changefeed
 type Change struct {
-	ID        uint `gorm:"primary_key" sql:"not null"`
+	ID        uint `gorm:"primary_key" sql:"not null" json:",string"`
 	CreatedAt time.Time
 	GUN       string `gorm:"column:gun" sql:"type:varchar(255);not null"`
 	Version   int    `sql:"not null"`
 	SHA256    string `gorm:"column:sha256" sql:"type:varchar(64);"`
-	Deletion  bool
+	Category  string `sql:"type:varchar(20);not null;"`
 }
 
 // TableName sets a specific table name for Changefeed
