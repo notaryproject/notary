@@ -134,6 +134,16 @@ func Test_checkChangefeedInputs(t *testing.T) {
 			wantStore:    s,
 			wantPageSize: -10,
 		},
+		{
+			name: "Empty string records",
+			args: args{
+				logger: logrus.New(),
+				s:      s,
+				ps:     "",
+			},
+			wantStore:    s,
+			wantPageSize: 100,
+		},
 	}
 	for _, tt := range tests {
 		gotStore, gotPageSize, err := checkChangefeedInputs(tt.args.logger, tt.args.s, tt.args.ps)
