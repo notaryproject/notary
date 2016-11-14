@@ -3,21 +3,21 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/docker/notary"
 	notaryclient "github.com/docker/notary/client"
 	"github.com/docker/notary/cryptoservice"
 	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
+	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/utils"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/tuf/data"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
 )
 
 var cmdKeyTemplate = usageTemplate{
@@ -264,7 +264,7 @@ func removeKeyInteractively(keyStores []trustmanager.KeyStore, keyID string,
 	}
 
 	if len(foundKeys) == 0 {
-		return fmt.Errorf("No key with ID %s found.", keyID)
+		return fmt.Errorf("No key with ID %s found", keyID)
 	}
 
 	if len(foundKeys) > 1 {

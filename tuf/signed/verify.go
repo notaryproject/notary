@@ -101,11 +101,11 @@ func VerifySignature(msg []byte, sig *data.Signature, pk data.PublicKey) error {
 	method := sig.Method
 	verifier, ok := Verifiers[method]
 	if !ok {
-		return fmt.Errorf("signing method is not supported: %s\n", sig.Method)
+		return fmt.Errorf("signing method is not supported: %s", sig.Method)
 	}
 
 	if err := verifier.Verify(pk, sig.Signature, msg); err != nil {
-		return fmt.Errorf("signature was invalid\n")
+		return fmt.Errorf("signature was invalid")
 	}
 	sig.IsValid = true
 	return nil
