@@ -244,7 +244,7 @@ func getAddrAndTLSConfig(configuration *viper.Viper) (string, *tls.Config, error
 func bootstrap(s interface{}) error {
 	store, ok := s.(storage.Bootstrapper)
 	if !ok {
-		return fmt.Errorf("Store does not support bootstrapping.")
+		return fmt.Errorf("store does not support bootstrapping")
 	}
 	return store.Bootstrap()
 }
