@@ -3,35 +3,12 @@ package utils
 import (
 	"crypto/sha256"
 	"crypto/sha512"
-	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
-	"os"
-	"strings"
 
 	"github.com/docker/notary/tuf/data"
 )
-
-// Download does a simple download from a URL
-func Download(url url.URL) (*http.Response, error) {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-	return client.Get(url.String())
-}
-
-// Upload does a simple JSON upload to a URL
-func Upload(url string, body io.Reader) (*http.Response, error) {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-	return client.Post(url, "application/json", body)
-}
 
 // StrSliceContains checks if the given string appears in the slice
 func StrSliceContains(ss []string, s string) bool {
@@ -52,26 +29,6 @@ func StrSliceRemove(ss []string, s string) []string {
 		}
 	}
 	return res
-}
-
-// StrSliceContainsI checks if the given string appears in the slice
-// in a case insensitive manner
-func StrSliceContainsI(ss []string, s string) bool {
-	s = strings.ToLower(s)
-	for _, v := range ss {
-		v = strings.ToLower(v)
-		if v == s {
-			return true
-		}
-	}
-	return false
-}
-
-// FileExists returns true if a file (or dir) exists at the given path,
-// false otherwise
-func FileExists(path string) bool {
-	_, err := os.Stat(path)
-	return os.IsNotExist(err)
 }
 
 // NoopCloser is a simple Reader wrapper that does nothing when Close is

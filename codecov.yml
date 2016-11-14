@@ -18,5 +18,7 @@ coverage:
     changes: false
   ignore:  # ignore testutils for coverage
     - "tuf/testutils/*"
+    - "vendor/*"
+    - "proto/*.pb.go"
 comment: off
 

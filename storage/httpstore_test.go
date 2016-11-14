@@ -2,11 +2,13 @@ package storage
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -336,4 +338,28 @@ func TestErrServerUnavailable(t *testing.T) {
 			require.Contains(t, err.Error(), "unable to reach trust server")
 		}
 	}
+}
+
+func TestNetworkError(t *testing.T) {
+	err := &url.Error{
+		Op:  http.MethodGet,
+		URL: "https://auth.docker.io",
+		Err: errors.New("abc%3Adef%3Aghi"),
+	}
+	networkErr := NetworkError{Wrapped: err}
+	require.Equal(t, http.MethodGet+" https://auth.docker.io: abc:def:ghi", networkErr.Error())
+
+	// expect QueryUnescape error because the last '%' is not
+	// followed by two hexadecimal digits
+	err2 := &url.Error{
+		Op:  http.MethodGet,
+		URL: "https://auth.docker.io",
+		Err: errors.New("abc%3Adef%GAghi"),
+	}
+	networkErr2 := NetworkError{Wrapped: err2}
+	require.Equal(t, http.MethodGet+" https://auth.docker.io: abc%3Adef%GAghi", networkErr2.Error())
+
+	err3 := errors.New("CPU usage 90%3A")
+	networkErr3 := NetworkError{Wrapped: err3}
+	require.Equal(t, err3.Error(), networkErr3.Error())
 }

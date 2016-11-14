@@ -34,11 +34,6 @@ func TestAdminTokenAuth(t *testing.T) {
 	require.Nil(t, auth)
 }
 
-func StatusOKTestHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(200)
-	w.Write([]byte("{}"))
-}
-
 func TestTokenAuth200Status(t *testing.T) {
 	var (
 		baseTransport = &http.Transport{}

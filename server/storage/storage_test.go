@@ -185,6 +185,11 @@ func testUpdateManyConflictRollback(t *testing.T, s MetaStore) []StoredTUFMeta {
 
 	require.NoError(t, s.UpdateMany(gun, updates))
 
+	before, err := s.GetChanges("0", 1000, "")
+	if _, ok := s.(RethinkDB); !ok {
+		require.NoError(t, err)
+	}
+
 	// conflicts with what's in DB
 	badBatch := make([]StoredTUFMeta, 4)
 	for i, role := range data.BaseRoles {
@@ -197,7 +202,14 @@ func testUpdateManyConflictRollback(t *testing.T, s MetaStore) []StoredTUFMeta {
 		updates[i] = MakeUpdate(badBatch[i])
 	}
 
-	err := s.UpdateMany(gun, updates)
+	// check no changes were written when there was a conflict+rollback
+	after, err := s.GetChanges("0", 1000, "")
+	if _, ok := s.(RethinkDB); !ok {
+		require.NoError(t, err)
+	}
+	require.Equal(t, len(before), len(after))
+
+	err = s.UpdateMany(gun, updates)
 	require.Error(t, err)
 	require.IsType(t, ErrOldVersion{}, err)
 
@@ -263,4 +275,159 @@ func testDeleteSuccess(t *testing.T, s MetaStore) {
 
 	// And delete them again successfully
 	require.NoError(t, s.Delete(gun))
+}
+
+func testGetChanges(t *testing.T, s MetaStore) {
+	// non-int changeID
+	c, err := s.GetChanges("foo", 10, "")
+	require.Error(t, err)
+	require.Len(t, c, 0)
+
+	// add some records
+	require.NoError(t, s.UpdateMany("alpine", []MetaUpdate{
+		{
+			Role:    data.CanonicalTimestampRole,
+			Version: 1,
+			Data:    []byte{'1'},
+		},
+		{
+			Role:    data.CanonicalTimestampRole,
+			Version: 2,
+			Data:    []byte{'2'},
+		},
+		{
+			Role:    data.CanonicalTimestampRole,
+			Version: 3,
+			Data:    []byte{'3'},
+		},
+		{
+			Role:    data.CanonicalTimestampRole,
+			Version: 4,
+			Data:    []byte{'4'},
+		},
+	}))
+	require.NoError(t, s.UpdateMany("busybox", []MetaUpdate{
+		{
+			Role:    data.CanonicalTimestampRole,
+			Version: 1,
+			Data:    []byte{'5'},
+		},
+		{
+			Role:    data.CanonicalTimestampRole,
+			Version: 2,
+			Data:    []byte{'6'},
+		},
+		{
+			Role:    data.CanonicalTimestampRole,
+			Version: 3,
+			Data:    []byte{'7'},
+		},
+		{
+			Role:    data.CanonicalTimestampRole,
+			Version: 4,
+			Data:    []byte{'8'},
+		},
+	}))
+
+	// check non-error cases
+	c, err = s.GetChanges("0", 8, "")
+	require.NoError(t, err)
+	require.Len(t, c, 8)
+
+	for i := 0; i < 4; i++ {
+		require.Equal(t, uint(i+1), c[i].ID)
+		require.Equal(t, "alpine", c[i].GUN)
+		require.Equal(t, i+1, c[i].Version)
+	}
+	for i := 4; i < 8; i++ {
+		require.Equal(t, uint(i+1), c[i].ID)
+		require.Equal(t, "busybox", c[i].GUN)
+		require.Equal(t, i-3, c[i].Version)
+	}
+
+	c, err = s.GetChanges("-1", 4, "")
+	require.NoError(t, err)
+	require.Len(t, c, 4)
+	for i := 0; i < 4; i++ {
+		require.Equal(t, uint(i+5), c[i].ID)
+		require.Equal(t, "busybox", c[i].GUN)
+		require.Equal(t, i+1, c[i].Version)
+	}
+
+	c, err = s.GetChanges("10", 4, "")
+	require.NoError(t, err)
+	require.Len(t, c, 0)
+
+	c, err = s.GetChanges("10", -4, "")
+	require.NoError(t, err)
+	require.Len(t, c, 4)
+	for i := 0; i < 4; i++ {
+		require.Equal(t, uint(i+5), c[i].ID)
+		require.Equal(t, "busybox", c[i].GUN)
+		require.Equal(t, i+1, c[i].Version)
+	}
+
+	c, err = s.GetChanges("7", -4, "")
+	require.NoError(t, err)
+	require.Len(t, c, 4)
+	for i := 0; i < 2; i++ {
+		require.Equal(t, uint(i+3), c[i].ID)
+		require.Equal(t, "alpine", c[i].GUN)
+		require.Equal(t, i+3, c[i].Version)
+	}
+	for i := 2; i < 4; i++ {
+		require.Equal(t, uint(i+3), c[i].ID)
+		require.Equal(t, "busybox", c[i].GUN)
+		require.Equal(t, i-1, c[i].Version)
+	}
+
+	c, err = s.GetChanges("0", 8, "busybox")
+	require.NoError(t, err)
+	require.Len(t, c, 4)
+	for i := 0; i < 4; i++ {
+		require.Equal(t, uint(i+5), c[i].ID)
+		require.Equal(t, "busybox", c[i].GUN)
+		require.Equal(t, i+1, c[i].Version)
+	}
+
+	c, err = s.GetChanges("-1", -8, "busybox")
+	require.NoError(t, err)
+	require.Len(t, c, 4)
+	for i := 0; i < 4; i++ {
+		require.Equal(t, uint(i+5), c[i].ID)
+		require.Equal(t, "busybox", c[i].GUN)
+		require.Equal(t, i+1, c[i].Version)
+	}
+
+	// update a snapshot and confirm the most recent item of the changelist
+	// hasn't changed (only timestamps should create changes)
+	before, err := s.GetChanges("-1", -1, "")
+	require.NoError(t, err)
+	require.NoError(t, s.UpdateMany("alpine", []MetaUpdate{
+		{
+			Role:    data.CanonicalSnapshotRole,
+			Version: 1,
+			Data:    []byte{'1'},
+		},
+	}))
+	after, err := s.GetChanges("-1", -1, "")
+	require.NoError(t, err)
+	require.Equal(t, before, after)
+
+	// do a deletion and check is shows up.
+	require.NoError(t, s.Delete("alpine"))
+	c, err = s.GetChanges("-1", -1, "")
+	require.NoError(t, err)
+	require.Len(t, c, 1)
+	require.Equal(t, changeCategoryDeletion, c[0].Category)
+	require.Equal(t, "alpine", c[0].GUN)
+
+	// do another deletion and check it doesn't show up because no records were deleted
+	// after the first one
+	require.NoError(t, s.Delete("alpine"))
+	c, err = s.GetChanges("-1", -2, "")
+	require.NoError(t, err)
+	require.Len(t, c, 2)
+	require.NotEqual(t, changeCategoryDeletion, c[0].Category)
+	require.NotEqual(t, "alpine", c[0].GUN)
 }

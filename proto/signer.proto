@@ -13,12 +13,6 @@ service KeyManagement {
 
   // GetKeyInfo returns the PublicKey associated with a KeyID
   rpc GetKeyInfo(KeyID) returns (GetKeyInfoResponse) {}
-
-  // CheckHealth returns the HealthStatus with the service - note: since the
-  // KeyManagement service is probably deployed on the same server as the Signer
-  // service, we're only putting the CheckHealth function on the KeyManagement
-  // service, to avoid confusion and to avoid clients polling both.
-  rpc CheckHealth(Void) returns (HealthStatus) {}
 }
 
 // Signer Interface
@@ -79,9 +73,4 @@ message SignatureRequest {
 
 // Void represents an empty message type
 message Void {
-}
-
-// A mapping of health check name to the check result message
-message HealthStatus {
-  map<string, string> status = 1;
 }

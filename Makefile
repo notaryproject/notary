@@ -17,12 +17,12 @@ GOOSES = darwin linux windows
 NOTARY_BUILDTAGS ?= pkcs11
 NOTARYDIR := /go/src/github.com/docker/notary
 
-GO_VERSION := $(shell go version | grep "1\.[6-9]\(\.[0-9]+\)*\|devel")
+GO_VERSION := $(shell go version | grep "1\.[7-9]\(\.[0-9]+\)*\|devel")
 # check to make sure we have the right version. development versions of Go are
 # not officially supported, but allowed for building
 
 ifeq ($(strip $(GO_VERSION))$(SKIPENVCHECK),)
-$(error Bad Go version - please install Go >= 1.6)
+$(error Bad Go version - please install Go >= 1.7)
 endif
 
 # check to be sure pkcs11 lib is always imported with a build tag
@@ -37,9 +37,8 @@ _empty :=
 _space := $(empty) $(empty)
 
 # go cover test variables
-COVERDIR=.cover
-COVERPROFILE?=$(COVERDIR)/cover.out
-COVERMODE=count
+COVERPROFILE?=coverage.txt
+COVERMODE=atomic
 PKGS ?= $(shell go list -tags "${NOTARY_BUILDTAGS}" ./... | grep -v /vendor/ | tr '\n' ' ')
 
 .PHONY: clean all lint build test binaries cross cover docker-images notary-dockerfile
@@ -79,21 +78,22 @@ ${PREFIX}/bin/static/notary:
 else
 ${PREFIX}/bin/static/notary-server: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
-	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-server
+	@(export CGO_ENABLED=0; go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-server)
 
 ${PREFIX}/bin/static/notary-signer: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
-	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-signer
+	@(export CGO_ENABLED=0; go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-signer)
 
 ${PREFIX}/bin/static/notary:
 	@echo "+ $@"
 	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary
+
 endif
 
 
 # run all lint functionality - excludes Godep directory, vendoring, binaries, python tests, and git files
 lint:
-	@echo "+ $@: golint, go vet, go fmt, misspell, ineffassign"
+	@echo "+ $@: golint, go vet, go fmt, gocycle, misspell, ineffassign"
 	# golint
 	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec golint {} \; | tee /dev/stderr)"
 	# gofmt
@@ -105,12 +105,17 @@ else
 	@test -z "$(shell find . -iname *test*.go | grep -v _test.go | grep -v vendor | xargs -r echo "This file should end with '_test':"  | tee /dev/stderr)"
 endif
 	@test -z "$$(go tool vet -printf=false . 2>&1 | grep -v vendor/ | tee /dev/stderr)"
+	# gocyclo - we require cyclomatic complexity to be < 16
+	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec gocyclo -over 15 {} \; | tee /dev/stderr)"
 	# misspell - requires that the following be run first:
 	#    go get -u github.com/client9/misspell/cmd/misspell
 	@test -z "$$(find . -type f | grep -v vendor/ | grep -v bin/ | grep -v misc/ | grep -v .git/ | grep -v \.pdf | xargs misspell | tee /dev/stderr)"
 	# ineffassign - requires that the following be run first:
 	#    go get -u github.com/gordonklaus/ineffassign
 	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec ineffassign {} \; | tee /dev/stderr)"
+	# gas - requires that the following be run first:
+	#    go get -u github.com/HewlettPackard/gas
+	# @gas -skip=vendor -skip=*/*_test.go -skip=*/*/*_test.go -fmt=csv -out=gas_output.csv ./... && test -z "$$(cat gas_output.csv | tee /dev/stderr)"
 
 build:
 	@echo "+ $@"
@@ -143,8 +148,7 @@ protos:
 # be run first
 gen-cover:
 gen-cover:
-	@mkdir -p "$(COVERDIR)"
-	python -u buildscripts/covertest.py --coverdir "$(COVERDIR)" --tags "$(NOTARY_BUILDTAGS)" --pkgs="$(PKGS)" --testopts="${TESTOPTS}"
+	@python -u buildscripts/covertest.py --tags "$(NOTARY_BUILDTAGS)" --pkgs="$(PKGS)" --testopts="${TESTOPTS}" --debug
 
 # Generates the cover binaries and runs them all in serial, so this can be used
 # run all tests with a yubikey without any problems
@@ -161,7 +165,7 @@ yubikey-tests: override PKGS = github.com/docker/notary/cmd/notary github.com/do
 yubikey-tests: ci
 
 covmerge:
-	@gocovmerge $(shell ls -1 $(COVERDIR)/* | tr "\n" " ") > $(COVERPROFILE)
+	@gocovmerge $(shell find . -name coverage*.txt | tr "\n" " ") > $(COVERPROFILE)
 	@go tool cover -func="$(COVERPROFILE)"
 
 clean-protos:
@@ -196,5 +200,7 @@ cross: notary-dockerfile
 
 clean:
 	@echo "+ $@"
-	@rm -rf "$(COVERDIR)" cross
+	@rm -rf .cover cross
+	find . -name coverage.txt -delete
 	@rm -rf "${PREFIX}/bin/notary-server" "${PREFIX}/bin/notary" "${PREFIX}/bin/notary-signer"
+	@rm -rf "${PREFIX}/bin/static"

@@ -43,7 +43,6 @@ import (
 
 	"golang.org/x/net/context"
 	"golang.org/x/net/trace"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/transport"
@@ -74,7 +73,9 @@ var (
 	errConnDrain = errors.New("grpc: the connection is drained")
 	// errConnClosing indicates that the connection is closing.
 	errConnClosing = errors.New("grpc: the connection is closing")
-	errNoAddr      = errors.New("grpc: there is no address available to dial")
+	// errConnUnavailable indicates that the connection is unavailable.
+	errConnUnavailable = errors.New("grpc: the connection is unavailable")
+	errNoAddr          = errors.New("grpc: there is no address available to dial")
 	// minimum time to give a connection to complete
 	minConnectTimeout = 20 * time.Second
 )
@@ -198,8 +199,11 @@ func WithTimeout(d time.Duration) DialOption {
 // WithDialer returns a DialOption that specifies a function to use for dialing network addresses.
 func WithDialer(f func(string, time.Duration) (net.Conn, error)) DialOption {
 	return func(o *dialOptions) {
-		o.copts.Dialer = func(addr string, timeout time.Duration, _ <-chan struct{}) (net.Conn, error) {
-			return f(addr, timeout)
+		o.copts.Dialer = func(ctx context.Context, addr string) (net.Conn, error) {
+			if deadline, ok := ctx.Deadline(); ok {
+				return f(addr, deadline.Sub(time.Now()))
+			}
+			return f(addr, 0)
 		}
 	}
 }
@@ -211,12 +215,19 @@ func WithUserAgent(s string) DialOption {
 	}
 }
 
-// Dial creates a client connection the given target.
+// Dial creates a client connection to the given target.
 func Dial(target string, opts ...DialOption) (*ClientConn, error) {
+	return DialContext(context.Background(), target, opts...)
+}
+
+// DialContext creates a client connection to the given target
+// using the supplied context.
+func DialContext(ctx context.Context, target string, opts ...DialOption) (*ClientConn, error) {
 	cc := &ClientConn{
 		target: target,
 		conns:  make(map[Address]*addrConn),
 	}
+	cc.ctx, cc.cancel = context.WithCancel(ctx)
 	for _, opt := range opts {
 		opt(&cc.dopts)
 	}
@@ -228,25 +239,27 @@ func Dial(target string, opts ...DialOption) (*ClientConn, error) {
 	if cc.dopts.bs == nil {
 		cc.dopts.bs = DefaultBackoffConfig
 	}
-	if cc.dopts.balancer == nil {
-		cc.dopts.balancer = RoundRobin(nil)
-	}
 
-	if err := cc.dopts.balancer.Start(target); err != nil {
-		return nil, err
-	}
 	var (
 		ok    bool
 		addrs []Address
 	)
-	ch := cc.dopts.balancer.Notify()
-	if ch == nil {
-		// There is no name resolver installed.
+	if cc.dopts.balancer == nil {
+		// Connect to target directly if balancer is nil.
 		addrs = append(addrs, Address{Addr: target})
 	} else {
-		addrs, ok = <-ch
-		if !ok || len(addrs) == 0 {
-			return nil, errNoAddr
+		if err := cc.dopts.balancer.Start(target); err != nil {
+			return nil, err
+		}
+		ch := cc.dopts.balancer.Notify()
+		if ch == nil {
+			// There is no name resolver installed.
+			addrs = append(addrs, Address{Addr: target})
+		} else {
+			addrs, ok = <-ch
+			if !ok || len(addrs) == 0 {
+				return nil, errNoAddr
+			}
 		}
 	}
 	waitC := make(chan error, 1)
@@ -269,10 +282,15 @@ func Dial(target string, opts ...DialOption) (*ClientConn, error) {
 			cc.Close()
 			return nil, err
 		}
+	case <-cc.ctx.Done():
+		cc.Close()
+		return nil, cc.ctx.Err()
 	case <-timeoutCh:
 		cc.Close()
 		return nil, ErrClientConnTimeout
 	}
+	// If balancer is nil or balancer.Notify() is nil, ok will be false here.
+	// The lbWatcher goroutine will not be created.
 	if ok {
 		go cc.lbWatcher()
 	}
@@ -319,6 +337,9 @@ func (s ConnectivityState) String() string {
 
 // ClientConn represents a client connection to an RPC server.
 type ClientConn struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	target    string
 	authority string
 	dopts     dialOptions
@@ -363,16 +384,16 @@ func (cc *ClientConn) lbWatcher() {
 }
 
 // resetAddrConn creates an addrConn for addr and adds it to cc.conns.
-// If there is an old addrConn for addr, it will be torn down, using errTearDown as the reason.
-// If errTearDown is nil, errConnDrain will be used instead.
-func (cc *ClientConn) resetAddrConn(addr Address, skipWait bool, errTearDown error) error {
+// If there is an old addrConn for addr, it will be torn down, using tearDownErr as the reason.
+// If tearDownErr is nil, errConnDrain will be used instead.
+func (cc *ClientConn) resetAddrConn(addr Address, skipWait bool, tearDownErr error) error {
 	ac := &addrConn{
 		cc:    cc,
 		addr:  addr,
 		dopts: cc.dopts,
 	}
+	ac.ctx, ac.cancel = context.WithCancel(cc.ctx)
 	ac.stateCV = sync.NewCond(&ac.mu)
-	ac.dopts.copts.Cancel = make(chan struct{})
 	if EnableTracing {
 		ac.events = trace.NewEventLog("grpc.ClientConn", ac.addr.Addr)
 	}
@@ -390,39 +411,44 @@ func (cc *ClientConn) resetAddrConn(addr Address, skipWait bool, errTearDown err
 			}
 		}
 	}
-	// Insert ac into ac.cc.conns. This needs to be done before any getTransport(...) is called.
-	ac.cc.mu.Lock()
-	if ac.cc.conns == nil {
-		ac.cc.mu.Unlock()
+	// Track ac in cc. This needs to be done before any getTransport(...) is called.
+	cc.mu.Lock()
+	if cc.conns == nil {
+		cc.mu.Unlock()
 		return ErrClientConnClosing
 	}
-	stale := ac.cc.conns[ac.addr]
-	ac.cc.conns[ac.addr] = ac
-	ac.cc.mu.Unlock()
+	stale := cc.conns[ac.addr]
+	cc.conns[ac.addr] = ac
+	cc.mu.Unlock()
 	if stale != nil {
 		// There is an addrConn alive on ac.addr already. This could be due to
-		// 1) stale's Close is undergoing;
-		// 2) a buggy Balancer notifies duplicated Addresses;
-		// 3) goaway was received, a new ac will replace the old ac.
+		// 1) a buggy Balancer notifies duplicated Addresses;
+		// 2) goaway was received, a new ac will replace the old ac.
 		//    The old ac should be deleted from cc.conns, but the
 		//    underlying transport should drain rather than close.
-		if errTearDown == nil {
-			// errTearDown is nil if resetAddrConn is called by
+		if tearDownErr == nil {
+			// tearDownErr is nil if resetAddrConn is called by
 			// 1) Dial
 			// 2) lbWatcher
 			// In both cases, the stale ac should drain, not close.
 			stale.tearDown(errConnDrain)
 		} else {
-			stale.tearDown(errTearDown)
+			stale.tearDown(tearDownErr)
 		}
 	}
 	// skipWait may overwrite the decision in ac.dopts.block.
 	if ac.dopts.block && !skipWait {
 		if err := ac.resetTransport(false); err != nil {
-			ac.cc.mu.Lock()
-			delete(ac.cc.conns, ac.addr)
-			ac.cc.mu.Unlock()
-			ac.tearDown(err)
+			if err != errConnClosing {
+				// Tear down ac and delete it from cc.conns.
+				cc.mu.Lock()
+				delete(cc.conns, ac.addr)
+				cc.mu.Unlock()
+				ac.tearDown(err)
+			}
+			if e, ok := err.(transport.ConnectionError); ok && !e.Temporary() {
+				return e.Origin()
+			}
 			return err
 		}
 		// Start to monitor the error status of transport.
@@ -432,10 +458,10 @@ func (cc *ClientConn) resetAddrConn(addr Address, skipWait bool, errTearDown err
 		go func() {
 			if err := ac.resetTransport(false); err != nil {
 				grpclog.Printf("Failed to dial %s: %v; please retry.", ac.addr.Addr, err)
-				ac.cc.mu.Lock()
-				delete(ac.cc.conns, ac.addr)
-				ac.cc.mu.Unlock()
-				ac.tearDown(err)
+				if err != errConnClosing {
+					// Keep this ac in cc.conns, to get the reason it's torn down.
+					ac.tearDown(err)
+				}
 				return
 			}
 			ac.transportMonitor()
@@ -445,24 +471,48 @@ func (cc *ClientConn) resetAddrConn(addr Address, skipWait bool, errTearDown err
 }
 
 func (cc *ClientConn) getTransport(ctx context.Context, opts BalancerGetOptions) (transport.ClientTransport, func(), error) {
-	addr, put, err := cc.dopts.balancer.Get(ctx, opts)
-	if err != nil {
-		return nil, nil, toRPCErr(err)
-	}
-	cc.mu.RLock()
-	if cc.conns == nil {
+	var (
+		ac  *addrConn
+		ok  bool
+		put func()
+	)
+	if cc.dopts.balancer == nil {
+		// If balancer is nil, there should be only one addrConn available.
+		cc.mu.RLock()
+		if cc.conns == nil {
+			cc.mu.RUnlock()
+			return nil, nil, toRPCErr(ErrClientConnClosing)
+		}
+		for _, ac = range cc.conns {
+			// Break after the first iteration to get the first addrConn.
+			ok = true
+			break
+		}
 		cc.mu.RUnlock()
-		return nil, nil, toRPCErr(ErrClientConnClosing)
+	} else {
+		var (
+			addr Address
+			err  error
+		)
+		addr, put, err = cc.dopts.balancer.Get(ctx, opts)
+		if err != nil {
+			return nil, nil, toRPCErr(err)
+		}
+		cc.mu.RLock()
+		if cc.conns == nil {
+			cc.mu.RUnlock()
+			return nil, nil, toRPCErr(ErrClientConnClosing)
+		}
+		ac, ok = cc.conns[addr]
+		cc.mu.RUnlock()
 	}
-	ac, ok := cc.conns[addr]
-	cc.mu.RUnlock()
 	if !ok {
 		if put != nil {
 			put()
 		}
-		return nil, nil, Errorf(codes.Internal, "grpc: failed to find the transport to send the rpc")
+		return nil, nil, errConnClosing
 	}
-	t, err := ac.wait(ctx, !opts.BlockingWait)
+	t, err := ac.wait(ctx, cc.dopts.balancer != nil, !opts.BlockingWait)
 	if err != nil {
 		if put != nil {
 			put()
@@ -474,6 +524,8 @@ func (cc *ClientConn) getTransport(ctx context.Context, opts BalancerGetOptions)
 
 // Close tears down the ClientConn and all underlying connections.
 func (cc *ClientConn) Close() error {
+	cc.cancel()
+
 	cc.mu.Lock()
 	if cc.conns == nil {
 		cc.mu.Unlock()
@@ -482,7 +534,9 @@ func (cc *ClientConn) Close() error {
 	conns := cc.conns
 	cc.conns = nil
 	cc.mu.Unlock()
-	cc.dopts.balancer.Close()
+	if cc.dopts.balancer != nil {
+		cc.dopts.balancer.Close()
+	}
 	for _, ac := range conns {
 		ac.tearDown(ErrClientConnClosing)
 	}
@@ -491,6 +545,9 @@ func (cc *ClientConn) Close() error {
 
 // addrConn is a network connection to a given address.
 type addrConn struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	cc     *ClientConn
 	addr   Address
 	dopts  dialOptions
@@ -504,6 +561,9 @@ type addrConn struct {
 	// due to timeout.
 	ready     chan struct{}
 	transport transport.ClientTransport
+
+	// The reason this addrConn is torn down.
+	tearDownErr error
 }
 
 // printf records an event in ac's event log, unless ac has been closed.
@@ -559,8 +619,7 @@ func (ac *addrConn) waitForStateChange(ctx context.Context, sourceState Connecti
 }
 
 func (ac *addrConn) resetTransport(closeTransport bool) error {
-	var retries int
-	for {
+	for retries := 0; ; retries++ {
 		ac.mu.Lock()
 		ac.printf("connecting")
 		if ac.state == Shutdown {
@@ -580,14 +639,20 @@ func (ac *addrConn) resetTransport(closeTransport bool) error {
 			t.Close()
 		}
 		sleepTime := ac.dopts.bs.backoff(retries)
-		copts := ac.dopts.copts
-		copts.Timeout = sleepTime
-		if sleepTime < minConnectTimeout {
-			copts.Timeout = minConnectTimeout
+		timeout := minConnectTimeout
+		if timeout < sleepTime {
+			timeout = sleepTime
 		}
+		ctx, cancel := context.WithTimeout(ac.ctx, timeout)
 		connectTime := time.Now()
-		newTransport, err := transport.NewClientTransport(ac.addr.Addr, copts)
+		newTransport, err := transport.NewClientTransport(ctx, ac.addr.Addr, ac.dopts.copts)
 		if err != nil {
+			cancel()
+
+			if e, ok := err.(transport.ConnectionError); ok && !e.Temporary() {
+				return err
+			}
+			grpclog.Printf("grpc: addrConn.resetTransport failed to create client transport: %v; Reconnecting to %q", err, ac.addr)
 			ac.mu.Lock()
 			if ac.state == Shutdown {
 				// ac.tearDown(...) has been invoked.
@@ -602,17 +667,12 @@ func (ac *addrConn) resetTransport(closeTransport bool) error {
 				ac.ready = nil
 			}
 			ac.mu.Unlock()
-			sleepTime -= time.Since(connectTime)
-			if sleepTime < 0 {
-				sleepTime = 0
-			}
 			closeTransport = false
 			select {
-			case <-time.After(sleepTime):
-			case <-ac.dopts.copts.Cancel:
+			case <-time.After(sleepTime - time.Since(connectTime)):
+			case <-ac.ctx.Done():
+				return ac.ctx.Err()
 			}
-			retries++
-			grpclog.Printf("grpc: addrConn.resetTransport failed to create client transport: %v; Reconnecting to %q", err, ac.addr)
 			continue
 		}
 		ac.mu.Lock()
@@ -630,7 +690,9 @@ func (ac *addrConn) resetTransport(closeTransport bool) error {
 			close(ac.ready)
 			ac.ready = nil
 		}
-		ac.down = ac.cc.dopts.balancer.Up(ac.addr)
+		if ac.cc.dopts.balancer != nil {
+			ac.down = ac.cc.dopts.balancer.Up(ac.addr)
+		}
 		ac.mu.Unlock()
 		return nil
 	}
@@ -644,9 +706,9 @@ func (ac *addrConn) transportMonitor() {
 		t := ac.transport
 		ac.mu.Unlock()
 		select {
-		// Cancel is needed to detect the teardown when
+		// This is needed to detect the teardown when
 		// the addrConn is idle (i.e., no RPC in flight).
-		case <-ac.dopts.copts.Cancel:
+		case <-ac.ctx.Done():
 			select {
 			case <-t.Error():
 				t.Close()
@@ -669,7 +731,7 @@ func (ac *addrConn) transportMonitor() {
 			return
 		case <-t.Error():
 			select {
-			case <-ac.dopts.copts.Cancel:
+			case <-ac.ctx.Done():
 				t.Close()
 				return
 			case <-t.GoAway():
@@ -691,6 +753,10 @@ func (ac *addrConn) transportMonitor() {
 				ac.printf("transport exiting: %v", err)
 				ac.mu.Unlock()
 				grpclog.Printf("grpc: addrConn.transportMonitor exits due to: %v", err)
+				if err != errConnClosing {
+					// Keep this ac in cc.conns, to get the reason it's torn down.
+					ac.tearDown(err)
+				}
 				return
 			}
 		}
@@ -698,34 +764,41 @@ func (ac *addrConn) transportMonitor() {
 }
 
 // wait blocks until i) the new transport is up or ii) ctx is done or iii) ac is closed or
-// iv) transport is in TransientFailure and the RPC is fail-fast.
-func (ac *addrConn) wait(ctx context.Context, failFast bool) (transport.ClientTransport, error) {
+// iv) transport is in TransientFailure and there's no balancer/failfast is true.
+func (ac *addrConn) wait(ctx context.Context, hasBalancer, failfast bool) (transport.ClientTransport, error) {
 	for {
 		ac.mu.Lock()
 		switch {
 		case ac.state == Shutdown:
+			if failfast || !hasBalancer {
+				// RPC is failfast or balancer is nil. This RPC should fail with ac.tearDownErr.
+				err := ac.tearDownErr
+				ac.mu.Unlock()
+				return nil, err
+			}
 			ac.mu.Unlock()
 			return nil, errConnClosing
 		case ac.state == Ready:
 			ct := ac.transport
 			ac.mu.Unlock()
 			return ct, nil
-		case ac.state == TransientFailure && failFast:
-			ac.mu.Unlock()
-			return nil, Errorf(codes.Unavailable, "grpc: RPC failed fast due to transport failure")
-		default:
-			ready := ac.ready
-			if ready == nil {
-				ready = make(chan struct{})
-				ac.ready = ready
+		case ac.state == TransientFailure:
+			if failfast || hasBalancer {
+				ac.mu.Unlock()
+				return nil, errConnUnavailable
 			}
-			ac.mu.Unlock()
-			select {
-			case <-ctx.Done():
-				return nil, toRPCErr(ctx.Err())
-			// Wait until the new transport is ready or failed.
-			case <-ready:
-			}
+		}
+		ready := ac.ready
+		if ready == nil {
+			ready = make(chan struct{})
+			ac.ready = ready
+		}
+		ac.mu.Unlock()
+		select {
+		case <-ctx.Done():
+			return nil, toRPCErr(ctx.Err())
+		// Wait until the new transport is ready or failed.
+		case <-ready:
 		}
 	}
 }
@@ -736,6 +809,8 @@ func (ac *addrConn) wait(ctx context.Context, failFast bool) (transport.ClientTr
 // tight loop.
 // tearDown doesn't remove ac from ac.cc.conns.
 func (ac *addrConn) tearDown(err error) {
+	ac.cancel()
+
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 	if ac.down != nil {
@@ -753,6 +828,7 @@ func (ac *addrConn) tearDown(err error) {
 		return
 	}
 	ac.state = Shutdown
+	ac.tearDownErr = err
 	ac.stateCV.Broadcast()
 	if ac.events != nil {
 		ac.events.Finish()
@@ -764,9 +840,6 @@ func (ac *addrConn) tearDown(err error) {
 	}
 	if ac.transport != nil && err != errConnDrain {
 		ac.transport.Close()
-	}
-	if ac.dopts.copts.Cancel != nil {
-		close(ac.dopts.copts.Cancel)
 	}
 	return
 }

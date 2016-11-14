@@ -1,6 +1,7 @@
 package passphrase
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io/ioutil"
@@ -152,4 +153,17 @@ func TestPromptRetrieverNeedsTerminal(t *testing.T) {
 	_, _, err := prompt("repo/0123456789abcdef", "targets/delegation/new", false, 0)
 	require.Error(t, err)
 	require.IsType(t, ErrNoInput, err)
+}
+
+// TestGetPassphrase checks getting passphrase from stdin
+func TestGetPassphrase(t *testing.T) {
+	var in bytes.Buffer
+
+	_, err := in.WriteString("passphrase\n")
+	require.NoError(t, err)
+
+	stdin := bufio.NewReader(&in)
+	passphrase, err := GetPassphrase(stdin)
+	require.NoError(t, err)
+	require.Equal(t, string(passphrase), "passphrase\n")
 }

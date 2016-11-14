@@ -212,7 +212,7 @@ Local trust service example:
 ## storage section (required)
 
 The storage section specifies which storage backend the server should use to
-store TUF metadata.  Only MySQL or an in-memory store is supported.
+store TUF metadata.  Only MySQL, PostgreSQL or an in-memory store is supported.
 
 DB storage example:
 
@@ -232,7 +232,7 @@ DB storage example:
 	<tr>
 		<td valign="top"><code>backend</code></td>
 		<td valign="top">yes</td>
-		<td valign="top">Must be <code>"mysql"</code> or <code>"memory"</code>.
+		<td valign="top">Must be <code>"mysql"</code>, <code>"postgres"</code> or <code>"memory"</code>.
 			If <code>"memory"</code> is selected, the <code>db_url</code>
 			is ignored.</td>
 	</tr>

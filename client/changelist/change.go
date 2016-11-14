@@ -8,10 +8,8 @@ import (
 // Unfortunately because of targets delegations, we can only
 // cover the base roles.
 const (
-	ScopeRoot      = "root"
-	ScopeTargets   = "targets"
-	ScopeSnapshot  = "snapshot"
-	ScopeTimestamp = "timestamp"
+	ScopeRoot    = "root"
+	ScopeTargets = "targets"
 )
 
 // Types for TUFChanges are namespaced by the Role they
@@ -20,7 +18,7 @@ const (
 // all changes in Snapshot and Timestamp are programmatically
 // generated base on Root and Targets changes.
 const (
-	TypeRootRole          = "role"
+	TypeBaseRole          = "role"
 	TypeTargetsTarget     = "target"
 	TypeTargetsDelegation = "delegation"
 	TypeWitness           = "witness"

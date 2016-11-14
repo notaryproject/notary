@@ -2,12 +2,10 @@ package trustmanager
 
 import (
 	"crypto/rand"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
 
@@ -28,15 +26,14 @@ var passphraseRetriever = func(keyID string, alias string, createNew bool, numAt
 }
 
 func TestAddKey(t *testing.T) {
-	gun := "docker.com/notary"
-	testAddKeyWithRole(t, data.CanonicalRootRole, notary.RootKeysSubdir)
-	testAddKeyWithRole(t, data.CanonicalTargetsRole, filepath.Join(notary.NonRootKeysSubdir, gun))
-	testAddKeyWithRole(t, data.CanonicalSnapshotRole, filepath.Join(notary.NonRootKeysSubdir, gun))
-	testAddKeyWithRole(t, "targets/a/b/c", notary.NonRootKeysSubdir)
-	testAddKeyWithRole(t, "invalidRole", notary.NonRootKeysSubdir)
+	testAddKeyWithRole(t, data.CanonicalRootRole)
+	testAddKeyWithRole(t, data.CanonicalTargetsRole)
+	testAddKeyWithRole(t, data.CanonicalSnapshotRole)
+	testAddKeyWithRole(t, "targets/a/b/c")
+	testAddKeyWithRole(t, "invalidRole")
 }
 
-func testAddKeyWithRole(t *testing.T, role, expectedSubdir string) {
+func testAddKeyWithRole(t *testing.T, role string) {
 	gun := "docker.com/notary"
 	testExt := "key"
 
@@ -52,7 +49,7 @@ func testAddKeyWithRole(t *testing.T, role, expectedSubdir string) {
 	require.NoError(t, err, "could not generate private key")
 
 	// Since we're generating this manually we need to add the extension '.'
-	expectedFilePath := filepath.Join(tempBaseDir, notary.PrivDir, expectedSubdir, privKey.ID()+"."+testExt)
+	expectedFilePath := filepath.Join(tempBaseDir, notary.PrivDir, privKey.ID()+"."+testExt)
 
 	// Call the AddKey function
 	err = store.AddKey(KeyInfo{Role: role, Gun: gun}, privKey)
@@ -91,16 +88,18 @@ func TestKeyStoreInternalState(t *testing.T) {
 		privKey, err := utils.GenerateECDSAKey(rand.Reader)
 		require.NoError(t, err, "could not generate private key")
 
+		var privKeyPEM []byte
 		// generate the correct PEM role header
-		privKeyPEM, err := utils.KeyToPEM(privKey, role)
+		if role == data.CanonicalRootRole || data.IsDelegation(role) || !data.ValidRole(role) {
+			privKeyPEM, err = utils.KeyToPEM(privKey, role, "")
+		} else {
+			privKeyPEM, err = utils.KeyToPEM(privKey, role, gun)
+		}
+
 		require.NoError(t, err, "could not generate PEM")
 
 		// write the key file to the correct location
-		// Pretend our GUN is docker.com/notary
-		keyPath := filepath.Join(tempBaseDir, "private", getSubdir(role))
-		if role == data.CanonicalTargetsRole || role == data.CanonicalSnapshotRole {
-			keyPath = filepath.Join(keyPath, gun)
-		}
+		keyPath := filepath.Join(tempBaseDir, notary.PrivDir)
 		keyPath = filepath.Join(keyPath, privKey.ID())
 		require.NoError(t, os.MkdirAll(filepath.Dir(keyPath), 0755))
 		require.NoError(t, ioutil.WriteFile(keyPath+".key", privKeyPEM, 0755))
@@ -127,7 +126,7 @@ func TestKeyStoreInternalState(t *testing.T) {
 	// Try removing the targets key only by ID (no gun provided)
 	require.NoError(t, store.RemoveKey(roleToID[data.CanonicalTargetsRole]))
 	// The key file itself should have been removed
-	_, err = os.Stat(filepath.Join(tempBaseDir, "private", "tuf_keys", gun, roleToID[data.CanonicalTargetsRole]+".key"))
+	_, err = os.Stat(filepath.Join(tempBaseDir, notary.PrivDir, roleToID[data.CanonicalTargetsRole]+".key"))
 	require.Error(t, err)
 	// The keyInfoMap should have also updated by deleting the key
 	_, ok := store.keyInfoMap[roleToID[data.CanonicalTargetsRole]]
@@ -136,7 +135,7 @@ func TestKeyStoreInternalState(t *testing.T) {
 	// Try removing the delegation key only by ID (no gun provided)
 	require.NoError(t, store.RemoveKey(roleToID["targets/delegation"]))
 	// The key file itself should have been removed
-	_, err = os.Stat(filepath.Join(tempBaseDir, "private", "tuf_keys", roleToID["targets/delegation"]+".key"))
+	_, err = os.Stat(filepath.Join(tempBaseDir, notary.PrivDir, roleToID["targets/delegation"]+".key"))
 	require.Error(t, err)
 	// The keyInfoMap should have also updated
 	_, ok = store.keyInfoMap[roleToID["targets/delegation"]]
@@ -145,7 +144,7 @@ func TestKeyStoreInternalState(t *testing.T) {
 	// Try removing the root key only by ID (no gun provided)
 	require.NoError(t, store.RemoveKey(roleToID[data.CanonicalRootRole]))
 	// The key file itself should have been removed
-	_, err = os.Stat(filepath.Join(tempBaseDir, "private", "root_keys", roleToID[data.CanonicalRootRole]+".key"))
+	_, err = os.Stat(filepath.Join(tempBaseDir, notary.PrivDir, roleToID[data.CanonicalRootRole]+".key"))
 	require.Error(t, err)
 	// The keyInfoMap should have also updated_
 	_, ok = store.keyInfoMap[roleToID[data.CanonicalRootRole]]
@@ -169,38 +168,112 @@ func TestGet(t *testing.T) {
 
 	gun := "docker.io/notary"
 
-	// Root role currently goes into the rootKeySubdir, and all other roles go
-	// in the nonRootKeysSubdir, possibly under a GUN.
-	nonRootKeysSubdirWithGUN := filepath.Clean(filepath.Join(notary.NonRootKeysSubdir, gun))
-	testGetKeyWithRole(t, "", data.CanonicalRootRole, filepath.Join(notary.PrivDir, notary.RootKeysSubdir), true)
+	testGetKeyWithRole(t, "", data.CanonicalRootRole)
 	for _, role := range nonRootRolesToTest {
-		testGetKeyWithRole(t, "", role, filepath.Join(notary.PrivDir, notary.NonRootKeysSubdir), true)
-		testGetKeyWithRole(t, gun, role, filepath.Join(notary.PrivDir, nonRootKeysSubdirWithGUN), true)
-	}
-
-	// However, keys of any role can be read from anywhere in the private dir so long as
-	// it has the right ID
-	for _, expectedSubdir := range []string{
-		notary.PrivDir,
-		filepath.Join(notary.PrivDir, nonRootKeysSubdirWithGUN),
-		filepath.Join(notary.PrivDir, notary.RootKeysSubdir),
-		filepath.Join(notary.PrivDir, notary.RootKeysSubdir, gun),
-		filepath.Join(notary.PrivDir, notary.NonRootKeysSubdir),
-	} {
-		for _, role := range append(nonRootRolesToTest, data.CanonicalRootRole) {
-			testGetKeyWithRole(t, "", role, expectedSubdir, true)
-			testGetKeyWithRole(t, gun, role, expectedSubdir, true)
-		}
-	}
-
-	// keys outside of the private dir cannot be read
-	for _, role := range append(nonRootRolesToTest, data.CanonicalRootRole) {
-		testGetKeyWithRole(t, "", role, "otherDir", false)
-		testGetKeyWithRole(t, gun, role, "otherDir", false)
+		testGetKeyWithRole(t, "", role)
+		testGetKeyWithRole(t, gun, role)
 	}
 }
 
-func writeKeyFile(t *testing.T, perms os.FileMode, filename, roleInPEM string) []byte {
+func testGetKeyWithRole(t *testing.T, gun, role string) {
+	var testData []byte
+	if gun == "" {
+		testData = []byte(fmt.Sprintf(`-----BEGIN RSA PRIVATE KEY-----
+role: %s
+
+MIIEogIBAAKCAQEAyUIXjsrWRrvPa4Bzp3VJ6uOUGPay2fUpSV8XzNxZxIG/Opdr
++k3EQi1im6WOqF3Y5AS1UjYRxNuRN+cAZeo3uS1pOTuoSupBXuchVw8s4hZJ5vXn
+TRmGb+xY7tZ1ZVgPfAZDib9sRSUsL/gC+aSyprAjG/YBdbF06qKbfOfsoCEYW1OQ
+82JqHzQH514RFYPTnEGpvfxWaqmFQLmv0uMxV/cAYvqtrGkXuP0+a8PknlD2obw5
+0rHE56Su1c3Q42S7L51K38tpbgWOSRcTfDUWEj5v9wokkNQvyKBwbS996s4EJaZd
+7r6M0h1pHnuRxcSaZLYRwgOe1VNGg2VfWzgd5QIDAQABAoIBAF9LGwpygmj1jm3R
+YXGd+ITugvYbAW5wRb9G9mb6wspnwNsGTYsz/UR0ZudZyaVw4jx8+jnV/i3e5PC6
+QRcAgqf8l4EQ/UuThaZg/AlT1yWp9g4UyxNXja87EpTsGKQGwTYxZRM4/xPyWOzR
+mt8Hm8uPROB9aA2JG9npaoQG8KSUj25G2Qot3ukw/IOtqwN/Sx1EqF0EfCH1K4KU
+a5TrqlYDFmHbqT1zTRec/BTtVXNsg8xmF94U1HpWf3Lpg0BPYT7JiN2DPoLelRDy
+a/A+a3ZMRNISL5wbq/jyALLOOyOkIqa+KEOeW3USuePd6RhDMzMm/0ocp5FCwYfo
+k4DDeaECgYEA0eSMD1dPGo+u8UTD8i7ZsZCS5lmXLNuuAg5f5B/FGghD8ymPROIb
+dnJL5QSbUpmBsYJ+nnO8RiLrICGBe7BehOitCKi/iiZKJO6edrfNKzhf4XlU0HFl
+jAOMa975pHjeCoZ1cXJOEO9oW4SWTCyBDBSqH3/ZMgIOiIEk896lSmkCgYEA9Xf5
+Jqv3HtQVvjugV/axAh9aI8LMjlfFr9SK7iXpY53UdcylOSWKrrDok3UnrSEykjm7
+UL3eCU5jwtkVnEXesNn6DdYo3r43E6iAiph7IBkB5dh0yv3vhIXPgYqyTnpdz4pg
+3yPGBHMPnJUBThg1qM7k6a2BKHWySxEgC1DTMB0CgYAGvdmF0J8Y0k6jLzs/9yNE
+4cjmHzCM3016gW2xDRgumt9b2xTf+Ic7SbaIV5qJj6arxe49NqhwdESrFohrKaIP
+kM2l/o2QaWRuRT/Pvl2Xqsrhmh0QSOQjGCYVfOb10nAHVIRHLY22W4o1jk+piLBo
+a+1+74NRaOGAnu1J6/fRKQKBgAF180+dmlzemjqFlFCxsR/4G8s2r4zxTMXdF+6O
+3zKuj8MbsqgCZy7e8qNeARxwpCJmoYy7dITNqJ5SOGSzrb2Trn9ClP+uVhmR2SH6
+AlGQlIhPn3JNzI0XVsLIloMNC13ezvDE/7qrDJ677EQQtNEKWiZh1/DrsmHr+irX
+EkqpAoGAJWe8PC0XK2RE9VkbSPg9Ehr939mOLWiHGYTVWPttUcum/rTKu73/X/mj
+WxnPWGtzM1pHWypSokW90SP4/xedMxludvBvmz+CTYkNJcBGCrJumy11qJhii9xp
+EMl3eFOJXjIch/wIesRSN+2dGOsl7neercjMh1i9RvpCwHDx/E0=
+-----END RSA PRIVATE KEY-----
+`, role))
+	} else {
+		testData = []byte(fmt.Sprintf(`-----BEGIN RSA PRIVATE KEY-----
+gun: %s
+role: %s
+
+MIIEogIBAAKCAQEAyUIXjsrWRrvPa4Bzp3VJ6uOUGPay2fUpSV8XzNxZxIG/Opdr
++k3EQi1im6WOqF3Y5AS1UjYRxNuRN+cAZeo3uS1pOTuoSupBXuchVw8s4hZJ5vXn
+TRmGb+xY7tZ1ZVgPfAZDib9sRSUsL/gC+aSyprAjG/YBdbF06qKbfOfsoCEYW1OQ
+82JqHzQH514RFYPTnEGpvfxWaqmFQLmv0uMxV/cAYvqtrGkXuP0+a8PknlD2obw5
+0rHE56Su1c3Q42S7L51K38tpbgWOSRcTfDUWEj5v9wokkNQvyKBwbS996s4EJaZd
+7r6M0h1pHnuRxcSaZLYRwgOe1VNGg2VfWzgd5QIDAQABAoIBAF9LGwpygmj1jm3R
+YXGd+ITugvYbAW5wRb9G9mb6wspnwNsGTYsz/UR0ZudZyaVw4jx8+jnV/i3e5PC6
+QRcAgqf8l4EQ/UuThaZg/AlT1yWp9g4UyxNXja87EpTsGKQGwTYxZRM4/xPyWOzR
+mt8Hm8uPROB9aA2JG9npaoQG8KSUj25G2Qot3ukw/IOtqwN/Sx1EqF0EfCH1K4KU
+a5TrqlYDFmHbqT1zTRec/BTtVXNsg8xmF94U1HpWf3Lpg0BPYT7JiN2DPoLelRDy
+a/A+a3ZMRNISL5wbq/jyALLOOyOkIqa+KEOeW3USuePd6RhDMzMm/0ocp5FCwYfo
+k4DDeaECgYEA0eSMD1dPGo+u8UTD8i7ZsZCS5lmXLNuuAg5f5B/FGghD8ymPROIb
+dnJL5QSbUpmBsYJ+nnO8RiLrICGBe7BehOitCKi/iiZKJO6edrfNKzhf4XlU0HFl
+jAOMa975pHjeCoZ1cXJOEO9oW4SWTCyBDBSqH3/ZMgIOiIEk896lSmkCgYEA9Xf5
+Jqv3HtQVvjugV/axAh9aI8LMjlfFr9SK7iXpY53UdcylOSWKrrDok3UnrSEykjm7
+UL3eCU5jwtkVnEXesNn6DdYo3r43E6iAiph7IBkB5dh0yv3vhIXPgYqyTnpdz4pg
+3yPGBHMPnJUBThg1qM7k6a2BKHWySxEgC1DTMB0CgYAGvdmF0J8Y0k6jLzs/9yNE
+4cjmHzCM3016gW2xDRgumt9b2xTf+Ic7SbaIV5qJj6arxe49NqhwdESrFohrKaIP
+kM2l/o2QaWRuRT/Pvl2Xqsrhmh0QSOQjGCYVfOb10nAHVIRHLY22W4o1jk+piLBo
+a+1+74NRaOGAnu1J6/fRKQKBgAF180+dmlzemjqFlFCxsR/4G8s2r4zxTMXdF+6O
+3zKuj8MbsqgCZy7e8qNeARxwpCJmoYy7dITNqJ5SOGSzrb2Trn9ClP+uVhmR2SH6
+AlGQlIhPn3JNzI0XVsLIloMNC13ezvDE/7qrDJ677EQQtNEKWiZh1/DrsmHr+irX
+EkqpAoGAJWe8PC0XK2RE9VkbSPg9Ehr939mOLWiHGYTVWPttUcum/rTKu73/X/mj
+WxnPWGtzM1pHWypSokW90SP4/xedMxludvBvmz+CTYkNJcBGCrJumy11qJhii9xp
+EMl3eFOJXjIch/wIesRSN+2dGOsl7neercjMh1i9RvpCwHDx/E0=
+-----END RSA PRIVATE KEY-----
+`, gun, role))
+	}
+	testName := "keyID"
+	testExt := "key"
+	perms := os.FileMode(0755)
+
+	emptyPassphraseRetriever := func(string, string, bool, int) (string, bool, error) { return "", false, nil }
+
+	// Temporary directory where test files will be created
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+	require.NoError(t, err, "failed to create a temporary directory")
+	defer os.RemoveAll(tempBaseDir)
+
+	// Since we're generating this manually we need to add the extension '.'
+	filePath := filepath.Join(tempBaseDir, notary.PrivDir, testName+"."+testExt)
+	os.MkdirAll(filepath.Dir(filePath), perms)
+	err = ioutil.WriteFile(filePath, testData, perms)
+	require.NoError(t, err, "failed to write test file")
+
+	// Create our store
+	store, err := NewKeyFileStore(tempBaseDir, emptyPassphraseRetriever)
+	require.NoError(t, err, "failed to create new key filestore")
+
+	// Call the GetKey function
+	privKey, _, err := store.GetKey(testName)
+	require.NoError(t, err, "failed to get %s key from store (it's in %s)", role, filepath.Join(tempBaseDir, notary.PrivDir))
+
+	pemPrivKey, err := utils.KeyToPEM(privKey, role, gun)
+	require.NoError(t, err, "failed to convert key to PEM")
+	require.Equal(t, testData, pemPrivKey)
+}
+
+// TestGetLegacyKey ensures we can still load keys where the role
+// is stored as part of the filename (i.e. <hexID>_<role>.key
+func TestGetLegacyKey(t *testing.T) {
 	testData := []byte(`-----BEGIN RSA PRIVATE KEY-----
 MIIEogIBAAKCAQEAyUIXjsrWRrvPa4Bzp3VJ6uOUGPay2fUpSV8XzNxZxIG/Opdr
 +k3EQi1im6WOqF3Y5AS1UjYRxNuRN+cAZeo3uS1pOTuoSupBXuchVw8s4hZJ5vXn
@@ -229,67 +302,6 @@ WxnPWGtzM1pHWypSokW90SP4/xedMxludvBvmz+CTYkNJcBGCrJumy11qJhii9xp
 EMl3eFOJXjIch/wIesRSN+2dGOsl7neercjMh1i9RvpCwHDx/E0=
 -----END RSA PRIVATE KEY-----
 `)
-
-	if roleInPEM != "" {
-		block, _ := pem.Decode(testData)
-		require.NotNil(t, block)
-		block.Headers = map[string]string{
-			"role": roleInPEM,
-		}
-		testData = pem.EncodeToMemory(block)
-	}
-
-	os.MkdirAll(filepath.Dir(filename), perms)
-	err := ioutil.WriteFile(filename, testData, perms)
-	require.NoError(t, err, "failed to write test file")
-	return testData
-}
-
-func testGetKeyWithRole(t *testing.T, gun, role, expectedSubdir string, success bool) {
-	testName := "keyID"
-	testExt := "key"
-	perms := os.FileMode(0755)
-
-	emptyPassphraseRetriever := func(string, string, bool, int) (string, bool, error) { return "", false, nil }
-
-	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	require.NoError(t, err, "failed to create a temporary directory")
-	defer os.RemoveAll(tempBaseDir)
-
-	// Since we're generating this manually we need to add the extension '.'
-	filePath := filepath.Join(tempBaseDir, expectedSubdir, testName+"."+testExt)
-	testData := writeKeyFile(t, perms, filePath, role)
-
-	// Create our store
-	store, err := NewKeyFileStore(tempBaseDir, emptyPassphraseRetriever)
-	require.NoError(t, err, "failed to create new key filestore")
-
-	// Call the GetKey function
-	if gun != "" {
-		testName = path.Join(gun, "keyID")
-	}
-	privKey, _, err := store.GetKey(testName)
-	if success {
-		require.NoError(t, err, "failed to get %s key from store (it's in %s)", role, expectedSubdir)
-
-		pemPrivKey, err := utils.KeyToPEM(privKey, role)
-		require.NoError(t, err, "failed to convert key to PEM")
-		require.Equal(t, testData, pemPrivKey)
-
-		// Test that we can get purely by the ID we provided to AddKey (without gun)
-		privKeyByID, _, err := store.GetKey("keyID")
-		require.NoError(t, err)
-		require.Equal(t, privKey, privKeyByID)
-	} else {
-		require.Error(t, err, "should not have succeeded getting key from store")
-		require.Nil(t, privKey)
-	}
-}
-
-// TestGetLegacyKey ensures we can still load keys where the role
-// is stored as part of the filename (i.e. <hexID>_<role>.key
-func TestGetLegacyKey(t *testing.T) {
 	testName := "docker.com/notary/root"
 	testExt := "key"
 	testAlias := "root"
@@ -304,14 +316,17 @@ func TestGetLegacyKey(t *testing.T) {
 
 	// Since we're generating this manually we need to add the extension '.'
 	filePath := filepath.Join(tempBaseDir, notary.PrivDir, notary.RootKeysSubdir, testName+"_"+testAlias+"."+testExt)
-	writeKeyFile(t, perms, filePath, "")
+
+	os.MkdirAll(filepath.Dir(filePath), perms)
+	err = ioutil.WriteFile(filePath, testData, perms)
+	require.NoError(t, err, "failed to write test file")
 
 	// Create our store
 	store, err := NewKeyFileStore(tempBaseDir, emptyPassphraseRetriever)
 	require.NoError(t, err, "failed to create new key filestore")
 
 	// Call the GetKey function
-	_, role, err := store.GetKey(testName)
+	_, role, err := store.GetKey(testAlias)
 	require.NoError(t, err, "failed to get key from store")
 	require.Equal(t, testAlias, role)
 }
@@ -352,6 +367,12 @@ func TestListKeys(t *testing.T) {
 		require.Equal(t, role, listedInfo.Role)
 	}
 
+	// Write an invalid filename to the directory
+	filePath := filepath.Join(tempBaseDir, notary.PrivDir, "fakekeyname.key")
+	err = ioutil.WriteFile(filePath, []byte("data"), perms)
+	require.NoError(t, err, "failed to write test file")
+
+	// Check to see if the keystore still lists two keys
 	keyMap := store.ListKeys()
 	require.Len(t, keyMap, len(roles))
 
@@ -362,31 +383,6 @@ func TestListKeys(t *testing.T) {
 		_, err = store.GetKeyInfo(keyID)
 		require.NoError(t, err)
 	}
-
-	require.Len(t, store.ListKeys(), len(roles))
-
-	// ListKeys() works even if the keys are in non-standard locations
-	for i, loc := range []string{
-		filepath.Join(tempBaseDir, notary.PrivDir, notary.RootKeysSubdir),
-		filepath.Join(tempBaseDir, notary.PrivDir, notary.NonRootKeysSubdir),
-		filepath.Join(tempBaseDir, notary.PrivDir, notary.RootKeysSubdir, testName),
-		filepath.Join(tempBaseDir, notary.PrivDir, testName),
-		filepath.Join(tempBaseDir, notary.PrivDir),
-		tempBaseDir, // this key won't be read
-	} {
-		fp := filepath.Join(loc, fmt.Sprintf("keyID%d.key", i))
-		writeKeyFile(t, perms, fp, "")
-
-		// Ensure file exists
-		_, err := ioutil.ReadFile(fp)
-		require.NoError(t, err, "expected file not found")
-	}
-
-	// update our store so we read from the FS again
-	store, err = NewKeyFileStore(tempBaseDir, passphraseRetriever)
-	require.NoError(t, err, "failed to create new key filestore")
-
-	require.Len(t, store.ListKeys(), len(roles)+5)
 }
 
 func TestAddGetKeyMemStore(t *testing.T) {
@@ -479,7 +475,7 @@ func TestGetDecryptedWithTamperedCipherText(t *testing.T) {
 	require.NoError(t, err, "failed to add key to store")
 
 	// Since we're generating this manually we need to add the extension '.'
-	expectedFilePath := filepath.Join(tempBaseDir, notary.PrivDir, notary.RootKeysSubdir, privKey.ID()+"."+testExt)
+	expectedFilePath := filepath.Join(tempBaseDir, notary.PrivDir, privKey.ID()+"."+testExt)
 
 	// Get file description, open file
 	fp, err := os.OpenFile(expectedFilePath, os.O_WRONLY, 0600)
@@ -576,51 +572,14 @@ func testGetDecryptedWithInvalidPassphrase(t *testing.T, store KeyStore, newStor
 }
 
 func TestRemoveKey(t *testing.T) {
-	gun := "docker.com/notary"
-	testRemoveKeyWithRole(t, data.CanonicalRootRole, notary.RootKeysSubdir)
-	testRemoveKeyWithRole(t, data.CanonicalTargetsRole, filepath.Join(notary.NonRootKeysSubdir, gun))
-	testRemoveKeyWithRole(t, data.CanonicalSnapshotRole, filepath.Join(notary.NonRootKeysSubdir, gun))
-	testRemoveKeyWithRole(t, "targets/a/b/c", notary.NonRootKeysSubdir)
-	testRemoveKeyWithRole(t, "invalidRole", notary.NonRootKeysSubdir)
-
-	// create another store for other testing
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	require.NoError(t, err, "failed to create a temporary directory")
-	defer os.RemoveAll(tempBaseDir)
-
-	store, err := NewKeyFileStore(tempBaseDir, passphraseRetriever)
-	require.NoError(t, err, "failed to create new key filestore")
-
-	// write keys to non-standard locations	- since we're generating keys manually
-	// we need to add the extenxion
-	perms := os.FileMode(0755)
-	for i, loc := range []string{
-		filepath.Join(tempBaseDir, notary.PrivDir, notary.RootKeysSubdir),
-		filepath.Join(tempBaseDir, notary.PrivDir, notary.NonRootKeysSubdir),
-		filepath.Join(tempBaseDir, notary.PrivDir, notary.RootKeysSubdir, gun),
-		filepath.Join(tempBaseDir, notary.PrivDir, gun),
-		filepath.Join(tempBaseDir, notary.PrivDir),
-	} {
-		fp := filepath.Join(loc, fmt.Sprintf("keyID%d.key", i))
-		writeKeyFile(t, perms, fp, "")
-
-		// Ensure file exists
-		_, err := ioutil.ReadFile(fp)
-		require.NoError(t, err, "expected file not found")
-
-		err = store.RemoveKey(fmt.Sprintf("keyID%d", i))
-		require.NoError(t, err)
-
-		// File should no longer exist
-		_, err = ioutil.ReadFile(fp)
-		require.True(t, os.IsNotExist(err), "file should not exist")
-	}
-
-	// removing a non-existent key should not error
-	require.NoError(t, store.RemoveKey("nope"))
+	testRemoveKeyWithRole(t, data.CanonicalRootRole)
+	testRemoveKeyWithRole(t, data.CanonicalTargetsRole)
+	testRemoveKeyWithRole(t, data.CanonicalSnapshotRole)
+	testRemoveKeyWithRole(t, "targets/a/b/c")
+	testRemoveKeyWithRole(t, "invalidRole")
 }
 
-func testRemoveKeyWithRole(t *testing.T, role, expectedSubdir string) {
+func testRemoveKeyWithRole(t *testing.T, role string) {
 	gun := "docker.com/notary"
 	testExt := "key"
 
@@ -637,7 +596,7 @@ func testRemoveKeyWithRole(t *testing.T, role, expectedSubdir string) {
 	require.NoError(t, err, "could not generate private key")
 
 	// Since we're generating this manually we need to add the extension '.'
-	expectedFilePath := filepath.Join(tempBaseDir, notary.PrivDir, expectedSubdir, privKey.ID()+"."+testExt)
+	expectedFilePath := filepath.Join(tempBaseDir, notary.PrivDir, privKey.ID()+"."+testExt)
 
 	err = store.AddKey(KeyInfo{Role: role, Gun: gun}, privKey)
 	require.NoError(t, err, "failed to add key to store")
@@ -650,9 +609,9 @@ func testRemoveKeyWithRole(t *testing.T, role, expectedSubdir string) {
 	err = store.RemoveKey(privKey.ID())
 	require.NoError(t, err, "unable to remove key")
 
-	// File should no longer exist
+	// Check to see if file still exists
 	_, err = ioutil.ReadFile(expectedFilePath)
-	require.True(t, os.IsNotExist(err), "file should not exist")
+	require.Error(t, err, "file should not exist")
 }
 
 func TestKeysAreCached(t *testing.T) {
