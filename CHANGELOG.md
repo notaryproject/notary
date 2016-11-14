@@ -1,11 +1,12 @@
 # Changelog
 
-## v0.5-dev (in progress)
+## [v0.5.0](https://github.com/docker/notary/releases/tag/v0.5.0) 11/14/2016
 + Non-certificate public keys in PEM format can now be added to delegation roles [#965](https://github.com/docker/notary/pull/965)
 + PostgreSQL support as a storage backend for Server and Signer [#920](https://github.com/docker/notary/pull/920)
 + Notary server's health check now fails if it cannot connect to the signer, since no new repositories can be created and existing repositories cannot be updated if the server cannot reach the signer [#952](https://github.com/docker/notary/pull/952)
 + Server runs its connectivity healthcheck to the server once every 10 seconds instead of once every minute. [#902](https://github.com/docker/notary/pull/902)
 + The keys on disk are now stored in the `~/.notary/private` directory, rather than in a key hierarchy that separates them by GUN and by role.  Notary will automatically migrate old-style directory layouts to the new style.  **This is not forwards-compatible against notary<0.4.2 and docker<=1.12** [#872](https://github.com/docker/notary/pull/872)
++ A new changefeed API has been added to Notary Server. It is only supported when using one of the relational database backends: MySQL, PostgreSQL, or SQLite.[#1019](https://github.com/docker/notary/pull/1019)
 
 ## [v0.4.2](https://github.com/docker/notary/releases/tag/v0.4.2) 9/30/2016
 + Bump the cross compiler to golang 1.7.1, since [1.6.3 builds binaries that could have non-deterministic bugs in OS X Sierra](https://groups.google.com/forum/#!msg/golang-dev/Jho5sBHZgAg/cq6d97S1AwAJ) [#984](https://github.com/docker/notary/pull/984)

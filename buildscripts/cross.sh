@@ -15,6 +15,8 @@ for os in "$@"; do
 	if [[ "${GOOS}" == "darwin" ]]; then
 		export CC="o64-clang"
 		export CXX="o64-clang++"
+		# darwin binaries can't be compiled to be completely static with the -static flag
+		LDFLAGS=""
 	else
 		# no building with Cgo.  Also no building with pkcs11
 		if [[ "${GOOS}" == "windows" ]]; then
