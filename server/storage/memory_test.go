@@ -90,3 +90,9 @@ func TestGetChecksumNotFound(t *testing.T) {
 	require.Error(t, err)
 	require.IsType(t, ErrNotFound{}, err)
 }
+
+func TestMemoryGetChanges(t *testing.T) {
+	s := NewMemStorage()
+
+	testGetChanges(t, s)
+}
