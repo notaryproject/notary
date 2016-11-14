@@ -256,7 +256,7 @@ type nonworkingBackup struct {
 
 // AddKey stores the contents of a PEM-encoded private key as a PEM block
 func (s *nonworkingBackup) AddKey(keyInfo trustmanager.KeyInfo, privKey data.PrivateKey) error {
-	return errors.New("Nope!")
+	return errors.New("nope")
 }
 
 // If, when adding a key to the Yubikey, we can't back up the key, it should
