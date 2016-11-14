@@ -3,9 +3,10 @@ package trustpinning
 import (
 	"crypto/x509"
 	"fmt"
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary/tuf/utils"
-	"strings"
 )
 
 // TrustPinConfig represents the configuration under the trust_pinning section of the config file
@@ -115,7 +116,7 @@ func getPinnedCAFilepathByPrefix(gun string, t TrustPinConfig) (string, error) {
 		}
 	}
 	if !foundCA {
-		return "", fmt.Errorf("could not find pinned CA for GUN: %s\n", gun)
+		return "", fmt.Errorf("could not find pinned CA for GUN: %s", gun)
 	}
 	return specificCAFilepath, nil
 }
