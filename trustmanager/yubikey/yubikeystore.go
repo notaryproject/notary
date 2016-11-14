@@ -208,7 +208,7 @@ func (y *YubiPrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts
 			return sig, nil
 		}
 	}
-	return nil, errors.New("Failed to generate signature on Yubikey.")
+	return nil, errors.New("failed to generate signature on Yubikey")
 }
 
 // If a byte array is less than the number of bytes specified by
@@ -460,7 +460,7 @@ func yubiListKeys(ctx IPKCS11Ctx, session pkcs11.SessionHandle) (keys map[string
 	}
 
 	if len(objs) == 0 {
-		return nil, errors.New("No keys found in yubikey.")
+		return nil, errors.New("no keys found in yubikey")
 	}
 	logrus.Debugf("Found %d objects matching list filters", len(objs))
 	for _, obj := range objs {
@@ -621,7 +621,7 @@ func getNextEmptySlot(ctx IPKCS11Ctx, session pkcs11.SessionHandle) ([]byte, err
 			return []byte{byte(loc)}, nil
 		}
 	}
-	return nil, errors.New("Yubikey has no available slots.")
+	return nil, errors.New("yubikey has no available slots")
 }
 
 // YubiStore is a KeyStore for private keys inside a Yubikey

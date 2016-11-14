@@ -50,7 +50,7 @@ type unAddableKeyService struct {
 }
 
 func (u unAddableKeyService) AddKey(_, _ string, _ data.PrivateKey) error {
-	return fmt.Errorf("Can't add to keyservice!")
+	return fmt.Errorf("can't add to keyservice")
 }
 
 type unRemoveableKeyService struct {
@@ -60,7 +60,7 @@ type unRemoveableKeyService struct {
 
 func (u unRemoveableKeyService) RemoveKey(keyID string) error {
 	if u.failToRemove {
-		return fmt.Errorf("Can't remove from keystore!")
+		return fmt.Errorf("can't remove from keystore")
 	}
 	return u.CryptoService.RemoveKey(keyID)
 }
