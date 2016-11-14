@@ -52,14 +52,6 @@ var TUFTypes = map[string]string{
 	CanonicalTimestampRole: "Timestamp",
 }
 
-// SetTUFTypes allows one to override some or all of the default
-// type names in TUF.
-func SetTUFTypes(ts map[string]string) {
-	for k, v := range ts {
-		TUFTypes[k] = v
-	}
-}
-
 // ValidTUFType checks if the given type is valid for the role
 func ValidTUFType(typ, role string) bool {
 	if ValidRole(role) {

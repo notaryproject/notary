@@ -22,6 +22,7 @@ import (
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/utils"
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 	"github.com/spf13/viper"
 	"golang.org/x/net/context"
 	gorethink "gopkg.in/dancannon/gorethink.v2"
@@ -87,7 +88,7 @@ func getStore(configuration *viper.Viper, hRegister healthRegister, doBootstrap 
 	switch backend {
 	case notary.MemoryBackend:
 		return storage.NewMemStorage(), nil
-	case notary.MySQLBackend, notary.SQLiteBackend:
+	case notary.MySQLBackend, notary.SQLiteBackend, notary.PostgresBackend:
 		storeConfig, err := utils.ParseSQLStorage(configuration)
 		if err != nil {
 			return nil, err
@@ -97,7 +98,7 @@ func getStore(configuration *viper.Viper, hRegister healthRegister, doBootstrap 
 			return nil, fmt.Errorf("Error starting %s driver: %s", backend, err.Error())
 		}
 		store = *storage.NewTUFMetaStorage(s)
-		hRegister("DB operational", time.Minute, s.CheckHealth)
+		hRegister("DB operational", 10*time.Second, s.CheckHealth)
 	case notary.RethinkDBBackend:
 		var sess *gorethink.Session
 		storeConfig, err := utils.ParseRethinkDBStorage(configuration)
@@ -119,7 +120,7 @@ func getStore(configuration *viper.Viper, hRegister healthRegister, doBootstrap 
 		}
 		s := storage.NewRethinkDBStorage(storeConfig.DBName, storeConfig.Username, storeConfig.Password, sess)
 		store = *storage.NewTUFMetaStorage(s)
-		hRegister("DB operational", time.Minute, s.CheckHealth)
+		hRegister("DB operational", 10*time.Second, s.CheckHealth)
 	default:
 		return nil, fmt.Errorf("%s is not a supported storage backend", backend)
 	}
@@ -175,19 +176,16 @@ func getTrustService(configuration *viper.Viper, sFactory signerFactory,
 		return nil, "", err
 	}
 
-	minute := 1 * time.Minute
+	duration := 10 * time.Second
 	hRegister(
 		"Trust operational",
-		// If the trust service fails, the server is degraded but not
-		// exactly unhealthy, so always return healthy and just log an
-		// error.
-		minute,
+		duration,
 		func() error {
-			err := notarySigner.CheckHealth(minute)
+			err := notarySigner.CheckHealth(duration, notary.HealthCheckOverall)
 			if err != nil {
 				logrus.Error("Trust not fully operational: ", err.Error())
 			}
-			return nil
+			return err
 		},
 	)
 	return notarySigner, keyAlgo, nil
@@ -261,13 +259,13 @@ func parseServerConfig(configFilePath string, hRegister healthRegister, doBootst
 	if err != nil {
 		return nil, server.Config{}, err
 	}
-	ctx = context.WithValue(ctx, "keyAlgorithm", keyAlgo)
+	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, keyAlgo)
 
 	store, err := getStore(config, hRegister, doBootstrap)
 	if err != nil {
 		return nil, server.Config{}, err
 	}
-	ctx = context.WithValue(ctx, "metaStore", store)
+	ctx = context.WithValue(ctx, notary.CtxKeyMetaStore, store)
 
 	currentCache, consistentCache, err := getCacheConfig(config)
 	if err != nil {

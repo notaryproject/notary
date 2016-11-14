@@ -165,7 +165,7 @@ func changeTargetMeta(repo *tuf.Repo, c changelist.Change) error {
 func applyRootChange(repo *tuf.Repo, c changelist.Change) error {
 	var err error
 	switch c.Type() {
-	case changelist.TypeRootRole:
+	case changelist.TypeBaseRole:
 		err = applyRootRoleChange(repo, c)
 	default:
 		err = fmt.Errorf("type of root change not yet supported: %s", c.Type())

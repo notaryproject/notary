@@ -13,11 +13,8 @@ import (
 
 // Various basic signing errors
 var (
-	ErrMissingKey   = errors.New("tuf: missing key")
 	ErrNoSignatures = errors.New("tuf: data has no signatures")
 	ErrInvalid      = errors.New("tuf: signature verification failed")
-	ErrWrongMethod  = errors.New("tuf: invalid signature type")
-	ErrUnknownRole  = errors.New("tuf: unknown role")
 	ErrWrongType    = errors.New("tuf: meta file has wrong type")
 )
 

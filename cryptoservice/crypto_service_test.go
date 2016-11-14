@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -73,9 +72,6 @@ func (c CryptoServiceTester) TestCreateAndGetWhenMultipleKeystores(t *testing.T)
 
 	// Only the first keystore should have the key
 	keyPath := tufKey.ID()
-	if c.role != data.CanonicalRootRole && c.gun != "" {
-		keyPath = filepath.Join(c.gun, keyPath)
-	}
 	_, _, err = cryptoService.keyStores[0].GetKey(keyPath)
 	require.NoError(t, err, c.errorMsg(
 		"First keystore does not have the key %s", keyPath))

@@ -5,9 +5,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/docker/notary/tuf/data"
 )
 
 type key struct {
@@ -38,6 +41,7 @@ type MemStorage struct {
 	tufMeta   map[string]verList
 	keys      map[string]map[string]*key
 	checksums map[string]map[string]ver
+	changes   []Change
 }
 
 // NewMemStorage instantiates a memStorage instance
@@ -71,7 +75,24 @@ func (st *MemStorage) UpdateCurrent(gun string, update MetaUpdate) error {
 		st.checksums[gun] = make(map[string]ver)
 	}
 	st.checksums[gun][checksum] = version
+	if update.Role == data.CanonicalTimestampRole {
+		st.writeChange(gun, update.Version, checksum)
+	}
 	return nil
+}
+
+// writeChange must only be called by a function already holding a lock on
+// the MemStorage. Behaviour is undefined otherwise
+func (st *MemStorage) writeChange(gun string, version int, checksum string) {
+	c := Change{
+		ID:        uint(len(st.changes) + 1),
+		GUN:       gun,
+		Version:   version,
+		SHA256:    checksum,
+		CreatedAt: time.Now(),
+		Category:  changeCategoryUpdate,
+	}
+	st.changes = append(st.changes, c)
 }
 
 // UpdateMany updates multiple TUF records
@@ -118,6 +139,9 @@ func (st *MemStorage) UpdateMany(gun string, updates []MetaUpdate) error {
 			st.checksums[gun] = make(map[string]ver)
 		}
 		st.checksums[gun][checksum] = version
+		if u.Role == data.CanonicalTimestampRole {
+			st.writeChange(gun, u.Version, checksum)
+		}
 	}
 	return nil
 }
@@ -149,13 +173,130 @@ func (st *MemStorage) GetChecksum(gun, role, checksum string) (*time.Time, []byt
 func (st *MemStorage) Delete(gun string) error {
 	st.lock.Lock()
 	defer st.lock.Unlock()
+	l := len(st.tufMeta)
 	for k := range st.tufMeta {
 		if strings.HasPrefix(k, gun) {
 			delete(st.tufMeta, k)
 		}
 	}
+	if l == len(st.tufMeta) {
+		// we didn't delete anything, don't write change.
+		return nil
+	}
 	delete(st.checksums, gun)
+	c := Change{
+		ID:        uint(len(st.changes) + 1),
+		GUN:       gun,
+		Category:  changeCategoryDeletion,
+		CreatedAt: time.Now(),
+	}
+	st.changes = append(st.changes, c)
 	return nil
+}
+
+// GetChanges returns a []Change starting from but excluding the record
+// identified by changeID. In the context of the memory store, changeID
+// is simply an index into st.changes. The ID of a change is its
+// index+1, both to match the SQL implementations, and so that the first
+// change can be retrieved by providing ID 0.
+func (st *MemStorage) GetChanges(changeID string, records int, filterName string) ([]Change, error) {
+	var (
+		id  int64
+		err error
+	)
+	if changeID == "" {
+		id = 0
+	} else {
+		id, err = strconv.ParseInt(changeID, 10, 32)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var (
+		start     = int(id)
+		toInspect []Change
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	reversed := id < 0
+	if records < 0 {
+		reversed = true
+		records = -records
+	}
+
+	if len(st.changes) <= int(id) && !reversed {
+		// no records to return as we're essentially trying to retrieve
+		// changes that haven't happened yet.
+		return nil, nil
+	}
+
+	// technically only -1 is a valid negative input, but we're going to be
+	// broad in what we accept here to reduce the need to error and instead
+	// act in a "do what I mean not what I say" fashion. Same logic for
+	// requesting changeID < 0 but not asking for reversed, we're just going
+	// to force it to be reversed.
+	if start < 0 {
+		// need to add one so we don't later slice off the last element
+		// when calculating toInspect.
+		start = len(st.changes) + 1
+	}
+	// reduce to only look at changes we're interested in
+	if reversed {
+		if start > len(st.changes) {
+			toInspect = st.changes
+		} else {
+			toInspect = st.changes[:start-1]
+		}
+	} else {
+		toInspect = st.changes[start:]
+	}
+
+	// if we're not doing any filtering
+	if filterName == "" {
+		// if the pageSize is larger than the total records
+		// that could be returned, return them all
+		if records >= len(toInspect) {
+			return toInspect, nil
+		}
+		// if we're going backwards, return the last pageSize records
+		if reversed {
+			return toInspect[len(toInspect)-records:], nil
+		}
+		// otherwise return pageSize records from front
+		return toInspect[:records], nil
+	}
+
+	return getFilteredChanges(toInspect, filterName, records, reversed), nil
+}
+
+func getFilteredChanges(toInspect []Change, filterName string, records int, reversed bool) []Change {
+	res := make([]Change, 0, records)
+	if reversed {
+		for i := len(toInspect) - 1; i >= 0; i-- {
+			if toInspect[i].GUN == filterName {
+				res = append(res, toInspect[i])
+			}
+			if len(res) == records {
+				break
+			}
+		}
+		// results are currently newest to oldest, should be oldest to newest
+		for i, j := 0, len(res)-1; i < j; i, j = i+1, j-1 {
+			res[i], res[j] = res[j], res[i]
+		}
+	} else {
+		for _, c := range toInspect {
+			if c.GUN == filterName {
+				res = append(res, c)
+			}
+			if len(res) == records {
+				break
+			}
+		}
+	}
+	return res
 }
 
 func entryKey(gun, role string) string {

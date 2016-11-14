@@ -37,9 +37,15 @@ package transport
 import (
 	"net"
 	"time"
+
+	"golang.org/x/net/context"
 )
 
-// newDialer constructs a net.Dialer.
-func newDialer(timeout time.Duration, _ <-chan struct{}) *net.Dialer {
-	return &net.Dialer{Timeout: timeout}
+// dialContext connects to the address on the named network.
+func dialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	var dialer net.Dialer
+	if deadline, ok := ctx.Deadline(); ok {
+		dialer.Timeout = deadline.Sub(time.Now())
+	}
+	return dialer.Dial(network, address)
 }

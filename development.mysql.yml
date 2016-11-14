@@ -32,7 +32,7 @@ services:
     networks:
       - mdb
     volumes:
-      - ./notarymysql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+      - ./notarysql/mysql-initdb.d:/docker-entrypoint-initdb.d
     image: mariadb:10.1.10
     environment:
       - TERM=dumb

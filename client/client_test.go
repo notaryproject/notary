@@ -126,12 +126,12 @@ func simpleTestServer(t *testing.T, roles ...string) (
 func fullTestServer(t *testing.T) *httptest.Server {
 	// Set up server
 	ctx := context.WithValue(
-		context.Background(), "metaStore", storage.NewMemStorage())
+		context.Background(), notary.CtxKeyMetaStore, storage.NewMemStorage())
 
 	// Do not pass one of the const KeyAlgorithms here as the value! Passing a
 	// string is in itself good test that we are handling it correctly as we
 	// will be receiving a string from the configuration.
-	ctx = context.WithValue(ctx, "keyAlgorithm", "ecdsa")
+	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, "ecdsa")
 
 	// Eat the logs instead of spewing them out
 	var b bytes.Buffer
@@ -140,7 +140,7 @@ func fullTestServer(t *testing.T) *httptest.Server {
 	ctx = ctxu.WithLogger(ctx, logrus.NewEntry(l))
 
 	cryptoService := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(passphraseRetriever))
-	return httptest.NewServer(server.RootHandler(nil, ctx, cryptoService, nil, nil, nil))
+	return httptest.NewServer(server.RootHandler(ctx, nil, cryptoService, nil, nil, nil))
 }
 
 // server that returns some particular error code all the time
@@ -190,7 +190,7 @@ func createRepoAndKey(t *testing.T, rootType, tempBaseDir, gun, url string) (
 	*NotaryRepository, *passRoleRecorder, string) {
 
 	rec := newRoleRecorder()
-	repo, err := NewNotaryRepository(
+	repo, err := NewFileCachedNotaryRepository(
 		tempBaseDir, gun, url, http.DefaultTransport, rec.retriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
@@ -220,7 +220,7 @@ func newRepoToTestRepo(t *testing.T, existingRepo *NotaryRepository, newDir bool
 	}
 
 	rec := newRoleRecorder()
-	repo, err := NewNotaryRepository(
+	repo, err := NewFileCachedNotaryRepository(
 		repoDir, existingRepo.gun, existingRepo.baseURL,
 		http.DefaultTransport, rec.retriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repository: %s", err)
@@ -578,7 +578,7 @@ func testInitRepoAttemptsExceeded(t *testing.T, rootType string) {
 	defer ts.Close()
 
 	retriever := passphrase.ConstantRetriever("password")
-	repo, err := NewNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
+	repo, err := NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	rootPubKey, err := repo.CryptoService.Create("root", repo.gun, rootType)
 	require.NoError(t, err, "error generating root key: %s", err)
@@ -586,7 +586,7 @@ func testInitRepoAttemptsExceeded(t *testing.T, rootType string) {
 	retriever = passphrase.ConstantRetriever("incorrect password")
 	// repo.CryptoService’s FileKeyStore caches the unlocked private key, so to test
 	// private key unlocking we need a new repo instance.
-	repo, err = NewNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
+	repo, err = NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	err = repo.Initialize([]string{rootPubKey.ID()})
 	require.EqualError(t, err, trustmanager.ErrAttemptsExceeded{}.Error())
@@ -616,14 +616,14 @@ func testInitRepoPasswordInvalid(t *testing.T, rootType string) {
 	defer ts.Close()
 
 	retriever := passphrase.ConstantRetriever("password")
-	repo, err := NewNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
+	repo, err := NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	rootPubKey, err := repo.CryptoService.Create("root", repo.gun, rootType)
 	require.NoError(t, err, "error generating root key: %s", err)
 
 	// repo.CryptoService’s FileKeyStore caches the unlocked private key, so to test
 	// private key unlocking we need a new repo instance.
-	repo, err = NewNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, giveUpPassphraseRetriever, trustpinning.TrustPinConfig{})
+	repo, err = NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, giveUpPassphraseRetriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	err = repo.Initialize([]string{rootPubKey.ID()})
 	require.EqualError(t, err, trustmanager.ErrPasswordInvalid{}.Error())
@@ -1660,7 +1660,7 @@ func TestPublishUninitializedRepo(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
 
-	repo, err := NewNotaryRepository(tempBaseDir, gun, ts.URL,
+	repo, err := NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL,
 		http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repository: %s", err)
 	err = repo.Publish()
@@ -1957,7 +1957,7 @@ func testPublishBadMetadata(t *testing.T, roleName string, repo *NotaryRepositor
 	addTarget(t, repo, "v1", "../fixtures/intermediate-ca.crt")
 
 	// readable, but corrupt file
-	repo.fileStore.Set(roleName, []byte("this isn't JSON"))
+	repo.cache.Set(roleName, []byte("this isn't JSON"))
 	err := repo.Publish()
 	if succeeds {
 		require.NoError(t, err)
@@ -2025,7 +2025,7 @@ func TestPublishSnapshotLocalKeysCreatedFirst(t *testing.T) {
 		func(http.ResponseWriter, *http.Request) { requestMade = true }))
 	defer ts.Close()
 
-	repo, err := NewNotaryRepository(
+	repo, err := NewFileCachedNotaryRepository(
 		tempBaseDir, gun, ts.URL, http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
@@ -2930,7 +2930,7 @@ func TestRemoteServerUnavailableNoLocalCache(t *testing.T) {
 	ts := errorTestServer(t, 500)
 	defer ts.Close()
 
-	repo, err := NewNotaryRepository(tempBaseDir, "docker.com/notary",
+	repo, err := NewFileCachedNotaryRepository(tempBaseDir, "docker.com/notary",
 		ts.URL, http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
@@ -3239,7 +3239,7 @@ func TestRemoveDelegationErrorWritingChanges(t *testing.T) {
 func TestBootstrapClientBadURL(t *testing.T) {
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
-	repo, err := NewNotaryRepository(
+	repo, err := NewFileCachedNotaryRepository(
 		tempBaseDir,
 		"testGun",
 		"http://localhost:9998",
@@ -3269,7 +3269,7 @@ func TestBootstrapClientBadURL(t *testing.T) {
 func TestBootstrapClientInvalidURL(t *testing.T) {
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
-	repo, err := NewNotaryRepository(
+	repo, err := NewFileCachedNotaryRepository(
 		tempBaseDir,
 		"testGun",
 		"#!*)&!)#*^%!#)%^!#",
@@ -3685,6 +3685,61 @@ func TestGetAllTargetInfo(t *testing.T) {
 
 	fakeServerData(t, repo, mux, keys)
 
+	var (
+		targetCurrent      = expectation{role: data.CanonicalTargetsRole, target: "current"}
+		targetLatest       = expectation{role: data.CanonicalTargetsRole, target: "latest"}
+		level1Current      = expectation{role: "targets/level1", target: "current"}
+		level1Other        = expectation{role: "targets/level1", target: "other"}
+		level2Current      = expectation{role: "targets/level2", target: "current"}
+		level2Level2       = expectation{role: "targets/level2", target: "level2"}
+		level1Level2Level2 = expectation{role: "targets/level1/level2", target: "level2"}
+	)
+	targetsKey := repo.CryptoService.ListKeys(data.CanonicalTargetsRole)[0]
+	allExpected := map[expectation]TargetSignedStruct{
+		targetCurrent: {
+			Target: *targetsCurrentTarget,
+			Signatures: []data.Signature{
+				{KeyID: targetsKey},
+			},
+		},
+		targetLatest: {
+			Target: *targetsLatestTarget,
+			Signatures: []data.Signature{
+				{KeyID: targetsKey},
+			},
+		},
+		level1Current: {
+			Target: *level1CurrentTarget,
+			Signatures: []data.Signature{
+				{KeyID: key1.ID()},
+			},
+		},
+		level1Other: {
+			Target: *level1OtherTarget,
+			Signatures: []data.Signature{
+				{KeyID: key1.ID()},
+			},
+		},
+		level2Current: {
+			Target: *level2CurrentTarget,
+			Signatures: []data.Signature{
+				{KeyID: key2.ID()},
+			},
+		},
+		level2Level2: {
+			Target: *level2Level2Target,
+			Signatures: []data.Signature{
+				{KeyID: key2.ID()},
+			},
+		},
+		level1Level2Level2: {
+			Target: *level1Level2Level2Target,
+			Signatures: []data.Signature{
+				{KeyID: key3.ID()},
+			},
+		},
+	}
+
 	// At this point, we have the following view of targets:
 	// current - signed by targets, targets/level1, and targets/level2, all with different hashes
 	// other - signed by targets/level1
@@ -3694,119 +3749,37 @@ func TestGetAllTargetInfo(t *testing.T) {
 	// Positive cases
 	targetSignatureData, err := repo.GetAllTargetMetadataByName("current")
 	require.NoError(t, err)
-	require.NotNil(t, targetSignatureData)
-	require.Len(t, targetSignatureData, 3)
-	makeSureWeHitEachCase := make(map[string]struct{})
-	for _, tarSigStr := range targetSignatureData {
-		switch tarSigStr.Role.Name {
-		case data.CanonicalTargetsRole:
-			require.Len(t, tarSigStr.Signatures, 1)
-			require.Equal(t, repo.CryptoService.ListKeys(data.CanonicalTargetsRole)[0], tarSigStr.Signatures[0].KeyID)
-			require.Equal(t, tarSigStr.Target, *targetsCurrentTarget)
-			makeSureWeHitEachCase[tarSigStr.Role.Name] = struct{}{}
-		case "targets/level1":
-			require.Len(t, tarSigStr.Signatures, 1)
-			require.Equal(t, key1.ID(), tarSigStr.Signatures[0].KeyID)
-			require.Equal(t, tarSigStr.Target, *level1CurrentTarget)
-			makeSureWeHitEachCase[tarSigStr.Role.Name] = struct{}{}
-		case "targets/level2":
-			require.Len(t, tarSigStr.Signatures, 1)
-			require.Equal(t, key2.ID(), tarSigStr.Signatures[0].KeyID)
-			require.Equal(t, tarSigStr.Target, *level2CurrentTarget)
-			makeSureWeHitEachCase[tarSigStr.Role.Name] = struct{}{}
-		}
-	}
-	require.Len(t, makeSureWeHitEachCase, 3)
+
+	checkSignatures(t, targetSignatureData, []expectation{targetCurrent, level1Current, level2Current}, allExpected)
 
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("other")
 	require.NoError(t, err)
-	require.NotNil(t, targetSignatureData)
-	require.Len(t, targetSignatureData, 1)
-	require.Equal(t, targetSignatureData[0].Role.Name, "targets/level1")
-	require.Equal(t, (targetSignatureData[0]).Target, *level1OtherTarget)
-	require.Equal(t, key1.ID(), targetSignatureData[0].Signatures[0].KeyID)
-	require.Len(t, targetSignatureData[0].Signatures, 1)
+
+	checkSignatures(t, targetSignatureData, []expectation{level1Other}, allExpected)
 
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("latest")
 	require.NoError(t, err)
-	require.NotNil(t, targetSignatureData)
-	require.Len(t, targetSignatureData, 1)
-	require.Equal(t, targetSignatureData[0].Role.Name, data.CanonicalTargetsRole)
-	require.Equal(t, (targetSignatureData[0]).Target, *targetsLatestTarget)
-	require.Equal(t, repo.CryptoService.ListKeys(data.CanonicalTargetsRole)[0], targetSignatureData[0].Signatures[0].KeyID)
-	require.Len(t, targetSignatureData[0].Signatures, 1)
+
+	checkSignatures(t, targetSignatureData, []expectation{targetLatest}, allExpected)
 
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("level2")
 	require.NoError(t, err)
-	require.NotNil(t, targetSignatureData)
-	require.Len(t, targetSignatureData, 2)
-	makeSureWeHitEachCase = make(map[string]struct{})
-	for _, tarSigStr := range targetSignatureData {
-		switch tarSigStr.Role.Name {
-		case "targets/level2":
-			require.Len(t, tarSigStr.Signatures, 1)
-			require.Equal(t, key2.ID(), tarSigStr.Signatures[0].KeyID)
-			require.Equal(t, tarSigStr.Target, *level2Level2Target)
-			makeSureWeHitEachCase[tarSigStr.Role.Name] = struct{}{}
-		case "targets/level1/level2":
-			require.Len(t, tarSigStr.Signatures, 1)
-			require.Equal(t, key3.ID(), tarSigStr.Signatures[0].KeyID)
-			require.Equal(t, tarSigStr.Target, *level1Level2Level2Target)
-			makeSureWeHitEachCase[tarSigStr.Role.Name] = struct{}{}
-		}
-	}
-	require.Len(t, makeSureWeHitEachCase, 2)
+
+	checkSignatures(t, targetSignatureData, []expectation{level2Level2, level1Level2Level2}, allExpected)
 
 	// calling with the empty string "" name will get us back all targets signed in all roles
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("")
 	require.NoError(t, err)
 	require.Len(t, targetSignatureData, 7)
 
-	makeSureWeHitEachCase = make(map[string]struct{})
-	for _, tarSigStr := range targetSignatureData {
-		switch tarSigStr.Role.Name {
-		// targets has current and latest
-		case data.CanonicalTargetsRole:
-			if tarSigStr.Target.Name == "current" {
-				require.Equal(t, tarSigStr.Target, *targetsCurrentTarget)
-			} else {
-				require.Equal(t, tarSigStr.Target, *targetsLatestTarget)
-			}
-			require.Len(t, tarSigStr.Signatures, 1)
-			require.Equal(t, repo.CryptoService.ListKeys(data.CanonicalTargetsRole)[0], tarSigStr.Signatures[0].KeyID)
-			makeSureWeHitEachCase[tarSigStr.Role.Name+tarSigStr.Target.Name] = struct{}{}
-
-		// targets/level1 has current and other
-		case "targets/level1":
-			if tarSigStr.Target.Name == "current" {
-				require.Equal(t, tarSigStr.Target, *level1CurrentTarget)
-			} else {
-				require.Equal(t, tarSigStr.Target, *level1OtherTarget)
-			}
-			require.Len(t, tarSigStr.Signatures, 1)
-			require.Equal(t, key1.ID(), tarSigStr.Signatures[0].KeyID)
-			makeSureWeHitEachCase[tarSigStr.Role.Name+tarSigStr.Target.Name] = struct{}{}
-
-		// targets/level2 has current and level2
-		case "targets/level2":
-			if tarSigStr.Target.Name == "current" {
-				require.Equal(t, tarSigStr.Target, *level2CurrentTarget)
-			} else {
-				require.Equal(t, tarSigStr.Target, *level2Level2Target)
-			}
-			require.Len(t, tarSigStr.Signatures, 1)
-			require.Equal(t, key2.ID(), tarSigStr.Signatures[0].KeyID)
-			makeSureWeHitEachCase[tarSigStr.Role.Name+tarSigStr.Target.Name] = struct{}{}
-
-		// targets/level1/level2 has level2
-		case "targets/level1/level2":
-			require.Len(t, tarSigStr.Signatures, 1)
-			require.Equal(t, key3.ID(), tarSigStr.Signatures[0].KeyID)
-			require.Equal(t, tarSigStr.Target, *level1Level2Level2Target)
-			makeSureWeHitEachCase[tarSigStr.Role.Name+tarSigStr.Target.Name] = struct{}{}
-		}
-	}
-	require.Len(t, makeSureWeHitEachCase, 7)
+	checkSignatures(
+		t,
+		targetSignatureData,
+		[]expectation{
+			targetCurrent, targetLatest, level1Current, level1Other, level2Current, level2Level2, level1Level2Level2,
+		},
+		allExpected,
+	)
 
 	// nonexistent targets
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("level23")
@@ -3815,4 +3788,27 @@ func TestGetAllTargetInfo(t *testing.T) {
 	targetSignatureData, err = repo.GetAllTargetMetadataByName("invalid")
 	require.Error(t, err)
 	require.Nil(t, targetSignatureData)
+}
+
+func checkSignatures(t *testing.T, targetSignatureData []TargetSignedStruct, expected []expectation, allExpected map[expectation]TargetSignedStruct) {
+	makeSureWeHitEachCase := make(map[expectation]struct{})
+
+	for _, tarSigStr := range targetSignatureData {
+		dataPoint := expectation{role: tarSigStr.Role.Name, target: tarSigStr.Target.Name}
+		exp, ok := allExpected[dataPoint]
+		require.True(t, ok)
+		require.Equal(t, exp.Target, tarSigStr.Target)
+		require.Len(t, tarSigStr.Signatures, 1)
+		require.Equal(t, exp.Signatures[0].KeyID, tarSigStr.Signatures[0].KeyID)
+		makeSureWeHitEachCase[dataPoint] = struct{}{}
+	}
+	for _, e := range expected {
+		_, ok := makeSureWeHitEachCase[e]
+		require.True(t, ok)
+	}
+
+}
+
+type expectation struct {
+	role, target string
 }

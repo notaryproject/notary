@@ -114,8 +114,8 @@ Example:
 
 ## storage section (required)
 
-This is used to store encrypted private keys.  We only support MySQL or an
-in-memory store, currently.
+This is used to store encrypted private keys.  We only support MySQL, PostgreSQL
+or an in-memory store, currently.
 
 Example:
 
@@ -136,7 +136,7 @@ Example:
 	<tr>
 		<td valign="top"><code>backend</code></td>
 		<td valign="top">yes</td>
-		<td valign="top">Must be <code>"mysql"</code> or <code>"memory"</code>.
+		<td valign="top">Must be <code>"mysql"</code>, <code>"postgres"</code> or <code>"memory"</code>.
 			If <code>"memory"</code> is selected, the <code>db_url</code>
 			is ignored.</td>
 	</tr>

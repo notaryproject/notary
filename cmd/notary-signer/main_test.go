@@ -23,7 +23,6 @@ import (
 const (
 	Cert = "../../fixtures/notary-signer.crt"
 	Key  = "../../fixtures/notary-signer.key"
-	Root = "../../fixtures/root-ca.crt"
 )
 
 // initializes a viper object with test configuration

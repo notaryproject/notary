@@ -97,7 +97,7 @@ class Client(object):
         })
 
         if notary_server is None:
-            self.client = [binary, "-c", "cmd/notary/config.json"]
+            self.client = [binary, "-D", "-c", "cmd/notary/config.json"]
         else:
             self.client = [binary, "-s", notary_server]
 
@@ -315,21 +315,22 @@ def wait_for_server(server, timeout_in_seconds):
     if server is None:
         server = "https://notary-server:4443"
         command = ["curl", "--cacert", os.path.join(reporoot(), "fixtures", "root-ca.crt"),
-                   server]
+                   server + "/_notary_server/health"]
 
     start = time()
-    succeeded = False
+    succeeded = 0
     while time() <= start + timeout_in_seconds:
         proc = Popen(command, stderr=PIPE, stdin=PIPE)
         proc.communicate()
         if proc.poll():
-            sleep(1)
+            sleep(11)
             continue
         else:
-            succeeded = True
-            break
+            succeeded += 1
+            if succeeded > 1:
+                break
 
-    if not succeeded:
+    if succeeded < 2:
         raise Exception(
             "Could not connect to {0} after {1} seconds.".format(server, timeout_in_seconds))
 
@@ -360,7 +361,7 @@ def run():
         password = getpass("password to server for user {0}: ".format(username))
         username_passwd = (username, password)
 
-    wait_for_server(server, 30)
+    wait_for_server(server, 120)
 
     Tester(repo_name, Client(server, username_passwd)).run()
 

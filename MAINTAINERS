@@ -15,6 +15,7 @@
 			"diogomonica",
 			"dmcgowan",
 			"endophage",
+			"hukeping",
 			"nathanmccauley",
 			"riyazdf",
 		]
@@ -46,6 +47,11 @@
 	Name = "David Lawrence"
 	Email = "david.lawrence@docker.com"
 	GitHub = "endophage"
+
+	[people.hukeping]
+	Name = "Hu Keping"
+	Email = "hukeping@huawei.com"
+	GitHub = "hukeping"
 
 	[people.nathanmccauley]
 	Name = "Nathan McCauley"

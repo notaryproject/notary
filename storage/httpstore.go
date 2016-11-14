@@ -39,6 +39,21 @@ type NetworkError struct {
 }
 
 func (n NetworkError) Error() string {
+	if _, ok := n.Wrapped.(*url.Error); ok {
+		// QueryUnescape does the inverse transformation of QueryEscape,
+		// converting %AB into the byte 0xAB and '+' into ' ' (space).
+		// It returns an error if any % is not followed by two hexadecimal digits.
+		//
+		// If this happens, we log out the QueryUnescape error and return the
+		// original error to client.
+		res, err := url.QueryUnescape(n.Wrapped.Error())
+		if err != nil {
+			logrus.Errorf("unescape network error message failed: %s", err)
+			return n.Wrapped.Error()
+		}
+		return res
+	}
+
 	return n.Wrapped.Error()
 }
 

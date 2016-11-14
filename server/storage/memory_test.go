@@ -1,4 +1,4 @@
-// +build !mysqldb,!rethinkdb
+// +build !mysqldb,!rethinkdb,!postgresqldb
 
 package storage
 
@@ -89,4 +89,10 @@ func TestGetChecksumNotFound(t *testing.T) {
 	_, _, err := s.GetChecksum("gun", "root", "12345")
 	require.Error(t, err)
 	require.IsType(t, ErrNotFound{}, err)
+}
+
+func TestMemoryGetChanges(t *testing.T) {
+	s := NewMemStorage()
+
+	testGetChanges(t, s)
 }

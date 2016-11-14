@@ -98,7 +98,19 @@ func (t Table) create(session *gorethink.Session, dbName string, numReplicas uin
 		return fmt.Errorf("unable to wait for table to be ready after configuring linearizability: %s", err)
 	}
 
-	for indexName, fieldNames := range t.SecondaryIndexes {
+	if err := t.updateIndices(session, dbName, t.SecondaryIndexes); err != nil {
+		return err
+	}
+
+	if err := t.wait(session, dbName); err != nil {
+		return fmt.Errorf("unable to wait for table to be ready after creating secondary indexes: %s", err)
+	}
+
+	return nil
+}
+
+func (t Table) updateIndices(session *gorethink.Session, dbName string, indices map[string][]string) error {
+	for indexName, fieldNames := range indices {
 		if len(fieldNames) == 0 {
 			// The field name is the index name.
 			fieldNames = []string{indexName}
@@ -127,11 +139,6 @@ func (t Table) create(session *gorethink.Session, dbName string, numReplicas uin
 			}
 		}
 	}
-
-	if err := t.wait(session, dbName); err != nil {
-		return fmt.Errorf("unable to wait for table to be ready after creating secondary indexes: %s", err)
-	}
-
 	return nil
 }
 

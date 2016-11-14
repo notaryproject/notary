@@ -80,7 +80,7 @@ func Run(ctx context.Context, conf Config) error {
 	svr := http.Server{
 		Addr: conf.Addr,
 		Handler: RootHandler(
-			ac, ctx, conf.Trust,
+			ctx, ac, conf.Trust,
 			conf.ConsistentCacheControlConfig, conf.CurrentCacheControlConfig,
 			conf.RepoPrefixes),
 	}
@@ -100,6 +100,11 @@ func filterImagePrefixes(requiredPrefixes []string, err error, handler http.Hand
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		imageName := mux.Vars(r)["imageName"]
+
+		if imageName == "" {
+			handler.ServeHTTP(w, r)
+			return
+		}
 
 		for _, prefix := range requiredPrefixes {
 			if strings.HasPrefix(imageName, prefix) {
@@ -123,10 +128,10 @@ type _serverEndpoint struct {
 
 // RootHandler returns the handler that routes all the paths from / for the
 // server.
-func RootHandler(ac auth.AccessController, ctx context.Context, trust signed.CryptoService,
+func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.CryptoService,
 	consistent, current utils.CacheControlConfig, repoPrefixes []string) http.Handler {
 
-	authWrapper := utils.RootHandlerFactory(ac, ctx, trust)
+	authWrapper := utils.RootHandlerFactory(ctx, ac, trust)
 
 	createHandler := func(opts _serverEndpoint) http.Handler {
 		var wrapped http.Handler
@@ -144,13 +149,13 @@ func RootHandler(ac auth.AccessController, ctx context.Context, trust signed.Cry
 	r := mux.NewRouter()
 	r.Methods("GET").Path("/v2/").Handler(authWrapper(handlers.MainHandler))
 
-	r.Methods("POST").Path("/v2/{imageName:.*}/_trust/tuf/").Handler(createHandler(_serverEndpoint{
+	r.Methods("POST").Path("/v2/{imageName:[^*]+}/_trust/tuf/").Handler(createHandler(_serverEndpoint{
 		OperationName:       "UpdateTUF",
 		ErrorIfGUNInvalid:   invalidGUNErr,
 		ServerHandler:       handlers.AtomicUpdateHandler,
 		PermissionsRequired: []string{"push", "pull"},
 	}))
-	r.Methods("GET").Path("/v2/{imageName:.*}/_trust/tuf/{tufRole:root|targets(?:/[^/\\s]+)*|snapshot|timestamp}.{checksum:[a-fA-F0-9]{64}|[a-fA-F0-9]{96}|[a-fA-F0-9]{128}}.json").Handler(createHandler(_serverEndpoint{
+	r.Methods("GET").Path("/v2/{imageName:[^*]+}/_trust/tuf/{tufRole:root|targets(?:/[^/\\s]+)*|snapshot|timestamp}.{checksum:[a-fA-F0-9]{64}|[a-fA-F0-9]{96}|[a-fA-F0-9]{128}}.json").Handler(createHandler(_serverEndpoint{
 		OperationName:       "GetRoleByHash",
 		ErrorIfGUNInvalid:   notFoundError,
 		IncludeCacheHeaders: true,
@@ -158,7 +163,7 @@ func RootHandler(ac auth.AccessController, ctx context.Context, trust signed.Cry
 		ServerHandler:       handlers.GetHandler,
 		PermissionsRequired: []string{"pull"},
 	}))
-	r.Methods("GET").Path("/v2/{imageName:.*}/_trust/tuf/{tufRole:root|targets(?:/[^/\\s]+)*|snapshot|timestamp}.json").Handler(createHandler(_serverEndpoint{
+	r.Methods("GET").Path("/v2/{imageName:[^*]+}/_trust/tuf/{tufRole:root|targets(?:/[^/\\s]+)*|snapshot|timestamp}.json").Handler(createHandler(_serverEndpoint{
 		OperationName:       "GetRole",
 		ErrorIfGUNInvalid:   notFoundError,
 		IncludeCacheHeaders: true,
@@ -167,23 +172,34 @@ func RootHandler(ac auth.AccessController, ctx context.Context, trust signed.Cry
 		PermissionsRequired: []string{"pull"},
 	}))
 	r.Methods("GET").Path(
-		"/v2/{imageName:.*}/_trust/tuf/{tufRole:snapshot|timestamp}.key").Handler(createHandler(_serverEndpoint{
+		"/v2/{imageName:[^*]+}/_trust/tuf/{tufRole:snapshot|timestamp}.key").Handler(createHandler(_serverEndpoint{
 		OperationName:       "GetKey",
 		ErrorIfGUNInvalid:   notFoundError,
 		ServerHandler:       handlers.GetKeyHandler,
 		PermissionsRequired: []string{"push", "pull"},
 	}))
 	r.Methods("POST").Path(
-		"/v2/{imageName:.*}/_trust/tuf/{tufRole:snapshot|timestamp}.key").Handler(createHandler(_serverEndpoint{
+		"/v2/{imageName:[^*]+}/_trust/tuf/{tufRole:snapshot|timestamp}.key").Handler(createHandler(_serverEndpoint{
 		OperationName:       "RotateKey",
 		ErrorIfGUNInvalid:   notFoundError,
 		ServerHandler:       handlers.RotateKeyHandler,
 		PermissionsRequired: []string{"*"},
 	}))
-	r.Methods("DELETE").Path("/v2/{imageName:.*}/_trust/tuf/").Handler(createHandler(_serverEndpoint{
+	r.Methods("DELETE").Path("/v2/{imageName:[^*]+}/_trust/tuf/").Handler(createHandler(_serverEndpoint{
 		OperationName:       "DeleteTUF",
 		ErrorIfGUNInvalid:   notFoundError,
 		ServerHandler:       handlers.DeleteHandler,
+		PermissionsRequired: []string{"*"},
+	}))
+	r.Methods("GET").Path("/v2/{imageName:[^*]+}/_trust/changefeed").Handler(createHandler(_serverEndpoint{
+		OperationName:       "Changefeed",
+		ErrorIfGUNInvalid:   notFoundError,
+		ServerHandler:       handlers.Changefeed,
+		PermissionsRequired: []string{"pull"},
+	}))
+	r.Methods("GET").Path("/v2/_trust/changefeed").Handler(createHandler(_serverEndpoint{
+		OperationName:       "Changefeed",
+		ServerHandler:       handlers.Changefeed,
 		PermissionsRequired: []string{"*"},
 	}))
 
