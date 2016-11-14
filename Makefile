@@ -193,8 +193,9 @@ docker-images: notary-dockerfile server-dockerfile signer-dockerfile
 shell: notary-dockerfile
 	docker run --rm -it -v $(CURDIR)/cross:$(NOTARYDIR)/cross -v $(CURDIR)/bin:$(NOTARYDIR)/bin notary bash
 
-cross: notary-dockerfile
+cross:
 	@rm -rf $(CURDIR)/cross
+	@docker build --rm --force-rm -t notary -f cross.Dockerfile .
 	docker run --rm -v $(CURDIR)/cross:$(NOTARYDIR)/cross -e CTIMEVAR="${CTIMEVAR}" -e NOTARY_BUILDTAGS=$(NOTARY_BUILDTAGS) notary buildscripts/cross.sh $(GOOSES)
 
 clean:
