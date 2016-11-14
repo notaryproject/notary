@@ -44,6 +44,7 @@ func init() {
 
 			// drop all tables, if they exist
 			gormDB.DropTable(&TUFFile{})
+			gormDB.DropTable(&Change{})
 		}
 		cleanup1()
 		dbStore := SetupSQLDB(t, notary.PostgresBackend, dburl)

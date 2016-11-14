@@ -71,6 +71,9 @@ const (
 	// and PrivNoExecPerms for file.
 	PrivExecPerms   = 0700
 	PrivNoExecPerms = 0600
+
+	// DefaultPageSize is the default number of records to return from the changefeed
+	DefaultPageSize = 100
 )
 
 // enum to use for setting and retrieving values from contexts

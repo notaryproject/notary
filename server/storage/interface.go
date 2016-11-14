@@ -39,4 +39,15 @@ type MetaStore interface {
 	// Delete removes all metadata for a given GUN.  It does not return an
 	// error if no metadata exists for the given GUN.
 	Delete(gun string) error
+
+	// GetChanges returns an ordered slice of changes. It starts from
+	// the change matching changeID, but excludes this change from the results
+	// on the assumption that if a user provides an ID, they've seen that change.
+	// If changeID is 0, it starts from the
+	// beginning, and if changeID is -1, it starts from the most recent
+	// change. The number of results returned is limited by records.
+	// If records is negative, we will return that number of changes preceding
+	// the given changeID.
+	// The returned []Change should always be ordered oldest to newest.
+	GetChanges(changeID string, records int, filterName string) ([]Change, error)
 }
