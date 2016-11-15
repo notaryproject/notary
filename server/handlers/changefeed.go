@@ -41,8 +41,8 @@ func Changefeed(ctx context.Context, w http.ResponseWriter, r *http.Request) err
 	return err
 }
 
-func changefeed(logger ctxu.Logger, store storage.MetaStore, imageName, changeID string, records int64) ([]byte, error) {
-	changes, err := store.GetChanges(changeID, int(records), imageName)
+func changefeed(logger ctxu.Logger, store storage.MetaStore, imageName, changeID string, records int) ([]byte, error) {
+	changes, err := store.GetChanges(changeID, records, imageName)
 	if err != nil {
 		logger.Errorf("500 GET could not retrieve records: %s", err.Error())
 		return nil, errors.ErrUnknown.WithDetail(err)
@@ -59,7 +59,7 @@ func changefeed(logger ctxu.Logger, store storage.MetaStore, imageName, changeID
 }
 
 func checkChangefeedInputs(logger ctxu.Logger, s interface{}, r string) (
-	store storage.MetaStore, pageSize int64, err error) {
+	store storage.MetaStore, pageSize int, err error) {
 
 	store, ok := s.(storage.MetaStore)
 	if !ok {
@@ -69,7 +69,8 @@ func checkChangefeedInputs(logger ctxu.Logger, s interface{}, r string) (
 	}
 
 	if r != "" {
-		pageSize, err = strconv.ParseInt(r, 10, 32)
+		var tmp int64
+		tmp, err = strconv.ParseInt(r, 10, 32)
 		if err != nil {
 			logger.Errorf("400 GET invalid records: %s", r)
 			err = errors.ErrInvalidParams.WithDetail(
@@ -77,7 +78,7 @@ func checkChangefeedInputs(logger ctxu.Logger, s interface{}, r string) (
 			)
 			return
 		}
-
+		pageSize = int(tmp)
 	}
 	switch {
 	case pageSize == 0:

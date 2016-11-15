@@ -75,7 +75,7 @@ const (
 	// DefaultPageSize is the default number of records to return from the changefeed
 	DefaultPageSize = 100
 	// MaxPageSize is the maximum number of records that can be requested from
-	//  the changefeed in a single request
+	// the changefeed in a single request
 	MaxPageSize = 1000
 )
 
