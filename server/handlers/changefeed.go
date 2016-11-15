@@ -67,16 +67,19 @@ func checkChangefeedInputs(logger ctxu.Logger, s interface{}, r string) (
 		err = errors.ErrNoStorage.WithDetail(nil)
 		return
 	}
-	pageSize, err = strconv.ParseInt(r, 10, 32)
-	if err != nil {
-		logger.Errorf("400 GET invalid pageSize: %s", r)
-		err = errors.ErrInvalidParams.WithDetail(
-			fmt.Sprintf("invalid records parameter: %s", err.Error()),
-		)
-		return
-	}
-	if pageSize == 0 {
-		pageSize = notary.DefaultPageSize
+	pageSize = notary.DefaultPageSize
+	if r != "" {
+		pageSize, err = strconv.ParseInt(r, 10, 32)
+		if err != nil {
+			logger.Errorf("400 GET invalid records: %s", r)
+			err = errors.ErrInvalidParams.WithDetail(
+				fmt.Sprintf("invalid records parameter: %s", err.Error()),
+			)
+			return
+		}
+		if pageSize == 0 {
+			pageSize = notary.DefaultPageSize
+		}
 	}
 	return
 }
