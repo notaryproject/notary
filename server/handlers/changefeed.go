@@ -67,7 +67,7 @@ func checkChangefeedInputs(logger ctxu.Logger, s interface{}, r string) (
 		err = errors.ErrNoStorage.WithDetail(nil)
 		return
 	}
-	pageSize = notary.DefaultPageSize
+
 	if r != "" {
 		pageSize, err = strconv.ParseInt(r, 10, 32)
 		if err != nil {
@@ -77,9 +77,15 @@ func checkChangefeedInputs(logger ctxu.Logger, s interface{}, r string) (
 			)
 			return
 		}
-		if pageSize == 0 {
-			pageSize = notary.DefaultPageSize
-		}
+
+	}
+	switch {
+	case pageSize == 0:
+		pageSize = notary.DefaultPageSize
+	case pageSize > notary.MaxPageSize:
+		pageSize = notary.MaxPageSize
+	case pageSize < -notary.MaxPageSize:
+		pageSize = -notary.MaxPageSize
 	}
 	return
 }
