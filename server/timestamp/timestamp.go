@@ -91,12 +91,12 @@ func GetOrCreateTimestamp(gun string, store storage.MetaStore, cryptoService sig
 	if err != nil || snapChecksums == nil {
 		return nil, nil, err
 	}
-	snapshotSha256Bytes, ok := snapChecksums.Hashes[notary.SHA256]
+	snapshotSHA256Bytes, ok := snapChecksums.Hashes[notary.SHA256]
 	if !ok {
 		return nil, nil, data.ErrMissingMeta{Role: data.CanonicalSnapshotRole}
 	}
-	snapshotSha256Hex := hex.EncodeToString(snapshotSha256Bytes[:])
-	snapshotTime, snapshot, err := snapshot.GetOrCreateSnapshot(gun, snapshotSha256Hex, store, cryptoService)
+	snapshotSHA256Hex := hex.EncodeToString(snapshotSHA256Bytes[:])
+	snapshotTime, snapshot, err := snapshot.GetOrCreateSnapshot(gun, snapshotSHA256Hex, store, cryptoService)
 	if err != nil {
 		logrus.Debug("Previous timestamp, but no valid snapshot for GUN ", gun)
 		return nil, nil, err

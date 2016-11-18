@@ -100,9 +100,9 @@ func FindRoleIndex(rs []*data.Role, name string) int {
 // ConsistentName generates the appropriate HTTP URL path for the role,
 // based on whether the repo is marked as consistent. The RemoteStore
 // is responsible for adding file extensions.
-func ConsistentName(role string, hashSha256 []byte) string {
-	if len(hashSha256) > 0 {
-		hash := hex.EncodeToString(hashSha256)
+func ConsistentName(role string, hashSHA256 []byte) string {
+	if len(hashSHA256) > 0 {
+		hash := hex.EncodeToString(hashSHA256)
 		return fmt.Sprintf("%s.%s", role, hash)
 	}
 	return role

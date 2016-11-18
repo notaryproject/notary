@@ -221,7 +221,7 @@ func getTargetHashes(t *tufCommander) (data.Hashes, error) {
 	targetHash := data.Hashes{}
 
 	if t.sha256 != "" {
-		if len(t.sha256) != notary.Sha256HexSize {
+		if len(t.sha256) != notary.SHA256HexSize {
 			return nil, fmt.Errorf("invalid sha256 hex contents provided")
 		}
 		sha256Hash, err := hex.DecodeString(t.sha256)
@@ -232,7 +232,7 @@ func getTargetHashes(t *tufCommander) (data.Hashes, error) {
 	}
 
 	if t.sha512 != "" {
-		if len(t.sha512) != notary.Sha512HexSize {
+		if len(t.sha512) != notary.SHA512HexSize {
 			return nil, fmt.Errorf("invalid sha512 hex contents provided")
 		}
 		sha512Hash, err := hex.DecodeString(t.sha512)
