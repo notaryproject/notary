@@ -531,7 +531,7 @@ func TestChangeKeyPassphraseNonexistentID(t *testing.T) {
 		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
 	}
 	// Valid ID size, but does not exist as a key ID
-	err := k.keyPassphraseChange(&cobra.Command{}, []string{strings.Repeat("x", notary.Sha256HexSize)})
+	err := k.keyPassphraseChange(&cobra.Command{}, []string{strings.Repeat("x", notary.SHA256HexSize)})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "could not retrieve local key for key ID provided")
 }
