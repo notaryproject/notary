@@ -1,0 +1,8 @@
+#!/usr/bin/make -f
+
+# prefer Go 1.6 explicitly if it's available (golang-1.6-go)
+export PATH := /usr/lib/go-1.7/bin:$(PATH)
+export GOPATH := $(CURDIR)
+
+%:
+	dh $@

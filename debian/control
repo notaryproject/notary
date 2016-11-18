@@ -1,0 +1,20 @@
+Source: notary
+Maintainer: Andrew Hsu <andrewhsu@docker.com>
+Section: misc
+Priority: extra
+Standards-Version: 3.9.7
+Build-Depends: debhelper (>= 9),
+               git,
+               golang-1.7,
+               libltdl-dev
+Homepage: https://github.com/docker/notary
+Vcs-Browser: https://github.com/andrewhsu/notary.git
+Vcs-Git: git://github.com/andrewhsu/notary.git
+XS-Go-Import-Path: github.com/docker/notary
+
+Package: notary
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Built-Using: ${misc:Built-Using}
+Description: docker notary
+ The notary does security things.

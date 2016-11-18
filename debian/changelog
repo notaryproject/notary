@@ -1,0 +1,5 @@
+notary (0.5.0) UNRELEASED; urgency=medium
+
+  * Initial release. (Closes: #XXXXXX)
+
+ -- root <andrewhsu@docker.com>  Thu, 17 Nov 2016 23:52:21 +0000
