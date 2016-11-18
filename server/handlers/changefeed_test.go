@@ -16,7 +16,7 @@ type changefeedArgs struct {
 	store     storage.MetaStore
 	imageName string
 	changeID  string
-	pageSize  int64
+	pageSize  int
 }
 
 type changefeedTest struct {
@@ -82,7 +82,7 @@ func Test_checkChangefeedInputs(t *testing.T) {
 		name         string
 		args         args
 		wantStore    storage.MetaStore
-		wantPageSize int64
+		wantPageSize int
 		wantErr      bool
 	}{
 		// Error cases
@@ -142,7 +142,27 @@ func Test_checkChangefeedInputs(t *testing.T) {
 				ps:     "",
 			},
 			wantStore:    s,
-			wantPageSize: 100,
+			wantPageSize: notary.DefaultPageSize,
+		},
+		{
+			name: "Large positive records",
+			args: args{
+				logger: logrus.New(),
+				s:      s,
+				ps:     "99999999",
+			},
+			wantStore:    s,
+			wantPageSize: notary.MaxPageSize,
+		},
+		{
+			name: "Large negative records",
+			args: args{
+				logger: logrus.New(),
+				s:      s,
+				ps:     "-99999999",
+			},
+			wantStore:    s,
+			wantPageSize: -notary.MaxPageSize,
 		},
 	}
 	for _, tt := range tests {
