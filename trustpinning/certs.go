@@ -140,7 +140,7 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 	}
 
 	// Regardless of having a previous root or not, confirm that the new root validates against the trust pinning
-	logrus.Debugf("checking root against trust_pinning config", gun)
+	logrus.Debugf("checking root against trust_pinning config for %s", gun)
 	trustPinCheckFunc, err := NewTrustPinChecker(trustPinning, gun, !havePrevRoot)
 	if err != nil {
 		return nil, &ErrValidationFail{Reason: err.Error()}
