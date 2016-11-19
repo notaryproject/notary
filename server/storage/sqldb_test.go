@@ -42,7 +42,7 @@ func assertExpectedGormTUFMeta(t *testing.T, expected []StoredTUFMeta, gormDB go
 			Gun:     tufObj.Gun,
 			Role:    tufObj.Role,
 			Version: tufObj.Version,
-			Sha256:  tufObj.Sha256,
+			SHA256:  tufObj.SHA256,
 			Data:    tufObj.Data,
 		}
 	}

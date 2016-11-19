@@ -22,7 +22,7 @@ type RDBTUFFile struct {
 	Gun            string        `gorethink:"gun"`
 	Role           string        `gorethink:"role"`
 	Version        int           `gorethink:"version"`
-	Sha256         string        `gorethink:"sha256"`
+	SHA256         string        `gorethink:"sha256"`
 	Data           []byte        `gorethink:"data"`
 	TSchecksum     string        `gorethink:"timestamp_checksum"`
 }
@@ -42,7 +42,7 @@ func rdbTUFFileFromJSON(data []byte) (interface{}, error) {
 		Gun        string    `json:"gun"`
 		Role       string    `json:"role"`
 		Version    int       `json:"version"`
-		Sha256     string    `json:"sha256"`
+		SHA256     string    `json:"sha256"`
 		Data       []byte    `json:"data"`
 		TSchecksum string    `json:"timestamp_checksum"`
 	}{}
@@ -59,7 +59,7 @@ func rdbTUFFileFromJSON(data []byte) (interface{}, error) {
 		Gun:            a.Gun,
 		Role:           a.Role,
 		Version:        a.Version,
-		Sha256:         a.Sha256,
+		SHA256:         a.SHA256,
 		Data:           a.Data,
 		TSchecksum:     a.TSchecksum,
 	}, nil
@@ -98,7 +98,7 @@ func (rdb RethinkDB) UpdateCurrent(gun string, update MetaUpdate) error {
 		Gun:            gun,
 		Role:           update.Role,
 		Version:        update.Version,
-		Sha256:         hex.EncodeToString(checksum[:]),
+		SHA256:         hex.EncodeToString(checksum[:]),
 		Data:           update.Data,
 	}
 	_, err := gorethink.DB(rdb.dbName).Table(file.TableName()).Insert(
@@ -127,7 +127,7 @@ func (rdb RethinkDB) UpdateCurrentWithTSChecksum(gun, tsChecksum string, update 
 		Gun:            gun,
 		Role:           update.Role,
 		Version:        update.Version,
-		Sha256:         hex.EncodeToString(checksum[:]),
+		SHA256:         hex.EncodeToString(checksum[:]),
 		TSchecksum:     tsChecksum,
 		Data:           update.Data,
 	}
@@ -216,7 +216,7 @@ func (rdb RethinkDB) GetCurrent(gun, role string) (created *time.Time, data []by
 func (rdb RethinkDB) GetChecksum(gun, role, checksum string) (created *time.Time, data []byte, err error) {
 	var file RDBTUFFile
 	res, err := gorethink.DB(rdb.dbName).Table(file.TableName(), gorethink.TableOpts{ReadMode: "majority"}).GetAllByIndex(
-		rdbGunRoleSha256Idx, []string{gun, role, checksum},
+		rdbGunRoleSHA256Idx, []string{gun, role, checksum},
 	).Run(rdb.sess)
 	if err != nil {
 		return nil, nil, err

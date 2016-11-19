@@ -46,7 +46,7 @@ func testTUFMetaStoreGetCurrent(t *testing.T, s MetaStore) {
 	ConsistentMissingTSAndSnapGetCurrentTest(t, tufDBStore, initialRootTUF)
 
 	// Note that get by checksum succeeds, since it does not try to walk timestamp/snapshot
-	_, _, err := tufDBStore.GetChecksum(gun, data.CanonicalRootRole, initialRootTUF.Sha256)
+	_, _, err := tufDBStore.GetChecksum(gun, data.CanonicalRootRole, initialRootTUF.SHA256)
 	require.NoError(t, err)
 
 	// Now add metadata from a valid TUF repo to ensure that we walk correctly.

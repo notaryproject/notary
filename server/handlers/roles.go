@@ -88,9 +88,9 @@ func getMaybeServerSigned(ctx context.Context, store storage.MetaStore, gun, rol
 		if err != nil || snapshotChecksums == nil {
 			return nil, nil, fmt.Errorf("could not retrieve latest snapshot checksum")
 		}
-		if snapshotSha256Bytes, ok := snapshotChecksums.Hashes[notary.SHA256]; ok {
-			snapshotSha256Hex := hex.EncodeToString(snapshotSha256Bytes[:])
-			return store.GetChecksum(gun, role, snapshotSha256Hex)
+		if snapshotSHA256Bytes, ok := snapshotChecksums.Hashes[notary.SHA256]; ok {
+			snapshotSHA256Hex := hex.EncodeToString(snapshotSHA256Bytes[:])
+			return store.GetChecksum(gun, role, snapshotSHA256Hex)
 		}
 		return nil, nil, fmt.Errorf("could not retrieve sha256 snapshot checksum")
 	}

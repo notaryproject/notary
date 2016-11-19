@@ -472,7 +472,7 @@ func TestConfigFileTrustPinning(t *testing.T) {
 		        "repo3": ["%s"]
 		    }
 		 }
-	}`, strings.Repeat("x", notary.Sha256HexSize)))
+	}`, strings.Repeat("x", notary.SHA256HexSize)))
 	defer os.RemoveAll(tempDir)
 	commander = &notaryCommander{
 		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
@@ -481,10 +481,10 @@ func TestConfigFileTrustPinning(t *testing.T) {
 
 	config, err = commander.parseConfig()
 	require.NoError(t, err)
-	require.Equal(t, []interface{}{strings.Repeat("x", notary.Sha256HexSize)}, config.GetStringMap("trust_pinning.certs")["repo3"])
+	require.Equal(t, []interface{}{strings.Repeat("x", notary.SHA256HexSize)}, config.GetStringMap("trust_pinning.certs")["repo3"])
 	trustPin, err = getTrustPinning(config)
 	require.NoError(t, err)
-	require.Equal(t, strings.Repeat("x", notary.Sha256HexSize), trustPin.Certs["repo3"][0])
+	require.Equal(t, strings.Repeat("x", notary.SHA256HexSize), trustPin.Certs["repo3"][0])
 
 	// Check that an invalid cert ID pinning format fails
 	tempDir = tempDirWithConfig(t, fmt.Sprintf(`{
@@ -493,7 +493,7 @@ func TestConfigFileTrustPinning(t *testing.T) {
 		        "repo3": "%s"
 		    }
 		 }
-	}`, strings.Repeat("x", notary.Sha256HexSize)))
+	}`, strings.Repeat("x", notary.SHA256HexSize)))
 	defer os.RemoveAll(tempDir)
 	commander = &notaryCommander{
 		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },

@@ -113,7 +113,7 @@ func TestKeyStoreInternalState(t *testing.T) {
 	for _, role := range roles {
 		keyID, _ := roleToID[role]
 		// make sure this keyID is the right length
-		require.Len(t, keyID, notary.Sha256HexSize)
+		require.Len(t, keyID, notary.SHA256HexSize)
 		require.Equal(t, role, store.keyInfoMap[keyID].Role)
 		// targets and snapshot keys should have a gun set, root and delegation keys should not
 		if role == data.CanonicalTargetsRole || role == data.CanonicalSnapshotRole {

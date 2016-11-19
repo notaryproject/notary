@@ -14,7 +14,7 @@ import (
 type StoredTUFMeta struct {
 	Gun     string
 	Role    string
-	Sha256  string
+	SHA256  string
 	Data    []byte
 	Version int
 }
@@ -29,7 +29,7 @@ func SampleCustomTUFObj(gun, role string, version int, tufdata []byte) StoredTUF
 		Gun:     gun,
 		Role:    role,
 		Version: version,
-		Sha256:  hexChecksum,
+		SHA256:  hexChecksum,
 		Data:    tufdata,
 	}
 }
