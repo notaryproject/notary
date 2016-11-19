@@ -137,6 +137,8 @@ func (n *notaryCommander) parseConfig() (*viper.Viper, error) {
 	}
 	logrus.Debugf("Using the following trust directory: %s", config.GetString("trust_dir"))
 
+	cleanTrustedCertificates(config.GetString("trust_dir"))
+
 	return config, nil
 }
 
