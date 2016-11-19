@@ -2,6 +2,7 @@
 
 ## [v0.5.1](https://github.com/docker/notary/releases/tag/v0.5.1) 11/14/2016
 + If no `records` parameter is provided in a request for the changefeed, a default value of 100 is used.
++ Fix build tags for static notary client binaries in linux [#1038](https://github.com/docker/notary/pull/1038)
 
 ## [v0.5.0](https://github.com/docker/notary/releases/tag/v0.5.0) 11/14/2016
 + Non-certificate public keys in PEM format can now be added to delegation roles [#965](https://github.com/docker/notary/pull/965)
