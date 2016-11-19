@@ -72,7 +72,7 @@ func (db *SQLStorage) UpdateCurrent(gun string, update MetaUpdate) error {
 			Gun:     gun,
 			Role:    update.Role,
 			Version: update.Version,
-			Sha256:  hexChecksum,
+			SHA256:  hexChecksum,
 			Data:    update.Data,
 		}).Error); err != nil {
 			return err
@@ -193,7 +193,7 @@ func (db *SQLStorage) GetChecksum(gun, tufRole, checksum string) (*time.Time, []
 		&TUFFile{
 			Gun:    gun,
 			Role:   tufRole,
-			Sha256: checksum,
+			SHA256: checksum,
 		},
 	).First(&row)
 	if err := isReadErr(q, row); err != nil {

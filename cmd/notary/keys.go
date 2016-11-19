@@ -328,7 +328,7 @@ func (k *keyCommander) keyRemove(cmd *cobra.Command, args []string) error {
 	keyID := args[0]
 
 	// This is an invalid ID
-	if len(keyID) != notary.Sha256HexSize {
+	if len(keyID) != notary.SHA256HexSize {
 		return fmt.Errorf("invalid key ID provided: %s", keyID)
 	}
 	cmd.Println("")
@@ -356,7 +356,7 @@ func (k *keyCommander) keyPassphraseChange(cmd *cobra.Command, args []string) er
 	keyID := args[0]
 
 	// This is an invalid ID
-	if len(keyID) != notary.Sha256HexSize {
+	if len(keyID) != notary.SHA256HexSize {
 		return fmt.Errorf("invalid key ID provided: %s", keyID)
 	}
 

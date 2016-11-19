@@ -410,7 +410,7 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 
 	targetData := []byte{'a', 'b', 'c'}
 	target256Bytes := sha256.Sum256(targetData)
-	targetSha256Hex := hex.EncodeToString(target256Bytes[:])
+	targetSHA256Hex := hex.EncodeToString(target256Bytes[:])
 	target512Bytes := sha512.Sum512(targetData)
 	targetSha512Hex := hex.EncodeToString(target512Bytes[:])
 
@@ -430,7 +430,7 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 	require.NoError(t, err)
 
 	// add a target just by sha256
-	_, err = runCommand(t, tempDir, "addhash", "gun", target1, "3", "--sha256", targetSha256Hex)
+	_, err = runCommand(t, tempDir, "addhash", "gun", target1, "3", "--sha256", targetSHA256Hex)
 	require.NoError(t, err)
 
 	// check status - see target
@@ -507,7 +507,7 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 	require.NoError(t, err)
 
 	// add a target by sha256 and sha512
-	_, err = runCommand(t, tempDir, "addhash", "gun", target3, "3", "--sha256", targetSha256Hex, "--sha512", targetSha512Hex)
+	_, err = runCommand(t, tempDir, "addhash", "gun", target3, "3", "--sha256", targetSHA256Hex, "--sha512", targetSha512Hex)
 	require.NoError(t, err)
 
 	// check status - see target
@@ -2034,7 +2034,7 @@ func TestClientTUFAddByHashWithAutoPublish(t *testing.T) {
 
 	targetData := []byte{'a', 'b', 'c'}
 	target256Bytes := sha256.Sum256(targetData)
-	targetSha256Hex := hex.EncodeToString(target256Bytes[:])
+	targetSHA256Hex := hex.EncodeToString(target256Bytes[:])
 
 	err := ioutil.WriteFile(filepath.Join(tempDir, "tempfile"), targetData, 0644)
 	require.NoError(t, err)
@@ -2050,7 +2050,7 @@ func TestClientTUFAddByHashWithAutoPublish(t *testing.T) {
 	require.NoError(t, err)
 
 	// add a target just by sha256
-	_, err = runCommand(t, tempDir, "-s", server.URL, "addhash", "-p", "gun", target1, "3", "--sha256", targetSha256Hex)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "addhash", "-p", "gun", target1, "3", "--sha256", targetSHA256Hex)
 	require.NoError(t, err)
 
 	// check status - no targets

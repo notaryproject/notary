@@ -230,7 +230,7 @@ func TestCompareMultiHashes(t *testing.T) {
 	require.NoError(t, err)
 
 	// change the sha512 for hashes2, comparison will now fail
-	hashes2[notary.SHA512], err = hex.DecodeString(strings.Repeat("a", notary.Sha512HexSize))
+	hashes2[notary.SHA512], err = hex.DecodeString(strings.Repeat("a", notary.SHA512HexSize))
 	require.NoError(t, err)
 	err = CompareMultiHashes(hashes1, hashes2)
 	require.Error(t, err)
