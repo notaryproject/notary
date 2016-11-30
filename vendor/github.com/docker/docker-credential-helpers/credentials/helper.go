@@ -9,4 +9,8 @@ type Helper interface {
 	// Get retrieves credentials from the store.
 	// It returns username and secret as strings.
 	Get(serverURL string) (string, string, error)
+	// List returns the serverURLs of keys and their
+	// associated usernames from the OS store as a
+	// list of strings
+	List() ([]string, []string, error)
 }

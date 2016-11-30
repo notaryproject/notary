@@ -17,6 +17,11 @@ type Credentials struct {
 	Secret    string
 }
 
+type KeyData struct {
+	Path     string
+	Username string
+}
+
 // Serve initializes the credentials helper and parses the action argument.
 // This function is designed to be called from a command line interface.
 // It uses os.Args[1] as the key for the action.
@@ -25,7 +30,7 @@ type Credentials struct {
 func Serve(helper Helper) {
 	var err error
 	if len(os.Args) != 2 {
-		err = fmt.Errorf("Usage: %s <store|get|erase>", os.Args[0])
+		err = fmt.Errorf("Usage: %s <store|get|erase|list>", os.Args[0])
 	}
 
 	if err == nil {
@@ -47,6 +52,8 @@ func HandleCommand(helper Helper, key string, in io.Reader, out io.Writer) error
 		return Get(helper, in, out)
 	case "erase":
 		return Erase(helper, in)
+	case "list":
+		return List(helper, out)
 	}
 	return fmt.Errorf("Unknown credential action `%s`", key)
 }
@@ -126,4 +133,27 @@ func Erase(helper Helper, reader io.Reader) error {
 	serverURL := strings.TrimSpace(buffer.String())
 
 	return helper.Delete(serverURL)
+}
+
+//List returns all the serverURLs of keys in
+//the OS store as a list of strings
+func List(helper Helper, writer io.Writer) error {
+	paths, accts, err := helper.List()
+	if err != nil {
+		return err
+	}
+	keyDataList := []KeyData{}
+	for index := 0; index < len(paths); index++ {
+		keyDataObj := KeyData{
+			Path:     paths[index],
+			Username: accts[index],
+		}
+		keyDataList = append([]KeyData{keyDataObj}, keyDataList...)
+	}
+	buffer := new(bytes.Buffer)
+	if err := json.NewEncoder(buffer).Encode(keyDataList); err != nil {
+		return err
+	}
+	fmt.Fprint(writer, buffer.String())
+	return nil
 }

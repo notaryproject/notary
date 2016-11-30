@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdlib.h>
 #include "secretservice_linux.h"
 
 const SecretSchema *docker_get_schema(void)
@@ -95,4 +96,53 @@ GError *get(char *server, char **username, char **secret) {
 		return err;
 	}
 	return NULL;
+}
+
+GError *list(char *** paths, char *** accts, unsigned int *list_l) {
+	GList *items;
+	GError *err = NULL;
+	SecretService *service;
+	SecretSearchFlags flags = SECRET_SEARCH_LOAD_SECRETS | SECRET_SEARCH_ALL | SECRET_SEARCH_UNLOCK;
+	GHashTable *attributes;
+	g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+	attributes = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+	service = secret_service_get_sync(SECRET_SERVICE_NONE, NULL, &err);
+	items = secret_service_search_sync(service, NULL, attributes, flags, NULL, &err);
+	int numKeys = g_list_length(items);
+	if (err != NULL) {
+		return err;
+	}
+	*paths = (char **) malloc((int)sizeof(char *)*numKeys);
+	*accts = (char **) malloc((int)sizeof(char *)*numKeys);
+	// items now contains our keys from the gnome keyring
+	// we will now put it in our two lists to return it to go
+	GList *current;
+	int listNumber = 0;
+	for(current = items; current!=NULL; current = current->next) {
+		char *pathTmp = secret_item_get_label(current->data);
+		// you cannot have a key without a label in the gnome keyring
+		char *acctTmp = get_username(current->data);
+		if (acctTmp==NULL) {
+			acctTmp = "account not defined";
+		}
+		char *path = (char *) malloc(strlen(pathTmp));
+		char *acct = (char *) malloc(strlen(acctTmp));
+		path = pathTmp;
+		acct = acctTmp;
+		(*paths)[listNumber] = (char *) malloc(sizeof(char)*(strlen(path)));
+		memcpy((*paths)[listNumber], path, sizeof(char)*(strlen(path)));
+		(*accts)[listNumber] = (char *) malloc(sizeof(char)*(strlen(acct)));
+		memcpy((*accts)[listNumber], acct, sizeof(char)*(strlen(acct)));
+		listNumber = listNumber + 1;
+	}
+	*list_l = numKeys;
+	return NULL;
+}
+
+void freeListData(char *** data, unsigned int length) {
+	int i;
+	for(i=0; i<length; i++) {
+		free((*data)[i]);
+	}
+	free(*data);
 }
