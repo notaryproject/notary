@@ -34,6 +34,7 @@ import (
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
+	"github.com/docker/notary/tuf/testutils"
 	"github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/tuf/validation"
 )
@@ -190,8 +191,8 @@ func createRepoAndKey(t *testing.T, rootType, tempBaseDir, gun, url string) (
 	*NotaryRepository, *passRoleRecorder, string) {
 
 	rec := newRoleRecorder()
-	repo, err := NewFileCachedNotaryRepository(
-		tempBaseDir, gun, url, http.DefaultTransport, rec.retriever, trustpinning.TrustPinConfig{})
+	repo, err := NewNotaryRepository(
+		tempBaseDir, gun, url, http.DefaultTransport, store.NewMemoryStore(nil), rec.retriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
 	rootPubKey, err := repo.CryptoService.Create("root", repo.gun, rootType)
@@ -213,16 +214,18 @@ func newRepoToTestRepo(t *testing.T, existingRepo *NotaryRepository, newDir bool
 	*NotaryRepository, *passRoleRecorder) {
 
 	repoDir := existingRepo.baseDir
+	cache := existingRepo.cache
 	if newDir {
 		tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 		require.NoError(t, err, "failed to create a temporary directory")
 		repoDir = tempBaseDir
+		cache = store.NewMemoryStore(nil)
 	}
 
 	rec := newRoleRecorder()
-	repo, err := NewFileCachedNotaryRepository(
+	repo, err := NewNotaryRepository(
 		repoDir, existingRepo.gun, existingRepo.baseURL,
-		http.DefaultTransport, rec.retriever, trustpinning.TrustPinConfig{})
+		http.DefaultTransport, cache, rec.retriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repository: %s", err)
 	if err != nil && newDir {
 		defer os.RemoveAll(repoDir)
@@ -456,42 +459,35 @@ func requireRepoHasExpectedKeys(t *testing.T, repo *NotaryRepository,
 func requireRepoHasExpectedMetadata(t *testing.T, repo *NotaryRepository,
 	role string, expected bool) {
 
-	filename := filepath.Join(tufDir, filepath.FromSlash(repo.gun),
-		"metadata", role+".json")
-	fullPath := filepath.Join(repo.baseDir, filename)
-	_, err := os.Stat(fullPath)
-
+	jsonBytes, err := repo.cache.GetSized(role, notary.MaxDownloadSize)
 	if expected {
-		require.NoError(t, err, "missing TUF metadata file: %s", filename)
+		require.NoError(t, err, "error reading expected TUF %s metadata file", role)
 	} else {
-		require.Error(t, err,
-			"%s metadata should not exist, but does: %s", role, filename)
+		require.IsType(t, store.ErrMetaNotFound{}, err,
+			"%s metadata should not exist", role)
 		return
 	}
 
-	jsonBytes, err := ioutil.ReadFile(fullPath)
-	require.NoError(t, err, "error reading TUF metadata file %s: %s", filename, err)
-
 	var decoded data.Signed
 	err = json.Unmarshal(jsonBytes, &decoded)
-	require.NoError(t, err, "error parsing TUF metadata file %s: %s", filename, err)
+	require.NoError(t, err, "error parsing TUF metadata %s: %v", role, err)
 
 	require.Len(t, decoded.Signatures, 1,
-		"incorrect number of signatures in TUF metadata file %s", filename)
+		"incorrect number of signatures in TUF metadata file %s", role)
 
 	require.NotEmpty(t, decoded.Signatures[0].KeyID,
-		"empty key ID field in TUF metadata file %s", filename)
+		"empty key ID field in TUF metadata file %s", role)
 	require.NotEmpty(t, decoded.Signatures[0].Method,
-		"empty method field in TUF metadata file %s", filename)
+		"empty method field in TUF metadata file %s", role)
 	require.NotEmpty(t, decoded.Signatures[0].Signature,
-		"empty signature in TUF metadata file %s", filename)
+		"empty signature in TUF metadata file %s", role)
 
 	// Special case for root.json: also check that the signed
 	// content for keys and roles
 	if role == data.CanonicalRootRole {
 		var decodedRoot data.Root
 		err := json.Unmarshal(*decoded.Signed, &decodedRoot)
-		require.NoError(t, err, "error parsing root.json signed section: %s", err)
+		require.NoError(t, err, "error parsing root.json signed section: %v", err)
 
 		require.Equal(t, "Root", decodedRoot.Type, "_type mismatch in root.json")
 
@@ -578,7 +574,8 @@ func testInitRepoAttemptsExceeded(t *testing.T, rootType string) {
 	defer ts.Close()
 
 	retriever := passphrase.ConstantRetriever("password")
-	repo, err := NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
+	repo, err := NewNotaryRepository(
+		tempBaseDir, gun, ts.URL, http.DefaultTransport, store.NewMemoryStore(nil), retriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	rootPubKey, err := repo.CryptoService.Create("root", repo.gun, rootType)
 	require.NoError(t, err, "error generating root key: %s", err)
@@ -586,7 +583,8 @@ func testInitRepoAttemptsExceeded(t *testing.T, rootType string) {
 	retriever = passphrase.ConstantRetriever("incorrect password")
 	// repo.CryptoService’s FileKeyStore caches the unlocked private key, so to test
 	// private key unlocking we need a new repo instance.
-	repo, err = NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
+	repo, err = NewNotaryRepository(
+		tempBaseDir, gun, ts.URL, http.DefaultTransport, store.NewMemoryStore(nil), retriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	err = repo.Initialize([]string{rootPubKey.ID()})
 	require.EqualError(t, err, trustmanager.ErrAttemptsExceeded{}.Error())
@@ -616,14 +614,17 @@ func testInitRepoPasswordInvalid(t *testing.T, rootType string) {
 	defer ts.Close()
 
 	retriever := passphrase.ConstantRetriever("password")
-	repo, err := NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
+	repo, err := NewNotaryRepository(
+		tempBaseDir, gun, ts.URL, http.DefaultTransport, store.NewMemoryStore(nil), retriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	rootPubKey, err := repo.CryptoService.Create("root", repo.gun, rootType)
 	require.NoError(t, err, "error generating root key: %s", err)
 
 	// repo.CryptoService’s FileKeyStore caches the unlocked private key, so to test
 	// private key unlocking we need a new repo instance.
-	repo, err = NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, giveUpPassphraseRetriever, trustpinning.TrustPinConfig{})
+	repo, err = NewNotaryRepository(
+		tempBaseDir, gun, ts.URL, http.DefaultTransport, store.NewMemoryStore(nil), giveUpPassphraseRetriever,
+		trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	err = repo.Initialize([]string{rootPubKey.ID()})
 	require.EqualError(t, err, trustmanager.ErrPasswordInvalid{}.Error())
@@ -1514,19 +1515,16 @@ func testValidateRootKey(t *testing.T, rootType string) {
 	repo, _ := initializeRepo(t, rootType, "docker.com/notary", ts.URL, false)
 	defer os.RemoveAll(repo.baseDir)
 
-	rootJSONFile := filepath.Join(repo.baseDir, "tuf", filepath.FromSlash(repo.gun),
-		"metadata", "root.json")
-
-	jsonBytes, err := ioutil.ReadFile(rootJSONFile)
-	require.NoError(t, err, "error reading TUF metadata file %s: %s", rootJSONFile, err)
+	jsonBytes, err := repo.cache.GetSized(data.CanonicalRootRole, notary.MaxDownloadSize)
+	require.NoError(t, err, "error reading TUF root metadata file")
 
 	var decoded data.Signed
 	err = json.Unmarshal(jsonBytes, &decoded)
-	require.NoError(t, err, "error parsing TUF metadata file %s: %s", rootJSONFile, err)
+	require.NoError(t, err, "error parsing TUF root metadata file")
 
 	var decodedRoot data.Root
 	err = json.Unmarshal(*decoded.Signed, &decodedRoot)
-	require.NoError(t, err, "error parsing root.json signed section: %s", err)
+	require.NoError(t, err, "error parsing root.json signed section")
 
 	keyids := []string{}
 	for role, roleData := range decodedRoot.Roles {
@@ -1660,8 +1658,8 @@ func TestPublishUninitializedRepo(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
 
-	repo, err := NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL,
-		http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
+	repo, err := NewNotaryRepository(tempBaseDir, gun, ts.URL,
+		http.DefaultTransport, store.NewMemoryStore(nil), passphraseRetriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repository: %s", err)
 	err = repo.Publish()
 	require.Error(t, err)
@@ -1957,7 +1955,7 @@ func testPublishBadMetadata(t *testing.T, roleName string, repo *NotaryRepositor
 	addTarget(t, repo, "v1", "../fixtures/intermediate-ca.crt")
 
 	// readable, but corrupt file
-	repo.cache.Set(roleName, []byte("this isn't JSON"))
+	require.NoError(t, repo.cache.Set(roleName, []byte("this isn't JSON")))
 	err := repo.Publish()
 	if succeeds {
 		require.NoError(t, err)
@@ -1966,20 +1964,13 @@ func testPublishBadMetadata(t *testing.T, roleName string, repo *NotaryRepositor
 		require.IsType(t, &json.SyntaxError{}, err)
 	}
 
-	// make an unreadable file by creating a directory instead of a file
-	path := fmt.Sprintf("%s.%s",
-		filepath.Join(repo.baseDir, tufDir, filepath.FromSlash(repo.gun),
-			"metadata", roleName), "json")
-	os.RemoveAll(path)
-	require.NoError(t, os.Mkdir(path, 0755))
-	defer os.RemoveAll(path)
-
+	// make an unreadable
+	repo.cache = testutils.UnreadableStore{MetadataStore: repo.cache}
 	err = repo.Publish()
 	if succeeds || publishFirst {
 		require.NoError(t, err)
 	} else {
 		require.Error(t, err)
-		require.IsType(t, &os.PathError{}, err)
 	}
 }
 
@@ -2025,8 +2016,8 @@ func TestPublishSnapshotLocalKeysCreatedFirst(t *testing.T) {
 		func(http.ResponseWriter, *http.Request) { requestMade = true }))
 	defer ts.Close()
 
-	repo, err := NewFileCachedNotaryRepository(
-		tempBaseDir, gun, ts.URL, http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
+	repo, err := NewNotaryRepository(
+		tempBaseDir, gun, ts.URL, http.DefaultTransport, store.NewMemoryStore(nil), passphraseRetriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
 	cs := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(passphraseRetriever))
@@ -2930,8 +2921,8 @@ func TestRemoteServerUnavailableNoLocalCache(t *testing.T) {
 	ts := errorTestServer(t, 500)
 	defer ts.Close()
 
-	repo, err := NewFileCachedNotaryRepository(tempBaseDir, "docker.com/notary",
-		ts.URL, http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
+	repo, err := NewNotaryRepository(tempBaseDir, "docker.com/notary",
+		ts.URL, http.DefaultTransport, store.NewMemoryStore(nil), passphraseRetriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
 	_, err = repo.ListTargets(data.CanonicalTargetsRole)
@@ -3239,11 +3230,12 @@ func TestRemoveDelegationErrorWritingChanges(t *testing.T) {
 func TestBootstrapClientBadURL(t *testing.T) {
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
-	repo, err := NewFileCachedNotaryRepository(
+	repo, err := NewNotaryRepository(
 		tempBaseDir,
 		"testGun",
 		"http://localhost:9998",
 		http.DefaultTransport,
+		store.NewMemoryStore(nil),
 		passphraseRetriever,
 		trustpinning.TrustPinConfig{},
 	)
@@ -3269,11 +3261,12 @@ func TestBootstrapClientBadURL(t *testing.T) {
 func TestBootstrapClientInvalidURL(t *testing.T) {
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
-	repo, err := NewFileCachedNotaryRepository(
+	repo, err := NewNotaryRepository(
 		tempBaseDir,
 		"testGun",
 		"#!*)&!)#*^%!#)%^!#",
 		http.DefaultTransport,
+		store.NewMemoryStore(nil),
 		passphraseRetriever,
 		trustpinning.TrustPinConfig{},
 	)

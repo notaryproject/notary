@@ -31,8 +31,8 @@ func newBlankRepo(t *testing.T, url string) *NotaryRepository {
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
 
-	repo, err := NewFileCachedNotaryRepository(tempBaseDir, "docker.com/notary", url,
-		http.DefaultTransport, passphrase.ConstantRetriever("pass"), trustpinning.TrustPinConfig{})
+	repo, err := NewNotaryRepository(tempBaseDir, "docker.com/notary", url,
+		http.DefaultTransport, store.NewMemoryStore(nil), passphrase.ConstantRetriever("pass"), trustpinning.TrustPinConfig{})
 	require.NoError(t, err)
 	return repo
 }
@@ -191,8 +191,8 @@ func TestUpdateInOfflineMode(t *testing.T) {
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
 	defer os.RemoveAll(tempBaseDir)
 
-	offlineRepo, err := NewFileCachedNotaryRepository(tempBaseDir, "docker.com/notary", "https://nope",
-		nil, passphrase.ConstantRetriever("pass"), trustpinning.TrustPinConfig{})
+	offlineRepo, err := NewNotaryRepository(tempBaseDir, "docker.com/notary", "https://nope",
+		nil, store.NewMemoryStore(nil), passphrase.ConstantRetriever("pass"), trustpinning.TrustPinConfig{})
 	require.NoError(t, err)
 	err = offlineRepo.Update(false)
 	require.Error(t, err)

@@ -1009,6 +1009,11 @@ func (r *NotaryRepository) DeleteTrustData(deleteRemote bool) error {
 	if err := os.RemoveAll(r.tufRepoPath); err != nil {
 		return fmt.Errorf("error clearing TUF repo data: %v", err)
 	}
+	// Because the cache may not stored on disk, clear it too
+	if err := r.cache.RemoveAll(); err != nil {
+		return fmt.Errorf("error clearing TUF repo data: %v", err)
+	}
+
 	// Note that this will require admin permission in this NotaryRepository's roundtripper
 	if deleteRemote {
 		remote, err := getRemoteStore(r.baseURL, r.gun, r.roundTrip)
