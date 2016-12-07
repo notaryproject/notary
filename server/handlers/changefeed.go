@@ -69,7 +69,7 @@ func checkChangefeedInputs(logger ctxu.Logger, s interface{}, r string) (
 	}
 	pageSize, err = strconv.ParseInt(r, 10, 32)
 	if err != nil {
-		logger.Errorf("400 GET invalid pageSize: %s", r)
+		logger.Errorf("%d GET invalid pageSize: %s", http.StatusBadRequest, r)
 		err = errors.ErrInvalidParams.WithDetail(
 			fmt.Sprintf("invalid records parameter: %s", err.Error()),
 		)
