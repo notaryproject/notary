@@ -99,7 +99,6 @@ func (n *notaryCommander) parseConfig() (*viper.Viper, error) {
 	// Setup the configuration details into viper
 	config.SetDefault("trust_dir", defaultTrustDir)
 	config.SetDefault("remote_server", map[string]string{"url": defaultServerURL})
-
 	// Find and read the config file
 	if err := config.ReadInConfig(); err != nil {
 		logrus.Debugf("Configuration file not found, using defaults")

@@ -51,7 +51,7 @@ type NotaryRepository struct {
 // NewFileCachedNotaryRepository is a wrapper for NewNotaryRepository that initializes
 // a file cache from the provided repository and local config information
 func NewFileCachedNotaryRepository(baseDir, gun, baseURL string, rt http.RoundTripper,
-	retriever notary.PassRetriever, trustPinning trustpinning.TrustPinConfig) (
+	retriever notary.PassRetriever, trustPinning trustpinning.TrustPinConfig, useNative bool) (
 	*NotaryRepository, error) {
 
 	cache, err := store.NewFileStore(
@@ -61,7 +61,7 @@ func NewFileCachedNotaryRepository(baseDir, gun, baseURL string, rt http.RoundTr
 	if err != nil {
 		return nil, err
 	}
-	return NewNotaryRepository(baseDir, gun, baseURL, rt, cache, retriever, trustPinning)
+	return NewNotaryRepository(baseDir, gun, baseURL, rt, cache, retriever, trustPinning, useNative)
 }
 
 // NewNotaryRepository is a helper method that returns a new notary repository.
@@ -69,10 +69,10 @@ func NewFileCachedNotaryRepository(baseDir, gun, baseURL string, rt http.RoundTr
 // (This is normally defaults to "~/.notary" or "~/.docker/trust" when enabling
 // docker content trust).
 func NewNotaryRepository(baseDir, gun, baseURL string, rt http.RoundTripper, cache store.MetadataStore,
-	retriever notary.PassRetriever, trustPinning trustpinning.TrustPinConfig) (
+	retriever notary.PassRetriever, trustPinning trustpinning.TrustPinConfig, useNative bool) (
 	*NotaryRepository, error) {
 
-	keyStores, err := getKeyStores(baseDir, retriever)
+	keyStores, err := getKeyStores(baseDir, retriever, useNative)
 	if err != nil {
 		return nil, err
 	}

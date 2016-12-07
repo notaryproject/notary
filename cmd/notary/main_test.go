@@ -56,6 +56,28 @@ func TestRemoteServerDefault(t *testing.T) {
 	require.Equal(t, "https://notary-server:4443", getRemoteTrustServer(config))
 }
 
+// the default configuration for native store use is off
+func TestNativeStoreDefault(t *testing.T) {
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+	configFile := filepath.Join(tempDir, "config.json")
+
+	commander := &notaryCommander{
+		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
+	}
+
+	// set a blank config file, so it doesn't check ~/.notary/config.json by default
+	// and execute a random command so that the flags are parsed
+	cmd := commander.GetCommand()
+	cmd.SetArgs([]string{"-c", configFile, "list"})
+	cmd.SetOutput(new(bytes.Buffer)) // eat the output
+	cmd.Execute()
+
+	config, err := commander.parseConfig()
+	require.NoError(t, err)
+	require.Equal(t, false, config.GetBool("useNative"))
+}
+
 // providing a config file uses the config file's server url instead
 func TestRemoteServerUsesConfigFile(t *testing.T) {
 	tempDir := tempDirWithConfig(t, `{"remote_server": {"url": "https://myserver"}}`)
