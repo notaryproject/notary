@@ -44,7 +44,7 @@ func Changefeed(ctx context.Context, w http.ResponseWriter, r *http.Request) err
 func changefeed(logger ctxu.Logger, store storage.MetaStore, imageName, changeID string, records int64) ([]byte, error) {
 	changes, err := store.GetChanges(changeID, int(records), imageName)
 	if err != nil {
-		logger.Errorf("500 GET could not retrieve records: %s", err.Error())
+		logger.Errorf("%d GET could not retrieve records: %s", http.StatusInternalServerError, err.Error())
 		return nil, errors.ErrUnknown.WithDetail(err)
 	}
 	out, err := json.Marshal(&changefeedResponse{
@@ -52,7 +52,7 @@ func changefeed(logger ctxu.Logger, store storage.MetaStore, imageName, changeID
 		Records:         changes,
 	})
 	if err != nil {
-		logger.Error("500 GET could not json.Marshal changefeedResponse")
+		logger.Errorf("%d GET could not json.Marshal changefeedResponse", http.StatusInternalServerError)
 		return nil, errors.ErrUnknown.WithDetail(err)
 	}
 	return out, nil
@@ -63,13 +63,13 @@ func checkChangefeedInputs(logger ctxu.Logger, s interface{}, r string) (
 
 	store, ok := s.(storage.MetaStore)
 	if !ok {
-		logger.Error("500 GET unable to retrieve storage")
+		logger.Errorf("%d GET unable to retrieve storage", http.StatusInternalServerError)
 		err = errors.ErrNoStorage.WithDetail(nil)
 		return
 	}
 	pageSize, err = strconv.ParseInt(r, 10, 32)
 	if err != nil {
-		logger.Errorf("400 GET invalid pageSize: %s", r)
+		logger.Errorf("%d GET invalid pageSize: %s", http.StatusBadRequest, r)
 		err = errors.ErrInvalidParams.WithDetail(
 			fmt.Sprintf("invalid records parameter: %s", err.Error()),
 		)
