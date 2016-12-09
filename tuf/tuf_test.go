@@ -82,7 +82,7 @@ func TestInitSnapshotNoTargets(t *testing.T) {
 func writeRepo(t *testing.T, dir string, repo *Repo) {
 	err := os.MkdirAll(dir, 0755)
 	require.NoError(t, err)
-	signedRoot, err := repo.SignRoot(data.DefaultExpires("root"))
+	signedRoot, err := repo.SignRoot(data.DefaultExpires("root"), nil)
 	require.NoError(t, err)
 	rootJSON, _ := json.Marshal(signedRoot)
 	ioutil.WriteFile(dir+"/root.json", rootJSON, 0755)
@@ -1024,7 +1024,7 @@ func TestReplaceBaseKeysInRoot(t *testing.T) {
 		}
 
 		origNumRoles := len(repo.Root.Signed.Roles)
-		_, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+		_, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 		switch role {
 		case data.CanonicalRootRole:
 			// root role can't rotate without signing with previous keys
@@ -1328,7 +1328,7 @@ func TestSignRootOldKeyCertExists(t *testing.T) {
 	repo := initRepoWithRoot(t, cs, oldRootCertKey)
 
 	// Create a first signature, using the old key.
-	signedRoot, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	signedRoot, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	verifySignatureList(t, signedRoot, oldRootCertKey)
 	err = verifyRootSignatureAgainstKey(t, signedRoot, oldRootCertKey)
@@ -1350,7 +1350,7 @@ func TestSignRootOldKeyCertExists(t *testing.T) {
 	require.Equal(t, newRootCertKey.ID(), updatedRootKeyIDs[0])
 
 	// Create a second signature
-	signedRoot, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	signedRoot, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	verifySignatureList(t, signedRoot, oldRootCertKey, newRootCertKey)
 
@@ -1381,7 +1381,7 @@ func TestSignRootOldKeyCertMissing(t *testing.T) {
 	repo := initRepoWithRoot(t, cs, oldRootCertKey)
 
 	// Create a first signature, using the old key.
-	signedRoot, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	signedRoot, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	verifySignatureList(t, signedRoot, oldRootCertKey)
 	err = verifyRootSignatureAgainstKey(t, signedRoot, oldRootCertKey)
@@ -1409,7 +1409,7 @@ func TestSignRootOldKeyCertMissing(t *testing.T) {
 	repo2.originalRootRole = updatedRootRole
 
 	// Create a second signature
-	signedRoot, err = repo2.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	signedRoot, err = repo2.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	verifySignatureList(t, signedRoot, newRootCertKey) // Without oldRootCertKey
 
@@ -1455,7 +1455,7 @@ func TestRootKeyRotation(t *testing.T) {
 
 	// Add new root key, should sign with previous and new
 	require.NoError(t, repo.ReplaceBaseKeys(data.CanonicalRootRole, rootCertKeys[1]))
-	signedObj, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	signedObj, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	expectedSigningKeys := []data.PublicKey{
 		rootCertKeys[0],
@@ -1465,7 +1465,7 @@ func TestRootKeyRotation(t *testing.T) {
 
 	// Add new root key, should sign with previous and new, not with old
 	require.NoError(t, repo.ReplaceBaseKeys(data.CanonicalRootRole, rootCertKeys[2]))
-	signedObj, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	signedObj, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	expectedSigningKeys = []data.PublicKey{
 		rootCertKeys[1],
@@ -1475,7 +1475,7 @@ func TestRootKeyRotation(t *testing.T) {
 
 	// Rotate to two new keys, should be signed with previous and current (3 total)
 	require.NoError(t, repo.ReplaceBaseKeys(data.CanonicalRootRole, rootCertKeys[3], rootCertKeys[4]))
-	signedObj, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	signedObj, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	expectedSigningKeys = []data.PublicKey{
 		rootCertKeys[2],
@@ -1486,7 +1486,7 @@ func TestRootKeyRotation(t *testing.T) {
 
 	// Rotate to two new keys, should be signed with previous set and current set (4 total)
 	require.NoError(t, repo.ReplaceBaseKeys(data.CanonicalRootRole, rootCertKeys[5], rootCertKeys[6]))
-	signedObj, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	signedObj, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	expectedSigningKeys = []data.PublicKey{
 		rootCertKeys[3],

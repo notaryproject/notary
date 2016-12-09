@@ -79,6 +79,7 @@ type keyCommander struct {
 	rotateKeyRole          string
 	rotateKeyServerManaged bool
 	rotateKeyFiles         []string
+	legacyVersions         int
 	input                  io.Reader
 
 	keysImportRole string
@@ -99,6 +100,7 @@ func (k *keyCommander) GetCommand() *cobra.Command {
 		false, "Signing and key management will be handled by the remote server "+
 			"(no key will be generated or stored locally). "+
 			"Required for timestamp role, optional for snapshot role")
+	cmdRotateKey.Flags().IntVarP(&k.legacyVersions, "legacy", "l", 0, "Number of old version's root roles to sign with to support old clients")
 	cmdRotateKey.Flags().StringSliceVarP(
 		&k.rotateKeyFiles,
 		"key",
@@ -259,7 +261,7 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 	}
-
+	nRepo.LegacyVersions = k.legacyVersions
 	if err := nRepo.RotateKey(rotateKeyRole, k.rotateKeyServerManaged, keyList); err != nil {
 		return err
 	}

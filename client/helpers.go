@@ -256,11 +256,11 @@ func rotateRemoteKey(url, gun, role string, rt http.RoundTripper) (data.PublicKe
 }
 
 // signs and serializes the metadata for a canonical role in a TUF repo to JSON
-func serializeCanonicalRole(tufRepo *tuf.Repo, role string) (out []byte, err error) {
+func serializeCanonicalRole(tufRepo *tuf.Repo, role string, extraSigningKeys data.KeyList) (out []byte, err error) {
 	var s *data.Signed
 	switch {
 	case role == data.CanonicalRootRole:
-		s, err = tufRepo.SignRoot(data.DefaultExpires(role))
+		s, err = tufRepo.SignRoot(data.DefaultExpires(role), extraSigningKeys)
 	case role == data.CanonicalSnapshotRole:
 		s, err = tufRepo.SignSnapshot(data.DefaultExpires(role))
 	case tufRepo.Targets[role] != nil:

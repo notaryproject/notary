@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -27,6 +29,9 @@ import (
 
 const (
 	tufDir = "tuf"
+
+	// SignWithAllOldVersions is a sentinel constant for LegacyVersions flag
+	SignWithAllOldVersions = -1
 )
 
 func init() {
@@ -36,16 +41,17 @@ func init() {
 // NotaryRepository stores all the information needed to operate on a notary
 // repository.
 type NotaryRepository struct {
-	baseDir       string
-	gun           string
-	baseURL       string
-	tufRepoPath   string
-	cache         store.MetadataStore
-	CryptoService signed.CryptoService
-	tufRepo       *tuf.Repo
-	invalid       *tuf.Repo // known data that was parsable but deemed invalid
-	roundTrip     http.RoundTripper
-	trustPinning  trustpinning.TrustPinConfig
+	baseDir        string
+	gun            string
+	baseURL        string
+	tufRepoPath    string
+	cache          store.MetadataStore
+	CryptoService  signed.CryptoService
+	tufRepo        *tuf.Repo
+	invalid        *tuf.Repo // known data that was parsable but deemed invalid
+	roundTrip      http.RoundTripper
+	trustPinning   trustpinning.TrustPinConfig
+	LegacyVersions int // number of versions back to fetch roots to sign with
 }
 
 // NewFileCachedNotaryRepository is a wrapper for NewNotaryRepository that initializes
@@ -90,13 +96,14 @@ func repositoryFromKeystores(baseDir, gun, baseURL string, rt http.RoundTripper,
 	cryptoService := cryptoservice.NewCryptoService(keyStores...)
 
 	nRepo := &NotaryRepository{
-		gun:           gun,
-		baseDir:       baseDir,
-		baseURL:       baseURL,
-		tufRepoPath:   filepath.Join(baseDir, tufDir, filepath.FromSlash(gun)),
-		CryptoService: cryptoService,
-		roundTrip:     rt,
-		trustPinning:  trustPin,
+		gun:            gun,
+		baseDir:        baseDir,
+		baseURL:        baseURL,
+		tufRepoPath:    filepath.Join(baseDir, tufDir, filepath.FromSlash(gun)),
+		CryptoService:  cryptoService,
+		roundTrip:      rt,
+		trustPinning:   trustPin,
+		LegacyVersions: 0, // By default, don't sign with legacy roles
 	}
 
 	nRepo.cache = cache
@@ -640,10 +647,16 @@ func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 	// we send anything to remote
 	updatedFiles := make(map[string][]byte)
 
+	// Fetch old keys to support old clients
+	legacyKeys, err := r.oldKeysForLegacyClientSupport(r.LegacyVersions, initialPublish)
+	if err != nil {
+		return err
+	}
+
 	// check if our root file is nearing expiry or dirty. Resign if it is.  If
 	// root is not dirty but we are publishing for the first time, then just
 	// publish the existing root we have.
-	if err := signRootIfNecessary(updatedFiles, r.tufRepo, initialPublish); err != nil {
+	if err := signRootIfNecessary(updatedFiles, r.tufRepo, legacyKeys, initialPublish); err != nil {
 		return err
 	}
 
@@ -661,7 +674,7 @@ func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 	}
 
 	if snapshotJSON, err := serializeCanonicalRole(
-		r.tufRepo, data.CanonicalSnapshotRole); err == nil {
+		r.tufRepo, data.CanonicalSnapshotRole, nil); err == nil {
 		// Only update the snapshot if we've successfully signed it.
 		updatedFiles[data.CanonicalSnapshotRole] = snapshotJSON
 	} else if signErr, ok := err.(signed.ErrInsufficientSignatures); ok && signErr.FoundKeys == 0 {
@@ -683,9 +696,12 @@ func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 	return remote.SetMulti(updatedFiles)
 }
 
-func signRootIfNecessary(updates map[string][]byte, repo *tuf.Repo, initialPublish bool) error {
+func signRootIfNecessary(updates map[string][]byte, repo *tuf.Repo, extraSigningKeys data.KeyList, initialPublish bool) error {
+	if len(extraSigningKeys) > 0 {
+		repo.Root.Dirty = true
+	}
 	if nearExpiry(repo.Root.Signed.SignedCommon) || repo.Root.Dirty {
-		rootJSON, err := serializeCanonicalRole(repo, data.CanonicalRootRole)
+		rootJSON, err := serializeCanonicalRole(repo, data.CanonicalRootRole, extraSigningKeys)
 		if err != nil {
 			return err
 		}
@@ -700,11 +716,113 @@ func signRootIfNecessary(updates map[string][]byte, repo *tuf.Repo, initialPubli
 	return nil
 }
 
+// Fetch back a `legacyVersions` number of roots files, collect the root public keys
+// This includes old `root` roles as well as legacy versioned root roles, e.g. `1.root`
+func (r *NotaryRepository) oldKeysForLegacyClientSupport(legacyVersions int, initialPublish bool) (data.KeyList, error) {
+	if initialPublish {
+		return nil, nil
+	}
+
+	var oldestVersion int
+	prevVersion := r.tufRepo.Root.Signed.Version
+
+	if legacyVersions == SignWithAllOldVersions {
+		oldestVersion = 1
+	} else {
+		oldestVersion = r.tufRepo.Root.Signed.Version - legacyVersions
+	}
+
+	if oldestVersion < 1 {
+		oldestVersion = 1
+	}
+
+	if prevVersion <= 1 || oldestVersion == prevVersion {
+		return nil, nil
+	}
+	oldKeys := make(map[string]data.PublicKey)
+
+	c, err := r.bootstrapClient(true)
+	// require a server connection to fetch old roots
+	if err != nil {
+		return nil, err
+	}
+
+	for v := prevVersion; v >= oldestVersion; v-- {
+		logrus.Debugf("fetching old keys from version %d", v)
+		// fetch old root version
+		versionedRole := fmt.Sprintf("%d.%s", v, data.CanonicalRootRole)
+
+		raw, err := c.remote.GetSized(versionedRole, -1)
+		if err != nil {
+			logrus.Debugf("error downloading %s: %s", versionedRole, err)
+			continue
+		}
+
+		signedOldRoot := &data.Signed{}
+		if err := json.Unmarshal(raw, signedOldRoot); err != nil {
+			return nil, err
+		}
+		oldRootVersion, err := data.RootFromSigned(signedOldRoot)
+		if err != nil {
+			return nil, err
+		}
+
+		// extract legacy versioned root keys
+		oldRootVersionKeys := getOldRootPublicKeys(oldRootVersion)
+		for _, oldKey := range oldRootVersionKeys {
+			oldKeys[oldKey.ID()] = oldKey
+		}
+	}
+	oldKeyList := make(data.KeyList, 0, len(oldKeys))
+	for _, key := range oldKeys {
+		oldKeyList = append(oldKeyList, key)
+	}
+	return oldKeyList, nil
+}
+
+// get all the saved previous roles keys < the current root version
+func getOldRootPublicKeys(root *data.SignedRoot) data.KeyList {
+	oldRootKeys := make(data.KeyList, 0, len(root.Signed.Roles))
+	// now go through the old roles
+	for roleName := range root.Signed.Roles {
+		// must be either `root` or `x.root`
+		isVersionedRoot := false
+
+		nameTokens := strings.Split(roleName, ".")
+		if len(nameTokens) == 2 && nameTokens[0] == data.CanonicalRootRole {
+			isVersionedRoot = true
+		}
+
+		if isVersionedRoot {
+			version, err := strconv.Atoi(nameTokens[1])
+			if err != nil || version >= root.Signed.Version {
+				continue
+			}
+		} else {
+			if roleName != data.CanonicalRootRole {
+				continue
+			}
+		}
+
+		// ignore invalid roles, which shouldn't happen
+		oldRole, err := root.BuildBaseRole(roleName)
+		if err != nil {
+			continue
+		}
+
+		for _, key := range oldRole.ListKeys() {
+			oldRootKeys = append(oldRootKeys, key)
+			logrus.Debugf("found old key %s for supporting legacy clients", key.ID())
+		}
+	}
+	return oldRootKeys
+}
+
 func signTargets(updates map[string][]byte, repo *tuf.Repo, initialPublish bool) error {
 	// iterate through all the targets files - if they are dirty, sign and update
 	for roleName, roleObj := range repo.Targets {
 		if roleObj.Dirty || (roleName == data.CanonicalTargetsRole && initialPublish) {
-			targetsJSON, err := serializeCanonicalRole(repo, roleName)
+			targetsJSON, err := serializeCanonicalRole(repo, roleName, nil)
 			if err != nil {
 				return err
 			}
@@ -753,7 +871,7 @@ func (r *NotaryRepository) bootstrapRepo() error {
 func (r *NotaryRepository) saveMetadata(ignoreSnapshot bool) error {
 	logrus.Debugf("Saving changes to Trusted Collection.")
 
-	rootJSON, err := serializeCanonicalRole(r.tufRepo, data.CanonicalRootRole)
+	rootJSON, err := serializeCanonicalRole(r.tufRepo, data.CanonicalRootRole, nil)
 	if err != nil {
 		return err
 	}
@@ -784,7 +902,7 @@ func (r *NotaryRepository) saveMetadata(ignoreSnapshot bool) error {
 		return nil
 	}
 
-	snapshotJSON, err := serializeCanonicalRole(r.tufRepo, data.CanonicalSnapshotRole)
+	snapshotJSON, err := serializeCanonicalRole(r.tufRepo, data.CanonicalSnapshotRole, nil)
 	if err != nil {
 		return err
 	}
@@ -931,15 +1049,25 @@ func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool, keyList
 	if err := checkRotationInput(role, serverManagesKey); err != nil {
 		return err
 	}
-	var (
-		pubKey     data.PublicKey
-		pubKeyList data.KeyList
-		err        error
-		errFmtMsg  string
-	)
 
-	switch {
-	case serverManagesKey:
+	pubKeyList, err := r.pubKeyListForRotation(role, serverManagesKey, keyList)
+	if err != nil {
+		return err
+	}
+
+	cl := changelist.NewMemChangelist()
+	if err := r.rootFileKeyChange(cl, role, changelist.ActionCreate, pubKeyList); err != nil {
+		return err
+	}
+	return r.publish(cl)
+}
+
+// Given a set of new keys to rotate to and a set of keys to drop, returns the list of current keys to use
+func (r *NotaryRepository) pubKeyListForRotation(role string, serverManaged bool, newKeys []string) (pubKeyList data.KeyList, err error) {
+	var pubKey data.PublicKey
+
+	// If server manages the key being rotated, request a rotation and return the new key
+	if serverManaged {
 		pubKey, err = rotateRemoteKey(r.baseURL, r.gun, role, r.roundTrip)
 		pubKeyList = make(data.KeyList, 0, 1)
 		pubKeyList = append(pubKeyList, pubKey)
@@ -965,50 +1093,45 @@ func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool, keyList
 		for _, keyID := range newKeys {
 			pubKey = r.CryptoService.GetKey(keyID)
 			if pubKey == nil {
-				errFmtMsg = "unable to find key: %s"
-				err = fmt.Errorf("no key with id %s could be found", keyID)
-				break
+				return nil, fmt.Errorf("unable to find key: %s")
 			}
 			pubKeyList = append(pubKeyList, pubKey)
 		}
-	case !serverManagesKey && len(keyList) == 0:
-		pubKeyList = make(data.KeyList, 0, 1)
-		pubKey, err = r.CryptoService.Create(role, r.gun, data.ECDSAKey)
-		pubKeyList = append(pubKeyList, pubKey)
-		errFmtMsg = "unable to generate key: %s"
 	}
 
-	if err != nil {
-		return fmt.Errorf(errFmtMsg, err)
+	// Convert to certs (for root keys)
+	if pubKeyList, err = r.pubKeysToCerts(role, pubKeyList); err != nil {
+		return nil, err
 	}
 
-	// if this is a root role, generate a root cert for the public key
-	if role == data.CanonicalRootRole {
-		for i, pubKey := range pubKeyList {
-			keyInfo, err := r.CryptoService.GetKeyInfo(pubKey.ID())
-			if err != nil {
-				return err
-			}
-			if keyInfo.Role != role {
-				return fmt.Errorf("attempted rotating root key but given %s key instead", keyInfo.Role)
-			}
-			privKey, _, err := r.CryptoService.GetPrivateKey(pubKey.ID())
-			if err != nil {
-				return err
-			}
-			pubKey, err = rootCertKey(r.gun, privKey)
-			if err != nil {
-				return err
-			}
-			pubKeyList[i] = pubKey
+	return pubKeyList, nil
+}
+
+func (r *NotaryRepository) pubKeysToCerts(role string, pubKeyList data.KeyList) (data.KeyList, error) {
+	// only generate certs for root keys
+	if role != data.CanonicalRootRole {
+		return pubKeyList, nil
+	}
+
+	for i, pubKey := range pubKeyList {
+		keyInfo, err := r.CryptoService.GetKeyInfo(pubKey.ID())
+		if err != nil {
+			return nil, err
 		}
+		if keyInfo.Role != role {
+			return nil, fmt.Errorf("attempted to load root key but given %s key instead", keyInfo.Role)
+		}
+		privKey, _, err := r.CryptoService.GetPrivateKey(pubKey.ID())
+		if err != nil {
+			return nil, err
+		}
+		pubKey, err = rootCertKey(r.gun, privKey)
+		if err != nil {
+			return nil, err
+		}
+		pubKeyList[i] = pubKey
 	}
-
-	cl := changelist.NewMemChangelist()
-	if err := r.rootFileKeyChange(cl, role, changelist.ActionCreate, pubKeyList); err != nil {
-		return err
-	}
-	return r.publish(cl)
+	return pubKeyList, nil
 }
 
 func checkRotationInput(role string, serverManaged bool) error {

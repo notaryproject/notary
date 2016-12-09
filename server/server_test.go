@@ -302,7 +302,7 @@ func TestGetRoleByVersion(t *testing.T) {
 	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ED25519Key)
 
 	ccc := utils.NewCacheControlConfig(10, false)
-	handler := RootHandler(nil, ctx, signed.NewEd25519(), ccc, ccc, nil)
+	handler := RootHandler(ctx, nil, signed.NewEd25519(), ccc, ccc, nil)
 	serv := httptest.NewServer(handler)
 	defer serv.Close()
 
