@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
@@ -47,7 +48,7 @@ func (c *TUFClient) Update() (*tuf.Repo, *tuf.Repo, error) {
 
 		c.newBuilder = c.newBuilder.BootstrapNewBuilder()
 
-		if err := c.downloadRoot(); err != nil {
+		if err := c.updateRoot(); err != nil {
 			logrus.Debug("Client Update (Root):", err)
 			return nil, nil, err
 		}
@@ -78,25 +79,81 @@ func (c *TUFClient) update() error {
 	return nil
 }
 
-// downloadRoot is responsible for downloading the root.json
-func (c *TUFClient) downloadRoot() error {
+// updateRoot checks if there is a newer version of the root available, and if so
+// downloads all intermediate root files to allow proper key rotation.
+func (c *TUFClient) updateRoot() error {
 	role := data.CanonicalRootRole
-	consistentInfo := c.newBuilder.GetConsistentInfo(role)
 
-	// We can't read an exact size for the root metadata without risking getting stuck in the TUF update cycle
-	// since it's possible that downloading timestamp/snapshot metadata may fail due to a signature mismatch
-	if !consistentInfo.ChecksumKnown() {
-		logrus.Debugf("Loading root with no expected checksum")
+	// Get Current Root Version
+	currentRootConsistentInfo := c.oldBuilder.GetConsistentInfo(role)
+	currentRoot, _ := c.cache.GetSized(role, -1)
+	c.oldBuilder.Load(currentRootConsistentInfo.RoleName, currentRoot, 1, true)
+	currentVersion := c.oldBuilder.GetLoadedVersion(currentRootConsistentInfo.RoleName)
 
-		// get the cached root, if it exists, just for version checking
-		cachedRoot, _ := c.cache.GetSized(role, -1)
-		// prefer to download a new root
-		_, remoteErr := c.tryLoadRemote(consistentInfo, cachedRoot)
-		return remoteErr
+	// Get New Root Version
+	raw, err := c.remote.GetSized(data.CanonicalRootRole, -1)
+	if err != nil {
+		logrus.Debugf("error downloading root: %s", err)
+		return err
+	}
+	signedRoot := &data.Signed{}
+	if err := json.Unmarshal(raw, signedRoot); err != nil {
+		return err
+	}
+	newestRoot, err := data.RootFromSigned(signedRoot)
+	if err != nil {
+		return err
+	}
+	newestVersion := newestRoot.Signed.Version
+	if newestVersion-currentVersion < 2 {
+		// We're only one version behind, just download the new root
+		if err := c.downloadRoot(); err != nil {
+			return err
+		}
+	} else {
+		if err := c.updateRootVersions(currentRoot, currentVersion, newestVersion); err != nil {
+			return err
+		}
+
+	}
+	return nil
+}
+
+// updateRootVersions updates the root from it's current version to a target, rotating keys
+// as they are found
+func (c *TUFClient) updateRootVersions(currentRoot []byte, fromVersion, toVersion int) error {
+	if fromVersion == toVersion {
+		logrus.Debugf("finished updating root files")
+		return nil
+	}
+	nextVersion := fromVersion + 1
+	skipCheckExpiryAndChecksum := !(nextVersion == toVersion)
+
+	logrus.Debugf("updating root from version %d to version %d, up to %d", fromVersion, nextVersion, toVersion)
+
+	var versionedRole string
+	if nextVersion == toVersion {
+		logrus.Debugf("updating root to %d by requesting latest", toVersion)
+		versionedRole = data.CanonicalRootRole
+	} else {
+		versionedRole = fmt.Sprintf("%d.%s", nextVersion, data.CanonicalRootRole)
 	}
 
-	_, err := c.tryLoadCacheThenRemote(consistentInfo)
-	return err
+	raw, err := c.remote.GetSized(versionedRole, -1)
+	if err != nil {
+		logrus.Debugf("error downloading %s: %s", versionedRole, err)
+		return err
+	}
+	// If loading the most recent version, check expiry
+	if err := c.newBuilder.LoadOptions(data.CanonicalRootRole, raw, nextVersion, skipCheckExpiryAndChecksum, skipCheckExpiryAndChecksum, true); err != nil {
+		logrus.Debugf("downloaded %s is invalid: %s", versionedRole, err)
+		return err
+	}
+	logrus.Debugf("successfully verified downloaded %s", versionedRole)
+	if err := c.cache.Set(data.CanonicalRootRole, raw); err != nil {
+		logrus.Debugf("Unable to write %s to cache: %s", versionedRole, err)
+	}
+	return c.updateRootVersions(raw, nextVersion, toVersion)
 }
 
 // downloadTimestamp is responsible for downloading the timestamp.json
@@ -196,6 +253,27 @@ func (c TUFClient) getTargetsFile(role data.DelegationRole, ci tuf.ConsistentInf
 	// the raw has already been loaded into the builder
 	json.Unmarshal(raw, tgs)
 	return tgs.GetValidDelegations(role), nil
+}
+
+// downloadRoot is responsible for downloading the root.json
+func (c *TUFClient) downloadRoot() error {
+	role := data.CanonicalRootRole
+	consistentInfo := c.newBuilder.GetConsistentInfo(role)
+
+	// We can't read an exact size for the root metadata without risking getting stuck in the TUF update cycle
+	// since it's possible that downloading timestamp/snapshot metadata may fail due to a signature mismatch
+	if !consistentInfo.ChecksumKnown() {
+		logrus.Debugf("Loading root with no expected checksum")
+
+		// get the cached root, if it exists, just for version checking
+		cachedRoot, _ := c.cache.GetSized(role, -1)
+		// prefer to download a new root
+		_, remoteErr := c.tryLoadRemote(consistentInfo, cachedRoot)
+		return remoteErr
+	}
+
+	_, err := c.tryLoadCacheThenRemote(consistentInfo)
+	return err
 }
 
 func (c *TUFClient) tryLoadCacheThenRemote(consistentInfo tuf.ConsistentInfo) ([]byte, error) {

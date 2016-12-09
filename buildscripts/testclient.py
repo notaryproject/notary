@@ -248,9 +248,9 @@ class Tester(object):
         self.client.run(["list", self.repo_name], tempdir)
         with open(os.path.join(tempdir, "tuf", self.repo_name, "metadata", "root.json")) as root:
             root_json = json.load(root)
-            assert len(root_json["signed"]["keys"]) == old_root_num_keys + 1, (
+            assert len(root_json["signed"]["keys"]) == old_root_num_keys, (
                 "expected {0} base keys, but got {1}".format(
-                    old_root_num_keys + 1, len(root_json["signed"]["keys"])))
+                    old_root_num_keys, len(root_json["signed"]["keys"])))
 
             root_certs = root_json["signed"]["roles"]["root"]["keyids"]
 
