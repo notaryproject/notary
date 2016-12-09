@@ -163,6 +163,14 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 		ServerHandler:       handlers.GetHandler,
 		PermissionsRequired: []string{"pull"},
 	}))
+	r.Methods("GET").Path("/v2/{imageName:[^*]+}/_trust/tuf/{version:[0-9]+}.{tufRole:root|targets(?:/[^/\\s]+)*|snapshot|timestamp}.json").Handler(createHandler(_serverEndpoint{
+		OperationName:       "GetRoleByVersion",
+		ErrorIfGUNInvalid:   notFoundError,
+		IncludeCacheHeaders: true,
+		CacheControlConfig:  consistent,
+		ServerHandler:       handlers.GetHandler,
+		PermissionsRequired: []string{"pull"},
+	}))
 	r.Methods("GET").Path("/v2/{imageName:[^*]+}/_trust/tuf/{tufRole:root|targets(?:/[^/\\s]+)*|snapshot|timestamp}.json").Handler(createHandler(_serverEndpoint{
 		OperationName:       "GetRole",
 		ErrorIfGUNInvalid:   notFoundError,
