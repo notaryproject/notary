@@ -169,6 +169,25 @@ func (st *MemStorage) GetChecksum(gun, role, checksum string) (*time.Time, []byt
 	return &(space.createupdate), space.data, nil
 }
 
+// GetVersion gets a specific TUF record by its version
+func (st *MemStorage) GetVersion(gun, role, version string) (*time.Time, []byte, error) {
+	st.lock.Lock()
+	defer st.lock.Unlock()
+	v, err := strconv.Atoi(version)
+	if err != nil {
+		return nil, nil, ErrNotFound{}
+	}
+
+	id := entryKey(gun, role)
+	for _, ver := range st.tufMeta[id] {
+		if ver.version == v {
+			return &(ver.createupdate), ver.data, nil
+		}
+	}
+
+	return nil, nil, ErrNotFound{}
+}
+
 // Delete deletes all the metadata for a given GUN
 func (st *MemStorage) Delete(gun string) error {
 	st.lock.Lock()

@@ -232,6 +232,26 @@ func (rdb RethinkDB) GetChecksum(gun, role, checksum string) (created *time.Time
 	return &file.CreatedAt, file.Data, err
 }
 
+// GetVersion gets a specific TUF record by its version
+func (rdb RethinkDB) GetVersion(gun, role, version string) (*time.Time, []byte, error) {
+	var file RDBTUFFile
+	res, err := gorethink.DB(rdb.dbName).Table(file.TableName(), gorethink.TableOpts{ReadMode: "majority"}).GetAllByIndex(
+		rdbGunRoleVersionIdx, []string{gun, role, version},
+	).Run(rdb.sess)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer res.Close()
+	if res.IsNil() {
+		return nil, nil, ErrNotFound{}
+	}
+	err = res.One(&file)
+	if err == gorethink.ErrEmptyResult {
+		return nil, nil, ErrNotFound{}
+	}
+	return &file.CreatedAt, file.Data, err
+}
+
 // Delete removes all metadata for a given GUN.  It does not return an
 // error if no metadata exists for the given GUN.
 func (rdb RethinkDB) Delete(gun string) error {

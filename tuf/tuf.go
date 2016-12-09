@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -167,18 +166,10 @@ func (tr *Repo) RemoveBaseKeys(role string, keyIDs ...string) error {
 		}
 	}
 
-	// Remove keys no longer in use by any roles, except for root keys.
-	// Root private keys must be kept in tr.cryptoService to be able to sign
-	// for rotation, and root certificates must be kept in tr.Root.SignedKeys
-	// because we are not necessarily storing them elsewhere (tuf.Repo does not
-	// depend on certs.Manager, that is an upper layer), and without storing
-	// the certificates in their x509 form we are not able to do the
-	// util.CanonicalKeyID conversion.
-	if role != data.CanonicalRootRole {
-		for k := range toDelete {
-			delete(tr.Root.Signed.Keys, k)
-			tr.cryptoService.RemoveKey(k)
-		}
+	// Remove keys no longer in use by any roles
+	for k := range toDelete {
+		delete(tr.Root.Signed.Keys, k)
+		tr.cryptoService.RemoveKey(k)
 	}
 	tr.Root.Dirty = true
 	return nil
@@ -910,40 +901,12 @@ func (tr *Repo) SignRoot(expires time.Time) (*data.Signed, error) {
 		return nil, err
 	}
 
-	oldRootRoles := tr.getOldRootRoles()
+	var rolesToSignWith []data.BaseRole
 
-	var latestSavedRole data.BaseRole
-	rolesToSignWith := make([]data.BaseRole, 0, len(oldRootRoles))
-
-	if len(oldRootRoles) > 0 {
-		sort.Sort(oldRootRoles)
-		for _, vRole := range oldRootRoles {
-			rolesToSignWith = append(rolesToSignWith, vRole.BaseRole)
-		}
-		latest := rolesToSignWith[len(rolesToSignWith)-1]
-		latestSavedRole = data.BaseRole{
-			Name:      data.CanonicalRootRole,
-			Threshold: latest.Threshold,
-			Keys:      latest.Keys,
-		}
-	}
-
-	// If the root role (root keys or root threshold) has changed, save the
-	// previous role under the role name "root.<n>", such that the "n" is the
-	// latest root.json version for which previous root role was valid.
-	// Also, guard against re-saving the previous role if the latest
-	// saved role is the same (which should not happen).
-	// n   = root.json version of the originalRootRole (previous role)
-	// n+1 = root.json version of the currRoot (current role)
-	// n-m = root.json version of latestSavedRole (not necessarily n-1, because the
-	//       last root rotation could have happened several root.json versions ago
-	if !tr.originalRootRole.Equals(currRoot) && !tr.originalRootRole.Equals(latestSavedRole) {
+	// If the root role (root keys or root threshold) has changed, sign with the
+	// previous root role keys
+	if !tr.originalRootRole.Equals(currRoot) {
 		rolesToSignWith = append(rolesToSignWith, tr.originalRootRole)
-		latestSavedRole = tr.originalRootRole
-
-		versionName := oldRootVersionName(tempRoot.Signed.Version)
-		tempRoot.Signed.Roles[versionName] = &data.RootRole{
-			KeyIDs: latestSavedRole.ListKeyIDs(), Threshold: latestSavedRole.Threshold}
 	}
 
 	tempRoot.Signed.Expires = expires
