@@ -146,7 +146,7 @@ func rootCertKey(gun string, privKey data.PrivateKey) (data.PublicKey, error) {
 	x509PublicKey := utils.CertToKey(cert)
 	if x509PublicKey == nil {
 		return nil, fmt.Errorf(
-			"cannot use regenerated certificate: format %s", cert.PublicKeyAlgorithm)
+			"cannot use regenerated certificate: format %v", cert.PublicKeyAlgorithm)
 	}
 
 	return x509PublicKey, nil
@@ -921,21 +921,33 @@ func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*TUFClient, e
 // RotateKey removes all existing keys associated with the role, and either
 // creates and adds one new key or delegates managing the key to the server.
 // These changes are staged in a changelist until publish is called.
-func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool) error {
+func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool, keyList []string) error {
 	if err := checkRotationInput(role, serverManagesKey); err != nil {
 		return err
 	}
 	var (
-		pubKey    data.PublicKey
-		err       error
-		errFmtMsg string
+		pubKey     data.PublicKey
+		pubKeyList data.KeyList
+		err        error
+		errFmtMsg  string
 	)
-	switch serverManagesKey {
-	case true:
+
+	switch {
+	case serverManagesKey:
 		pubKey, err = rotateRemoteKey(r.baseURL, r.gun, role, r.roundTrip)
+		pubKeyList = make(data.KeyList, 0, 1)
+		pubKeyList = append(pubKeyList, pubKey)
 		errFmtMsg = "unable to rotate remote key: %s"
-	default:
+	case !serverManagesKey && len(keyList) > 0:
+		pubKeyList = make(data.KeyList, 0, len(keyList))
+		for _, keyID := range keyList {
+			pubKey = r.CryptoService.GetKey(keyID)
+			pubKeyList = append(pubKeyList, pubKey)
+		}
+	case !serverManagesKey && len(keyList) == 0:
+		pubKeyList = make(data.KeyList, 0, 1)
 		pubKey, err = r.CryptoService.Create(role, r.gun, data.ECDSAKey)
+		pubKeyList = append(pubKeyList, pubKey)
 		errFmtMsg = "unable to generate key: %s"
 	}
 
@@ -945,18 +957,21 @@ func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool) error {
 
 	// if this is a root role, generate a root cert for the public key
 	if role == data.CanonicalRootRole {
-		privKey, _, err := r.CryptoService.GetPrivateKey(pubKey.ID())
-		if err != nil {
-			return err
-		}
-		pubKey, err = rootCertKey(r.gun, privKey)
-		if err != nil {
-			return err
+		for i, pubKey := range pubKeyList {
+			privKey, _, err := r.CryptoService.GetPrivateKey(pubKey.ID())
+			if err != nil {
+				return err
+			}
+			pubKey, err = rootCertKey(r.gun, privKey)
+			if err != nil {
+				return err
+			}
+			pubKeyList[i] = pubKey
 		}
 	}
 
 	cl := changelist.NewMemChangelist()
-	if err := r.rootFileKeyChange(cl, role, changelist.ActionCreate, pubKey); err != nil {
+	if err := r.rootFileKeyChange(cl, role, changelist.ActionCreate, pubKeyList); err != nil {
 		return err
 	}
 	return r.publish(cl)
@@ -980,12 +995,10 @@ func checkRotationInput(role string, serverManaged bool) error {
 	return nil
 }
 
-func (r *NotaryRepository) rootFileKeyChange(cl changelist.Changelist, role, action string, key data.PublicKey) error {
-	kl := make(data.KeyList, 0, 1)
-	kl = append(kl, key)
+func (r *NotaryRepository) rootFileKeyChange(cl changelist.Changelist, role, action string, keyList []data.PublicKey) error {
 	meta := changelist.TUFRootData{
 		RoleName: role,
-		Keys:     kl,
+		Keys:     keyList,
 	}
 	metaJSON, err := json.Marshal(meta)
 	if err != nil {
