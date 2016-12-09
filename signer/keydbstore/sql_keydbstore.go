@@ -228,6 +228,15 @@ func (s *SQLKeyDBStore) GetKey(keyID string) data.PublicKey {
 	return data.NewPublicKey(privKey.Algorithm, []byte(privKey.Public))
 }
 
+// GetKeyInfo returns role and GUN info of a key by ID
+func (s *SQLKeyDBStore) GetKeyInfo(keyID string) (trustmanager.KeyInfo, error) {
+	privKey, _, err := s.getKey(keyID, false)
+	if err != nil {
+		return trustmanager.KeyInfo{}, err
+	}
+	return trustmanager.KeyInfo{Gun: privKey.Gun, Role: privKey.Role}, nil
+}
+
 // HealthCheck verifies that DB exists and is query-able
 func (s *SQLKeyDBStore) HealthCheck() error {
 	dbPrivateKey := GormPrivateKey{}

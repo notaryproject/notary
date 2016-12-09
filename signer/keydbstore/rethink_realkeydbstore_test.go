@@ -107,11 +107,15 @@ func requireExpectedRDBKeys(t *testing.T, dbStore *RethinkDBKeyStore, expectedKe
 	}
 
 	for _, key := range expectedKeys {
+		rdbKeyInfo, err := dbStore.GetKeyInfo(key.ID())
+		require.NoError(t, err)
 		rdbKey, ok := result[key.ID()]
 		require.True(t, ok)
 		require.NotNil(t, rdbKey)
 		require.Equal(t, key.Public(), rdbKey.Public)
 		require.Equal(t, key.Algorithm(), rdbKey.Algorithm)
+		require.Equal(t, rdbKey.Gun, rdbKeyInfo.Gun)
+		require.Equal(t, rdbKey.Role, rdbKeyInfo.Role)
 
 		// because we have to manually set the created and modified times
 		require.True(t, rdbKey.CreatedAt.Equal(rdbNow))

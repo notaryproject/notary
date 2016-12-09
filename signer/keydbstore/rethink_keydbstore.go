@@ -215,6 +215,16 @@ func (rdb *RethinkDBKeyStore) GetKey(keyID string) data.PublicKey {
 	return data.NewPublicKey(dbPrivateKey.Algorithm, dbPrivateKey.Public)
 }
 
+// GetKeyInfo returns the gun and role given a KeyID, and does not activate the key
+func (rdb *RethinkDBKeyStore) GetKeyInfo(keyID string) (trustmanager.KeyInfo, error) {
+	dbPrivateKey, _, err := rdb.getKey(keyID)
+	if err != nil {
+		return trustmanager.KeyInfo{}, nil
+	}
+
+	return trustmanager.KeyInfo{Gun: dbPrivateKey.Gun, Role: dbPrivateKey.Role}, nil
+}
+
 // ListKeys always returns nil. This method is here to satisfy the CryptoService interface
 func (rdb RethinkDBKeyStore) ListKeys(role string) []string {
 	return nil

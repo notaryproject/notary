@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -234,13 +233,9 @@ func (rdb RethinkDB) GetChecksum(gun, role, checksum string) (created *time.Time
 }
 
 // GetVersion gets a specific TUF record by its version
-func (rdb RethinkDB) GetVersion(gun, role, version string) (*time.Time, []byte, error) {
+func (rdb RethinkDB) GetVersion(gun, role string, version int) (*time.Time, []byte, error) {
 	var file RDBTUFFile
-	v, err := strconv.Atoi(version)
-	if err != nil {
-		return nil, nil, ErrNotFound{}
-	}
-	res, err := gorethink.DB(rdb.dbName).Table(file.TableName(), gorethink.TableOpts{ReadMode: "majority"}).Get([]interface{}{gun, role, v}).Run(rdb.sess)
+	res, err := gorethink.DB(rdb.dbName).Table(file.TableName(), gorethink.TableOpts{ReadMode: "majority"}).Get([]interface{}{gun, role, version}).Run(rdb.sess)
 	if err != nil {
 		return nil, nil, err
 	}
