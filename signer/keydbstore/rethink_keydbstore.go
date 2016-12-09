@@ -219,7 +219,7 @@ func (rdb *RethinkDBKeyStore) GetKey(keyID string) data.PublicKey {
 func (rdb *RethinkDBKeyStore) GetKeyInfo(keyID string) (trustmanager.KeyInfo, error) {
 	dbPrivateKey, _, err := rdb.getKey(keyID)
 	if err != nil {
-		return trustmanager.KeyInfo{}, nil
+		return trustmanager.KeyInfo{}, err
 	}
 
 	return trustmanager.KeyInfo{Gun: dbPrivateKey.Gun, Role: dbPrivateKey.Role}, nil

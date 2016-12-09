@@ -43,8 +43,13 @@ func validateUpdate(cs signed.CryptoService, gun string, updates []storage.MetaU
 	}
 
 	if rootUpdate, ok := roles[data.CanonicalRootRole]; ok {
+		currentRootVersion := builder.GetLoadedVersion(data.CanonicalRootRole)
+		if rootUpdate.Version != currentRootVersion && rootUpdate.Version != currentRootVersion+1 {
+			msg := fmt.Sprintf("Root modifications must increment the version. Current %d, new %d", currentRootVersion, rootUpdate.Version)
+			return nil, validation.ErrBadRoot{Msg: msg}
+		}
 		builder = builder.BootstrapNewBuilder()
-		if err := builder.Load(data.CanonicalRootRole, rootUpdate.Data, 1, false); err != nil {
+		if err := builder.Load(data.CanonicalRootRole, rootUpdate.Data, currentRootVersion, false); err != nil {
 			return nil, validation.ErrBadRoot{Msg: err.Error()}
 		}
 

@@ -165,10 +165,18 @@ func (tr *Repo) RemoveBaseKeys(role string, keyIDs ...string) error {
 		}
 	}
 
-	// Remove keys no longer in use by any roles
-	for k := range toDelete {
-		delete(tr.Root.Signed.Keys, k)
-		tr.cryptoService.RemoveKey(k)
+	// Remove keys no longer in use by any roles, except for root keys.
+	// Root private keys must be kept in tr.cryptoService to be able to sign
+	// for rotation, and root certificates must be kept in tr.Root.SignedKeys
+	// because we are not necessarily storing them elsewhere (tuf.Repo does not
+	// depend on certs.Manager, that is an upper layer), and without storing
+	// the certificates in their x509 form we are not able to do the
+	// util.CanonicalKeyID conversion.
+	if role != data.CanonicalRootRole {
+		for k := range toDelete {
+			delete(tr.Root.Signed.Keys, k)
+			tr.cryptoService.RemoveKey(k)
+		}
 	}
 
 	tr.Root.Dirty = true
@@ -908,14 +916,7 @@ func (tr *Repo) SignRoot(expires time.Time, extraSigningKeys data.KeyList) (*dat
 		return nil, err
 	}
 
-	optionalRootKeys := tr.getOptionalRootKeys(rolesToSignWith)
-
-	// If we're supporting legacy clients with additional root keys, sign with those
-	for _, extraKey := range extraSigningKeys {
-		optionalRootKeys = append(optionalRootKeys, extraKey)
-	}
-
-	signed, err = tr.sign(signed, rolesToSignWith, optionalRootKeys)
+	signed, err = tr.sign(signed, rolesToSignWith, extraSigningKeys)
 	if err != nil {
 		return nil, err
 	}
@@ -924,30 +925,6 @@ func (tr *Repo) SignRoot(expires time.Time, extraSigningKeys data.KeyList) (*dat
 	tr.Root.Signatures = signed.Signatures
 	tr.originalRootRole = currRoot
 	return signed, nil
-}
-
-// gets any extra optional root keys from the existing root.json signatures
-// (because older repositories that have already done root rotation may not
-// necessarily have older root roles)
-func (tr *Repo) getOptionalRootKeys(signingRoles []data.BaseRole) []data.PublicKey {
-	oldKeysMap := make(map[string]data.PublicKey)
-	for _, oldSig := range tr.Root.Signatures {
-		if k, ok := tr.Root.Signed.Keys[oldSig.KeyID]; ok {
-			oldKeysMap[k.ID()] = k
-		}
-	}
-	for _, role := range signingRoles {
-		for keyID := range role.Keys {
-			delete(oldKeysMap, keyID)
-		}
-	}
-
-	oldKeys := make([]data.PublicKey, 0, len(oldKeysMap))
-	for _, key := range oldKeysMap {
-		oldKeys = append(oldKeys, key)
-	}
-
-	return oldKeys
 }
 
 func oldRootVersionName(version int) string {

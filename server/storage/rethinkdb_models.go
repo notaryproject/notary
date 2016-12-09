@@ -18,7 +18,7 @@ var (
 		Name:       RDBTUFFile{}.TableName(),
 		PrimaryKey: "gun_role_version",
 		SecondaryIndexes: map[string][]string{
-			rdbSHA256Idx:         nil,
+			rdbSha256Idx:         nil,
 			"gun":                nil,
 			"timestamp_checksum": nil,
 			rdbGunRoleIdx:        {"gun", "role"},

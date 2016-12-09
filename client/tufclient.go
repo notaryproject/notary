@@ -101,6 +101,17 @@ func (c *TUFClient) updateRoot() error {
 		return nil
 	}
 
+	// Load current version into newBuilder
+	currentRaw, err := c.cache.GetSized(data.CanonicalRootRole, -1)
+	if err != nil {
+		logrus.Debugf("error loading %d.%s: %s", currentVersion, data.CanonicalRootRole, err)
+		return err
+	}
+	if err := c.newBuilder.LoadRootForUpdate(currentRaw, currentVersion, false); err != nil {
+		logrus.Debugf("%d.%s is invalid: %s", currentVersion, data.CanonicalRootRole, err)
+		return err
+	}
+
 	// Extract newest version number
 	signedRoot := &data.Signed{}
 	if err := json.Unmarshal(raw, signedRoot); err != nil {
@@ -112,9 +123,21 @@ func (c *TUFClient) updateRoot() error {
 	}
 	newestVersion := newestRoot.Signed.SignedCommon.Version
 
-	// Update from current to newest
-	if err := c.updateRootVersions(currentVersion, newestVersion); err != nil {
+	// Update from current + 1 (current already loaded) to newest - 1 (newest loaded below)
+	if err := c.updateRootVersions(currentVersion+1, newestVersion-1); err != nil {
 		return err
+	}
+
+	// Already downloaded newest, verify it against newest - 1
+	if err := c.newBuilder.LoadRootForUpdate(raw, newestVersion, true); err != nil {
+		logrus.Debugf("downloaded %d.%s is invalid: %s", newestVersion, data.CanonicalRootRole, err)
+		return err
+	}
+	logrus.Debugf("successfully verified downloaded %d.%s", newestVersion, data.CanonicalRootRole)
+
+	// Write newest to cache
+	if err := c.cache.Set(data.CanonicalRootRole, raw); err != nil {
+		logrus.Debugf("unable to write %s to cache: %d.%s", newestVersion, data.CanonicalRootRole, err)
 	}
 	logrus.Debugf("finished updating root files")
 	return nil
@@ -127,15 +150,13 @@ func (c *TUFClient) updateRootVersions(fromVersion, toVersion int) error {
 		logrus.Debugf("updating root from version %d to version %d, currently fetching %d", fromVersion, toVersion, v)
 
 		versionedRole := fmt.Sprintf("%d.%s", v, data.CanonicalRootRole)
-		isFinal := v == toVersion
 
 		raw, err := c.remote.GetSized(versionedRole, -1)
 		if err != nil {
 			logrus.Debugf("error downloading %s: %s", versionedRole, err)
 			return err
 		}
-		// If loading the most recent version, check expiry
-		if err := c.newBuilder.LoadRootForUpdate(raw, v, isFinal); err != nil {
+		if err := c.newBuilder.LoadRootForUpdate(raw, v, false); err != nil {
 			logrus.Debugf("downloaded %s is invalid: %s", versionedRole, err)
 			return err
 		}
