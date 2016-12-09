@@ -255,6 +255,72 @@ func TestGetRoleByHash(t *testing.T) {
 // This just checks the URL routing is working correctly and cache headers are set correctly.
 // More detailed tests for this path including negative
 // tests are located in /server/handlers/
+func TestGetRoleByVersion(t *testing.T) {
+	store := storage.NewMemStorage()
+
+	ts := data.SignedTimestamp{
+		Signatures: make([]data.Signature, 0),
+		Signed: data.Timestamp{
+			SignedCommon: data.SignedCommon{
+				Type:    data.TUFTypes[data.CanonicalTimestampRole],
+				Version: 1,
+				Expires: data.DefaultExpires(data.CanonicalTimestampRole),
+			},
+		},
+	}
+	j, err := json.Marshal(&ts)
+	require.NoError(t, err)
+	store.UpdateCurrent("gun", storage.MetaUpdate{
+		Role:    data.CanonicalTimestampRole,
+		Version: 1,
+		Data:    j,
+	})
+
+	// create and add a newer timestamp. We're going to try and request
+	// the older version we created above.
+	ts = data.SignedTimestamp{
+		Signatures: make([]data.Signature, 0),
+		Signed: data.Timestamp{
+			SignedCommon: data.SignedCommon{
+				Type:    data.TUFTypes[data.CanonicalTimestampRole],
+				Version: 2,
+				Expires: data.DefaultExpires(data.CanonicalTimestampRole),
+			},
+		},
+	}
+	newTS, err := json.Marshal(&ts)
+	require.NoError(t, err)
+	store.UpdateCurrent("gun", storage.MetaUpdate{
+		Role:    data.CanonicalTimestampRole,
+		Version: 1,
+		Data:    newTS,
+	})
+
+	ctx := context.WithValue(
+		context.Background(), "metaStore", store)
+
+	ctx = context.WithValue(ctx, "keyAlgorithm", data.ED25519Key)
+
+	ccc := utils.NewCacheControlConfig(10, false)
+	handler := RootHandler(nil, ctx, signed.NewEd25519(), ccc, ccc, nil)
+	serv := httptest.NewServer(handler)
+	defer serv.Close()
+
+	res, err := http.Get(fmt.Sprintf(
+		"%s/v2/gun/_trust/tuf/%d.%s.json",
+		serv.URL,
+		1,
+		data.CanonicalTimestampRole,
+	))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	// if content is equal, checksums are guaranteed to be equal
+	verifyGetResponse(t, res, j)
+}
+
+// This just checks the URL routing is working correctly and cache headers are set correctly.
+// More detailed tests for this path including negative
+// tests are located in /server/handlers/
 func TestGetCurrentRole(t *testing.T) {
 	store := storage.NewMemStorage()
 	metadata, _, err := testutils.NewRepoMetadata("gun")

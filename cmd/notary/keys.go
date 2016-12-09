@@ -35,7 +35,7 @@ var cmdKeyListTemplate = usageTemplate{
 }
 
 var cmdRotateKeyTemplate = usageTemplate{
-	Use:   "rotate [ GUN ] [ key role ] [ key ]",
+	Use:   "rotate [ GUN ] [ key role ]",
 	Short: "Rotate a signing (non-root) key of the given type for the given Globally Unique Name and role.",
 	Long:  `Generates a new key for the given Globally Unique Name and role (one of "snapshot", "targets", "root", or "timestamp").  If rotating to a server-managed key, a new key is requested from the server rather than generated.  If the generation or key request is successful, the key rotation is immediately published.  No other changes, even if they are staged, will be published.`,
 }
@@ -238,7 +238,7 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 	var keyList []string
 
 	for _, keyFile := range k.rotateKeyFiles {
-		privKey, err := readRootKey(keyFile, k.getRetriever())
+		privKey, err := readKey(rotateKeyRole, keyFile, k.getRetriever())
 		if err != nil {
 			return err
 		}

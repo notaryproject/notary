@@ -130,6 +130,13 @@ func TestRethinkUpdateCurrentVersionCheckOldVersionNotExist(t *testing.T) {
 	testUpdateCurrentVersionCheck(t, dbStore, false)
 }
 
+func TestRethinkGetVersion(t *testing.T) {
+	dbStore, cleanup := rethinkDBSetup(t)
+	defer cleanup()
+
+	testGetVersion(t, dbStore)
+}
+
 // UpdateMany succeeds if the updates do not conflict with each other or with what's
 // already in the DB
 func TestRethinkUpdateManyNoConflicts(t *testing.T) {

@@ -2878,6 +2878,7 @@ func TestRotateRootKey(t *testing.T) {
 
 	require.NoError(t, authorRepo.Update(false))
 	newRootRole, err := authorRepo.tufRepo.GetBaseRole(data.CanonicalRootRole)
+	require.NoError(t, err)
 	require.False(t, newRootRole.Equals(oldRootRole))
 	// not only is the root cert different, but the private key is too
 	newRootCertID := rootRoleCertID(t, authorRepo)

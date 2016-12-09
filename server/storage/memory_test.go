@@ -96,3 +96,15 @@ func TestMemoryGetChanges(t *testing.T) {
 
 	testGetChanges(t, s)
 }
+
+func TestGetVersion(t *testing.T) {
+	s := NewMemStorage()
+
+	_, _, err := s.GetVersion("gun", "role", "2")
+	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
+
+	s.UpdateCurrent("gun", MetaUpdate{"role", 2, []byte("test")})
+	_, d, err := s.GetVersion("gun", "role", "2")
+	require.Nil(t, err, "Expected error to be nil")
+	require.Equal(t, []byte("test"), d, "Data was incorrect")
+}

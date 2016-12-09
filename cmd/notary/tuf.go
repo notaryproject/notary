@@ -26,6 +26,7 @@ import (
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
+	tufutils "github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -417,7 +418,7 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 	var rootKeyList []string
 
 	if t.rootKey != "" {
-		privKey, err := readRootKey(t.rootKey, t.retriever)
+		privKey, err := readKey(data.CanonicalRootRole, t.rootKey, t.retriever)
 		if err != nil {
 			return err
 		}
@@ -452,8 +453,9 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 	return maybeAutoPublish(cmd, t.autoPublish, gun, config, t.retriever)
 }
 
-// Attempt to read an encrypted root key from a file, and return it as a data.PrivateKey
-func readRootKey(rootKeyFile string, retriever notary.PassRetriever) (data.PrivateKey, error) {
+// Attempt to read a role key from a file, and return it as a data.PrivateKey
+// If key is for the Root role, it must be encrypted
+func readKey(role, rootKeyFile string, retriever notary.PassRetriever) (data.PrivateKey, error) {
 	keyFile, err := os.Open(rootKeyFile)
 	if err != nil {
 		return nil, fmt.Errorf("Opening file to import as a root key: %v", err)
@@ -464,11 +466,19 @@ func readRootKey(rootKeyFile string, retriever notary.PassRetriever) (data.Priva
 	if err != nil {
 		return nil, fmt.Errorf("Error reading input root key file: %v", err)
 	}
+	isEncrypted := true
 	if err = cryptoservice.CheckRootKeyIsEncrypted(pemBytes); err != nil {
-		return nil, err
+		if role == data.CanonicalRootRole {
+			return nil, err
+		}
+		isEncrypted = false
 	}
-
-	privKey, _, err := trustmanager.GetPasswdDecryptBytes(retriever, pemBytes, "", data.CanonicalRootRole)
+	var privKey data.PrivateKey
+	if isEncrypted {
+		privKey, _, err = trustmanager.GetPasswdDecryptBytes(retriever, pemBytes, "", data.CanonicalRootRole)
+	} else {
+		privKey, err = tufutils.ParsePEMPrivateKey(pemBytes, "")
+	}
 	if err != nil {
 		return nil, err
 	}

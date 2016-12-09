@@ -23,7 +23,6 @@ var (
 			"timestamp_checksum": nil,
 			rdbGunRoleIdx:        {"gun", "role"},
 			rdbGunRoleSha256Idx:  {"gun", "role", "sha256"},
-			rdbGunRoleVersionIdx: {"gun", "role", "version"},
 		},
 		// this configuration guarantees linearizability of individual atomic operations on individual documents
 		Config: map[string]string{

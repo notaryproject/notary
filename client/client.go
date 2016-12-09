@@ -818,7 +818,7 @@ func (r *NotaryRepository) Update(forWrite bool) error {
 		// notFound.Resource may include a checksum so when the role is root,
 		// it will be root or root.<checksum>. Therefore best we can
 		// do it match a "root." prefix
-		if notFound, ok := err.(store.ErrMetaNotFound); ok && strings.HasPrefix(notFound.Resource, data.CanonicalRootRole+".") {
+		if notFound, ok := err.(store.ErrMetaNotFound); ok && strings.Contains(notFound.Resource, data.CanonicalRootRole) {
 			return r.errRepositoryNotExist()
 		}
 		return err
@@ -837,8 +837,11 @@ func (r *NotaryRepository) Update(forWrite bool) error {
 // is initialized or not. If set to true, we will always attempt to download
 // and return an error if the remote repository errors.
 //
-// Populates a tuf.RepoBuilder with this root metadata (only use
-// TUFClient.Update to load the rest).
+// Populates a tuf.RepoBuilder with this root metadata. If the root metadata
+// downloaded is a newer version than what is on disk, then intermediate
+// versions will be downloaded and verified in order to rotate trusted keys
+// properly. Newer root metadata must always be signed with the previous
+// threshold and keys.
 //
 // Fails if the remote server is reachable and does not know the repo
 // (i.e. before the first r.Publish()), in which case the error is
@@ -918,8 +921,10 @@ func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*TUFClient, e
 	return NewTUFClient(oldBuilder, newBuilder, remote, r.cache), nil
 }
 
-// RotateKey removes all existing keys associated with the role, and either
-// creates and adds one new key or delegates managing the key to the server.
+// RotateKey removes all existing keys associated with the role. If no keys are
+// specified in keyList, then this creates and adds one new key or delegates
+// managing the key to the server. If key(s) are specified by keyList, then they are
+// used for signing the role. Currently keys may only be specified for root keys (encrypted)
 // These changes are staged in a changelist until publish is called.
 func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool, keyList []string) error {
 	if err := checkRotationInput(role, serverManagesKey); err != nil {
@@ -942,6 +947,11 @@ func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool, keyList
 		pubKeyList = make(data.KeyList, 0, len(keyList))
 		for _, keyID := range keyList {
 			pubKey = r.CryptoService.GetKey(keyID)
+			if pubKey == nil {
+				errFmtMsg = "unable to find key: %s"
+				err = fmt.Errorf("no key with id %s could be found", keyID)
+				break
+			}
 			pubKeyList = append(pubKeyList, pubKey)
 		}
 	case !serverManagesKey && len(keyList) == 0:
