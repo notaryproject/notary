@@ -252,11 +252,5 @@ func TestSQLDBGetVersion(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
-	_, _, err := dbStore.GetVersion("gun", "role", "2")
-	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
-
-	dbStore.UpdateCurrent("gun", MetaUpdate{"role", 2, []byte("test")})
-	_, d, err := dbStore.GetVersion("gun", "role", "2")
-	require.Nil(t, err, "Expected error to be nil")
-	require.Equal(t, []byte("test"), d, "Data was incorrect")
+	testGetVersion(t, dbStore)
 }

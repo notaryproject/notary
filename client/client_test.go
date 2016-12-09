@@ -2921,6 +2921,85 @@ func TestRotateRootKey(t *testing.T) {
 	require.Equal(t, newRootCertID, rootRoleCertID(t, userRepo))
 }
 
+func TestRotateRootMultiple(t *testing.T) {
+	ts := fullTestServer(t)
+	defer ts.Close()
+
+	// Set up author's view of the repo and publish first version.
+	authorRepo, _ := initializeRepo(t, data.ECDSAKey, "docker.com/notary", ts.URL, false)
+	defer os.RemoveAll(authorRepo.baseDir)
+	err := authorRepo.Publish()
+	require.NoError(t, err)
+	oldRootCertID := rootRoleCertID(t, authorRepo)
+	oldRootRole, err := authorRepo.tufRepo.GetBaseRole(data.CanonicalRootRole)
+	require.NoError(t, err)
+	oldCanonicalKeyID, err := utils.CanonicalKeyID(oldRootRole.Keys[oldRootCertID])
+	require.NoError(t, err)
+
+	// Initialize a user, using the original root cert and key.
+	userRepo, _ := newRepoToTestRepo(t, authorRepo, true)
+	defer os.RemoveAll(userRepo.baseDir)
+	err = userRepo.Update(false)
+	require.NoError(t, err)
+
+	// Rotate root certificate and key.
+	logRepoTrustRoot(t, "original", authorRepo)
+	err = authorRepo.RotateKey(data.CanonicalRootRole, false, nil)
+	require.NoError(t, err)
+	logRepoTrustRoot(t, "post-rotate", authorRepo)
+
+	// Rotate root certificate and key again.
+	err = authorRepo.RotateKey(data.CanonicalRootRole, false, nil)
+	require.NoError(t, err)
+	logRepoTrustRoot(t, "post-rotate-again", authorRepo)
+
+	require.NoError(t, authorRepo.Update(false))
+	newRootRole, err := authorRepo.tufRepo.GetBaseRole(data.CanonicalRootRole)
+	require.NoError(t, err)
+	require.False(t, newRootRole.Equals(oldRootRole))
+	// not only is the root cert different, but the private key is too
+	newRootCertID := rootRoleCertID(t, authorRepo)
+	require.NotEqual(t, oldRootCertID, newRootCertID)
+	newCanonicalKeyID, err := utils.CanonicalKeyID(newRootRole.Keys[newRootCertID])
+	require.NoError(t, err)
+	require.NotEqual(t, oldCanonicalKeyID, newCanonicalKeyID)
+
+	// Set up a target to verify the repo is actually usable.
+	_, err = userRepo.GetTargetByName("current")
+	require.Error(t, err)
+	addTarget(t, authorRepo, "current", "../fixtures/intermediate-ca.crt")
+
+	// Publish the target, which does an update and pulls down the latest metadata, and
+	// should update the trusted root
+	logRepoTrustRoot(t, "pre-publish", authorRepo)
+	err = authorRepo.Publish()
+	require.NoError(t, err)
+	logRepoTrustRoot(t, "post-publish", authorRepo)
+
+	// Verify the user can use the rotated repo, and see the added target.
+	err = userRepo.Update(false)
+	require.NoError(t, err)
+	_, err = userRepo.GetTargetByName("current")
+	require.NoError(t, err)
+	logRepoTrustRoot(t, "client", userRepo)
+
+	// Verify that clients initialized post-rotation can use the repo, and use
+	// the new certificate immediately.
+	freshUserRepo, _ := newRepoToTestRepo(t, authorRepo, true)
+	defer os.RemoveAll(freshUserRepo.baseDir)
+	_, err = freshUserRepo.GetTargetByName("current")
+	require.NoError(t, err)
+	require.Equal(t, newRootCertID, rootRoleCertID(t, freshUserRepo))
+	logRepoTrustRoot(t, "fresh client", freshUserRepo)
+
+	// Verify that the user initialized with the original certificate eventually
+	// rotates to the new certificate.
+	err = userRepo.Update(false)
+	require.NoError(t, err)
+	logRepoTrustRoot(t, "user refresh 1", userRepo)
+	require.Equal(t, newRootCertID, rootRoleCertID(t, userRepo))
+}
+
 func TestRotateRootKeyProvided(t *testing.T) {
 	ts := fullTestServer(t)
 	defer ts.Close()
@@ -2947,6 +3026,10 @@ func TestRotateRootKeyProvided(t *testing.T) {
 	require.NoError(t, err)
 	rootPrivateKey, _, err := authorRepo.CryptoService.GetPrivateKey(rootPublicKey.ID())
 	require.NoError(t, err)
+
+	// Fail to rotate to bad key
+	err = authorRepo.RotateKey(data.CanonicalRootRole, false, []string{"notakey"})
+	require.Error(t, err)
 
 	// Rotate root certificate and key.
 	logRepoTrustRoot(t, "original", authorRepo)

@@ -1441,7 +1441,7 @@ func TestKeyRotationNonRoot(t *testing.T) {
 	privKey2, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
-	pemBytes2, err := utils.EncryptPrivateKey(privKey2, data.CanonicalTargetsRole, "", testPassphrase)
+	pemBytes2, err := utils.KeyToPEM(privKey2, data.CanonicalTargetsRole, "")
 	require.NoError(t, err)
 
 	nBytes2, err := tempFile2.Write(pemBytes2)
@@ -1458,6 +1458,10 @@ func TestKeyRotationNonRoot(t *testing.T) {
 		t, tempDir, server.URL, "gun", target+"2", tempfiles[1])
 	// assert that the previous target is still there
 	require.True(t, strings.Contains(string(output), target))
+
+	// rotate to nonexistant key
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalTargetsRole, "--key", "nope.pem")
+	require.Error(t, err)
 }
 
 // Tests default root key generation

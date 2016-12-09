@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -170,17 +169,13 @@ func (st *MemStorage) GetChecksum(gun, role, checksum string) (*time.Time, []byt
 }
 
 // GetVersion gets a specific TUF record by its version
-func (st *MemStorage) GetVersion(gun, role, version string) (*time.Time, []byte, error) {
+func (st *MemStorage) GetVersion(gun, role string, version int) (*time.Time, []byte, error) {
 	st.lock.Lock()
 	defer st.lock.Unlock()
-	v, err := strconv.Atoi(version)
-	if err != nil {
-		return nil, nil, ErrNotFound{}
-	}
 
 	id := entryKey(gun, role)
 	for _, ver := range st.tufMeta[id] {
-		if ver.version == v {
+		if ver.version == version {
 			return &(ver.createupdate), ver.data, nil
 		}
 	}

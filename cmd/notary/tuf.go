@@ -455,8 +455,8 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 
 // Attempt to read a role key from a file, and return it as a data.PrivateKey
 // If key is for the Root role, it must be encrypted
-func readKey(role, rootKeyFile string, retriever notary.PassRetriever) (data.PrivateKey, error) {
-	keyFile, err := os.Open(rootKeyFile)
+func readKey(role, keyFilename string, retriever notary.PassRetriever) (data.PrivateKey, error) {
+	keyFile, err := os.Open(keyFilename)
 	if err != nil {
 		return nil, fmt.Errorf("Opening file to import as a root key: %v", err)
 	}

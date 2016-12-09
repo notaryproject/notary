@@ -57,7 +57,7 @@ func (c ConsistentInfo) Length() int64 {
 // RepoBuilder is an interface for an object which builds a tuf.Repo
 type RepoBuilder interface {
 	Load(roleName string, content []byte, minVersion int, allowExpired bool) error
-	LoadOptions(roleName string, content []byte, minVersion int, allowExpired, skipChecksum, allowLoaded bool) error
+	LoadRootForUpdate(content []byte, minVersion int, isFinal bool) error
 	GenerateSnapshot(prev *data.SignedSnapshot) ([]byte, int, error)
 	GenerateTimestamp(prev *data.SignedTimestamp) ([]byte, int, error)
 	Finish() (*Repo, *Repo, error)
@@ -76,7 +76,7 @@ type finishedBuilder struct{}
 func (f finishedBuilder) Load(roleName string, content []byte, minVersion int, allowExpired bool) error {
 	return ErrBuildDone
 }
-func (f finishedBuilder) LoadOptions(roleName string, content []byte, minVersion int, allowExpired, skipChecksum, allowLoaded bool) error {
+func (f finishedBuilder) LoadRootForUpdate(content []byte, minVersion int, isFinal bool) error {
 	return ErrBuildDone
 }
 func (f finishedBuilder) GenerateSnapshot(prev *data.SignedSnapshot) ([]byte, int, error) {
@@ -246,11 +246,22 @@ func (rb *repoBuilder) GetConsistentInfo(roleName string) ConsistentInfo {
 }
 
 func (rb *repoBuilder) Load(roleName string, content []byte, minVersion int, allowExpired bool) error {
-	return rb.LoadOptions(roleName, content, minVersion, allowExpired, false, false)
+	return rb.loadOptions(roleName, content, minVersion, allowExpired, false, false)
 }
 
-// LoadOptions adds additional flags that should only be used for updating the root.json
-func (rb *repoBuilder) LoadOptions(roleName string, content []byte, minVersion int, allowExpired, skipChecksum, allowLoaded bool) error {
+// LoadRootForUpdate adds additional flags for updating the root.json file
+func (rb *repoBuilder) LoadRootForUpdate(content []byte, minVersion int, isFinal bool) error {
+	if err := rb.loadOptions(data.CanonicalRootRole, content, minVersion, !isFinal, !isFinal, true); err != nil {
+		return err
+	}
+	if !isFinal {
+		rb.prevRoot = rb.repo.Root
+	}
+	return nil
+}
+
+// loadOptions adds additional flags that should only be used for updating the root.json
+func (rb *repoBuilder) loadOptions(roleName string, content []byte, minVersion int, allowExpired, skipChecksum, allowLoaded bool) error {
 	if !data.ValidRole(roleName) {
 		return ErrInvalidBuilderInput{msg: fmt.Sprintf("%s is an invalid role", roleName)}
 	}
@@ -414,6 +425,10 @@ func (rb *repoBuilder) GenerateTimestamp(prev *data.SignedTimestamp) ([]byte, in
 	delete(rb.loadedNotChecksummed, data.CanonicalSnapshotRole)
 
 	return sgndJSON, rb.repo.Timestamp.Signed.Version, nil
+}
+
+func (rb *repoBuilder) setPrevRoot(root *data.SignedRoot) {
+	rb.prevRoot = root
 }
 
 // loadRoot loads a root if one has not been loaded

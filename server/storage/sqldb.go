@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -203,17 +202,13 @@ func (db *SQLStorage) GetChecksum(gun, tufRole, checksum string) (*time.Time, []
 }
 
 // GetVersion gets a specific TUF record by its version
-func (db *SQLStorage) GetVersion(gun, tufRole, version string) (*time.Time, []byte, error) {
+func (db *SQLStorage) GetVersion(gun, tufRole string, version int) (*time.Time, []byte, error) {
 	var row TUFFile
-	v, err := strconv.Atoi(version)
-	if err != nil {
-		return nil, nil, ErrNotFound{}
-	}
 	q := db.Select("created_at, data").Where(
 		&TUFFile{
 			Gun:     gun,
 			Role:    tufRole,
-			Version: v,
+			Version: version,
 		},
 	).First(&row)
 	if err := isReadErr(q, row); err != nil {

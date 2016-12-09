@@ -102,6 +102,14 @@ func (e *Ed25519) GetKey(keyID string) data.PublicKey {
 	return nil
 }
 
+// GetKeyInfo returns a key info based on the ID
+func (e *Ed25519) GetKeyInfo(keyID string) (trustmanager.KeyInfo, error) {
+	if k, ok := e.keys[keyID]; ok {
+		return trustmanager.KeyInfo{Gun: "", Role: k.role}, nil
+	}
+	return trustmanager.KeyInfo{}, trustmanager.ErrKeyNotFound{KeyID: keyID}
+}
+
 // GetPrivateKey returns a single private key and role if present, based on the ID
 func (e *Ed25519) GetPrivateKey(keyID string) (data.PrivateKey, string, error) {
 	if k, ok := e.keys[keyID]; ok {

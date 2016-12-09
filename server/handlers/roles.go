@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"strconv"
 	"time"
 
 	"golang.org/x/net/context"
@@ -26,7 +27,11 @@ func getRole(ctx context.Context, store storage.MetaStore, gun, role, checksum, 
 	if checksum != "" {
 		lastModified, out, err = store.GetChecksum(gun, role, checksum)
 	} else if version != "" {
-		lastModified, out, err = store.GetVersion(gun, role, version)
+		v, vErr := strconv.Atoi(version)
+		if vErr != nil {
+			return nil, nil, errors.ErrMetadataNotFound.WithDetail(vErr)
+		}
+		lastModified, out, err = store.GetVersion(gun, role, v)
 	} else {
 		// the timestamp and snapshot might be server signed so are
 		// handled specially

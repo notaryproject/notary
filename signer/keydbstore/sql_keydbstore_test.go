@@ -82,11 +82,15 @@ func requireExpectedGORMKeys(t *testing.T, dbStore *SQLKeyDBStore, expectedKeys 
 	}
 
 	for _, key := range expectedKeys {
+		gormKeyInfo, err := dbStore.GetKeyInfo(key.ID())
+		require.NoError(t, err)
 		gormKey, ok := result[key.ID()]
 		require.True(t, ok)
 		require.NotNil(t, gormKey)
 		require.Equal(t, string(key.Public()), gormKey.Public)
 		require.Equal(t, key.Algorithm(), gormKey.Algorithm)
+		require.Equal(t, gormKey.Gun, gormKeyInfo.Gun)
+		require.Equal(t, gormKey.Role, gormKeyInfo.Role)
 	}
 
 	return result

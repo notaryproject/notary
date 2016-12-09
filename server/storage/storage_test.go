@@ -129,13 +129,21 @@ func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore, oldVersionExists b
 // GetVersion should successfully retrieve a version of an existing TUF file,
 // but will return an error if the requested version does not exist.
 func testGetVersion(t *testing.T, s MetaStore) {
-	_, _, err := s.GetVersion("gun", "role", "2")
+	_, _, err := s.GetVersion("gun", "role", 2)
 	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
 
-	s.UpdateCurrent("gun", MetaUpdate{"role", 2, []byte("test")})
-	_, d, err := s.GetVersion("gun", "role", "2")
+	s.UpdateCurrent("gun", MetaUpdate{"role", 2, []byte("version2")})
+	_, d, err := s.GetVersion("gun", "role", 2)
 	require.Nil(t, err, "Expected error to be nil")
-	require.Equal(t, []byte("test"), d, "Data was incorrect")
+	require.Equal(t, []byte("version2"), d, "Data was incorrect")
+
+	// Getting newer version fails
+	_, _, err = s.GetVersion("gun", "role", 3)
+	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
+
+	// Getting another gun/role fails
+	_, _, err = s.GetVersion("badgun", "badrole", 2)
+	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
 }
 
 // UpdateMany succeeds if the updates do not conflict with each other or with what's

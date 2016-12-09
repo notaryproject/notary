@@ -165,6 +165,13 @@ func TestUpdateSucceedsEvenIfCannotWriteExistingRepo(t *testing.T) {
 			require.NoError(t, err)
 
 			for r, expected := range serverMeta {
+				if r != data.CanonicalRootRole && strings.Contains(r, "root") {
+					// don't fetch versioned root roles here
+					continue
+				}
+				if strings.ContainsAny(r, "123456789") {
+					continue
+				}
 				actual, err := repo.cache.GetSized(r, store.NoSizeLimit)
 				require.NoError(t, err, "problem getting repo metadata for %s", r)
 				if role == r {

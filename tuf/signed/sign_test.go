@@ -60,6 +60,10 @@ func (mts *FailingCryptoService) GetKey(keyID string) data.PublicKey {
 	return nil
 }
 
+func (mts *FailingCryptoService) GetKeyInfo(keyID string) (trustmanager.KeyInfo, error) {
+	return trustmanager.KeyInfo{}, nil
+}
+
 func (mts *FailingCryptoService) GetPrivateKey(keyID string) (data.PrivateKey, string, error) {
 	return nil, "", trustmanager.ErrKeyNotFound{KeyID: keyID}
 }
@@ -86,6 +90,13 @@ func (mts *MockCryptoService) GetKey(keyID string) data.PublicKey {
 		return data.PublicKeyFromPrivate(mts.testKey)
 	}
 	return nil
+}
+
+func (mts *MockCryptoService) GetKeyInfo(keyID string) (trustmanager.KeyInfo, error) {
+	if keyID == mts.testKey.ID() {
+		return trustmanager.KeyInfo{Gun: "gun", Role: "testRole"}, nil
+	}
+	return trustmanager.KeyInfo{}, nil
 }
 
 func (mts *MockCryptoService) ListKeys(role string) []string {

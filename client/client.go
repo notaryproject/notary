@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
+	"regexp"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -146,7 +146,7 @@ func rootCertKey(gun string, privKey data.PrivateKey) (data.PublicKey, error) {
 	x509PublicKey := utils.CertToKey(cert)
 	if x509PublicKey == nil {
 		return nil, fmt.Errorf(
-			"cannot use regenerated certificate: format %v", cert.PublicKeyAlgorithm)
+			"cannot use regenerated certificate: format %s", cert.PublicKeyAlgorithm)
 	}
 
 	return x509PublicKey, nil
@@ -815,10 +815,11 @@ func (r *NotaryRepository) Update(forWrite bool) error {
 	}
 	repo, invalid, err := c.Update()
 	if err != nil {
-		// notFound.Resource may include a checksum so when the role is root,
-		// it will be root or root.<checksum>. Therefore best we can
-		// do it match a "root." prefix
-		if notFound, ok := err.(store.ErrMetaNotFound); ok && strings.Contains(notFound.Resource, data.CanonicalRootRole) {
+		// notFound.Resource may include a version or checksum so when the role is root,
+		// it will be root, <version>.root or root.<checksum>.
+		notFound, ok := err.(store.ErrMetaNotFound)
+		isRoot, _ := regexp.MatchString(`\.?`+data.CanonicalRootRole+`\.?`, notFound.Resource)
+		if ok && isRoot {
 			return r.errRepositoryNotExist()
 		}
 		return err
@@ -924,7 +925,7 @@ func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*TUFClient, e
 // RotateKey removes all existing keys associated with the role. If no keys are
 // specified in keyList, then this creates and adds one new key or delegates
 // managing the key to the server. If key(s) are specified by keyList, then they are
-// used for signing the role. Currently keys may only be specified for root keys (encrypted)
+// used for signing the role.
 // These changes are staged in a changelist until publish is called.
 func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool, keyList []string) error {
 	if err := checkRotationInput(role, serverManagesKey); err != nil {
@@ -942,10 +943,26 @@ func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool, keyList
 		pubKey, err = rotateRemoteKey(r.baseURL, r.gun, role, r.roundTrip)
 		pubKeyList = make(data.KeyList, 0, 1)
 		pubKeyList = append(pubKeyList, pubKey)
-		errFmtMsg = "unable to rotate remote key: %s"
-	case !serverManagesKey && len(keyList) > 0:
-		pubKeyList = make(data.KeyList, 0, len(keyList))
-		for _, keyID := range keyList {
+		if err != nil {
+			return nil, fmt.Errorf("unable to rotate remote key: %s", err)
+		}
+		return pubKeyList, nil
+	}
+
+	// If no new keys are passed in, we generate one
+	if len(newKeys) == 0 {
+		pubKeyList = make(data.KeyList, 0, 1)
+		pubKey, err = r.CryptoService.Create(role, r.gun, data.ECDSAKey)
+		pubKeyList = append(pubKeyList, pubKey)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("unable to generate key: %s", err)
+	}
+
+	// If a list of keys to rotate to are provided, we add those
+	if len(newKeys) > 0 {
+		pubKeyList = make(data.KeyList, 0, len(newKeys))
+		for _, keyID := range newKeys {
 			pubKey = r.CryptoService.GetKey(keyID)
 			if pubKey == nil {
 				errFmtMsg = "unable to find key: %s"
@@ -968,6 +985,13 @@ func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool, keyList
 	// if this is a root role, generate a root cert for the public key
 	if role == data.CanonicalRootRole {
 		for i, pubKey := range pubKeyList {
+			keyInfo, err := r.CryptoService.GetKeyInfo(pubKey.ID())
+			if err != nil {
+				return err
+			}
+			if keyInfo.Role != role {
+				return fmt.Errorf("attempted rotating root key but given %s key instead", keyInfo.Role)
+			}
 			privKey, _, err := r.CryptoService.GetPrivateKey(pubKey.ID())
 			if err != nil {
 				return err

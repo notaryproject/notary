@@ -239,6 +239,14 @@ func TestGetHandlerRoot(t *testing.T) {
 
 	err = getHandler(ctx, rw, req, vars)
 	require.NoError(t, err)
+
+	vars["version"] = "1"
+	err = getHandler(ctx, rw, req, vars)
+	require.NoError(t, err)
+
+	vars["version"] = "badversion"
+	err = getHandler(ctx, rw, req, vars)
+	require.Error(t, err)
 }
 
 func TestGetHandlerTimestamp(t *testing.T) {
