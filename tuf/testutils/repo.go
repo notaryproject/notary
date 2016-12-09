@@ -184,7 +184,7 @@ func SignAndSerialize(tufRepo *tuf.Repo) (map[string][]byte, error) {
 
 // Sign signs all top level roles in a repo in the appropriate order
 func Sign(repo *tuf.Repo) (root, targets, snapshot, timestamp *data.Signed, err error) {
-	root, err = repo.SignRoot(data.DefaultExpires("root"))
+	root, err = repo.SignRoot(data.DefaultExpires("root"), nil)
 	if _, ok := err.(data.ErrInvalidRole); err != nil && !ok {
 		return nil, nil, nil, nil, err
 	}

@@ -431,7 +431,7 @@ func TestValidateRootRotationWithOldSigs(t *testing.T) {
 	// the next root does NOT need to be signed by both keys, because we only care
 	// about signing with both keys if the root keys have changed (signRoot again to bump the version)
 
-	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	// delete all signatures except the one with the new key
 	for _, sig := range repo.Root.Signatures {
@@ -460,7 +460,7 @@ func TestValidateRootRotationWithOldSigs(t *testing.T) {
 	newRootID2 := newRootKey2.ID()
 
 	require.NoError(t, repo.ReplaceBaseKeys(data.CanonicalRootRole, newRootKey2))
-	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	// delete all signatures except the ones with the first and second new keys
 	sigs := make([]data.Signature, 0, 2)
@@ -527,7 +527,7 @@ func TestValidateRootRotationMultipleKeysThreshold1(t *testing.T) {
 	rotatedRootID := rotatedRootKey.ID()
 	require.NoError(t, repo.ReplaceBaseKeys(data.CanonicalRootRole, rotatedRootKey))
 
-	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	require.Len(t, r.Signatures, 3)
 	// delete all signatures except the additional key (which didn't sign the
@@ -587,7 +587,7 @@ func TestRootRotationNotSignedWithOldKeysForOldRole(t *testing.T) {
 	repo.Root.Signed.Roles[data.CanonicalRootRole].Threshold = 1
 	require.NoError(t, repo.ReplaceBaseKeys(data.CanonicalRootRole, finalRootKey))
 
-	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	origSigs := r.Signatures
 

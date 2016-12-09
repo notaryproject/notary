@@ -271,7 +271,7 @@ func TestGetTimestampKeyExistingMetadata(t *testing.T) {
 	repo, crypto, err := testutils.EmptyRepo("gun")
 	require.NoError(t, err)
 
-	sgnd, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	sgnd, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	rootJSON, err := json.Marshal(sgnd)
 	require.NoError(t, err)

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
-	"strconv"
 	"strings"
 	"time"
 
@@ -171,6 +170,7 @@ func (tr *Repo) RemoveBaseKeys(role string, keyIDs ...string) error {
 		delete(tr.Root.Signed.Keys, k)
 		tr.cryptoService.RemoveKey(k)
 	}
+
 	tr.Root.Dirty = true
 	return nil
 }
@@ -867,23 +867,13 @@ func (tr *Repo) UpdateTimestamp(s *data.Signed) error {
 	return nil
 }
 
-type versionedRootRole struct {
-	data.BaseRole
-	version int
-}
-
-type versionedRootRoles []versionedRootRole
-
-func (v versionedRootRoles) Len() int           { return len(v) }
-func (v versionedRootRoles) Swap(i, j int)      { v[i], v[j] = v[j], v[i] }
-func (v versionedRootRoles) Less(i, j int) bool { return v[i].version < v[j].version }
-
 // SignRoot signs the root, using all keys from the "root" role (i.e. currently trusted)
 // as well as available keys used to sign the previous version, if the public part is
 // carried in tr.Root.Keys and the private key is available (i.e. probably previously
 // trusted keys, to allow rollover).  If there are any errors, attempt to put root
 // back to the way it was (so version won't be incremented, for instance).
-func (tr *Repo) SignRoot(expires time.Time) (*data.Signed, error) {
+// Extra signing keys can be added to support older clients
+func (tr *Repo) SignRoot(expires time.Time, extraSigningKeys data.KeyList) (*data.Signed, error) {
 	logrus.Debug("signing root...")
 
 	// duplicate root and attempt to modify it rather than the existing root
@@ -917,7 +907,15 @@ func (tr *Repo) SignRoot(expires time.Time) (*data.Signed, error) {
 	if err != nil {
 		return nil, err
 	}
-	signed, err = tr.sign(signed, rolesToSignWith, tr.getOptionalRootKeys(rolesToSignWith))
+
+	optionalRootKeys := tr.getOptionalRootKeys(rolesToSignWith)
+
+	// If we're supporting legacy clients with additional root keys, sign with those
+	for _, extraKey := range extraSigningKeys {
+		optionalRootKeys = append(optionalRootKeys, extraKey)
+	}
+
+	signed, err = tr.sign(signed, rolesToSignWith, optionalRootKeys)
 	if err != nil {
 		return nil, err
 	}
@@ -926,38 +924,6 @@ func (tr *Repo) SignRoot(expires time.Time) (*data.Signed, error) {
 	tr.Root.Signatures = signed.Signatures
 	tr.originalRootRole = currRoot
 	return signed, nil
-}
-
-// get all the saved previous roles < the current root version
-func (tr *Repo) getOldRootRoles() versionedRootRoles {
-	oldRootRoles := make(versionedRootRoles, 0, len(tr.Root.Signed.Roles))
-
-	// now go through the old roles
-	for roleName := range tr.Root.Signed.Roles {
-		// ensure that the rolename matches our format and that the version is
-		// not too high
-		if data.ValidRole(roleName) {
-			continue
-		}
-		nameTokens := strings.Split(roleName, ".")
-		if len(nameTokens) != 2 || nameTokens[0] != data.CanonicalRootRole {
-			continue
-		}
-		version, err := strconv.Atoi(nameTokens[1])
-		if err != nil || version >= tr.Root.Signed.Version {
-			continue
-		}
-
-		// ignore invalid roles, which shouldn't happen
-		oldRole, err := tr.Root.BuildBaseRole(roleName)
-		if err != nil {
-			continue
-		}
-
-		oldRootRoles = append(oldRootRoles, versionedRootRole{BaseRole: oldRole, version: version})
-	}
-
-	return oldRootRoles
 }
 
 // gets any extra optional root keys from the existing root.json signatures

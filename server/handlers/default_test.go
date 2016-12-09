@@ -220,7 +220,7 @@ func TestGetHandlerRoot(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, notary.CtxKeyMetaStore, metaStore)
 
-	root, err := repo.SignRoot(data.DefaultExpires("root"))
+	root, err := repo.SignRoot(data.DefaultExpires("root"), nil)
 	require.NoError(t, err)
 	rootJSON, err := json.Marshal(root)
 	require.NoError(t, err)
