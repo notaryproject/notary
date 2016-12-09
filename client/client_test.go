@@ -3047,6 +3047,7 @@ func TestRotateRootKeyProvided(t *testing.T) {
 	newCanonicalKeyID, err := utils.CanonicalKeyID(newRootRole.Keys[newRootCertID])
 	require.NoError(t, err)
 	require.NotEqual(t, oldCanonicalKeyID, newCanonicalKeyID)
+	require.Equal(t, rootPrivateKey.ID(), newCanonicalKeyID)
 
 	// Set up a target to verify the repo is actually usable.
 	_, err = userRepo.GetTargetByName("current")
@@ -3144,6 +3145,10 @@ func TestRotateRootKeyLegacySupport(t *testing.T) {
 	_, err = userRepo.GetTargetByName("current")
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "client", userRepo)
+
+	// Verify that the user's rotated root is signed with all available old keys
+	require.NoError(t, err)
+	require.Equal(t, 3, len(userRepo.tufRepo.Root.Signatures))
 
 	// Verify that clients initialized post-rotation can use the repo, and use
 	// the new certificate immediately.

@@ -216,7 +216,7 @@ func (rdb RethinkDB) GetCurrent(gun, role string) (created *time.Time, data []by
 func (rdb RethinkDB) GetChecksum(gun, role, checksum string) (created *time.Time, data []byte, err error) {
 	var file RDBTUFFile
 	res, err := gorethink.DB(rdb.dbName).Table(file.TableName(), gorethink.TableOpts{ReadMode: "majority"}).GetAllByIndex(
-		rdbGunRoleSHA256Idx, []string{gun, role, checksum},
+		rdbGunRoleSha256Idx, []string{gun, role, checksum},
 	).Run(rdb.sess)
 	if err != nil {
 		return nil, nil, err

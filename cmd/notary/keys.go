@@ -16,8 +16,6 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/utils"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/tuf/data"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

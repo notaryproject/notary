@@ -10,8 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -782,40 +780,11 @@ func (r *NotaryRepository) oldKeysForLegacyClientSupport(legacyVersions int, ini
 
 // get all the saved previous roles keys < the current root version
 func getOldRootPublicKeys(root *data.SignedRoot) data.KeyList {
-	oldRootKeys := make(data.KeyList, 0, len(root.Signed.Roles))
-	// now go through the old roles
-	for roleName := range root.Signed.Roles {
-		// must be either `root` or `x.root`
-		isVersionedRoot := false
-
-		nameTokens := strings.Split(roleName, ".")
-		if len(nameTokens) == 2 && nameTokens[0] == data.CanonicalRootRole {
-			isVersionedRoot = true
-		}
-
-		if isVersionedRoot {
-			version, err := strconv.Atoi(nameTokens[1])
-			if err != nil || version >= root.Signed.Version {
-				continue
-			}
-		} else {
-			if roleName != data.CanonicalRootRole {
-				continue
-			}
-		}
-
-		// ignore invalid roles, which shouldn't happen
-		oldRole, err := root.BuildBaseRole(roleName)
-		if err != nil {
-			continue
-		}
-
-		for _, key := range oldRole.ListKeys() {
-			oldRootKeys = append(oldRootKeys, key)
-			logrus.Debugf("found old key %s for supporting legacy clients", key.ID())
-		}
+	rootRole, err := root.BuildBaseRole(data.CanonicalRootRole)
+	if err != nil {
+		return nil
 	}
-	return oldRootKeys
+	return rootRole.ListKeys()
 }
 
 func signTargets(updates map[string][]byte, repo *tuf.Repo, initialPublish bool) error {
@@ -1114,16 +1083,12 @@ func (r *NotaryRepository) pubKeysToCerts(role string, pubKeyList data.KeyList) 
 	}
 
 	for i, pubKey := range pubKeyList {
-		keyInfo, err := r.CryptoService.GetKeyInfo(pubKey.ID())
+		privKey, loadedRole, err := r.CryptoService.GetPrivateKey(pubKey.ID())
 		if err != nil {
 			return nil, err
 		}
-		if keyInfo.Role != role {
-			return nil, fmt.Errorf("attempted to load root key but given %s key instead", keyInfo.Role)
-		}
-		privKey, _, err := r.CryptoService.GetPrivateKey(pubKey.ID())
-		if err != nil {
-			return nil, err
+		if loadedRole != role {
+			return nil, fmt.Errorf("attempted to load root key but given %s key instead", loadedRole)
 		}
 		pubKey, err = rootCertKey(r.gun, privKey)
 		if err != nil {

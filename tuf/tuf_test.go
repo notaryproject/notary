@@ -989,8 +989,7 @@ func TestRemoveBaseKeysFromRoot(t *testing.T) {
 	}
 }
 
-// replacing keys in a root should fail, root rotations must be signed by the previous
-// root role keys and threshold
+// replacing keys in a role marks root as dirty as well as the role
 func TestReplaceBaseKeysInRoot(t *testing.T) {
 	for _, role := range data.BaseRoles {
 		ed25519 := signed.NewEd25519()
@@ -1024,15 +1023,9 @@ func TestReplaceBaseKeysInRoot(t *testing.T) {
 		}
 
 		origNumRoles := len(repo.Root.Signed.Roles)
+		// sign the root and assert the number of roles after
 		_, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
-		switch role {
-		case data.CanonicalRootRole:
-			// root role can't rotate without signing with previous keys
-			require.Error(t, err, "Root shouldn't be able to able to replace all keys at once.")
-		default:
-			require.NoError(t, err)
-		}
-
+		require.NoError(t, err)
 		// number of roles should not have changed
 		require.Len(t, repo.Root.Signed.Roles, origNumRoles)
 	}
