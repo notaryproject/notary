@@ -143,7 +143,6 @@ PLATFORMS
 
 DEPENDENCIES
   github-pages
-  jekyll-feed (~> 0.6)
   minima (~> 2.0)
 
 RUBY VERSION

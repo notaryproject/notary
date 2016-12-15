@@ -1,5 +1,5 @@
 ---
-title: Notary Command Reference
+title: CLI Reference
 layout: page
 ---
 

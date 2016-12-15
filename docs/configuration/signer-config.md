@@ -1,5 +1,5 @@
 ---
-title: Notary Signer Configuration
+title: Signer
 layout: page
 ---
 

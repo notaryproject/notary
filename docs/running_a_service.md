@@ -1,5 +1,5 @@
 ---
-title: Running a Notary Service
+title: Running a Notary
 layout: page
 ---
 

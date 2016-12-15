@@ -1,5 +1,5 @@
 ---
-title: Best Practices for Using Notary
+title: Best Practices
 layout: page
 ---
 

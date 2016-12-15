@@ -1,5 +1,5 @@
 ---
-title: Notary Server Configuration
+title: Server
 layout: page
 ---
 

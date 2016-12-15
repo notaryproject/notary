@@ -30,10 +30,6 @@ kramdown:
   syntax_highlighter: rouge
 #theme: minima
 incremental: true
-gems:
-  - jekyll-feed
-  - jekyll-redirect-from
-  - jekyll-seo-tag
 exclude:
   - Gemfile
   - Gemfile.lock
@@ -45,4 +41,4 @@ defaults:
       path: ""
       type: "pages"
     values:
-      layout: default
+      layout: page

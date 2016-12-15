@@ -378,7 +378,7 @@ h3 {
   margin-bottom: 0.5rem;
   color: #0077a8;
 }
-a {
+a, .actions ul#nav {
   color: #00da9c;
   text-decoration: none;
 }
@@ -391,4 +391,45 @@ body {
   font-size: 14px;
   color: #254451;
   background-color: #e7f4f9;
+}
+
+.actions ul#nav, .actions ul#nav li ul {
+  list-style-type: none;
+  margin: 0;
+}
+
+.actions ul#nav li {
+  padding: 5px;
+}
+
+.actions ul#nav > li {
+  display: block;
+  float: left;
+  position: relative;
+  border-right: 1px solid white;
+}
+
+.actions ul#nav > li:last-child {
+  border: none;
+}
+
+.actions ul#nav li ul {
+  position: absolute;
+  display: none;
+  min-width: 170px;
+  background: #254451;
+}
+  
+.actions ul#nav li:hover ul {
+  display: block;
+}
+
+.actions ul#nav li ul li {
+  display: block;
+  margin: 0;
+}
+
+.actions ul#nav li ul li:hover {
+  display: block;
+  background: #555;
 }

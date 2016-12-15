@@ -1,5 +1,5 @@
 ---
-title: Advanced Notary Client Usage
+title: Advanced Use
 layout: page
 ---
 

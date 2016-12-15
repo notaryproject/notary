@@ -1,5 +1,5 @@
 ---
-title: Common Server & Signer Configuration
+title: Common Options
 layout: page
 ---
 

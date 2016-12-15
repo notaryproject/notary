@@ -9,5 +9,5 @@ RUN apt update \
 
 WORKDIR /www
 
-ENTRYPOINT ["bundle", "exec", "jekyll", "serve", "--incremental"]
+ENTRYPOINT [ "bundle", "exec", "jekyll", "serve" ]
 CMD [ "--incremental", "--host", "0.0.0.0" ]

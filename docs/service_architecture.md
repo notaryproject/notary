@@ -1,6 +1,7 @@
 ---
-title: Understand the service architecture
+title: Architecture
 layout: page
+permalink: /service_architecture
 ---
 
 # Understand the Notary service architecture
@@ -231,14 +232,14 @@ decrypted key depends on the type and combination of keys that were compromised
 - **Decrypted Delegation Key, only**
 
     | Keys compromised | Malicious Content | Rollback, Freeze, Mix and Match | Denial of Service |
-    |------------------|-------------------|---------------------------------|-------------------|
+    |:------------------|:-------------------:|:---------------------------------:|-------------------:|
     | Delegation key   | no                | no                              | no                |
 
 
 - **Decrypted Delegation Key + Notary Service write-capable credentials**
 
     | Keys compromised | Malicious Content | Rollback, Freeze, Mix and Match | Denial of Service |
-    |------------------|-------------------|---------------------------------|-------------------|
+    |:------------------|:-------------------:|:---------------------------------:|-------------------:|
     | Delegation key   | limited, maybe*   | limited, maybe*                 | limited, maybe*   |
 
   *If the Notary Service holds the snapshot key and the attacker has Notary Service
@@ -256,8 +257,8 @@ decrypted key depends on the type and combination of keys that were compromised
 - **Decrypted Delegation Key + Decrypted Snapshot Key, only**
 
     | Keys compromised | Malicious Content | Rollback, Freeze, Mix and Match | Denial of Service |
-    |------------------|-------------------|---------------------------------|-------------------|
-    | Delegation key <br/> Snapshot key  | no    | no                        | no                |
+    |:------------------|:-------------------:|:---------------------------------:|-------------------:|
+    | Delegation key && Snapshot key  | no    | no                        | no                |
 
   The attacker does not have access to the timestamp key, which is always held by the Notary
   Service, and will be unable to set up a malicious mirror.
@@ -265,8 +266,8 @@ decrypted key depends on the type and combination of keys that were compromised
 - **Decrypted Delegation Key + Decrypted Snapshot Key + Notary Service write-capable credentials**
 
     | Keys compromised | Malicious Content | Rollback, Freeze, Mix and Match | Denial of Service |
-    |------------------|-------------------|---------------------------------|-------------------|
-    | Delegation key <br/> Snapshot key  | limited   | limited               | limited           |
+    |:------------------|:-------------------:|:---------------------------------:|-------------------:|
+    | Delegation key && Snapshot key  | limited   | limited               | limited           |
 
   The Notary Service always holds the timestamp key. If the attacker has Notary Service
   write credentials, then they have effective access to the timestamp key because the server
@@ -283,13 +284,13 @@ decrypted key depends on the type and combination of keys that were compromised
 - **Decrypted Targets Key, only**
 
     | Keys compromised | Malicious Content | Rollback, Freeze, Mix and Match | Denial of Service |
-    |------------------|-------------------|---------------------------------|-------------------|
+    |:------------------|:-------------------:|:---------------------------------:|-------------------:|
     | Targets key      | no                | no                              | no                |
 
 - **Decrypted Targets Key + Notary Service write-capable credentials**
 
     | Keys compromised | Malicious Content | Rollback, Freeze, Mix and Match | Denial of Service |
-    |------------------|-------------------|---------------------------------|-------------------|
+    |:------------------|:-------------------:|:---------------------------------:|-------------------:|
     | Targets key      | maybe*            | maybe*                          | limited, maybe*   |
 
   *If the Notary Service holds the snapshot key and the attacker has Notary Service
@@ -306,8 +307,8 @@ decrypted key depends on the type and combination of keys that were compromised
 - **Decrypted Targets Key + Decrypted Snapshot Key, only**
 
     | Keys compromised | Malicious Content | Rollback, Freeze, Mix and Match | Denial of Service |
-    |------------------|-------------------|---------------------------------|-------------------|
-    | Targets key <br/> Snapshot key     | no    | no                        | no                |
+    |:------------------|:-------------------:|:---------------------------------:|-------------------:|
+    | Targets key && Snapshot key     | no    | no                        | no                |
 
   The attacker does not have access to the timestamp key, which is always held by the Notary
   Service, and will be unable to set up a malicious mirror.
@@ -315,8 +316,8 @@ decrypted key depends on the type and combination of keys that were compromised
 - **Decrypted Targets Key + Decrypted Snapshot Key + Notary Service write-capable credentials**
 
     | Keys compromised | Malicious Content | Rollback, Freeze, Mix and Match | Denial of Service |
-    |------------------|-------------------|---------------------------------|-------------------|
-    | Targets key <br/> Snapshot key       | yes   | yes                     | limited           |
+    |:------------------|:-------------------:|:---------------------------------:|-------------------:|
+    | Targets key && Snapshot key       | yes   | yes                     | limited           |
 
   The Notary Service always holds the timestamp key. If the attacker has Notary Service
   write credentials, then they have effective access to the timestamp key because the server
@@ -332,7 +333,7 @@ decrypted key depends on the type and combination of keys that were compromised
 - **Decrypted Root Key + none or any combination of decrypted keys, only**
 
     | Keys compromised | Malicious Content | Rollback, Freeze, Mix and Match | Denial of Service |
-    |------------------|-------------------|---------------------------------|-------------------|
+    |:------------------|:-------------------:|:---------------------------------:|-------------------:|
     | All keys         | yes               | yes                             | yes               |
 
   No other keys are needed, since the attacker can just any rotate or all of them to ones that they
@@ -342,7 +343,7 @@ decrypted key depends on the type and combination of keys that were compromised
 - **Decrypted Root Key + none or any combination of decrypted keys + Notary Service write-capable credentials**
 
     | Keys compromised | Malicious Content | Rollback, Freeze, Mix and Match | Denial of Service |
-    |------------------|-------------------|---------------------------------|-------------------|
+    |:------------------|:-------------------:|:---------------------------------:|-------------------:|
     | All keys         | yes               | yes                             | yes               |
 
   *If the Notary Service holds the snapshot key and the attacker has Notary Service
@@ -371,4 +372,4 @@ changed immediately.
 ## Related information
 
 * [Run a Notary service](running_a_service.md)
-* [Notary configuration files](reference/index.md)
+* [Notary configuration files](config/index.md)
