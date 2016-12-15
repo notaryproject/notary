@@ -5,7 +5,7 @@ layout: page
 
 # Notary client configuration file
 
-This document is for power users of the [Notary client](../advanced_usage.md)
+This document is for power users of the [Notary client]({% link advanced_usage.md %})
 who want to facilitate CLI interaction or specify custom options.
 
 The configuration file for Notary client normally resides at `~/.notary/config.json`,
@@ -18,25 +18,25 @@ In addition to the configuration file format, please see the optional password
 [environment variables](#environment-variables-optional) that the Notary client
 can take for ease of use.
 
-Here is a full client configuration file example; please click on the top level
-JSON keys to learn more about the configuration section corresponding to that key:
+Here is a full client configuration file example, you can find detailed explanations of each
+section below:
 
-
-<pre><code class="language-json">{
-  <a href="#trust_dir-section-optional">"trust_dir"</a> : "~/.docker/trust",
-  <a href="#remote_server-section-optional">"remote_server"</a>: {
-    "url": "https://my-notary-server.my-private-registry.com",
-    "root-ca": "./fixtures/root-ca.crt",
-    "tls_client_cert": "./fixtures/secure.example.com.crt",
-    "tls_client_key": "./fixtures/secure.example.com.crt"
-  }
-  <a href="#trust_pinning-section-optional">"trust_pinning"</a>: {
-    "certs": {
-      "docker.com/notary": ["49cf5c6404a35fa41d5a5aa2ce539dfee0d7a2176d0da488914a38603b1f4292"]
-    }
-  }
+```json
+{
+	"trust_dir": "~/.docker/trust",
+	"remote_server": {
+		"url": "https://my-notary-server.my-private-registry.com",
+		"root-ca": "./fixtures/root-ca.crt",
+		"tls_client_cert": "./fixtures/secure.example.com.crt",
+		"tls_client_key": "./fixtures/secure.example.com.crt"
+	},
+	"trust_pinning": {
+		"certs": {
+      		"docker.com/notary": ["49cf5c6404a35fa41d5a5aa2ce539dfee0d7a2176d0da488914a38603b1f4292"]
+		}
+	}
 }
-</code></pre>
+```
 
 ## trust_dir section (optional)
 
@@ -57,11 +57,13 @@ metadata updates and publish metadata changes.
 Remote server example:
 
 ```json
-"remote_server": {
-  "url": "https://my-notary-server.my-private-registry.com",
-  "root-ca": "./fixtures/root-ca.crt",
-  "tls_client_cert": "./fixtures/secure.example.com.crt",
-  "tls_client_key": "./fixtures/secure.example.com.crt"
+{
+	"remote_server": {
+  		"url": "https://my-notary-server.my-private-registry.com",
+  		"root-ca": "./fixtures/root-ca.crt",
+  		"tls_client_cert": "./fixtures/secure.example.com.crt",
+  		"tls_client_key": "./fixtures/secure.example.com.crt"
+	}
 }
 ```
 
@@ -126,9 +128,7 @@ but the pinned certificates will take highest priority for validation, followed
 by the pinned CA, followed by TOFUS (TOFU over HTTPS).  The diagram below
 describes this validation flow:
 
-<center>
-![Trust pinning flow](../images/trust-pinning-flow.png)
-</center>
+![Trust pinning flow](/images/trust-pinning-flow.png)
 
 Only one trust pinning option will be used to validate a GUN even if multiple
 sections are specified, and any validation failure will result in a failed

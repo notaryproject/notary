@@ -29,11 +29,11 @@ a private key has been compromised.
 
 When using the Notary CLI client you need to specify where the URL of the Notary server
 you want to communicate is with the `-s` flag, and where to store the private keys and cache for
-the CLI client with the `-d` flag.  There are also fields in the [client configuration](/reference/client-config.md) to set these variables.
+the CLI client with the `-d` flag.  There are also fields in the [client configuration]({% link configuration/client-config.md %}) to set these variables.
 
-```bash
+```
 # Create an alias to always have the notary client talking to the right notary server
-$ alias notary="notary -s <notary_server_url> -d <notary_cache_directory>
+$ alias notary="notary -s <notary_server_url> -d <notary_cache_directory>"
 ```
 
 When working Docker Content Trust, it is important to specify notary's client cache as `~/.docker/trust`.  Also, Docker Hub provides its own Notary server located at `https://notary.docker.io`, which contains trust data for many images including official images, though you are welcome to use your own notary server.
@@ -41,7 +41,7 @@ When working Docker Content Trust, it is important to specify notary's client ca
 ## Initializing a trusted collection
 
 Notary can initialize a trusted collection with the `notary init` command:
-```bash
+```
 $ notary init <GUN>
 ```
 
@@ -49,12 +49,12 @@ This command will generate targets and snapshot keys locally for the trusted col
 If notary cannot find a root key, it will generate one.  For all keys, notary will also prompt for a passphrase to encrypt the private key material at rest.
 
 If you'd like to initialize your trusted collection with a specific root key, there is a flag to provide it.  Notary will require that the key is encrypted:
-```bash
+```
 $ notary init <GUN> --rootkey <key_file>
 ```
 
 Note that you will have to run a publish after this command for it to take effect, because the Notary CLI client will create staged changes to initialize the trusted collection that have not yet been pushed to a notary server.
-```bash
+```
 $ notary publish <GUN>
 ```
 
@@ -65,7 +65,7 @@ These changes are staged locally in files such that the client can request the l
 
 You can view staged changes with `notary status` and unstage them with `notary reset`:
 
-```bash
+```
 # Check what changes are staged
 $ notary status <GUN>
 
@@ -78,7 +78,7 @@ $ notary reset <GUN> --all
 
 When you're ready to publish your changes to the Notary server, run:
 
-```bash
+```
 $ notary publish <GUN>
 ```
 
@@ -87,7 +87,7 @@ $ notary publish <GUN>
 Instead of manually running `notary publish` after each command, you can use the `-p` flag to auto-publish the changes from that command.
 For example:
 
-```bash
+```
 $ notary init -p <GUN>
 ```
 
@@ -96,23 +96,23 @@ The remainder of this reference will include the `-p` auto-publish flag where it
 ## Adding and removing trust data
 
 Users can sign content into a notary trusted collection by running:
-```bash
+```
 $ notary add -p <GUN> <target_name> <target_file>
 ```
 
 In the above command, the `<target_name>` corresponds to the name we want to associate the `<target_file>` with in the trusted collection. Notary will sign the hash of the `<target_file>` into its trusted collection.
 Instead of adding a target by file, you can specify a hash and byte size directly:
-```bash
+```
 $ notary addhash -p <GUN> <target_name> <byte_size> --sha256 <sha256Hash>
 ```
 
 To check that your trust data was published successfully to the notary server, you can run:
-```bash
+```
 $ notary list <GUN>
 ```
 
 To remove targets from a trusted collection, you can run:
-```bash
+```
 $ notary remove -p <GUN> <target_name>
 ```
 
@@ -120,7 +120,7 @@ $ notary remove -p <GUN> <target_name>
 
 Users can remove all notary signed data for a trusted collection by running:
 
-```bash
+```
 $ notary delete <GUN> --remote
 ```
 
@@ -132,13 +132,13 @@ but will not delete data from the Notary server.
 The Notary CLI client manages the keys used to sign the trusted collection. These keys are encrypted at rest.
 To list all the keys managed by the Notary CLI client, run:
 
-```bash
+```
 $ notary key list
 ```
 
 To change the passphrase used to encrypt one of the keys, run:
 
-```bash
+```
 $ notary key passwd <key_id>
 ```
 
@@ -150,7 +150,7 @@ content that was signed with those keys stop being trusted.
 For keys that are kept offline and managed by the Notary CLI client, such the
 keys with the root, targets, and snapshot roles, you can rotate them with:
 
-```bash
+```
 $ notary key rotate <GUN> <key_role>
 ```
 
@@ -165,14 +165,14 @@ After a rotation, all previously existing keys for the specified role are replac
 You can also rotate keys that are stored in the Notary server, such as the keys
 with the snapshot or timestamp role. To do this, use the `-r` flag:
 
-```bash
+```
 $ notary key rotate <GUN> <key_role> -r
 ```
 
 ## Importing and exporting keys
 
 Notary can import keys that are already in a PEM format:
-```bash
+```
 $ notary key import <pemfile> --role <key_role> --gun <key_gun>
 ```
 
@@ -186,7 +186,7 @@ Moreover, it's possible for notary to import multiple keys contained in one PEM 
 For each key it attempts to import, notary will prompt for a passphrase so that the key can be encrypted at rest.
 
 Notary can also export all of its encrypted keys, or individually by key ID or GUN:
-```bash
+```
 # export all my notary keys to a file
 $ notary key export -o exported_keys.pem
 
@@ -208,26 +208,26 @@ When exporting multiple keys, all keys are outputted to a single PEM file in ind
 
 To delegate content signing to other users without sharing the targets key, retrieve a x509 certificate for that user and run:
 
-```bash
+```
 $ notary delegation add -p <GUN> targets/<role> user.pem user2.pem --all-paths
 ```
 
 The delegated user can then import the private key for that certificate keypair (using `notary key import`) and use it for signing.
 
 The `--all-paths` flag allows the delegation role to sign content into any target name.  To restrict this, you can provide path prefixes with the `--paths` flag instead.  For example:
-```bash
+```
 $ notary delegation add -p <GUN> targets/<role> user.pem user2.pem --paths tmp/ --paths users/
 ```
 In the above example, the delegation would be allowed to sign targets prefixed by `tmp/` and `users/` (ex: `tmp/file`, `users/file`, but not `file`)
 
 It's possible to add multiple certificates at once for a role:
-```bash
+```
 $ notary delegation add -p <GUN> targets/<role> --all-paths user1.pem user2.pem user3.pem
 ```
 
 You can also remove keys from a delegation role, such that those keys can no longer sign targets into the delegation role:
 
-```bash
+```
 # Remove the given keys from a delegation role
 $ notary delegation remove -p <GUN> targets/<role> <keyID1> <keyID2>
 
@@ -239,7 +239,7 @@ $ notary delegation purge <GUN> --key <keyID1> --key <keyID2>
 
 We can specify which delegation roles to sign content into by using the `--roles` flag.  This also applies to `notary addhash` and `notary remove`.
 Without the `--roles` flag, notary will attempt to operate on the base `targets` role:
-```bash
+```
 # Add content from a target file to a specific delegation role
 $ notary add -p <GUN> <target_name> <target_file> --roles targets/<role>
 
@@ -252,7 +252,7 @@ $ notary remove -p <GUN> <target_name> <target_file> --roles targets/<role>
 
 Similarly, we can list all targets and prefer to show certain delegation roles' targets first with the `--roles` flag.
 If we do not specify a `--role` flag in `notary list`, we will prefer to show targets signed into the base `targets` role, and these will shadow other targets signed into delegation roles with the same target name:
-```bash
+```
 # Prefer to show targets from one specific role
 $ notary list <GUN> --roles targets/<role>
 
@@ -264,7 +264,7 @@ $ notary list <GUN> --roles targets/<role1> --roles targets/<role2>
 
 Notary can mark a delegation role for re-signing without adding any additional content:
 
-```bash
+```
 $ notary witness -p <GUN> targets/<role>
 ```
 
@@ -284,7 +284,7 @@ correct Notary server, using the `-s` flag, and that you're using the correct
 directory where your private keys are stored, with the `-d` flag.
 
 If you are receiving this error:
-```bash
+```
 * fatal: Get <URL>/v2/: x509: certificate signed by unknown authority
 ```
 The Notary CLI must be configured to trust the root certificate authority of the server it is communicating with.

@@ -5,7 +5,7 @@ layout: page
 
 # Notary server configuration file
 
-This document is for those who are [running their own Notary service](../running_a_service.md) who
+This document is for those who are [running their own Notary service]({% link running_a_service.md %}) who
 want to specify custom options.
 
 ## Overview
@@ -14,7 +14,7 @@ A configuration file is required by Notary server, and the path to the
 configuration file must be specified using the `-config` option on the command
 line.
 
-Notary server also allows you to [increase/decrease](server-config.md#hot-logging-level-reload) the logging level without having to restart.
+Notary server also allows you to <a href="{% link configuration/server-config.md %}#hot-logging-level-reload"increase/decrease</a> the logging level without having to restart.
 
 Here is a full server configuration file example; please click on the top level JSON keys to
 learn more about the configuration section corresponding to that key:
@@ -73,10 +73,12 @@ learn more about the configuration section corresponding to that key:
 Example:
 
 ```json
-"server": {
-  "http_addr": ":4443",
-  "tls_key_file": "./fixtures/notary-server.key",
-  "tls_cert_file": "./fixtures/notary-server.crt"
+{
+	"server": {
+		"http_addr": ":4443",
+		"tls_key_file": "./fixtures/notary-server.key",
+		"tls_cert_file": "./fixtures/notary-server.crt"
+	}
 }
 ```
 
@@ -131,22 +133,26 @@ ED25519 trust service.
 Remote trust service example:
 
 ```json
-"trust_service": {
-  "type": "remote",
-  "hostname": "notarysigner",
-  "port": "7899",
-  "key_algorithm": "ecdsa",
-  "tls_ca_file": "./fixtures/root-ca.crt",
-  "tls_client_cert": "./fixtures/notary-server.crt",
-  "tls_client_key": "./fixtures/notary-server.key"
+{
+	"trust_service": {
+		"type": "remote",
+		"hostname": "notarysigner",
+		"port": "7899",
+		"key_algorithm": "ecdsa",
+		"tls_ca_file": "./fixtures/root-ca.crt",
+		"tls_client_cert": "./fixtures/notary-server.crt",
+		"tls_client_key": "./fixtures/notary-server.key"
+	}
 }
 ```
 
 Local trust service example:
 
 ```json
-"trust_service": {
-  "type": "local"
+{
+	"trust_service": {
+		"type": "local"
+	}
 }
 ```
 
@@ -212,9 +218,11 @@ store TUF metadata.  Only MySQL, PostgreSQL or an in-memory store is supported.
 DB storage example:
 
 ```json
-"storage": {
-  "backend": "mysql",
-  "db_url": "user:pass@tcp(notarymysql:3306)/databasename?parseTime=true"
+{
+	"storage": {
+		"backend": "mysql",
+		"db_url": "user:pass@tcp(notarymysql:3306)/databasename?parseTime=true"
+	}
 }
 ```
 
@@ -249,14 +257,16 @@ Currently, we only support token authentication.
 Example:
 
 ```json
-"auth": {
-  "type": "token",
-  "options": {
-    "realm": "https://auth.docker.io",
-    "service": "notary-server",
-    "issuer": "auth.docker.io",
-    "rootcertbundle": "/path/to/auth.docker.io/cert"
-  }
+{
+	"auth": {
+		"type": "token",
+		"options": {
+			"realm": "https://auth.docker.io",
+			"service": "notary-server",
+			"issuer": "auth.docker.io",
+			"rootcertbundle": "/path/to/auth.docker.io/cert"
+		}
+	}
 }
 ```
 
@@ -297,11 +307,13 @@ authentication post login.)
 Example:
 
 ```json
-"caching": {
-  "max_age": {
-    "current_metadata": 300,
-    "consistent_metadata": 31536000,
-  }
+{
+	"caching": {
+		"max_age": {
+			"current_metadata": 300,
+			"consistent_metadata": 31536000,
+		}
+	}
 }
 ```
 
@@ -334,8 +346,10 @@ Example:
 Example:
 
 ```json
-"repositories": {
-  "gun_prefixes": ["docker.io/", "my-own-registry.com/"]
+{
+	"repositories": {
+		"gun_prefixes": ["docker.io/", "my-own-registry.com/"]
+	}
 }
 ```
 
@@ -396,5 +410,5 @@ $ ps aux | grep "notary-server -config" | grep -v "grep"
 
 ## Related information
 
-* [Notary Signer Configuration File](signer-config.md)
-* [Configuration sections common to the Notary Server and Signer](common-configs.md)
+* [Signer Configuration]({% link configuration/signer-config.md %})
+* [Configuration sections common to the Notary Server and Signer]({% link configuration/common-configs.md %})

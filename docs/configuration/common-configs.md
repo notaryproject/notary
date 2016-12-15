@@ -10,7 +10,8 @@ Notary signer have the same keys and format. The following sections provide
 further detail.
 
 For full specific configuration information, see the configuration files for the
-Notary [server](server-config.md) or [signer](signer-config.md).
+Notary [server]({% link configuration/server-config.md %}) 
+or [signer]({% link configuration/signer-config.md %}).
 
 ## logging section (optional)
 
@@ -21,8 +22,10 @@ value was provided, it must be a valid value.
 Example:
 
 ```json
-"logging": {
-  "level": "debug"
+{
+	"logging": {
+		"level": "debug"
+	}
 }
 ```
 
@@ -90,5 +93,5 @@ required parameters below, to configure it.
 
 ## Related information
 
-* [Notary Server Configuration File](server-config.md)
-* [Notary Signer Configuration File](signer-config.md)
+* [Server Configuration]({% link configuration/server-config.md %})
+* [Signer Configuration]({% link configuration/signer-config.md %})

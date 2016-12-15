@@ -15,9 +15,9 @@ and [Docker Compose](https://docs.docker.com/compose/overview/).
 
 The quickest way to spin up a full Notary service for testing and development
 purposes is to use the Docker compose file in the
-<a href="https://github.com/docker/notary" target="_blank">Notary project</a>.
+[Notary project](https://github.com/docker/notary).
 
-```plain
+```
 $ git clone https://github.com/docker/notary.git
 $ cd notary
 $ docker-compose up
@@ -37,7 +37,7 @@ it, you will have to use the root CA file in `fixtures/root-ca.crt`.
 
 For example, to connect using OpenSSL:
 
-```bash
+```
 $ openssl s_client -connect <docker host>:4443 -CAfile fixtures/root-ca.crt -no_ssl3 -no_ssl2
 ```
 
@@ -45,7 +45,7 @@ To connect using the Notary Client CLI, please see [Getting Started](getting_sta
 documentation. Please note that the version of Notary server and signer
 should be greater than or equal to that of the Notary Client CLI to ensure feature compatibility,
 i.e. if you are using Notary Client CLI 0.2, ensure you are using a server and signer tagged with
-an equal or higher version than 0.2 from the <a href="https://github.com/docker/notary/releases">releases page</a>.
+an equal or higher version than 0.2 from the [releases page](https://github.com/docker/notary/releases).
 
 The self-signed certificate's subject name and subject alternative names are
 `notary-server`, `notaryserver`, and `localhost`, so if your Docker host is not
@@ -55,9 +55,8 @@ the IP address of your Docker host.
 
 ## Advanced configuration options
 
-Both the Notary server and the Notary signer take
-[JSON configuration files](reference/index.md). Pre-built images, such as
-the [development images above](#run-a-service-for-testing-or-development)
+Both the Notary server and the Notary signer take JSON configuration files. 
+Pre-built images, such as the [development images above](#run-a-service-for-testing-or-development)
 provide these configuration files for you with some sane defaults.
 
 However, for running in production, or if you just want to change those defaults
@@ -105,9 +104,11 @@ For instance, if you wanted to override the storage URL of the Notary server
 configuration:
 
 ```json
-"storage": {
-  "backend": "mysql",
-  "db_url": "dockercondemo:dockercondemo@tcp(notary-mysql)/dockercondemo"
+{
+	"storage": {
+		"backend": "mysql",
+		"db_url": "dockercondemo:dockercondemo@tcp(notary-mysql)/dockercondemo"
+	}
 }
 ```
 
@@ -135,26 +136,28 @@ One way to do this would be:
 
 2. Write the following configuration file to `/tmp/server-configdir/config.json`:
 
-		{
-		  "server": {
-		    "http_addr": ":4443",
-		    "tls_key_file": "./server.key",
-			"tls_cert_file": "./server.crt"
-		  },
-		  "trust_service": {
-		    "type": "remote",
-		    "hostname": "notarysigner",
-		    "port": "7899",
-		    "tls_ca_file": "./root-ca.crt",
-		    "key_algorithm": "ecdsa",
-		    "tls_client_cert": "./notary-server.crt",
-		    "tls_client_key": "./notary-server.key"
-		  },
-		  "storage": {
-		    "backend": "mysql",
-		    "db_url": "server@tcp(mysql:3306)/notaryserver?parseTime=True"
-		  }
-		}
+```json
+{
+	"server": {
+		"http_addr": ":4443",
+		"tls_key_file": "./server.key",
+		"tls_cert_file": "./server.crt"
+	},
+	"trust_service": {
+		"type": "remote",
+		"hostname": "notarysigner",
+		"port": "7899",
+		"tls_ca_file": "./root-ca.crt",
+		"key_algorithm": "ecdsa",
+		"tls_client_cert": "./notary-server.crt",
+		"tls_client_key": "./notary-server.key"
+	},
+	"storage": {
+		"backend": "mysql",
+		"db_url": "server@tcp(mysql:3306)/notaryserver?parseTime=True"
+	}
+}
+```
 
 	Note that we are including a remote trust service and a database storage
 	type in order to demonstrate how environment variables can override
@@ -162,21 +165,23 @@ One way to do this would be:
 
 3. Run the following command (assuming you've already built or pulled a Notary server docker image):
 
-		$ docker run \
-			-p "4443:4443" \
-			-v /tmp/server-configdir:/etc/docker/notary-server/ \
-			-e NOTARY_SERVER_TRUST_SERVICE_TYPE=local \
-			-e NOTARY_SERVER_STORAGE_BACKEND=memory \
-			-e NOTARY_SERVER_LOGGING_LEVEL=debug \
-			notary_server \
-				-config=/etc/docker/notary-server/config.json \
-				-logf=json
-		{"level":"info","msg":"Version: 0.2, Git commit: 619f8cf","time":"2016-02-25T00:53:59Z"}
-		{"level":"info","msg":"Using local signing service, which requires ED25519. Ignoring all other trust_service parameters, including keyAlgorithm","time":"2016-02-25T00:53:59Z"}
-		{"level":"info","msg":"Using memory backend","time":"2016-02-25T00:53:59Z"}
-		{"level":"info","msg":"Starting Server","time":"2016-02-25T00:53:59Z"}
-		{"level":"info","msg":"Enabling TLS","time":"2016-02-25T00:53:59Z"}
-		{"level":"info","msg":"Starting on :4443","time":"2016-02-25T00:53:59Z"}
+```
+$ docker run \
+	-p "4443:4443" \
+	-v /tmp/server-configdir:/etc/docker/notary-server/ \
+	-e NOTARY_SERVER_TRUST_SERVICE_TYPE=local \
+	-e NOTARY_SERVER_STORAGE_BACKEND=memory \
+	-e NOTARY_SERVER_LOGGING_LEVEL=debug \
+	notary_server \
+		-config=/etc/docker/notary-server/config.json \
+		-logf=json
+{"level":"info","msg":"Version: 0.2, Git commit: 619f8cf","time":"2016-02-25T00:53:59Z"}
+{"level":"info","msg":"Using local signing service, which requires ED25519. Ignoring all other trust_service parameters, including keyAlgorithm","time":"2016-02-25T00:53:59Z"}
+{"level":"info","msg":"Using memory backend","time":"2016-02-25T00:53:59Z"}
+{"level":"info","msg":"Starting Server","time":"2016-02-25T00:53:59Z"}
+{"level":"info","msg":"Enabling TLS","time":"2016-02-25T00:53:59Z"}
+{"level":"info","msg":"Starting on :4443","time":"2016-02-25T00:53:59Z"}
+```
 
 You can do the same using [Docker
 Compose](https://docs.docker.com/compose/overview/) by setting volumes,
@@ -239,5 +244,6 @@ not be cached.
 
 ## Related information
 
-* [Notary service architecture](service_architecture.md)
-* [Notary configuration files](reference/index.md)
+* [Service Architecture]({% link service_architecture.md %})
+* [Server Configuration]({% link configuration/server-config.md %})
+* [Signer Configuration]({% link configuration/signer-config.md %})

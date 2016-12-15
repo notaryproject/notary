@@ -7,7 +7,7 @@ layout: page
 
 This page explains advanced uses of Notary client for users who are running
 their own Notary service. Make sure you have first read and understood how to
-[run your own Notary service](running_a_service.md) before continuing.
+[run your own Notary service]({% link running_a_service.md %}) before continuing.
 
 #### An important note about the examples
 
@@ -16,11 +16,13 @@ know what these options do, please read the [Getting
 Started](getting_started.md) docs or run `notary --help` before continuing. Once
 you understand what these flags do, you must provide your own values for these
 options while following this document. You can also configure these options, see
-[advanced configuration options](reference/index.md) for more information.
+[advanced configuration options]({% link configuration/client-config.md %}) 
+for more information.
 
 ## Initialize a Trusted Collection</a>
 
-Before adding and signing content to a collection, you must first initialize that collection.
+Before adding and signing content to a collection, you must first initialize 
+that collection.
 
 ```
 $ notary init example.com/collection
@@ -54,17 +56,23 @@ It's simple to add targets to a trusted collection with notary CLI:
 $ notary add example.com/collection v1 my_file.txt
 ```
 
-The above command adds the local file `my_file.txt` (this file must exist relative to the current working directory) under the target name `v1` to the `example.com/collection` collection we set up. The contents of the local file are not actually added to the collection - a "target" consists of the
+The above command adds the local file `my_file.txt` (this file must exist 
+relative to the current working directory) under the target name `v1` to 
+the `example.com/collection` collection we set up. The contents of the local 
+file are not actually added to the collection - a "target" consists of the
 file path and one or more checksums of the contents.
 
-Note that this is an offline command, and we must run a `notary publish example.com/collection` for the add to take effect.
+Note that this is an offline command, and we must run a 
+`notary publish example.com/collection` for the add to take effect.
 
-To remove targets, we use the `notary remove` command, specifying the GUN and target name.
+To remove targets, we use the `notary remove` command, specifying the GUN 
+and target name.
 ```
 $ notary remove example.com/collection v1
 ```
 
-Removing a target is also an offline command that requires a `notary publish example.com/collection` to take effect.
+Removing a target is also an offline command that requires a 
+`notary publish example.com/collection` to take effect.
 
 ## Manage keys
 
@@ -81,7 +89,9 @@ subsection.
 
 ### Rotate keys
 
-In case of potential compromise, notary provides a CLI command for rotating keys. Currently, you can use the `notary key rotate` command to rotate the root, targets, snapshot, or timestamp keys.
+In case of potential compromise, notary provides a CLI command for rotating keys. 
+Currently, you can use the `notary key rotate` command to rotate the root, targets, 
+snapshot, or timestamp keys.
 
 While the snapshot key is managed by the notary client by default, use the `notary key
 rotate snapshot -r` command to rotate the snapshot key to the server, such that the
@@ -89,11 +99,14 @@ notary server will then sign snapshots. This is particularly useful when using
 delegations with a trusted collection, so that delegates will never need access to the
 snapshot key to push their updates to the collection.
 
-Note that new collections created by a Docker 1.11 Engine client will have the server manage the snapshot key by default.
-To reclaim control of the snapshot key on the client, use the `notary key rotate` command without the `-r` flag.
+Note that new collections created by a Docker 1.11 Engine client will have the server 
+manage the snapshot key by default. To reclaim control of the snapshot key on the client, 
+use the `notary key rotate` command without the `-r` flag.
 
-The root and targets key must be locally managed - to rotate either the root or targets key, for instance in case of compromise, use the `notary key rotate` command without the `-r` flag.
-The timestamp key must be remotely managed - to rotate the timestamp key use the `notary key rotate <GUN> timestamp -r` command.
+The root and targets key must be locally managed - to rotate either the root or targets key, 
+for instance in case of compromise, use the `notary key rotate` command without the `-r` flag.
+The timestamp key must be remotely managed - to rotate the timestamp key use the 
+`notary key rotate <GUN> timestamp -r` command.
 
 ### Use a Yubikey
 

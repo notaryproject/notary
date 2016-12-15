@@ -25,6 +25,6 @@ Navigation is automatically generated based on the directory layout of this /doc
 4. Build the documentation.
 
         $ docker build -t notarydocs .
-        $ docker run -it --rm -v $(pwd):/www -p 4000 notarydocs
+        $ docker run -it --rm -v $(pwd):/www -p=4000:4000 notarydocs
 
 5. Open your browser and navigate to [http://localhost:4000](http://localhost:4000)

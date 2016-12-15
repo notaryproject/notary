@@ -371,5 +371,6 @@ changed immediately.
 
 ## Related information
 
-* [Run a Notary service](running_a_service.md)
-* [Notary configuration files](config/index.md)
+* [Run a Notary service]({% link running_a_service.md %})
+* [Server Configuration]({% link configuration/server-config.md %})
+* [Signer Configuration]({% link configuration/signer-config.md %})

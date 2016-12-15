@@ -3,12 +3,10 @@ title: Notary by Docker
 layout: home
 ---
 
-## Getting started with Docker Notary
+# Getting started with Docker Notary
 
-This document describes basic use of the Notary CLI as a tool supporting Docker
-Content Trust. For more advanced use cases, you must [run your own Notary
-service](running_a_service.md) and should read the [use the Notary client for
-advanced users](advanced_usage.md) documentation.
+These documents describe using Notary as a standalone tool for signing and distributing
+trust data over arbitrary collections of content.
 
 ## What is Notary
 
@@ -18,7 +16,7 @@ and origin of content. This ability is built on a straightforward key management
 and signing interface to create signed collections and configure trusted publishers.
 
 With Notary anyone can provide trust over arbitrary collections of data. Using
-<a href="https://www.theupdateframework.com/" target="_blank">The Update Framework (TUF)</a>
+<a href="" target="_blank">The Update Framework (TUF)</a>
 as the underlying security framework, Notary takes care of the operations necessary
 to create, manage and distribute the metadata necessary to ensure the integrity and
 freshness of your content.
@@ -59,7 +57,7 @@ tell the client which repository server it should communicate with.
 
 The official Docker Hub Notary servers are located at
 `https://notary.docker.io`. If you would like to use your own Notary server,
-it is important to use the same or a newer <a href="https://github.com/docker/notary/releases">Notary version</a>
+it is important to use the same or a newer [Notary version](https://github.com/docker/notary/releases)
 as the client for feature compatibility (ex: client version 0.2, server/signer version >= 0.2).
 Additionally, Notary stores your own signing keys,
 and a cache of previously downloaded trust metadata in a directory, provided
@@ -128,8 +126,8 @@ Failing to provide the correct value for the `-d` flag may show the wrong
 $ notary -d ~/.docker/trust status docker.io/library/alpine
 Unpublished changes for docker.io/library/alpine:
 
-\#  ACTION    SCOPE     TYPE        PATH
-\-  ------    -----     ----        ----
+#  ACTION    SCOPE     TYPE        PATH
+-  ------    -----     ----        ----
 0  delete    targets   target      2.6
 $ notary -s https://notary.docker.io -d ~/.docker/trust  publish docker.io/library/alpine
 ```
@@ -144,8 +142,8 @@ they are no longer desired. This is done using the `reset` command:
 $ notary -d ~/.docker/trust status docker.io/library/alpine 
 Unpublished changes for docker.io/library/alpine:
 
-\#  ACTION    SCOPE     TYPE        PATH
-\-  ------    -----     ----        ----
+#  ACTION    SCOPE     TYPE        PATH
+-  ------    -----     ----        ----
 0  delete    targets   target      2.6
 1  create    targets   target      3.0
 
@@ -153,8 +151,8 @@ $ notary -d ~/.docker/trust reset docker.io/library/alpine -n 0
 $ notary -d ~/.docker/trust status docker.io/library/alpine
 Unpublished changes for docker.io/library/alpine:
 
-\#  ACTION    SCOPE     TYPE        PATH
-\-  ------    -----     ----        ----
+#  ACTION    SCOPE     TYPE        PATH
+-  ------    -----     ----        ----
 0  create    targets   target      3.0
 ```
 

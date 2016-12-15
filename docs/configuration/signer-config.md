@@ -6,7 +6,7 @@ layout: page
 
 # Notary signer configuration file
 
-This document is for those who are [running their own Notary service](../running_a_service.md) who
+This document is for those who are [running their own Notary service]({% link running_a_service.md %}) who
 want to specify custom options.
 
 ## Overview
@@ -50,11 +50,13 @@ learn more about the configuration section corresponding to that key:
 Example:
 
 ```json
-"server": {
-  "grpc_addr": ":7899",
-  "tls_cert_file": "./fixtures/notary-signer.crt",
-  "tls_key_file": "./fixtures/notary-signer.key",
-  "client_ca_file": "./fixtures/notary-server.crt"
+{
+	"server": {
+		"grpc_addr": ":7899",
+		"tls_cert_file": "./fixtures/notary-signer.crt",
+		"tls_key_file": "./fixtures/notary-signer.key",
+		"client_ca_file": "./fixtures/notary-server.crt"
+	}
 }
 ```
 
@@ -115,10 +117,12 @@ or an in-memory store, currently.
 Example:
 
 ```json
-"storage": {
-  "backend": "mysql",
-  "db_url": "user:pass@tcp(notarymysql:3306)/databasename?parseTime=true",
-  "default_alias": "passwordalias1"
+{
+	"storage": {
+		"backend": "mysql",
+		"db_url": "user:pass@tcp(notarymysql:3306)/databasename?parseTime=true",
+		"default_alias": "passwordalias1"
+	}
 }
 ```
 
@@ -183,16 +187,18 @@ supported yet).
 You could change the config to look like:
 
 ```json
-"storage": {
-  "backend": "mysql",
-  "db_url": "user:pass@tcp(notarymysql:3306)/databasename?parseTime=true",
-  "default_alias": "passwordalias2"
+{
+	"storage": {
+		"backend": "mysql",
+		"db_url": "user:pass@tcp(notarymysql:3306)/databasename?parseTime=true",
+		"default_alias": "passwordalias2"
+	}
 }
 ```
 
 Then you can set:
 
-```bash
+```
 export NOTARY_SIGNER_PASSWORDALIAS1=mypassword
 export NOTARY_SIGNER_PASSWORDALIAS2=mynewfancypassword
 ```
@@ -246,5 +252,5 @@ $ ps aux | grep "notary-signer -config" | grep -v "grep"
 
 ## Related information
 
-* [Notary Server Configuration File](server-config.md)
-* [Configuration sections common to the Notary server and signer](common-configs.md)
+* [Server Configuration]({% link configuration/server-config.md %})
+* [Configuration sections common to the Notary Server and Signer]({% link configuration/common-configs.md %})

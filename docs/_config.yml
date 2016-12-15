@@ -27,7 +27,6 @@ kramdown:
   input: GFM
   html_to_native: true
   hard_wrap: false
-  syntax_highlighter: rouge
 #theme: minima
 incremental: true
 exclude:

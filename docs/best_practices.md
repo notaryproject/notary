@@ -8,7 +8,7 @@ layout: page
 This document describes good and recommended practices for using the Notary client.
 It includes recommendations on key management, bootstrapping trust for your repositories,
 and delegating trust to other signers. You may wish to refer to the [Getting Started](getting_started.md)
-and [Advanced Usage](advanced_usage.md) documents for more information on some of the
+and [Advanced Usage]({% link advanced_usage.md%}) documents for more information on some of the
 commands.
 
 ## Key Management
@@ -141,5 +141,5 @@ In these instances we can do better than TOFUS as we already have the public key
 secure ways to retrieve it.
 
 We recommend that wherever possible, trust is bootstrapped by pinning specific Root
-keys for specific repositories, as described in the [client configuration](reference/client-config.md)
+keys for specific repositories, as described in the [client configuration]({% link configuration/client-config.md %})
 document.

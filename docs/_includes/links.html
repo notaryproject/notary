@@ -1,22 +1,12 @@
-      <ul id="nav">
+      <ul class="nav">
         {% assign dirs = site.pages | group_by: "dir" %}
         {% for dir in dirs %}
-          {% if dir.name != '/' %}
-            <li>{{ dir.name | split: "/" | join: "" | capitalize }}
-            <ul>
-          {% endif %}
-          
+          {% if dir.name != '/' %}<li>{{ dir.name | split: "/" | join: "" | capitalize }}<ul>{% endif %}
           {% for page in dir.items %}
             {% assign filename = page.url | split: '/' | last %}
-            {% if filename != 'index.html' and page.url != '/' %}
-              <li><a href="{{page.url}}">{{page.title}}</a></li>
-            {% endif %}
+            {% if filename != 'index.html' and page.url != '/' %}<li><a href="{{page.url}}">{{page.title}}</a></li>{% endif %}
           {% endfor %}
-
-          {% if dir.name != '/' %}
-            </ul>
-            </li>
-          {% endif %}
+          {% if dir.name != '/' %}</ul></li>{% endif %}
         {% endfor %}
         <li><a href="https://github.com/docker/notary">Code</a></li>
       </ul>
