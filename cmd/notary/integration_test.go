@@ -2747,3 +2747,43 @@ func TestExportImportFlow(t *testing.T) {
 	require.Contains(t, targString, "gun: gun")
 	require.True(t, strings.Contains(snapString, "role: snapshot") || strings.Contains(snapString, "role: target"))
 }
+
+// Tests import/export keys with delegations, which don't require a gun
+func TestDelegationKeyImportExport(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	tempExportedDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	tempImportingDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	// Setup key in a file for import
+	keyFile, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+	defer os.Remove(keyFile.Name())
+	privKey, err := utils.GenerateRSAKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	pemBytes, err := utils.EncryptPrivateKey(privKey, "", "", "")
+	require.NoError(t, err)
+	nBytes, err := keyFile.Write(pemBytes)
+	require.NoError(t, err)
+	keyFile.Close()
+	require.Equal(t, len(pemBytes), nBytes)
+
+	// import the key
+	_, err = runCommand(t, tempDir, "key", "import", keyFile.Name(), "-r", "user")
+	require.NoError(t, err)
+
+	// export the key
+	_, err = runCommand(t, tempDir, "key", "export", "-o", filepath.Join(tempExportedDir, "exported"))
+	require.NoError(t, err)
+
+	// re-import the key from the exported store to a new tempDir
+	_, err = runCommand(t, tempImportingDir, "key", "import", filepath.Join(tempExportedDir, "exported"))
+	require.NoError(t, err)
+}
