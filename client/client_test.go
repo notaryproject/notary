@@ -126,12 +126,12 @@ func simpleTestServer(t *testing.T, roles ...string) (
 func fullTestServer(t *testing.T) *httptest.Server {
 	// Set up server
 	ctx := context.WithValue(
-		context.Background(), "metaStore", storage.NewMemStorage())
+		context.Background(), notary.CtxKeyMetaStore, storage.NewMemStorage())
 
 	// Do not pass one of the const KeyAlgorithms here as the value! Passing a
 	// string is in itself good test that we are handling it correctly as we
 	// will be receiving a string from the configuration.
-	ctx = context.WithValue(ctx, "keyAlgorithm", "ecdsa")
+	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, "ecdsa")
 
 	// Eat the logs instead of spewing them out
 	var b bytes.Buffer
@@ -140,7 +140,7 @@ func fullTestServer(t *testing.T) *httptest.Server {
 	ctx = ctxu.WithLogger(ctx, logrus.NewEntry(l))
 
 	cryptoService := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(passphraseRetriever))
-	return httptest.NewServer(server.RootHandler(nil, ctx, cryptoService, nil, nil, nil))
+	return httptest.NewServer(server.RootHandler(ctx, nil, cryptoService, nil, nil, nil))
 }
 
 // server that returns some particular error code all the time

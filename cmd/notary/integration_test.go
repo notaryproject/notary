@@ -66,9 +66,9 @@ func runCommand(t *testing.T, tempDir string, args ...string) (string, error) {
 }
 
 func setupServerHandler(metaStore storage.MetaStore) http.Handler {
-	ctx := context.WithValue(context.Background(), "metaStore", metaStore)
+	ctx := context.WithValue(context.Background(), notary.CtxKeyMetaStore, metaStore)
 
-	ctx = context.WithValue(ctx, "keyAlgorithm", data.ECDSAKey)
+	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ECDSAKey)
 
 	// Eat the logs instead of spewing them out
 	var b bytes.Buffer
@@ -77,7 +77,7 @@ func setupServerHandler(metaStore storage.MetaStore) http.Handler {
 	ctx = ctxu.WithLogger(ctx, logrus.NewEntry(l))
 
 	cryptoService := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(passphrase.ConstantRetriever("pass")))
-	return server.RootHandler(nil, ctx, cryptoService, nil, nil, nil)
+	return server.RootHandler(ctx, nil, cryptoService, nil, nil, nil)
 }
 
 // makes a testing notary-server

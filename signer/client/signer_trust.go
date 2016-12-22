@@ -192,7 +192,7 @@ func (trust *NotarySigner) CheckHealth(timeout time.Duration) error {
 		return fmt.Errorf("Trust is not healthy: %s", stats)
 	}
 	if err != nil && grpc.Code(err) == codes.DeadlineExceeded {
-		return fmt.Errorf("Timed out reaching trust service after %s.", timeout)
+		return fmt.Errorf("Timed out reaching trust service after %s", timeout)
 	}
 
 	return err

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/docker/notary"
 	"github.com/docker/notary/server/storage"
 	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/tuf/data"
@@ -21,10 +22,10 @@ import (
 // Ensures that the httpstore can interpret the errors returned from the server
 func TestValidationErrorFormat(t *testing.T) {
 	ctx := context.WithValue(
-		context.Background(), "metaStore", storage.NewMemStorage())
-	ctx = context.WithValue(ctx, "keyAlgorithm", data.ED25519Key)
+		context.Background(), notary.CtxKeyMetaStore, storage.NewMemStorage())
+	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ED25519Key)
 
-	handler := RootHandler(nil, ctx, signed.NewEd25519(), nil, nil, nil)
+	handler := RootHandler(ctx, nil, signed.NewEd25519(), nil, nil, nil)
 	server := httptest.NewServer(handler)
 	defer server.Close()
 

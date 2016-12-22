@@ -15,7 +15,7 @@ import (
 func GenerateCertificate(rootKey data.PrivateKey, gun string, startTime, endTime time.Time) (*x509.Certificate, error) {
 	signer := rootKey.CryptoSigner()
 	if signer == nil {
-		return nil, fmt.Errorf("key type not supported for Certificate generation: %s\n", rootKey.Algorithm())
+		return nil, fmt.Errorf("key type not supported for Certificate generation: %s", rootKey.Algorithm())
 	}
 
 	return generateCertificate(signer, gun, startTime, endTime)

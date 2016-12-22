@@ -14,6 +14,7 @@ import (
 
 	ctxu "github.com/docker/distribution/context"
 	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/docker/notary"
 	"github.com/docker/notary/server/errors"
 	"github.com/docker/notary/server/storage"
 	store "github.com/docker/notary/storage"
@@ -43,14 +44,14 @@ func defaultState() handlerState {
 
 func getContext(h handlerState) context.Context {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "metaStore", h.store)
-	ctx = context.WithValue(ctx, "keyAlgorithm", h.keyAlgo)
-	ctx = context.WithValue(ctx, "cryptoService", h.crypto)
+	ctx = context.WithValue(ctx, notary.CtxKeyMetaStore, h.store)
+	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, h.keyAlgo)
+	ctx = context.WithValue(ctx, notary.CtxKeyCryptoSvc, h.crypto)
 	return ctxu.WithLogger(ctx, ctxu.GetRequestLogger(ctx))
 }
 
 func TestMainHandlerGet(t *testing.T) {
-	hand := utils.RootHandlerFactory(nil, context.Background(), &signed.Ed25519{})
+	hand := utils.RootHandlerFactory(context.Background(), nil, &signed.Ed25519{})
 	handler := hand(MainHandler)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
@@ -62,7 +63,7 @@ func TestMainHandlerGet(t *testing.T) {
 }
 
 func TestMainHandlerNotGet(t *testing.T) {
-	hand := utils.RootHandlerFactory(nil, context.Background(), &signed.Ed25519{})
+	hand := utils.RootHandlerFactory(context.Background(), nil, &signed.Ed25519{})
 	handler := hand(MainHandler)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
@@ -218,7 +219,7 @@ func TestGetHandlerRoot(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "metaStore", metaStore)
+	ctx = context.WithValue(ctx, notary.CtxKeyMetaStore, metaStore)
 
 	root, err := repo.SignRoot(data.DefaultExpires("root"))
 	require.NoError(t, err)
@@ -318,7 +319,7 @@ func TestGetHandler404(t *testing.T) {
 	metaStore := storage.NewMemStorage()
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "metaStore", metaStore)
+	ctx = context.WithValue(ctx, notary.CtxKeyMetaStore, metaStore)
 
 	req := &http.Request{
 		Body: ioutil.NopCloser(bytes.NewBuffer(nil)),
@@ -340,7 +341,7 @@ func TestGetHandlerNilData(t *testing.T) {
 	metaStore.UpdateCurrent("gun", storage.MetaUpdate{Role: "root", Version: 1, Data: nil})
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "metaStore", metaStore)
+	ctx = context.WithValue(ctx, notary.CtxKeyMetaStore, metaStore)
 
 	req := &http.Request{
 		Body: ioutil.NopCloser(bytes.NewBuffer(nil)),
