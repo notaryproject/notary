@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.4.3](https://github.com/docker/notary/releases/tag/v0.4.3) 11/15/2016
++ Fix build tags for static notary client binaries in linux [#1039](https://github.com/docker/notary/pull/1039)
+
 ## [v0.4.2](https://github.com/docker/notary/releases/tag/v0.4.2) 9/30/2016
 + Bump the cross compiler to golang 1.7.1, since [1.6.3 builds binaries that could have non-deterministic bugs in OS X Sierra](https://groups.google.com/forum/#!msg/golang-dev/Jho5sBHZgAg/cq6d97S1AwAJ) [#984](https://github.com/docker/notary/pull/984)
 
