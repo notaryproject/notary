@@ -5,14 +5,15 @@ import (
 	"crypto/rand"
 	"encoding/pem"
 	"errors"
-	"github.com/docker/notary"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/utils"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/docker/notary"
+	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
+	"github.com/stretchr/testify/require"
 )
 
 const cannedPassphrase = "passphrase"
@@ -363,8 +364,8 @@ func TestBlockHeaderPrecedenceGunFromPath(t *testing.T) {
 		require.Equal(t, key, filepath.Join(notary.NonRootKeysSubdir, "anothergun", "12ba0e0a8e05e177bc2c3489bdb6d28836879469f078e68a4812fc8a2d521497"))
 		final, rest := pem.Decode(s.data[key])
 		require.Len(t, rest, 0)
-		require.Equal(t, final.Headers["role"], "snapshot")
-		require.Equal(t, final.Headers["gun"], "anothergun")
+		require.Equal(t, "snapshot", final.Headers["role"])
+		require.Equal(t, "anothergun", final.Headers["gun"])
 	}
 }
 

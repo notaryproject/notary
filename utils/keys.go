@@ -4,15 +4,16 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/notary"
-	tufdata "github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/utils"
 	"io"
 	"io/ioutil"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/notary"
+	tufdata "github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
 )
 
 // Exporter is a simple interface for the two functions we need from the Storage interface
@@ -110,8 +111,8 @@ func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGun 
 		if rawPath := block.Headers["path"]; rawPath != "" {
 			pathWOFileName := strings.TrimSuffix(rawPath, filepath.Base(rawPath))
 			if strings.HasPrefix(pathWOFileName, notary.NonRootKeysSubdir) {
-				gunName := strings.TrimPrefix(pathWOFileName, notary.NonRootKeysSubdir)
-				gunName = gunName[1:(len(gunName) - 1)] // remove the slashes
+				// remove the notary keystore-specific segment of the path, and any potential leading or trailing slashes
+				gunName := strings.Trim(strings.TrimPrefix(pathWOFileName, notary.NonRootKeysSubdir), "/")
 				if gunName != "" {
 					block.Headers["gun"] = gunName
 				}
