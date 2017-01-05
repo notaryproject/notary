@@ -78,11 +78,11 @@ ${PREFIX}/bin/static/notary:
 else
 ${PREFIX}/bin/static/notary-server: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
-	@go build -tags "${NOTARY_BUILDTAGS} netgo" -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-server
+	@(export CGO_ENABLED=0; go build -tags "${NOTARY_BUILDTAGS} netgo" -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-server)
 
 ${PREFIX}/bin/static/notary-signer: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
-	@go build -tags "${NOTARY_BUILDTAGS} netgo" -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-signer
+	@(export CGO_ENABLED=0; go build -tags "${NOTARY_BUILDTAGS} netgo" -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-signer)
 
 ${PREFIX}/bin/static/notary:
 	@echo "+ $@"
