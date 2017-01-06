@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.4.4](https://github.com/docker/notary/releases/tag/v0.4.3) 1/6/2017
++ Bump gorethink dependency to v3.0.0, which only affects the server and signer [#1075](https://github.com/docker/notary/pull/1075)
+
 ## [v0.4.3](https://github.com/docker/notary/releases/tag/v0.4.3) 1/3/2017
 + Fix build tags for static notary client binaries in linux [#1039](https://github.com/docker/notary/pull/1039)
 + Fix key import for exported delegation keys [#1067](https://github.com/docker/notary/pull/1067)
