@@ -1600,7 +1600,7 @@ func TestValidateRootRotationWithOldRole(t *testing.T) {
 
 // A valid root role is signed by the current root role keys and the previous root role keys
 func TestRootRoleInvariant(t *testing.T) {
-	// start with a repo with a root with 2 keys, optionally signing 1
+	// start with a repo
 	_, serverSwizzler := newServerSwizzler(t)
 	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
 	defer ts.Close()
@@ -1677,6 +1677,119 @@ func TestRootRoleInvariant(t *testing.T) {
 	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, threeKeys)
 	require.NoError(t, repo.Update(false))
 	requireRootSignatures(t, serverSwizzler, 3)
+}
+
+// All intermediate roots must be signed by the previous root role
+func TestBadIntermediateTransitions(t *testing.T) {
+	// start with a repo
+	_, serverSwizzler := newServerSwizzler(t)
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
+	defer ts.Close()
+
+	repo := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(repo.baseDir)
+
+	// --- setup so that the root starts with a role with 1 keys, and threshold of 1
+	rootBytes, err := serverSwizzler.MetadataCache.GetSized(data.CanonicalRootRole, store.NoSizeLimit)
+	require.NoError(t, err)
+	signedRoot := data.SignedRoot{}
+	require.NoError(t, json.Unmarshal(rootBytes, &signedRoot))
+
+	// generate keys for testing
+	threeKeys := make([]data.PublicKey, 3)
+	keyIDs := make([]string, len(threeKeys))
+	for i := 0; i < len(threeKeys); i++ {
+		threeKeys[i], err = testutils.CreateKey(
+			serverSwizzler.CryptoService, "docker.com/notary", data.CanonicalRootRole, data.ECDSAKey)
+		require.NoError(t, err)
+		keyIDs[i] = threeKeys[i].ID()
+	}
+
+	// increment the root version and sign with the first key only
+	signedRoot.Signed.Version++
+	signedRoot.Signed.Keys[keyIDs[0]] = threeKeys[0]
+	signedRoot.Signed.Roles[data.CanonicalRootRole].KeyIDs = []string{keyIDs[0]}
+	signedRoot.Signed.Roles[data.CanonicalRootRole].Threshold = 1
+	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, []data.PublicKey{threeKeys[0]})
+
+	require.NoError(t, repo.Update(false))
+
+	// increment the root version and sign with the second key only
+	signedRoot.Signed.Version++
+	delete(signedRoot.Signed.Keys, keyIDs[0])
+	signedRoot.Signed.Keys[keyIDs[1]] = threeKeys[1]
+	signedRoot.Signed.Roles[data.CanonicalRootRole].KeyIDs = []string{keyIDs[1]}
+	signedRoot.Signed.Roles[data.CanonicalRootRole].Threshold = 1
+	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, []data.PublicKey{threeKeys[1]})
+
+	// increment the root version and sign with all three keys
+	signedRoot.Signed.Version++
+	signedRoot.Signed.Keys[keyIDs[0]] = threeKeys[0]
+	signedRoot.Signed.Keys[keyIDs[1]] = threeKeys[1]
+	signedRoot.Signed.Keys[keyIDs[2]] = threeKeys[2]
+	signedRoot.Signed.Roles[data.CanonicalRootRole].KeyIDs = []string{keyIDs[0], keyIDs[1], keyIDs[2]}
+	signedRoot.Signed.Roles[data.CanonicalRootRole].Threshold = 1
+	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, []data.PublicKey{threeKeys[1]})
+	requireRootSignatures(t, serverSwizzler, 1)
+
+	// Update fails because version 1 -> 2 is invalid.
+	require.Error(t, repo.Update(false))
+}
+
+// All intermediate roots must be signed by the previous root role
+func TestExpiredIntermediateTransitions(t *testing.T) {
+	// start with a repo
+	_, serverSwizzler := newServerSwizzler(t)
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
+	defer ts.Close()
+
+	repo := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(repo.baseDir)
+
+	// --- setup so that the root starts with a role with 1 keys, and threshold of 1
+	rootBytes, err := serverSwizzler.MetadataCache.GetSized(data.CanonicalRootRole, store.NoSizeLimit)
+	require.NoError(t, err)
+	signedRoot := data.SignedRoot{}
+	require.NoError(t, json.Unmarshal(rootBytes, &signedRoot))
+
+	// generate keys for testing
+	threeKeys := make([]data.PublicKey, 3)
+	keyIDs := make([]string, len(threeKeys))
+	for i := 0; i < len(threeKeys); i++ {
+		threeKeys[i], err = testutils.CreateKey(
+			serverSwizzler.CryptoService, "docker.com/notary", data.CanonicalRootRole, data.ECDSAKey)
+		require.NoError(t, err)
+		keyIDs[i] = threeKeys[i].ID()
+	}
+
+	// increment the root version and sign with the first key only
+	signedRoot.Signed.Version++
+	signedRoot.Signed.Keys[keyIDs[0]] = threeKeys[0]
+	signedRoot.Signed.Roles[data.CanonicalRootRole].KeyIDs = []string{keyIDs[0]}
+	signedRoot.Signed.Roles[data.CanonicalRootRole].Threshold = 1
+	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, []data.PublicKey{threeKeys[0]})
+
+	require.NoError(t, repo.Update(false))
+
+	// increment the root version and sign with the first and second keys, but set metadata to be expired.
+	signedRoot.Signed.Version++
+	signedRoot.Signed.Keys[keyIDs[1]] = threeKeys[1]
+	signedRoot.Signed.Roles[data.CanonicalRootRole].KeyIDs = []string{keyIDs[0], keyIDs[1]}
+	signedRoot.Signed.Roles[data.CanonicalRootRole].Threshold = 1
+	signedRoot.Signed.Expires = time.Now().AddDate(0, -1, 0)
+	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, []data.PublicKey{threeKeys[0], threeKeys[1]})
+
+	// increment the root version and sign with all three keys
+	signedRoot.Signed.Version++
+	signedRoot.Signed.Keys[keyIDs[2]] = threeKeys[2]
+	signedRoot.Signed.Roles[data.CanonicalRootRole].KeyIDs = []string{keyIDs[0], keyIDs[1], keyIDs[2]}
+	signedRoot.Signed.Roles[data.CanonicalRootRole].Threshold = 1
+	signedRoot.Signed.Expires = time.Now().AddDate(0, 1, 0)
+	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, threeKeys[:3])
+	requireRootSignatures(t, serverSwizzler, 3)
+
+	// Update succeeds despite version 2 being expired.
+	require.NoError(t, repo.Update(false))
 }
 
 // TestDownloadTargetsLarge: Check that we can download very large targets metadata files,

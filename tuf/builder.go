@@ -427,10 +427,6 @@ func (rb *repoBuilder) GenerateTimestamp(prev *data.SignedTimestamp) ([]byte, in
 	return sgndJSON, rb.repo.Timestamp.Signed.Version, nil
 }
 
-func (rb *repoBuilder) setPrevRoot(root *data.SignedRoot) {
-	rb.prevRoot = root
-}
-
 // loadRoot loads a root if one has not been loaded
 func (rb *repoBuilder) loadRoot(content []byte, minVersion int, allowExpired, skipChecksum bool) error {
 	roleName := data.CanonicalRootRole
