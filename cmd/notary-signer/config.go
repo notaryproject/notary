@@ -32,7 +32,7 @@ import (
 	"github.com/spf13/viper"
 	ghealth "google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"gopkg.in/dancannon/gorethink.v2"
+	"gopkg.in/dancannon/gorethink.v3"
 )
 
 const (
