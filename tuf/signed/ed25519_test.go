@@ -35,10 +35,6 @@ func TestGetKeys(t *testing.T) {
 	require.Equal(t, tskey.Algorithm(), pubKey.Algorithm())
 	require.Equal(t, tskey.ID(), pubKey.ID())
 
-	keyInfo, err := c.GetKeyInfo(tskey.ID())
-	require.NoError(t, err)
-	require.Equal(t, c.keys[tskey.ID()].role, keyInfo.Role)
-
 	privKey, role, err := c.GetPrivateKey(tskey.ID())
 	require.NoError(t, err)
 	require.Equal(t, data.CanonicalTimestampRole, role)

@@ -1,9 +1,6 @@
 package signed
 
-import (
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/tuf/data"
-)
+import "github.com/docker/notary/tuf/data"
 
 // KeyService provides management of keys locally. It will never
 // accept or provide private keys. Communication between the KeyService
@@ -18,9 +15,6 @@ type KeyService interface {
 
 	// GetKey retrieves the public key if present, otherwise it returns nil
 	GetKey(keyID string) data.PublicKey
-
-	// GetKeyInfo retrieves the KeyInfo for a keyID
-	GetKeyInfo(keyID string) (trustmanager.KeyInfo, error)
 
 	// GetPrivateKey retrieves the private key and role if present and retrievable,
 	// otherwise it returns nil and an error

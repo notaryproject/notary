@@ -14,7 +14,6 @@ import (
 
 	"github.com/docker/notary"
 	pb "github.com/docker/notary/proto"
-	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -202,11 +201,6 @@ func (trust *NotarySigner) GetKey(keyid string) data.PublicKey {
 		return nil
 	}
 	return pubKey
-}
-
-// GetKeyInfo returns the gun and role given a keyID
-func (trust *NotarySigner) GetKeyInfo(keyid string) (trustmanager.KeyInfo, error) {
-	return trustmanager.KeyInfo{}, errors.New("Getting KeyInfo from NotarySigner is not supported")
 }
 
 func (trust *NotarySigner) getKeyInfo(keyid string) (data.PublicKey, string, error) {

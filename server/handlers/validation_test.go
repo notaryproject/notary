@@ -631,6 +631,48 @@ func TestRootRotationNotSignedWithOldKeysForOldRole(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// A root rotation must increment the root version by 1
+func TestRootRotationVersionIncrement(t *testing.T) {
+	gun := "docker.com/notary"
+	repo, crypto, err := testutils.EmptyRepo(gun)
+	require.NoError(t, err)
+	serverCrypto := testutils.CopyKeys(t, crypto, data.CanonicalTimestampRole)
+	store := storage.NewMemStorage()
+
+	r, tg, sn, ts, err := testutils.Sign(repo)
+	require.NoError(t, err)
+	root, targets, snapshot, timestamp, err := getUpdates(r, tg, sn, ts)
+	require.NoError(t, err)
+
+	// set the original root in the store
+	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
+	require.NoError(t, store.UpdateMany(gun, updates))
+
+	// rotate the root key, sign with both keys, and update - update should succeed
+	newRootKey, err := testutils.CreateKey(crypto, gun, data.CanonicalRootRole, data.ECDSAKey)
+	require.NoError(t, err)
+
+	require.NoError(t, repo.ReplaceBaseKeys(data.CanonicalRootRole, newRootKey))
+	r, _, sn, _, err = testutils.Sign(repo)
+	require.NoError(t, err)
+	root, _, snapshot, _, err = getUpdates(r, tg, sn, ts)
+	require.NoError(t, err)
+	snapshot.Version = repo.Snapshot.Signed.Version
+
+	// Wrong root version
+	root.Version = repo.Root.Signed.Version + 1
+
+	_, err = validateUpdate(serverCrypto, gun, []storage.MetaUpdate{root, snapshot}, store)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Root modifications must increment the version")
+
+	// correct root version
+	root.Version = root.Version - 1
+	updates, err = validateUpdate(serverCrypto, gun, []storage.MetaUpdate{root, snapshot}, store)
+	require.NoError(t, err)
+	require.NoError(t, store.UpdateMany(gun, updates))
+}
+
 // An update is not valid without the root metadata.
 func TestValidateNoRoot(t *testing.T) {
 	gun := "docker.com/notary"

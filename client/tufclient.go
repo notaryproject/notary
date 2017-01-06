@@ -83,22 +83,24 @@ func (c *TUFClient) update() error {
 // updateRoot checks if there is a newer version of the root available, and if so
 // downloads all intermediate root files to allow proper key rotation.
 func (c *TUFClient) updateRoot() error {
-	// Get Current Root Version
+	// Get current root version
 	currentRootConsistentInfo := c.oldBuilder.GetConsistentInfo(data.CanonicalRootRole)
 	currentVersion := c.oldBuilder.GetLoadedVersion(currentRootConsistentInfo.RoleName)
 
-	// Get New Root Version
+	// Get new root version
 	raw, err := c.downloadRoot()
 
-	// Return any non-rotation error. Rotation errors are okay since we haven't yet downloaded
-	// all intermediate root files
-	if _, ok := err.(*trustpinning.ErrRootRotationFail); err != nil && !ok {
-		return err
-	}
-
-	// No error updating root - we were at most 1 version behind
-	if err == nil {
+	switch err.(type) {
+	case *trustpinning.ErrRootRotationFail:
+		// Rotation errors are okay since we haven't yet downloaded
+		// all intermediate root files
+		break
+	case nil:
+		// No error updating root - we were at most 1 version behind
 		return nil
+	default:
+		// Return any non-rotation error.
+		return err
 	}
 
 	// Load current version into newBuilder
@@ -161,9 +163,6 @@ func (c *TUFClient) updateRootVersions(fromVersion, toVersion int) error {
 			return err
 		}
 		logrus.Debugf("successfully verified downloaded %s", versionedRole)
-		if err := c.cache.Set(data.CanonicalRootRole, raw); err != nil {
-			logrus.Debugf("unable to write %s to cache: %s", versionedRole, err)
-		}
 	}
 	return nil
 }
