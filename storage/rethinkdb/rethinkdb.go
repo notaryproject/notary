@@ -5,7 +5,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-connections/tlsconfig"
-	"gopkg.in/dancannon/gorethink.v2"
+	"gopkg.in/dancannon/gorethink.v3"
 )
 
 // Timing can be embedded into other gorethink models to
