@@ -10,7 +10,7 @@ import (
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	jose "github.com/dvsekhvalnov/jose2go"
-	"gopkg.in/dancannon/gorethink.v2"
+	"gopkg.in/dancannon/gorethink.v3"
 )
 
 // RethinkDBKeyStore persists and manages private keys on a RethinkDB database
@@ -47,7 +47,7 @@ type RDBPrivateKey struct {
 	LastUsed time.Time `gorethink:"last_used"`
 }
 
-// gorethink can't handle an UnmarshalJSON function (see https://github.com/dancannon/gorethink/issues/201),
+// gorethink can't handle an UnmarshalJSON function (see https://github.com/gorethink/gorethink/issues/201),
 // so do this here in an anonymous struct
 func rdbPrivateKeyFromJSON(data []byte) (interface{}, error) {
 	a := struct {

@@ -30,7 +30,7 @@ import (
 	tufutils "github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/utils"
 	"github.com/spf13/viper"
-	"gopkg.in/dancannon/gorethink.v2"
+	"gopkg.in/dancannon/gorethink.v3"
 )
 
 const (

@@ -137,7 +137,7 @@ func TestSetupCryptoServicesRethinkDBStoreConnectionFails(t *testing.T) {
 			notary.RethinkDBBackend)),
 		[]string{notary.RethinkDBBackend}, false)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "no connections were made when creating the session")
+	require.Contains(t, err.Error(), "no such host")
 }
 
 // If a default alias *is* provided to a valid DB backend, a valid
