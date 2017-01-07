@@ -17,7 +17,7 @@ import (
 	"github.com/docker/notary/tuf/signed"
 	"github.com/dvsekhvalnov/jose2go"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/dancannon/gorethink.v2"
+	"gopkg.in/dancannon/gorethink.v3"
 )
 
 var tlsOpts = tlsconfig.Options{InsecureSkipVerify: true}

@@ -12,7 +12,7 @@ import (
 	"github.com/docker/notary/storage/rethinkdb"
 	"github.com/docker/notary/tuf/data"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/dancannon/gorethink.v2"
+	"gopkg.in/dancannon/gorethink.v3"
 )
 
 var tlsOpts = tlsconfig.Options{InsecureSkipVerify: true}
