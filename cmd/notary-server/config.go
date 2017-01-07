@@ -24,7 +24,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/viper"
 	"golang.org/x/net/context"
-	gorethink "gopkg.in/dancannon/gorethink.v2"
+	"gopkg.in/dancannon/gorethink.v3"
 )
 
 // gets the required gun prefixes accepted by this server

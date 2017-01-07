@@ -11,7 +11,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary/storage/rethinkdb"
 	"github.com/docker/notary/tuf/data"
-	"gopkg.in/dancannon/gorethink.v2"
+	"gopkg.in/dancannon/gorethink.v3"
 )
 
 // RDBTUFFile is a TUF file record
@@ -31,7 +31,7 @@ func (r RDBTUFFile) TableName() string {
 	return "tuf_files"
 }
 
-// gorethink can't handle an UnmarshalJSON function (see https://github.com/dancannon/gorethink/issues/201),
+// gorethink can't handle an UnmarshalJSON function (see https://github.com/gorethink/gorethink/issues/201),
 // so do this here in an anonymous struct
 func rdbTUFFileFromJSON(data []byte) (interface{}, error) {
 	a := struct {
