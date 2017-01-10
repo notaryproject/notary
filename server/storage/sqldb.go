@@ -202,6 +202,22 @@ func (db *SQLStorage) GetChecksum(gun, tufRole, checksum string) (*time.Time, []
 	return &(row.CreatedAt), row.Data, nil
 }
 
+// GetVersion gets a specific TUF record by its version
+func (db *SQLStorage) GetVersion(gun, tufRole string, version int) (*time.Time, []byte, error) {
+	var row TUFFile
+	q := db.Select("created_at, data").Where(
+		&TUFFile{
+			Gun:     gun,
+			Role:    tufRole,
+			Version: version,
+		},
+	).First(&row)
+	if err := isReadErr(q, row); err != nil {
+		return nil, nil, err
+	}
+	return &(row.CreatedAt), row.Data, nil
+}
+
 func isReadErr(q *gorm.DB, row TUFFile) error {
 	if q.RecordNotFound() {
 		return ErrNotFound{}

@@ -247,3 +247,10 @@ func TestSQLGetChanges(t *testing.T) {
 
 	testGetChanges(t, s)
 }
+
+func TestSQLDBGetVersion(t *testing.T) {
+	dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
+
+	testGetVersion(t, dbStore)
+}

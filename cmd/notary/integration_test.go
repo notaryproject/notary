@@ -1289,6 +1289,181 @@ func TestClientKeyGenerationRotation(t *testing.T) {
 	}
 }
 
+// Tests key rotation
+func TestKeyRotation(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	tempfiles := make([]string, 2)
+	for i := 0; i < 2; i++ {
+		tempFile, err := ioutil.TempFile("", "targetfile")
+		require.NoError(t, err)
+		tempFile.Close()
+		tempfiles[i] = tempFile.Name()
+		defer os.Remove(tempFile.Name())
+	}
+
+	server := setupServer()
+	defer server.Close()
+
+	var target = "sdgkadga"
+
+	// -- tests --
+
+	// starts out with no keys
+	assertNumKeys(t, tempDir, 0, 0, true)
+
+	// generate root key produces a single root key and no other keys
+	_, err := runCommand(t, tempDir, "key", "generate", data.ECDSAKey)
+	require.NoError(t, err)
+	assertNumKeys(t, tempDir, 1, 0, true)
+
+	// initialize a repo, should have signing keys and no new root key
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun")
+	require.NoError(t, err)
+	assertNumKeys(t, tempDir, 1, 2, true)
+
+	// publish using the original keys
+	assertSuccessfullyPublish(t, tempDir, server.URL, "gun", target, tempfiles[0])
+
+	// invalid keys
+	badKeyFile, err := ioutil.TempFile("", "badKey")
+	require.NoError(t, err)
+	defer os.Remove(badKeyFile.Name())
+	_, err = badKeyFile.Write([]byte{0, 0, 0, 0})
+	require.NoError(t, err)
+	badKeyFile.Close()
+
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole, "--key", "123")
+	require.Error(t, err)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole, "--key", badKeyFile.Name())
+	require.Error(t, err)
+
+	// create encrypted root keys
+	rootPrivKey1, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+	encryptedPEMPrivKey1, err := utils.EncryptPrivateKey(rootPrivKey1, data.CanonicalRootRole, "", testPassphrase)
+	require.NoError(t, err)
+	encryptedPEMKeyFilename1 := filepath.Join(tempDir, "encrypted_key.key")
+	err = ioutil.WriteFile(encryptedPEMKeyFilename1, encryptedPEMPrivKey1, 0644)
+	require.NoError(t, err)
+
+	rootPrivKey2, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+	encryptedPEMPrivKey2, err := utils.EncryptPrivateKey(rootPrivKey2, data.CanonicalRootRole, "", testPassphrase)
+	require.NoError(t, err)
+	encryptedPEMKeyFilename2 := filepath.Join(tempDir, "encrypted_key2.key")
+	err = ioutil.WriteFile(encryptedPEMKeyFilename2, encryptedPEMPrivKey2, 0644)
+	require.NoError(t, err)
+
+	// rotate the root key
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole, "--key", encryptedPEMKeyFilename1, "--key", encryptedPEMKeyFilename2)
+	require.NoError(t, err)
+	// 3 root keys - 1 prev, 1 new
+	assertNumKeys(t, tempDir, 3, 2, true)
+
+	// rotate the root key again
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole)
+	require.NoError(t, err)
+	// 3 root keys, 2 prev, 1 new
+	assertNumKeys(t, tempDir, 3, 2, true)
+
+	// publish using the new keys
+	output := assertSuccessfullyPublish(
+		t, tempDir, server.URL, "gun", target+"2", tempfiles[1])
+	// assert that the previous target is still there
+	require.True(t, strings.Contains(string(output), target))
+}
+
+// Tests rotating non-root keys
+func TestKeyRotationNonRoot(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	tempfiles := make([]string, 2)
+	for i := 0; i < 2; i++ {
+		tempFile, err := ioutil.TempFile("", "targetfile")
+		require.NoError(t, err)
+		tempFile.Close()
+		tempfiles[i] = tempFile.Name()
+		defer os.Remove(tempFile.Name())
+	}
+
+	server := setupServer()
+	defer server.Close()
+
+	var target = "sdgkadgad"
+
+	// -- tests --
+
+	// starts out with no keys
+	assertNumKeys(t, tempDir, 0, 0, true)
+
+	// generate root key produces a single root key and no other keys
+	_, err := runCommand(t, tempDir, "key", "generate", data.ECDSAKey)
+	require.NoError(t, err)
+	assertNumKeys(t, tempDir, 1, 0, true)
+
+	// initialize a repo, should have signing keys and no new root key
+	_, err = runCommand(t, tempDir, "-s", server.URL, "init", "gun")
+	require.NoError(t, err)
+	assertNumKeys(t, tempDir, 1, 2, true)
+
+	// publish using the original keys
+	assertSuccessfullyPublish(t, tempDir, server.URL, "gun", target, tempfiles[0])
+
+	// create new target keys
+	tempFile, err := ioutil.TempFile("", "pemfile")
+	require.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+
+	pemBytes, err := utils.EncryptPrivateKey(privKey, data.CanonicalTargetsRole, "", testPassphrase)
+	require.NoError(t, err)
+
+	nBytes, err := tempFile.Write(pemBytes)
+	require.NoError(t, err)
+	tempFile.Close()
+	require.Equal(t, len(pemBytes), nBytes)
+
+	tempFile2, err := ioutil.TempFile("", "pemfile2")
+	require.NoError(t, err)
+	defer os.Remove(tempFile2.Name())
+
+	privKey2, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+
+	pemBytes2, err := utils.KeyToPEM(privKey2, data.CanonicalTargetsRole, "")
+	require.NoError(t, err)
+
+	nBytes2, err := tempFile2.Write(pemBytes2)
+	require.NoError(t, err)
+	tempFile2.Close()
+	require.Equal(t, len(pemBytes2), nBytes2)
+
+	// rotate the targets key
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalTargetsRole, "--key", tempFile.Name(), "--key", tempFile2.Name())
+	require.NoError(t, err)
+
+	// publish using the new keys
+	output := assertSuccessfullyPublish(
+		t, tempDir, server.URL, "gun", target+"2", tempfiles[1])
+	// assert that the previous target is still there
+	require.True(t, strings.Contains(string(output), target))
+
+	// rotate to nonexistant key
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalTargetsRole, "--key", "nope.pem")
+	require.Error(t, err)
+}
+
 // Tests default root key generation
 func TestDefaultRootKeyGeneration(t *testing.T) {
 	// -- setup --
@@ -1724,7 +1899,7 @@ func TestClientTUFInitWithAutoPublish(t *testing.T) {
 	// list repo - expect error
 	_, err = runCommand(t, tempDir, "-s", server.URL, "list", gunNoPublish)
 	require.NotNil(t, err)
-	require.Equal(t, err, nstorage.ErrMetaNotFound{Resource: data.CanonicalRootRole})
+	require.IsType(t, client.ErrRepositoryNotExist{}, err)
 }
 
 func TestClientTUFAddWithAutoPublish(t *testing.T) {

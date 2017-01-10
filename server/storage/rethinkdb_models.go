@@ -6,9 +6,10 @@ import (
 
 // These consts are the index names we've defined for RethinkDB
 const (
-	rdbSHA256Idx        = "sha256"
-	rdbGunRoleIdx       = "gun_role"
-	rdbGunRoleSHA256Idx = "gun_role_sha256"
+	rdbSHA256Idx         = "sha256"
+	rdbGunRoleIdx        = "gun_role"
+	rdbGunRoleSHA256Idx  = "gun_role_sha256"
+	rdbGunRoleVersionIdx = "gun_role_version"
 )
 
 var (

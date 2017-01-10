@@ -2,8 +2,11 @@ package storage
 
 import (
 	"crypto/sha256"
+	"encoding/json"
+	"fmt"
 
 	"github.com/docker/notary"
+	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
 )
 
@@ -74,6 +77,15 @@ func (m MemoryStore) Get(name string) ([]byte, error) {
 // Set sets the metadata value for the given name
 func (m *MemoryStore) Set(name string, meta []byte) error {
 	m.data[name] = meta
+
+	parsedMeta := &data.SignedMeta{}
+	err := json.Unmarshal(meta, parsedMeta)
+	if err == nil {
+		// no parse error means this is metadata and not a key, so store by version
+		version := parsedMeta.Signed.Version
+		versionedName := fmt.Sprintf("%d.%s", version, name)
+		m.data[versionedName] = meta
+	}
 
 	checksum := sha256.Sum256(meta)
 	path := utils.ConsistentName(name, checksum[:])

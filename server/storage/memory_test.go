@@ -96,3 +96,8 @@ func TestMemoryGetChanges(t *testing.T) {
 
 	testGetChanges(t, s)
 }
+
+func TestGetVersion(t *testing.T) {
+	s := NewMemStorage()
+	testGetVersion(t, s)
+}

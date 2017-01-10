@@ -36,6 +36,11 @@ type MetaStore interface {
 	// not found, it returns storage.ErrNotFound
 	GetChecksum(gun, tufRole, checksum string) (created *time.Time, data []byte, err error)
 
+	// GetVersion returns the given TUF role file and creation date for the
+	// GUN with the provided version. If the given (gun, role, version) are
+	// not found, it returns storage.ErrNotFound
+	GetVersion(gun, tufRole string, version int) (created *time.Time, data []byte, err error)
+
 	// Delete removes all metadata for a given GUN.  It does not return an
 	// error if no metadata exists for the given GUN.
 	Delete(gun string) error

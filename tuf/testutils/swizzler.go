@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"bytes"
+	"fmt"
 	"path"
 	"time"
 
@@ -291,6 +292,28 @@ func (m *MetadataSwizzler) OffsetMetadataVersion(role string, offset int) error 
 	var unmarshalled map[string]interface{}
 	if err := json.Unmarshal(*signedThing.Signed, &unmarshalled); err != nil {
 		return err
+	}
+
+	if role == data.CanonicalRootRole {
+		// store old versions of roots accessible by version
+		version, ok := unmarshalled["version"].(float64)
+		if !ok {
+			version = float64(0) // just ignore the error and set it to 0
+		}
+
+		versionedRole := fmt.Sprintf("%d.%s", int(version), data.CanonicalRootRole)
+		pubKeys, err := getPubKeys(m.CryptoService, signedThing, role)
+		if err != nil {
+			return err
+		}
+		versionedMetaBytes, err := serializeMetadata(m.CryptoService, signedThing, role, pubKeys...)
+		if err != nil {
+			return err
+		}
+		err = m.MetadataCache.Set(versionedRole, versionedMetaBytes)
+		if err != nil {
+			return err
+		}
 	}
 
 	oldVersion, ok := unmarshalled["version"].(float64)

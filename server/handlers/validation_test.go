@@ -431,7 +431,7 @@ func TestValidateRootRotationWithOldSigs(t *testing.T) {
 	// the next root does NOT need to be signed by both keys, because we only care
 	// about signing with both keys if the root keys have changed (signRoot again to bump the version)
 
-	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	// delete all signatures except the one with the new key
 	for _, sig := range repo.Root.Signatures {
@@ -460,7 +460,7 @@ func TestValidateRootRotationWithOldSigs(t *testing.T) {
 	newRootID2 := newRootKey2.ID()
 
 	require.NoError(t, repo.ReplaceBaseKeys(data.CanonicalRootRole, newRootKey2))
-	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	// delete all signatures except the ones with the first and second new keys
 	sigs := make([]data.Signature, 0, 2)
@@ -527,7 +527,7 @@ func TestValidateRootRotationMultipleKeysThreshold1(t *testing.T) {
 	rotatedRootID := rotatedRootKey.ID()
 	require.NoError(t, repo.ReplaceBaseKeys(data.CanonicalRootRole, rotatedRootKey))
 
-	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	require.Len(t, r.Signatures, 3)
 	// delete all signatures except the additional key (which didn't sign the
@@ -587,7 +587,7 @@ func TestRootRotationNotSignedWithOldKeysForOldRole(t *testing.T) {
 	repo.Root.Signed.Roles[data.CanonicalRootRole].Threshold = 1
 	require.NoError(t, repo.ReplaceBaseKeys(data.CanonicalRootRole, finalRootKey))
 
-	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	origSigs := r.Signatures
 
@@ -629,6 +629,48 @@ func TestRootRotationNotSignedWithOldKeysForOldRole(t *testing.T) {
 
 	_, err = validateUpdate(serverCrypto, gun, []storage.MetaUpdate{root, snapshot}, store)
 	require.NoError(t, err)
+}
+
+// A root rotation must increment the root version by 1
+func TestRootRotationVersionIncrement(t *testing.T) {
+	gun := "docker.com/notary"
+	repo, crypto, err := testutils.EmptyRepo(gun)
+	require.NoError(t, err)
+	serverCrypto := testutils.CopyKeys(t, crypto, data.CanonicalTimestampRole)
+	store := storage.NewMemStorage()
+
+	r, tg, sn, ts, err := testutils.Sign(repo)
+	require.NoError(t, err)
+	root, targets, snapshot, timestamp, err := getUpdates(r, tg, sn, ts)
+	require.NoError(t, err)
+
+	// set the original root in the store
+	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
+	require.NoError(t, store.UpdateMany(gun, updates))
+
+	// rotate the root key, sign with both keys, and update - update should succeed
+	newRootKey, err := testutils.CreateKey(crypto, gun, data.CanonicalRootRole, data.ECDSAKey)
+	require.NoError(t, err)
+
+	require.NoError(t, repo.ReplaceBaseKeys(data.CanonicalRootRole, newRootKey))
+	r, _, sn, _, err = testutils.Sign(repo)
+	require.NoError(t, err)
+	root, _, snapshot, _, err = getUpdates(r, tg, sn, ts)
+	require.NoError(t, err)
+	snapshot.Version = repo.Snapshot.Signed.Version
+
+	// Wrong root version
+	root.Version = repo.Root.Signed.Version + 1
+
+	_, err = validateUpdate(serverCrypto, gun, []storage.MetaUpdate{root, snapshot}, store)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Root modifications must increment the version")
+
+	// correct root version
+	root.Version = root.Version - 1
+	updates, err = validateUpdate(serverCrypto, gun, []storage.MetaUpdate{root, snapshot}, store)
+	require.NoError(t, err)
+	require.NoError(t, store.UpdateMany(gun, updates))
 }
 
 // An update is not valid without the root metadata.

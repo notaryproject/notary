@@ -220,7 +220,7 @@ func TestGetHandlerRoot(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, notary.CtxKeyMetaStore, metaStore)
 
-	root, err := repo.SignRoot(data.DefaultExpires("root"))
+	root, err := repo.SignRoot(data.DefaultExpires("root"), nil)
 	require.NoError(t, err)
 	rootJSON, err := json.Marshal(root)
 	require.NoError(t, err)
@@ -239,6 +239,14 @@ func TestGetHandlerRoot(t *testing.T) {
 
 	err = getHandler(ctx, rw, req, vars)
 	require.NoError(t, err)
+
+	vars["version"] = "1"
+	err = getHandler(ctx, rw, req, vars)
+	require.NoError(t, err)
+
+	vars["version"] = "badversion"
+	err = getHandler(ctx, rw, req, vars)
+	require.Error(t, err)
 }
 
 func TestGetHandlerTimestamp(t *testing.T) {
