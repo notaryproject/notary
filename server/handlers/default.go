@@ -127,6 +127,7 @@ func GetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) err
 func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	gun := vars["imageName"]
 	checksum := vars["checksum"]
+	version := vars["version"]
 	tufRole := vars["tufRole"]
 	s := ctx.Value(notary.CtxKeyMetaStore)
 
@@ -138,7 +139,7 @@ func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, var
 		return errors.ErrNoStorage.WithDetail(nil)
 	}
 
-	lastModified, output, err := getRole(ctx, store, gun, tufRole, checksum)
+	lastModified, output, err := getRole(ctx, store, gun, tufRole, checksum, version)
 	if err != nil {
 		logger.Infof("404 GET %s role", tufRole)
 		return err

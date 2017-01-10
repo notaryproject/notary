@@ -57,6 +57,7 @@ func (c ConsistentInfo) Length() int64 {
 // RepoBuilder is an interface for an object which builds a tuf.Repo
 type RepoBuilder interface {
 	Load(roleName string, content []byte, minVersion int, allowExpired bool) error
+	LoadRootForUpdate(content []byte, minVersion int, isFinal bool) error
 	GenerateSnapshot(prev *data.SignedSnapshot) ([]byte, int, error)
 	GenerateTimestamp(prev *data.SignedTimestamp) ([]byte, int, error)
 	Finish() (*Repo, *Repo, error)
@@ -73,6 +74,9 @@ type RepoBuilder interface {
 type finishedBuilder struct{}
 
 func (f finishedBuilder) Load(roleName string, content []byte, minVersion int, allowExpired bool) error {
+	return ErrBuildDone
+}
+func (f finishedBuilder) LoadRootForUpdate(content []byte, minVersion int, isFinal bool) error {
 	return ErrBuildDone
 }
 func (f finishedBuilder) GenerateSnapshot(prev *data.SignedSnapshot) ([]byte, int, error) {
@@ -242,11 +246,27 @@ func (rb *repoBuilder) GetConsistentInfo(roleName string) ConsistentInfo {
 }
 
 func (rb *repoBuilder) Load(roleName string, content []byte, minVersion int, allowExpired bool) error {
+	return rb.loadOptions(roleName, content, minVersion, allowExpired, false, false)
+}
+
+// LoadRootForUpdate adds additional flags for updating the root.json file
+func (rb *repoBuilder) LoadRootForUpdate(content []byte, minVersion int, isFinal bool) error {
+	if err := rb.loadOptions(data.CanonicalRootRole, content, minVersion, !isFinal, !isFinal, true); err != nil {
+		return err
+	}
+	if !isFinal {
+		rb.prevRoot = rb.repo.Root
+	}
+	return nil
+}
+
+// loadOptions adds additional flags that should only be used for updating the root.json
+func (rb *repoBuilder) loadOptions(roleName string, content []byte, minVersion int, allowExpired, skipChecksum, allowLoaded bool) error {
 	if !data.ValidRole(roleName) {
 		return ErrInvalidBuilderInput{msg: fmt.Sprintf("%s is an invalid role", roleName)}
 	}
 
-	if rb.IsLoaded(roleName) {
+	if !allowLoaded && rb.IsLoaded(roleName) {
 		return ErrInvalidBuilderInput{msg: fmt.Sprintf("%s has already been loaded", roleName)}
 	}
 
@@ -265,7 +285,7 @@ func (rb *repoBuilder) Load(roleName string, content []byte, minVersion int, all
 
 	switch roleName {
 	case data.CanonicalRootRole:
-		return rb.loadRoot(content, minVersion, allowExpired)
+		return rb.loadRoot(content, minVersion, allowExpired, skipChecksum)
 	case data.CanonicalSnapshotRole:
 		return rb.loadSnapshot(content, minVersion, allowExpired)
 	case data.CanonicalTimestampRole:
@@ -408,10 +428,10 @@ func (rb *repoBuilder) GenerateTimestamp(prev *data.SignedTimestamp) ([]byte, in
 }
 
 // loadRoot loads a root if one has not been loaded
-func (rb *repoBuilder) loadRoot(content []byte, minVersion int, allowExpired bool) error {
+func (rb *repoBuilder) loadRoot(content []byte, minVersion int, allowExpired, skipChecksum bool) error {
 	roleName := data.CanonicalRootRole
 
-	signedObj, err := rb.bytesToSigned(content, data.CanonicalRootRole)
+	signedObj, err := rb.bytesToSigned(content, data.CanonicalRootRole, skipChecksum)
 	if err != nil {
 		return err
 	}
@@ -562,7 +582,7 @@ func (rb *repoBuilder) loadDelegation(roleName string, content []byte, minVersio
 	}
 
 	// bytesToSigned checks checksum
-	signedObj, err := rb.bytesToSigned(content, roleName)
+	signedObj, err := rb.bytesToSigned(content, roleName, false)
 	if err != nil {
 		return err
 	}
@@ -655,9 +675,11 @@ func (rb *repoBuilder) validateChecksumFor(content []byte, roleName string) erro
 // Checksums the given bytes, and if they validate, convert to a data.Signed object.
 // If a checksums are nil (as opposed to empty), adds the bytes to the list of roles that
 // haven't been checksummed (unless it's a timestamp, which has no checksum reference).
-func (rb *repoBuilder) bytesToSigned(content []byte, roleName string) (*data.Signed, error) {
-	if err := rb.validateChecksumFor(content, roleName); err != nil {
-		return nil, err
+func (rb *repoBuilder) bytesToSigned(content []byte, roleName string, skipChecksum bool) (*data.Signed, error) {
+	if !skipChecksum {
+		if err := rb.validateChecksumFor(content, roleName); err != nil {
+			return nil, err
+		}
 	}
 
 	// unmarshal to signed
@@ -671,7 +693,7 @@ func (rb *repoBuilder) bytesToSigned(content []byte, roleName string) (*data.Sig
 
 func (rb *repoBuilder) bytesToSignedAndValidateSigs(role data.BaseRole, content []byte) (*data.Signed, error) {
 
-	signedObj, err := rb.bytesToSigned(content, role.Name)
+	signedObj, err := rb.bytesToSigned(content, role.Name, false)
 	if err != nil {
 		return nil, err
 	}

@@ -76,8 +76,9 @@ type keyCommander struct {
 	// these are for command line parsing - no need to set
 	rotateKeyRole          string
 	rotateKeyServerManaged bool
-
-	input io.Reader
+	rotateKeyFiles         []string
+	legacyVersions         int
+	input                  io.Reader
 
 	keysImportRole string
 	keysImportGUN  string
@@ -97,6 +98,14 @@ func (k *keyCommander) GetCommand() *cobra.Command {
 		false, "Signing and key management will be handled by the remote server "+
 			"(no key will be generated or stored locally). "+
 			"Required for timestamp role, optional for snapshot role")
+	cmdRotateKey.Flags().IntVarP(&k.legacyVersions, "legacy", "l", 0, "Number of old version's root roles to sign with to support old clients")
+	cmdRotateKey.Flags().StringSliceVarP(
+		&k.rotateKeyFiles,
+		"key",
+		"k",
+		nil,
+		"New key(s) to rotate to. If not specified, one will be generated.",
+	)
 	cmd.AddCommand(cmdRotateKey)
 
 	cmdKeysImport := cmdKeyImportTemplate.ToCommand(k.importKeys)
@@ -226,12 +235,23 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	var keyList []string
+
+	for _, keyFile := range k.rotateKeyFiles {
+		privKey, err := readKey(rotateKeyRole, keyFile, k.getRetriever())
+		if err != nil {
+			return err
+		}
+		err = nRepo.CryptoService.AddKey(rotateKeyRole, gun, privKey)
+		if err != nil {
+			return fmt.Errorf("Error importing key: %v", err)
+		}
+		keyList = append(keyList, privKey.ID())
+	}
+
 	if rotateKeyRole == data.CanonicalRootRole {
 		cmd.Print("Warning: you are about to rotate your root key.\n\n" +
-			"You must use your old key to sign this root rotation. We recommend that\n" +
-			"you sign all your future root changes with this key as well, so that\n" +
-			"clients can have a smoother update process. Please do not delete\n" +
-			"this key after rotating.\n\n" +
+			"You must use your old key to sign this root rotation.\n" +
 			"Are you sure you want to proceed?  (yes/no)  ")
 
 		if !askConfirm(k.input) {
@@ -239,8 +259,8 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 	}
-
-	if err := nRepo.RotateKey(rotateKeyRole, k.rotateKeyServerManaged); err != nil {
+	nRepo.LegacyVersions = k.legacyVersions
+	if err := nRepo.RotateKey(rotateKeyRole, k.rotateKeyServerManaged, keyList); err != nil {
 		return err
 	}
 	cmd.Printf("Successfully rotated %s key for repository %s\n", rotateKeyRole, gun)

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"strconv"
 	"time"
 
 	"golang.org/x/net/context"
@@ -17,13 +18,21 @@ import (
 	"github.com/docker/notary/tuf/signed"
 )
 
-func getRole(ctx context.Context, store storage.MetaStore, gun, role, checksum string) (*time.Time, []byte, error) {
+func getRole(ctx context.Context, store storage.MetaStore, gun, role, checksum, version string) (*time.Time, []byte, error) {
 	var (
 		lastModified *time.Time
 		out          []byte
 		err          error
 	)
-	if checksum == "" {
+	if checksum != "" {
+		lastModified, out, err = store.GetChecksum(gun, role, checksum)
+	} else if version != "" {
+		v, vErr := strconv.Atoi(version)
+		if vErr != nil {
+			return nil, nil, errors.ErrMetadataNotFound.WithDetail(vErr)
+		}
+		lastModified, out, err = store.GetVersion(gun, role, v)
+	} else {
 		// the timestamp and snapshot might be server signed so are
 		// handled specially
 		switch role {
@@ -31,8 +40,7 @@ func getRole(ctx context.Context, store storage.MetaStore, gun, role, checksum s
 			return getMaybeServerSigned(ctx, store, gun, role)
 		}
 		lastModified, out, err = store.GetCurrent(gun, role)
-	} else {
-		lastModified, out, err = store.GetChecksum(gun, role, checksum)
+
 	}
 
 	if err != nil {
