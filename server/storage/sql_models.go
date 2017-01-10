@@ -11,6 +11,16 @@ const (
 	changeCategoryDeletion = "deletion"
 )
 
+// TUFFileTableName returns the name used for the tuf file table
+var TUFFileTableName = func() string {
+	return "tuf_files"
+}
+
+// ChangefeedTableName returns the name used for the changefeed table
+var ChangefeedTableName = func() string {
+	return "changefeed"
+}
+
 // TUFFile represents a TUF file in the database
 type TUFFile struct {
 	gorm.Model
@@ -23,7 +33,7 @@ type TUFFile struct {
 
 // TableName sets a specific table name for TUFFile
 func (g TUFFile) TableName() string {
-	return "tuf_files"
+	return TUFFileTableName()
 }
 
 // Change defines the the fields required for an object in the changefeed
@@ -38,7 +48,7 @@ type Change struct {
 
 // TableName sets a specific table name for Changefeed
 func (c Change) TableName() string {
-	return "changefeed"
+	return ChangefeedTableName()
 }
 
 // CreateTUFTable creates the DB table for TUFFile

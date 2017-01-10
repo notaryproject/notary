@@ -29,6 +29,9 @@ type rootHandler struct {
 	trust   signed.CryptoService
 }
 
+// AuthWrapper wraps a Handler with and Auth requirement
+type AuthWrapper func(ContextHandler, ...string) *rootHandler
+
 // RootHandlerFactory creates a new rootHandler factory  using the given
 // Context creator and authorizer.  The returned factory allows creating
 // new rootHandlers from the alternate http handler contextHandler and
