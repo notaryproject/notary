@@ -167,8 +167,8 @@ func handleLegacyPath(block *pem.Block) {
 		// this is a legacy filepath and we should try to deduce the gun name from it
 		pathWOFileName := filepath.Dir(rawPath)
 		if strings.HasPrefix(pathWOFileName, notary.NonRootKeysSubdir) {
-			gunName := strings.TrimPrefix(pathWOFileName, notary.NonRootKeysSubdir)
-			gunName = gunName[1:] // remove the slash - used indexes to be compatible with / and \
+			// remove the notary keystore-specific segment of the path, and any potential leading or trailing slashes
+			gunName := strings.Trim(strings.TrimPrefix(pathWOFileName, notary.NonRootKeysSubdir), "/")
 			if gunName != "" {
 				block.Headers["gun"] = gunName
 			}

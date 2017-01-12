@@ -8,6 +8,10 @@
 + The keys on disk are now stored in the `~/.notary/private` directory, rather than in a key hierarchy that separates them by GUN and by role.  Notary will automatically migrate old-style directory layouts to the new style.  **This is not forwards-compatible against notary<0.4.2 and docker<=1.12** [#872](https://github.com/docker/notary/pull/872)
 + A new changefeed API has been added to Notary Server. It is only supported when using one of the relational database backends: MySQL, PostgreSQL, or SQLite.[#1019](https://github.com/docker/notary/pull/1019)
 
+## [v0.4.3](https://github.com/docker/notary/releases/tag/v0.4.3) 1/3/2017
++ Fix build tags for static notary client binaries in linux [#1039](https://github.com/docker/notary/pull/1039)
++ Fix key import for exported delegation keys [#1067](https://github.com/docker/notary/pull/1067)
+
 ## [v0.4.2](https://github.com/docker/notary/releases/tag/v0.4.2) 9/30/2016
 + Bump the cross compiler to golang 1.7.1, since [1.6.3 builds binaries that could have non-deterministic bugs in OS X Sierra](https://groups.google.com/forum/#!msg/golang-dev/Jho5sBHZgAg/cq6d97S1AwAJ) [#984](https://github.com/docker/notary/pull/984)
 
