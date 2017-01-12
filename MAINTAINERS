@@ -15,6 +15,7 @@
 			"diogomonica",
 			"dmcgowan",
 			"endophage",
+			"ecordell",
 			"hukeping",
 			"nathanmccauley",
 			"riyazdf",
@@ -47,6 +48,11 @@
 	Name = "David Lawrence"
 	Email = "david.lawrence@docker.com"
 	GitHub = "endophage"
+
+	[people.ecordell]
+	Name = "Evan Cordell"
+	Email = "evan.cordell@coreos.com"
+	GitHub = "ecordell"
 
 	[people.hukeping]
 	Name = "Hu Keping"
