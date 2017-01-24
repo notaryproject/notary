@@ -50,8 +50,8 @@ const (
 )
 
 type keyInfo struct {
-	gun      string // assumption that this is "" if role is root
-	role     string
+	gun      data.GUN // assumption that this is "" if role is root
+	role     data.RoleName
 	keyID    string
 	location string
 }
@@ -77,8 +77,8 @@ func (k keyInfoSorter) Less(i, j int) bool {
 	}
 
 	// sort order is GUN, role, keyID, location.
-	orderedI := []string{k[i].gun, k[i].role, k[i].keyID, k[i].location}
-	orderedJ := []string{k[j].gun, k[j].role, k[j].keyID, k[j].location}
+	orderedI := []string{k[i].gun.String(), k[i].role.String(), k[i].keyID, k[i].location}
+	orderedJ := []string{k[j].gun.String(), k[j].role.String(), k[j].keyID, k[j].location}
 
 	for x := 0; x < 4; x++ {
 		switch {
@@ -123,7 +123,7 @@ func prettyPrintKeys(keyStores []trustmanager.KeyStore, writer io.Writer) {
 			tw,
 			fourItemRow,
 			oneKeyInfo.role,
-			truncateWithEllipsis(oneKeyInfo.gun, maxGUNWidth, true),
+			truncateWithEllipsis(oneKeyInfo.gun.String(), maxGUNWidth, true),
 			oneKeyInfo.keyID,
 			truncateWithEllipsis(oneKeyInfo.location, maxLocWidth, true),
 		)

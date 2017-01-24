@@ -69,7 +69,7 @@ type KeyStore interface {
 	AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error
 	// Should fail with ErrKeyNotFound if the keystore is operating normally
 	// and knows that it does not store the requested key.
-	GetKey(keyID string) (data.PrivateKey, string, error)
+	GetKey(keyID string) (data.PrivateKey, data.RoleName, error)
 	GetKeyInfo(keyID string) (KeyInfo, error)
 	ListKeys() map[string]KeyInfo
 	RemoveKey(keyID string) error
@@ -77,6 +77,6 @@ type KeyStore interface {
 }
 
 type cachedKey struct {
-	alias string
+	alias data.RoleName
 	key   data.PrivateKey
 }

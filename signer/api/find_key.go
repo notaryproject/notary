@@ -11,7 +11,7 @@ import (
 // findKeyByID looks for the key with the given ID in each of the
 // signing services in sigServices. It returns the first matching key it finds,
 // or ErrInvalidKeyID if the key is not found in any of the signing services.
-func findKeyByID(cryptoServices signer.CryptoServiceIndex, keyID *pb.KeyID) (data.PrivateKey, string, error) {
+func findKeyByID(cryptoServices signer.CryptoServiceIndex, keyID *pb.KeyID) (data.PrivateKey, data.RoleName, error) {
 	for _, service := range cryptoServices {
 		key, role, err := service.GetPrivateKey(keyID.ID)
 		if err == nil {

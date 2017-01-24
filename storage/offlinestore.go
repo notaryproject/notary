@@ -1,5 +1,9 @@
 package storage
 
+import (
+	"github.com/docker/notary/tuf/data"
+)
+
 // ErrOffline is used to indicate we are operating offline
 type ErrOffline struct{}
 
@@ -24,7 +28,7 @@ func (es OfflineStore) Set(name string, blob []byte) error {
 }
 
 // SetMulti returns ErrOffline
-func (es OfflineStore) SetMulti(map[string][]byte) error {
+func (es OfflineStore) SetMulti(map[data.RoleName][]byte) error {
 	return err
 }
 

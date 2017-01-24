@@ -37,22 +37,22 @@ func IsValidSnapshotStructure(s Snapshot) error {
 			role: CanonicalSnapshotRole, msg: "version cannot be less than one"}
 	}
 
-	for _, role := range []string{CanonicalRootRole, CanonicalTargetsRole} {
+	for _, role := range []RoleName{CanonicalRootRole, CanonicalTargetsRole} {
 		// Meta is a map of FileMeta, so if the role isn't in the map it returns
 		// an empty FileMeta, which has an empty map, and you can check on keys
 		// from an empty map.
 		//
 		// For now sha256 is required and sha512 is not.
-		if _, ok := s.Meta[role].Hashes[notary.SHA256]; !ok {
+		if _, ok := s.Meta[role.String()].Hashes[notary.SHA256]; !ok {
 			return ErrInvalidMetadata{
 				role: CanonicalSnapshotRole,
-				msg:  fmt.Sprintf("missing %s sha256 checksum information", role),
+				msg:  fmt.Sprintf("missing %s sha256 checksum information", role.String()),
 			}
 		}
-		if err := CheckValidHashStructures(s.Meta[role].Hashes); err != nil {
+		if err := CheckValidHashStructures(s.Meta[role.String()].Hashes); err != nil {
 			return ErrInvalidMetadata{
 				role: CanonicalSnapshotRole,
-				msg:  fmt.Sprintf("invalid %s checksum information, %v", role, err),
+				msg:  fmt.Sprintf("invalid %s checksum information, %v", role.String(), err),
 			}
 		}
 	}
@@ -90,8 +90,8 @@ func NewSnapshot(root *Signed, targets *Signed) (*SignedSnapshot, error) {
 				Expires: DefaultExpires(CanonicalSnapshotRole),
 			},
 			Meta: Files{
-				CanonicalRootRole:    rootMeta,
-				CanonicalTargetsRole: targetsMeta,
+				CanonicalRootRole.String():    rootMeta,
+				CanonicalTargetsRole.String(): targetsMeta,
 			},
 		},
 	}, nil
@@ -124,8 +124,8 @@ func (sp *SignedSnapshot) AddMeta(role string, meta FileMeta) {
 
 // GetMeta gets the metadata for a particular role, returning an error if it's
 // not found
-func (sp *SignedSnapshot) GetMeta(role string) (*FileMeta, error) {
-	if meta, ok := sp.Signed.Meta[role]; ok {
+func (sp *SignedSnapshot) GetMeta(role RoleName) (*FileMeta, error) {
+	if meta, ok := sp.Signed.Meta[role.String()]; ok {
 		if _, ok := meta.Hashes["sha256"]; ok {
 			return &meta, nil
 		}
@@ -135,9 +135,9 @@ func (sp *SignedSnapshot) GetMeta(role string) (*FileMeta, error) {
 
 // DeleteMeta removes a role from the snapshot. If the role doesn't
 // exist in the snapshot, it's a noop.
-func (sp *SignedSnapshot) DeleteMeta(role string) {
-	if _, ok := sp.Signed.Meta[role]; ok {
-		delete(sp.Signed.Meta, role)
+func (sp *SignedSnapshot) DeleteMeta(role RoleName) {
+	if _, ok := sp.Signed.Meta[role.String()]; ok {
+		delete(sp.Signed.Meta, role.String())
 		sp.Dirty = true
 	}
 }

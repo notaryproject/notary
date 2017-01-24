@@ -19,8 +19,8 @@ type keyInfoMap map[string]KeyInfo
 // KeyInfo stores the role, path, and gun for a corresponding private key ID
 // It is assumed that each private key ID is unique
 type KeyInfo struct {
-	Gun  string
-	Role string
+	Gun  data.GUN
+	Role data.RoleName
 }
 
 // GenericKeyStore is a wrapper for Storage instances that provides
@@ -107,7 +107,7 @@ func (s *GenericKeyStore) AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error
 	}
 	keyID := privKey.ID()
 	for attempts := 0; ; attempts++ {
-		chosenPassphrase, giveup, err = s.PassRetriever(keyID, keyInfo.Role, true, attempts)
+		chosenPassphrase, giveup, err = s.PassRetriever(keyID, keyInfo.Role.String(), true, attempts)
 		if err == nil {
 			break
 		}
@@ -136,7 +136,7 @@ func (s *GenericKeyStore) AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error
 }
 
 // GetKey returns the PrivateKey given a KeyID
-func (s *GenericKeyStore) GetKey(keyID string) (data.PrivateKey, string, error) {
+func (s *GenericKeyStore) GetKey(keyID string) (data.PrivateKey, data.RoleName, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -147,12 +147,12 @@ func (s *GenericKeyStore) GetKey(keyID string) (data.PrivateKey, string, error) 
 
 	role, err := getKeyRole(s.store, keyID)
 	if err != nil {
-		return nil, "", err
+		return nil, role, err
 	}
 
 	keyBytes, err := s.store.Get(keyID)
 	if err != nil {
-		return nil, "", err
+		return nil, role, err
 	}
 
 	// See if the key is encrypted. If its encrypted we'll fail to parse the private key
@@ -160,7 +160,7 @@ func (s *GenericKeyStore) GetKey(keyID string) (data.PrivateKey, string, error) 
 	if err != nil {
 		privKey, _, err = GetPasswdDecryptBytes(s.PassRetriever, keyBytes, keyID, string(role))
 		if err != nil {
-			return nil, "", err
+			return nil, role, err
 		}
 	}
 	s.cachedKeys[keyID] = &cachedKey{alias: role, key: privKey}
@@ -210,13 +210,13 @@ func KeyInfoFromPEM(pemBytes []byte, filename string) (string, KeyInfo, error) {
 	if block == nil {
 		return "", KeyInfo{}, fmt.Errorf("could not decode PEM block for key %s", filename)
 	}
-	return keyID, KeyInfo{Gun: block.Headers["gun"], Role: block.Headers["role"]}, nil
+	return keyID, KeyInfo{Gun: data.NewGUN(block.Headers["gun"]), Role: data.NewRoleName(block.Headers["role"])}, nil
 }
 
 // getKeyRole finds the role for the given keyID. It attempts to look
 // both in the newer format PEM headers, and also in the legacy filename
 // format. It returns: the role, and an error
-func getKeyRole(s Storage, keyID string) (string, error) {
+func getKeyRole(s Storage, keyID string) (data.RoleName, error) {
 	name := strings.TrimSpace(strings.TrimSuffix(filepath.Base(keyID), filepath.Ext(keyID)))
 
 	for _, file := range s.ListFiles() {
@@ -228,11 +228,11 @@ func getKeyRole(s Storage, keyID string) (string, error) {
 			}
 			block, _ := pem.Decode(d)
 			if block != nil {
-				return block.Headers["role"], nil
+				return data.NewRoleName(block.Headers["role"]), nil
 			}
 		}
 	}
-	return "", ErrKeyNotFound{KeyID: keyID}
+	return data.NewRoleName(""), ErrKeyNotFound{KeyID: keyID}
 }
 
 // GetPasswdDecryptBytes gets the password to decrypt the given pem bytes.

@@ -95,7 +95,7 @@ func ExportKeys(to io.Writer, s Exporter, from string) error {
 func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGUN string, passRet notary.PassRetriever) error {
 	// importLogic.md contains a small flowchart I made to clear up my understand while writing the cases in this function
 	// it is very rough, but it may help while reading this piece of code
-	data, err := ioutil.ReadAll(from)
+	byteData, err := ioutil.ReadAll(from)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGUN 
 		writeTo string
 		toWrite []byte
 	)
-	for block, rest := pem.Decode(data); block != nil; block, rest = pem.Decode(rest) {
+	for block, rest := pem.Decode(byteData); block != nil; block, rest = pem.Decode(rest) {
 		handleLegacyPath(block)
 		setFallbacks(block, fallbackGUN, fallbackRole)
 
@@ -132,7 +132,7 @@ func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGUN 
 					return errors.New("maximum number of passphrase attempts exceeded")
 				}
 			}
-			blockBytes, err = utils.EncryptPrivateKey(privKey, block.Headers["role"], block.Headers["gun"], chosenPassphrase)
+			blockBytes, err = utils.EncryptPrivateKey(privKey, tufdata.NewRoleName(string(block.Headers["role"])), tufdata.NewGUN(string(block.Headers["gun"])), chosenPassphrase)
 			if err != nil {
 				return errors.New("failed to encrypt key with given passphrase")
 			}
@@ -200,7 +200,7 @@ func checkValidity(block *pem.Block) (string, error) {
 	// A root key or a delegations key should not have a gun
 	// Note that a key that is not any of the canonical roles (except root) is a delegations key and should not have a gun
 	switch block.Headers["role"] {
-	case tufdata.CanonicalSnapshotRole, tufdata.CanonicalTargetsRole, tufdata.CanonicalTimestampRole:
+	case tufdata.CanonicalSnapshotRole.String(), tufdata.CanonicalTargetsRole.String(), tufdata.CanonicalTimestampRole.String():
 		// check if the key is missing a gun header or has an empty gun and error out since we don't know what gun it belongs to
 		if block.Headers["gun"] == "" {
 			logrus.Infof("failed to import key (%s) to store: Cannot have canonical role key without a gun, don't know what gun it belongs to", block.Headers["path"])

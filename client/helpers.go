@@ -15,9 +15,9 @@ import (
 )
 
 // Use this to initialize remote HTTPStores from the config settings
-func getRemoteStore(baseURL, gun string, rt http.RoundTripper) (store.RemoteStore, error) {
+func getRemoteStore(baseURL string, gun data.GUN, rt http.RoundTripper) (store.RemoteStore, error) {
 	s, err := store.NewHTTPStore(
-		baseURL+"/v2/"+gun+"/_trust/tuf/",
+		baseURL+"/v2/"+gun.String()+"/_trust/tuf/",
 		"",
 		"json",
 		"key",
@@ -218,12 +218,12 @@ func warnRolesNearExpiry(r *tuf.Repo) {
 }
 
 // Fetches a public key from a remote store, given a gun and role
-func getRemoteKey(url, gun, role string, rt http.RoundTripper) (data.PublicKey, error) {
+func getRemoteKey(url string, gun data.GUN, role data.RoleName, rt http.RoundTripper) (data.PublicKey, error) {
 	remote, err := getRemoteStore(url, gun, rt)
 	if err != nil {
 		return nil, err
 	}
-	rawPubKey, err := remote.GetKey(role)
+	rawPubKey, err := remote.GetKey(role.String())
 	if err != nil {
 		return nil, err
 	}
@@ -237,12 +237,12 @@ func getRemoteKey(url, gun, role string, rt http.RoundTripper) (data.PublicKey, 
 }
 
 // Rotates a private key in a remote store and returns the public key component
-func rotateRemoteKey(url, gun, role string, rt http.RoundTripper) (data.PublicKey, error) {
+func rotateRemoteKey(url string, gun data.GUN, role data.RoleName, rt http.RoundTripper) (data.PublicKey, error) {
 	remote, err := getRemoteStore(url, gun, rt)
 	if err != nil {
 		return nil, err
 	}
-	rawPubKey, err := remote.RotateKey(role)
+	rawPubKey, err := remote.RotateKey(role.String())
 	if err != nil {
 		return nil, err
 	}
@@ -256,14 +256,14 @@ func rotateRemoteKey(url, gun, role string, rt http.RoundTripper) (data.PublicKe
 }
 
 // signs and serializes the metadata for a canonical role in a TUF repo to JSON
-func serializeCanonicalRole(tufRepo *tuf.Repo, role string, extraSigningKeys data.KeyList) (out []byte, err error) {
+func serializeCanonicalRole(tufRepo *tuf.Repo, role data.RoleName, extraSigningKeys data.KeyList) (out []byte, err error) {
 	var s *data.Signed
 	switch {
 	case role == data.CanonicalRootRole:
 		s, err = tufRepo.SignRoot(data.DefaultExpires(role), extraSigningKeys)
 	case role == data.CanonicalSnapshotRole:
 		s, err = tufRepo.SignSnapshot(data.DefaultExpires(role))
-	case tufRepo.Targets[role] != nil:
+	case tufRepo.Targets[role.String()] != nil:
 		s, err = tufRepo.SignTargets(
 			role, data.DefaultExpires(data.CanonicalTargetsRole))
 	default:

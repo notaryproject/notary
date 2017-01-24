@@ -33,7 +33,7 @@ type storedMeta struct {
 }
 
 // GetCurrent gets a specific TUF record, by walking from the current Timestamp to other metadata by checksum
-func (tms TUFMetaStorage) GetCurrent(gun, tufRole string) (*time.Time, []byte, error) {
+func (tms TUFMetaStorage) GetCurrent(gun data.GUN, tufRole data.RoleName) (*time.Time, []byte, error) {
 	timestampTime, timestampJSON, err := tms.MetaStore.GetCurrent(gun, data.CanonicalTimestampRole)
 	if err != nil {
 		return nil, nil, err
@@ -107,7 +107,7 @@ func (tms TUFMetaStorage) GetCurrent(gun, tufRole string) (*time.Time, []byte, e
 }
 
 // GetChecksum gets a specific TUF record by checksum, also checking the internal cache
-func (tms TUFMetaStorage) GetChecksum(gun, tufRole, checksum string) (*time.Time, []byte, error) {
+func (tms TUFMetaStorage) GetChecksum(gun data.GUN, tufRole data.RoleName, checksum string) (*time.Time, []byte, error) {
 	if cachedRoleData, ok := tms.cachedMeta[checksum]; ok {
 		return cachedRoleData.createupdate, cachedRoleData.data, nil
 	}

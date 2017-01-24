@@ -276,10 +276,10 @@ func TestRotateKeyTargetCannotBeServerManaged(t *testing.T) {
 	k := &keyCommander{
 		configGetter:           func() (*viper.Viper, error) { return viper.New(), nil },
 		getRetriever:           func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
-		rotateKeyRole:          data.CanonicalTargetsRole,
+		rotateKeyRole:          data.CanonicalTargetsRole.String(),
 		rotateKeyServerManaged: true,
 	}
-	err := k.keysRotate(&cobra.Command{}, []string{"gun", data.CanonicalTargetsRole})
+	err := k.keysRotate(&cobra.Command{}, []string{"gun", data.CanonicalTargetsRole.String()})
 	require.Error(t, err)
 	require.IsType(t, client.ErrInvalidRemoteRole{}, err)
 }
@@ -290,10 +290,10 @@ func TestRotateKeyTimestampCannotBeLocallyManaged(t *testing.T) {
 	k := &keyCommander{
 		configGetter:           func() (*viper.Viper, error) { return viper.New(), nil },
 		getRetriever:           func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
-		rotateKeyRole:          data.CanonicalTimestampRole,
+		rotateKeyRole:          data.CanonicalTimestampRole.String(),
 		rotateKeyServerManaged: false,
 	}
-	err := k.keysRotate(&cobra.Command{}, []string{"gun", data.CanonicalTimestampRole})
+	err := k.keysRotate(&cobra.Command{}, []string{"gun", data.CanonicalTimestampRole.String()})
 	require.Error(t, err)
 	require.IsType(t, client.ErrInvalidLocalRole{}, err)
 }
@@ -304,7 +304,7 @@ func TestRotateKeyNoGUN(t *testing.T) {
 	k := &keyCommander{
 		configGetter:  func() (*viper.Viper, error) { return viper.New(), nil },
 		getRetriever:  func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
-		rotateKeyRole: data.CanonicalTargetsRole,
+		rotateKeyRole: data.CanonicalTargetsRole.String(),
 	}
 	err := k.keysRotate(&cobra.Command{}, []string{})
 	require.Error(t, err)
@@ -333,7 +333,7 @@ func setUpRepo(t *testing.T, tempBaseDir, gun string, ret notary.PassRetriever) 
 	ts := httptest.NewServer(server.RootHandler(ctx, nil, cryptoService, nil, nil, nil))
 
 	repo, err := client.NewFileCachedNotaryRepository(
-		tempBaseDir, gun, ts.URL, http.DefaultTransport, ret, trustpinning.TrustPinConfig{})
+		tempBaseDir, data.NewGUN(gun), ts.URL, http.DefaultTransport, ret, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
 	rootPubKey, err := repo.CryptoService.Create("root", "", data.ECDSAKey)
@@ -349,7 +349,7 @@ func setUpRepo(t *testing.T, tempBaseDir, gun string, ret notary.PassRetriever) 
 // that the correct config variables are passed for the client to request a key
 // from the remote server.
 func TestRotateKeyRemoteServerManagesKey(t *testing.T) {
-	for _, role := range []string{data.CanonicalSnapshotRole, data.CanonicalTimestampRole} {
+	for _, role := range []string{data.CanonicalSnapshotRole.String(), data.CanonicalTimestampRole.String()} {
 		setUp(t)
 		// Temporary directory where test files will be created
 		tempBaseDir, err := ioutil.TempDir("", "notary-test-")
@@ -375,7 +375,7 @@ func TestRotateKeyRemoteServerManagesKey(t *testing.T) {
 		}
 		require.NoError(t, k.keysRotate(&cobra.Command{}, []string{gun, role, "-r"}))
 
-		repo, err := client.NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, ret, trustpinning.TrustPinConfig{})
+		repo, err := client.NewFileCachedNotaryRepository(tempBaseDir, data.NewGUN(gun), ts.URL, http.DefaultTransport, ret, trustpinning.TrustPinConfig{})
 		require.NoError(t, err, "error creating repo: %s", err)
 
 		cl, err := repo.GetChangelist()
@@ -384,10 +384,10 @@ func TestRotateKeyRemoteServerManagesKey(t *testing.T) {
 
 		finalKeys := repo.CryptoService.ListAllKeys()
 		// no keys have been created, since a remote key was specified
-		if role == data.CanonicalSnapshotRole {
+		if role == data.CanonicalSnapshotRole.String() {
 			require.Len(t, finalKeys, 2)
 			for k, r := range initialKeys {
-				if r != data.CanonicalSnapshotRole {
+				if r != data.CanonicalSnapshotRole.String() {
 					_, ok := finalKeys[k]
 					require.True(t, ok)
 				}
@@ -426,10 +426,10 @@ func TestRotateKeyBothKeys(t *testing.T) {
 		},
 		getRetriever: func() notary.PassRetriever { return ret },
 	}
-	require.NoError(t, k.keysRotate(&cobra.Command{}, []string{gun, data.CanonicalTargetsRole}))
-	require.NoError(t, k.keysRotate(&cobra.Command{}, []string{gun, data.CanonicalSnapshotRole}))
+	require.NoError(t, k.keysRotate(&cobra.Command{}, []string{gun, data.CanonicalTargetsRole.String()}))
+	require.NoError(t, k.keysRotate(&cobra.Command{}, []string{gun, data.CanonicalSnapshotRole.String()}))
 
-	repo, err := client.NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL, nil, ret, trustpinning.TrustPinConfig{})
+	repo, err := client.NewFileCachedNotaryRepository(tempBaseDir, data.NewGUN(gun), ts.URL, nil, ret, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
 	cl, err := repo.GetChangelist()
@@ -445,9 +445,9 @@ func TestRotateKeyBothKeys(t *testing.T) {
 	for keyID, role := range initialKeys {
 		r, ok := newKeys[keyID]
 		switch r {
-		case data.CanonicalSnapshotRole, data.CanonicalTargetsRole:
+		case data.CanonicalSnapshotRole.String(), data.CanonicalTargetsRole.String():
 			require.False(t, ok, "original key %s still there", keyID)
-		case data.CanonicalRootRole:
+		case data.CanonicalRootRole.String():
 			require.Equal(t, role, r)
 			require.True(t, ok, "old root key has changed")
 		}
@@ -457,9 +457,9 @@ func TestRotateKeyBothKeys(t *testing.T) {
 	for _, role := range newKeys {
 		found[role] = true
 	}
-	require.True(t, found[data.CanonicalTargetsRole], "targets key was not created")
-	require.True(t, found[data.CanonicalSnapshotRole], "snapshot key was not created")
-	require.True(t, found[data.CanonicalRootRole], "root key was removed somehow")
+	require.True(t, found[data.CanonicalTargetsRole.String()], "targets key was not created")
+	require.True(t, found[data.CanonicalSnapshotRole.String()], "snapshot key was not created")
+	require.True(t, found[data.CanonicalRootRole.String()], "root key was removed somehow")
 }
 
 // RotateKey when rotating a root requires extra confirmation
@@ -490,11 +490,11 @@ func TestRotateKeyRootIsInteractive(t *testing.T) {
 	out := bytes.NewBuffer(make([]byte, 0, 10))
 	c.SetOutput(out)
 
-	require.NoError(t, k.keysRotate(c, []string{gun, data.CanonicalRootRole}))
+	require.NoError(t, k.keysRotate(c, []string{gun, data.CanonicalRootRole.String()}))
 
 	require.Contains(t, out.String(), "Aborting action")
 
-	repo, err := client.NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL, nil, ret, trustpinning.TrustPinConfig{})
+	repo, err := client.NewFileCachedNotaryRepository(tempBaseDir, data.NewGUN(gun), ts.URL, nil, ret, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
 	// There should still just be one root key (and one targets and one snapshot)

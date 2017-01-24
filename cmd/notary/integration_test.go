@@ -385,7 +385,7 @@ func TestClientDeleteTUFInteraction(t *testing.T) {
 
 func assertLocalMetadataForGun(t *testing.T, configDir, gun string, shouldExist bool) {
 	for _, role := range data.BaseRoles {
-		fileInfo, err := os.Stat(filepath.Join(configDir, "tuf", gun, "metadata", role+".json"))
+		fileInfo, err := os.Stat(filepath.Join(configDir, "tuf", gun, "metadata", role.String()+".json"))
 		if shouldExist {
 			require.NoError(t, err)
 			require.NotNil(t, fileInfo)
@@ -1152,7 +1152,7 @@ func getUniqueKeys(t *testing.T, tempDir string) ([]string, []string) {
 			placeToGo map[string]bool
 			keyID     string
 		)
-		if strings.TrimSpace(parts[0]) == data.CanonicalRootRole {
+		if strings.TrimSpace(parts[0]) == data.CanonicalRootRole.String() {
 			// no gun, so there are only 3 fields
 			placeToGo, keyID = rootMap, parts[1]
 		} else {
@@ -1259,9 +1259,9 @@ func TestClientKeyGenerationRotation(t *testing.T) {
 	assertSuccessfullyPublish(t, tempDir, server.URL, "gun", target, tempfiles[0])
 
 	// rotate the signing keys
-	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalSnapshotRole)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalSnapshotRole.String())
 	require.NoError(t, err)
-	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalTargetsRole)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalTargetsRole.String())
 	require.NoError(t, err)
 	root, sign := assertNumKeys(t, tempDir, 1, 2, true)
 	require.Equal(t, origRoot[0], root[0])
@@ -1282,9 +1282,9 @@ func TestClientKeyGenerationRotation(t *testing.T) {
 
 	// rotate the snapshot and timestamp keys on the server, multiple times
 	for i := 0; i < 10; i++ {
-		_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalSnapshotRole, "-r")
+		_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalSnapshotRole.String(), "-r")
 		require.NoError(t, err)
-		_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalTimestampRole, "-r")
+		_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalTimestampRole.String(), "-r")
 		require.NoError(t, err)
 	}
 }
@@ -1337,9 +1337,9 @@ func TestKeyRotation(t *testing.T) {
 	require.NoError(t, err)
 	badKeyFile.Close()
 
-	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole, "--key", "123")
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole.String(), "--key", "123")
 	require.Error(t, err)
-	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole, "--key", badKeyFile.Name())
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole.String(), "--key", badKeyFile.Name())
 	require.Error(t, err)
 
 	// create encrypted root keys
@@ -1360,13 +1360,13 @@ func TestKeyRotation(t *testing.T) {
 	require.NoError(t, err)
 
 	// rotate the root key
-	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole, "--key", encryptedPEMKeyFilename1, "--key", encryptedPEMKeyFilename2)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole.String(), "--key", encryptedPEMKeyFilename1, "--key", encryptedPEMKeyFilename2)
 	require.NoError(t, err)
 	// 3 root keys - 1 prev, 1 new
 	assertNumKeys(t, tempDir, 3, 2, true)
 
 	// rotate the root key again
-	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole.String())
 	require.NoError(t, err)
 	// 3 root keys, 2 prev, 1 new
 	assertNumKeys(t, tempDir, 3, 2, true)
@@ -1450,7 +1450,7 @@ func TestKeyRotationNonRoot(t *testing.T) {
 	require.Equal(t, len(pemBytes2), nBytes2)
 
 	// rotate the targets key
-	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalTargetsRole, "--key", tempFile.Name(), "--key", tempFile2.Name())
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalTargetsRole.String(), "--key", tempFile.Name(), "--key", tempFile2.Name())
 	require.NoError(t, err)
 
 	// publish using the new keys
@@ -1460,7 +1460,7 @@ func TestKeyRotationNonRoot(t *testing.T) {
 	require.True(t, strings.Contains(string(output), target))
 
 	// rotate to nonexistant key
-	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalTargetsRole, "--key", "nope.pem")
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalTargetsRole.String(), "--key", "nope.pem")
 	require.Error(t, err)
 }
 
@@ -1692,7 +1692,7 @@ func TestWitness(t *testing.T) {
 	err = keyStore.AddKey(
 		trustmanager.KeyInfo{
 			Gun:  "gun",
-			Role: delgName,
+			Role: data.NewRoleName(delgName),
 		},
 		privKey,
 	)
@@ -1754,7 +1754,7 @@ func TestWitness(t *testing.T) {
 	err = keyStore.AddKey(
 		trustmanager.KeyInfo{
 			Gun:  "gun",
-			Role: delgName,
+			Role: data.NewRoleName(delgName),
 		},
 		privKey2,
 	)
@@ -1781,7 +1781,7 @@ func TestWitness(t *testing.T) {
 	require.Error(t, err)
 
 	// 12. check non-targets base roles all fail
-	for _, role := range []string{data.CanonicalRootRole, data.CanonicalSnapshotRole, data.CanonicalTimestampRole} {
+	for _, role := range []string{data.CanonicalRootRole.String(), data.CanonicalSnapshotRole.String(), data.CanonicalTimestampRole.String()} {
 		// clear any pending changes to ensure errors are only related to the specific role we're trying to witness
 		_, err = runCommand(t, tempDir, "reset", "gun", "--all")
 		require.NoError(t, err)
@@ -1843,7 +1843,7 @@ func generateCertPrivKeyPair(t *testing.T, gun, keyAlgorithm string) (*x509.Cert
 	require.NoError(t, err)
 	startTime := time.Now()
 	endTime := startTime.AddDate(10, 0, 0)
-	cert, err := cryptoservice.GenerateCertificate(privKey, gun, startTime, endTime)
+	cert, err := cryptoservice.GenerateCertificate(privKey, data.NewGUN(gun), startTime, endTime)
 	require.NoError(t, err)
 	parsedPubKey, _ := utils.ParsePEMPublicKey(utils.CertToPEM(cert))
 	keyID, err := utils.CanonicalKeyID(parsedPubKey)
@@ -2306,7 +2306,7 @@ func TestClientKeyImport(t *testing.T) {
 	require.Equal(t, len(pemBytes), nBytes)
 
 	// import the key
-	_, err = runCommand(t, tempDir, "key", "import", tempFile2.Name(), "-r", data.CanonicalRootRole)
+	_, err = runCommand(t, tempDir, "key", "import", tempFile2.Name(), "-r", data.CanonicalRootRole.String())
 	require.NoError(t, err)
 
 	// if there is hardware available, root will only be on hardware, and not
@@ -2393,7 +2393,7 @@ func TestClientKeyImport(t *testing.T) {
 	require.Equal(t, len(pemBytes), nBytes)
 
 	// import the key
-	_, err = runCommand(t, tempDir, "key", "import", tempFile5.Name(), "-r", data.CanonicalSnapshotRole, "-g", "somegun")
+	_, err = runCommand(t, tempDir, "key", "import", tempFile5.Name(), "-r", data.CanonicalSnapshotRole.String(), "-g", "somegun")
 	require.NoError(t, err)
 
 	// if there is hardware available, root will only be on hardware, and not
@@ -2402,7 +2402,7 @@ func TestClientKeyImport(t *testing.T) {
 	file, err = os.OpenFile(filepath.Join(tempDir, notary.PrivDir, privKey.ID()+".key"), os.O_RDONLY, notary.PrivExecPerms)
 	require.NoError(t, err)
 	filebytes, _ = ioutil.ReadAll(file)
-	require.Contains(t, string(filebytes), ("role: " + data.CanonicalSnapshotRole))
+	require.Contains(t, string(filebytes), ("role: " + data.CanonicalSnapshotRole.String()))
 	require.Contains(t, string(filebytes), ("gun: " + "somegun"))
 
 	// test6, no path but role=root included with encrypted key, should fail since we don't know what keyid to save to
@@ -2559,7 +2559,7 @@ func TestAddDelImportKeyPublishFlow(t *testing.T) {
 	assertNumKeys(t, tempDir, 1, 2, true)
 
 	// rotate the snapshot key to server
-	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalSnapshotRole, "-r")
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalSnapshotRole.String(), "-r")
 	require.NoError(t, err)
 
 	// publish repo

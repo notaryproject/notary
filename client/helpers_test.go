@@ -215,7 +215,7 @@ func TestApplyTargetsDelegationCreateDelete(t *testing.T) {
 	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
-	tgts := repo.Targets[data.CanonicalTargetsRole]
+	tgts := repo.Targets[data.CanonicalTargetsRole.String()]
 	require.Len(t, tgts.Signed.Delegations.Roles, 1)
 	require.Len(t, tgts.Signed.Delegations.Keys, 1)
 
@@ -225,7 +225,7 @@ func TestApplyTargetsDelegationCreateDelete(t *testing.T) {
 	role := tgts.Signed.Delegations.Roles[0]
 	require.Len(t, role.KeyIDs, 1)
 	require.Equal(t, newKey.ID(), role.KeyIDs[0])
-	require.Equal(t, "targets/level1", role.Name)
+	require.EqualValues(t, "targets/level1", role.Name)
 	require.Equal(t, "level1", role.Paths[0])
 
 	// delete delegation
@@ -301,21 +301,21 @@ func TestApplyTargetsDelegationCreate2SharedKey(t *testing.T) {
 	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
-	tgts := repo.Targets[data.CanonicalTargetsRole]
+	tgts := repo.Targets[data.CanonicalTargetsRole.String()]
 	require.Len(t, tgts.Signed.Delegations.Roles, 2)
 	require.Len(t, tgts.Signed.Delegations.Keys, 1)
 
 	role1 := tgts.Signed.Delegations.Roles[0]
 	require.Len(t, role1.KeyIDs, 1)
 	require.Equal(t, newKey.ID(), role1.KeyIDs[0])
-	require.Equal(t, "targets/level1", role1.Name)
-	require.Equal(t, "level1", role1.Paths[0])
+	require.EqualValues(t, "targets/level1", role1.Name)
+	require.EqualValues(t, "level1", role1.Paths[0])
 
 	role2 := tgts.Signed.Delegations.Roles[1]
 	require.Len(t, role2.KeyIDs, 1)
 	require.Equal(t, newKey.ID(), role2.KeyIDs[0])
-	require.Equal(t, "targets/level2", role2.Name)
-	require.Equal(t, "level2", role2.Paths[0])
+	require.EqualValues(t, "targets/level2", role2.Name)
+	require.EqualValues(t, "level2", role2.Paths[0])
 
 	// delete one delegation, ensure shared key remains
 	td = &changelist.TUFDelegation{
@@ -407,7 +407,7 @@ func TestApplyTargetsDelegationCreateEdit(t *testing.T) {
 	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
-	tgts := repo.Targets[data.CanonicalTargetsRole]
+	tgts := repo.Targets[data.CanonicalTargetsRole.String()]
 	require.Len(t, tgts.Signed.Delegations.Roles, 1)
 	require.Len(t, tgts.Signed.Delegations.Keys, 1)
 
@@ -417,8 +417,8 @@ func TestApplyTargetsDelegationCreateEdit(t *testing.T) {
 	role := tgts.Signed.Delegations.Roles[0]
 	require.Len(t, role.KeyIDs, 1)
 	require.Equal(t, newKey2.ID(), role.KeyIDs[0])
-	require.Equal(t, "targets/level1", role.Name)
-	require.Equal(t, "level1", role.Paths[0])
+	require.EqualValues(t, "targets/level1", role.Name)
+	require.EqualValues(t, "level1", role.Paths[0])
 }
 
 func TestApplyTargetsDelegationEditNonExisting(t *testing.T) {
@@ -691,7 +691,7 @@ func TestApplyTargetsDelegationCreate2Deep(t *testing.T) {
 	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
-	tgts := repo.Targets[data.CanonicalTargetsRole]
+	tgts := repo.Targets[data.CanonicalTargetsRole.String()]
 	require.Len(t, tgts.Signed.Delegations.Roles, 1)
 	require.Len(t, tgts.Signed.Delegations.Keys, 1)
 
@@ -701,8 +701,8 @@ func TestApplyTargetsDelegationCreate2Deep(t *testing.T) {
 	role := tgts.Signed.Delegations.Roles[0]
 	require.Len(t, role.KeyIDs, 1)
 	require.Equal(t, newKey.ID(), role.KeyIDs[0])
-	require.Equal(t, "targets/level1", role.Name)
-	require.Equal(t, "level1", role.Paths[0])
+	require.EqualValues(t, "targets/level1", role.Name)
+	require.EqualValues(t, "level1", role.Paths[0])
 
 	// init delegations targets file. This would be done as part of a publish
 	// operation
@@ -738,8 +738,8 @@ func TestApplyTargetsDelegationCreate2Deep(t *testing.T) {
 	role = tgts.Signed.Delegations.Roles[0]
 	require.Len(t, role.KeyIDs, 1)
 	require.Equal(t, newKey.ID(), role.KeyIDs[0])
-	require.Equal(t, "targets/level1/level2", role.Name)
-	require.Equal(t, "level1/level2", role.Paths[0])
+	require.EqualValues(t, "targets/level1/level2", role.Name)
+	require.EqualValues(t, "level1/level2", role.Paths[0])
 }
 
 // Applying a delegation whose parent doesn't exist fails.
@@ -970,7 +970,7 @@ func TestChangeTargetMetaFailsIfPrefixError(t *testing.T) {
 	require.Error(t, err)
 
 	// no target in targets or targets/latest
-	require.Empty(t, repo.Targets[data.CanonicalTargetsRole].Signed.Targets)
+	require.Empty(t, repo.Targets[data.CanonicalTargetsRole.String()].Signed.Targets)
 	require.Empty(t, repo.Targets["targets/level1"].Signed.Targets)
 }
 

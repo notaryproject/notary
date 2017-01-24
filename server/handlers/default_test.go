@@ -107,7 +107,7 @@ func TestKeyHandlersInvalidConfiguration(t *testing.T) {
 
 	vars := map[string]string{
 		"imageName": "gun",
-		"tufRole":   data.CanonicalTimestampRole,
+		"tufRole":   data.CanonicalTimestampRole.String(),
 	}
 	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
@@ -130,7 +130,7 @@ func TestKeyHandlersNoRoleOrRepo(t *testing.T) {
 		for _, key := range []string{"imageName", "tufRole"} {
 			vars := map[string]string{
 				"imageName": "gun",
-				"tufRole":   data.CanonicalTimestampRole,
+				"tufRole":   data.CanonicalTimestampRole.String(),
 			}
 
 			// not provided
@@ -152,7 +152,7 @@ func TestKeyHandlersNoRoleOrRepo(t *testing.T) {
 func TestKeyHandlersInvalidRole(t *testing.T) {
 	state := defaultState()
 	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
-		for _, role := range []string{data.CanonicalRootRole, data.CanonicalTargetsRole, "targets/a", "invalidrole"} {
+		for _, role := range []string{data.CanonicalRootRole.String(), data.CanonicalTargetsRole.String(), "targets/a", "invalidrole"} {
 			vars := map[string]string{
 				"imageName": "gun",
 				"tufRole":   role,
@@ -169,7 +169,7 @@ func TestKeyHandlersInvalidRole(t *testing.T) {
 // Getting the key for a valid role and gun succeeds
 func TestGetKeyHandlerCreatesOnce(t *testing.T) {
 	state := defaultState()
-	roles := []string{data.CanonicalTimestampRole, data.CanonicalSnapshotRole}
+	roles := []string{data.CanonicalTimestampRole.String(), data.CanonicalSnapshotRole.String()}
 	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 
 	for _, role := range roles {
@@ -183,7 +183,7 @@ func TestGetKeyHandlerCreatesOnce(t *testing.T) {
 
 // Getting or rotating the key fails if we don't pass a valid key algorithm
 func TestKeyHandlersInvalidKeyAlgo(t *testing.T) {
-	roles := []string{data.CanonicalTimestampRole, data.CanonicalSnapshotRole}
+	roles := []string{data.CanonicalTimestampRole.String(), data.CanonicalSnapshotRole.String()}
 	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
 		for _, role := range roles {
@@ -200,7 +200,7 @@ func TestKeyHandlersInvalidKeyAlgo(t *testing.T) {
 // Rotating the key for a valid role and gun succeeds
 func TestRotateKeyHandlerSuccessfulRotation(t *testing.T) {
 	state := defaultState()
-	roles := []string{data.CanonicalTimestampRole, data.CanonicalSnapshotRole}
+	roles := []string{data.CanonicalTimestampRole.String(), data.CanonicalSnapshotRole.String()}
 	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 
 	for _, role := range roles {
@@ -381,20 +381,20 @@ func TestGetHandlerNoStorage(t *testing.T) {
 // response)
 func TestAtomicUpdateValidationFailurePropagated(t *testing.T) {
 	metaStore := storage.NewMemStorage()
-	gun := "testGUN"
-	vars := map[string]string{"imageName": gun}
+	gun := data.NewGUN("testGUN")
+	vars := map[string]string{"imageName": gun.String()}
 
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
-	state := handlerState{store: metaStore, crypto: testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)}
+	state := handlerState{store: metaStore, crypto: testutils.CopyKeys(t, cs, data.CanonicalTimestampRole.String())}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	require.NoError(t, err)
 	rs, tgs, _, _, err := testutils.Serialize(r, tg, sn, ts)
 	require.NoError(t, err)
 
-	req, err := store.NewMultiPartMetaRequest("", map[string][]byte{
+	req, err := store.NewMultiPartMetaRequest("", map[data.RoleName][]byte{
 		data.CanonicalRootRole:    rs,
 		data.CanonicalTargetsRole: tgs,
 	})
@@ -424,20 +424,20 @@ func (s *failStore) GetCurrent(_, _ string) (*time.Time, []byte, error) {
 // as a detail in the error (which gets serialized as the body of the response)
 func TestAtomicUpdateNonValidationFailureNotPropagated(t *testing.T) {
 	metaStore := storage.NewMemStorage()
-	gun := "testGUN"
-	vars := map[string]string{"imageName": gun}
+	gun := data.NewGUN("testGUN")
+	vars := map[string]string{"imageName": gun.String()}
 
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
-	state := handlerState{store: &failStore{*metaStore}, crypto: testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)}
+	state := handlerState{store: &failStore{*metaStore}, crypto: testutils.CopyKeys(t, cs, data.CanonicalTimestampRole.String())}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	require.NoError(t, err)
 	rs, tgs, sns, _, err := testutils.Serialize(r, tg, sn, ts)
 	require.NoError(t, err)
 
-	req, err := store.NewMultiPartMetaRequest("", map[string][]byte{
+	req, err := store.NewMultiPartMetaRequest("", map[data.RoleName][]byte{
 		data.CanonicalRootRole:     rs,
 		data.CanonicalTargetsRole:  tgs,
 		data.CanonicalSnapshotRole: sns,
@@ -450,7 +450,7 @@ func TestAtomicUpdateNonValidationFailureNotPropagated(t *testing.T) {
 	require.Error(t, err)
 	errorObj, ok := err.(errcode.Error)
 	require.True(t, ok, "Expected an errcode.Error, got %v", err)
-	require.Equal(t, errors.ErrInvalidUpdate, errorObj.Code)
+	require.EqualValues(t, errors.ErrInvalidUpdate, errorObj.Code)
 	require.Nil(t, errorObj.Detail)
 }
 
@@ -466,21 +466,21 @@ func (s *invalidVersionStore) UpdateMany(_ string, _ []storage.MetaUpdate) error
 // as a detail in the error (which gets serialized as the body of the response)
 func TestAtomicUpdateVersionErrorPropagated(t *testing.T) {
 	metaStore := storage.NewMemStorage()
-	gun := "testGUN"
-	vars := map[string]string{"imageName": gun}
+	gun := data.NewGUN("testGUN")
+	vars := map[string]string{"imageName": gun.String()}
 
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
 	state := handlerState{
-		store: &invalidVersionStore{*metaStore}, crypto: testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)}
+		store: &invalidVersionStore{*metaStore}, crypto: testutils.CopyKeys(t, cs, data.CanonicalTimestampRole.String())}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	require.NoError(t, err)
 	rs, tgs, sns, _, err := testutils.Serialize(r, tg, sn, ts)
 	require.NoError(t, err)
 
-	req, err := store.NewMultiPartMetaRequest("", map[string][]byte{
+	req, err := store.NewMultiPartMetaRequest("", map[data.RoleName][]byte{
 		data.CanonicalRootRole:     rs,
 		data.CanonicalTargetsRole:  tgs,
 		data.CanonicalSnapshotRole: sns,

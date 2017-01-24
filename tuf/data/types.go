@@ -9,6 +9,7 @@ import (
 	"hash"
 	"io"
 	"io/ioutil"
+	"path"
 	"strings"
 	"time"
 
@@ -16,6 +17,48 @@ import (
 	"github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
 )
+
+// GUN type for specifying gun
+type GUN string
+
+func (g GUN) String() string {
+	return string(g)
+}
+
+func NewGUN(g string) GUN {
+	return GUN(g)
+}
+
+// RoleName type for specifying role
+type RoleName string
+
+func (r RoleName) String() string {
+	return string(r)
+}
+
+func (r RoleName) Parent() string {
+	return path.Dir(r.String())
+}
+
+func NewRoleName(role string) RoleName {
+	return RoleName(role)
+}
+
+func MetadataRoleMapToStringMap(roles map[RoleName][]byte) map[string][]byte {
+	metadata := make(map[string][]byte)
+	for k, v := range roles {
+		metadata[k.String()] = v
+	}
+	return metadata
+}
+
+func NewRoleList(roles []string) []RoleName {
+	var roleNames []RoleName
+	for _, role := range roles {
+		roleNames = append(roleNames, NewRoleName(role))
+	}
+	return roleNames
+}
 
 // SigAlgorithm for types of signatures
 type SigAlgorithm string
@@ -45,7 +88,7 @@ const (
 )
 
 // TUFTypes is the set of metadata types
-var TUFTypes = map[string]string{
+var TUFTypes = map[RoleName]string{
 	CanonicalRootRole:      "Root",
 	CanonicalTargetsRole:   "Targets",
 	CanonicalSnapshotRole:  "Snapshot",
@@ -53,7 +96,7 @@ var TUFTypes = map[string]string{
 }
 
 // ValidTUFType checks if the given type is valid for the role
-func ValidTUFType(typ, role string) bool {
+func ValidTUFType(typ string, role RoleName) bool {
 	if ValidRole(role) {
 		// All targets delegation roles must have
 		// the valid type is for targets.
@@ -62,7 +105,7 @@ func ValidTUFType(typ, role string) bool {
 			// a type
 			return false
 		}
-		if strings.HasPrefix(role, CanonicalTargetsRole+"/") {
+		if strings.HasPrefix(role.String(), CanonicalTargetsRole.String()+"/") {
 			role = CanonicalTargetsRole
 		}
 	}
@@ -126,7 +169,7 @@ type FileMeta struct {
 }
 
 // CheckHashes verifies all the checksums specified by the "hashes" of the payload.
-func CheckHashes(payload []byte, name string, hashes Hashes) error {
+func CheckHashes(payload []byte, name RoleName, hashes Hashes) error {
 	cnt := 0
 
 	// k, v indicate the hash algorithm and the corresponding value
@@ -262,10 +305,10 @@ func NewDelegations() *Delegations {
 
 // These values are recommended TUF expiry times.
 var defaultExpiryTimes = map[string]time.Duration{
-	CanonicalRootRole:      notary.Year,
-	CanonicalTargetsRole:   90 * notary.Day,
-	CanonicalSnapshotRole:  7 * notary.Day,
-	CanonicalTimestampRole: notary.Day,
+	CanonicalRootRole.String():      notary.Year,
+	CanonicalTargetsRole.String():   90 * notary.Day,
+	CanonicalSnapshotRole.String():  7 * notary.Day,
+	CanonicalTimestampRole.String(): notary.Day,
 }
 
 // SetDefaultExpiryTimes allows one to change the default expiries.
@@ -280,8 +323,8 @@ func SetDefaultExpiryTimes(times map[string]time.Duration) {
 }
 
 // DefaultExpires gets the default expiry time for the given role
-func DefaultExpires(role string) time.Time {
-	if d, ok := defaultExpiryTimes[role]; ok {
+func DefaultExpires(role RoleName) time.Time {
+	if d, ok := defaultExpiryTimes[role.String()]; ok {
 		return time.Now().Add(d)
 	}
 	var t time.Time

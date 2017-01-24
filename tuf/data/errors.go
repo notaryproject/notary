@@ -4,22 +4,22 @@ import "fmt"
 
 // ErrInvalidMetadata is the error to be returned when metadata is invalid
 type ErrInvalidMetadata struct {
-	role string
+	role RoleName
 	msg  string
 }
 
 func (e ErrInvalidMetadata) Error() string {
-	return fmt.Sprintf("%s type metadata invalid: %s", e.role, e.msg)
+	return fmt.Sprintf("%s type metadata invalid: %s", e.role.String(), e.msg)
 }
 
 // ErrMissingMeta - couldn't find the FileMeta object for the given Role, or
 // the FileMeta object contained no supported checksums
 type ErrMissingMeta struct {
-	Role string
+	Role RoleName
 }
 
 func (e ErrMissingMeta) Error() string {
-	return fmt.Sprintf("no checksums for supported algorithms were provided for %s", e.Role)
+	return fmt.Sprintf("no checksums for supported algorithms were provided for %s", e.Role.String())
 }
 
 // ErrInvalidChecksum is the error to be returned when checksum is invalid
@@ -34,12 +34,12 @@ func (e ErrInvalidChecksum) Error() string {
 // ErrMismatchedChecksum is the error to be returned when checksum is mismatched
 type ErrMismatchedChecksum struct {
 	alg      string
-	name     string
+	name     RoleName
 	expected string
 }
 
 func (e ErrMismatchedChecksum) Error() string {
-	return fmt.Sprintf("%s checksum for %s did not match: expected %s", e.alg, e.name,
+	return fmt.Sprintf("%s checksum for %s did not match: expected %s", e.alg, e.name.String(),
 		e.expected)
 }
 

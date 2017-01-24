@@ -12,6 +12,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
+	"github.com/docker/notary/tuf/data"
 )
 
 // NewFileStore creates a fully configurable file store
@@ -179,9 +180,9 @@ func (f *FilesystemStore) Get(name string) ([]byte, error) {
 }
 
 // SetMulti sets the metadata for multiple roles in one operation
-func (f *FilesystemStore) SetMulti(metas map[string][]byte) error {
+func (f *FilesystemStore) SetMulti(metas map[data.RoleName][]byte) error {
 	for role, blob := range metas {
-		err := f.Set(role, blob)
+		err := f.Set(role.String(), blob)
 		if err != nil {
 			return err
 		}

@@ -59,7 +59,7 @@ func TestRunReservedPort(t *testing.T) {
 }
 
 func TestRepoPrefixMatches(t *testing.T) {
-	gun := "docker.io/notary"
+	gun := data.NewGUN("docker.io/notary")
 	meta, cs, err := testutils.NewRepoMetadata(gun)
 	require.NoError(t, err)
 
@@ -79,14 +79,14 @@ func TestRepoPrefixMatches(t *testing.T) {
 	// uploading is cool
 	require.NoError(t, uploader.SetMulti(meta))
 	// getting is cool
-	_, err = uploader.GetSized(data.CanonicalSnapshotRole, notary.MaxDownloadSize)
+	_, err = uploader.GetSized(data.CanonicalSnapshotRole.String(), notary.MaxDownloadSize)
 	require.NoError(t, err)
 
 	_, err = uploader.GetSized(
-		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]), notary.MaxDownloadSize)
+		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]).String(), notary.MaxDownloadSize)
 	require.NoError(t, err)
 
-	_, err = uploader.GetKey(data.CanonicalTimestampRole)
+	_, err = uploader.GetKey(data.CanonicalTimestampRole.String())
 	require.NoError(t, err)
 
 	// the httpstore doesn't actually delete all, so we do it manually
@@ -99,7 +99,7 @@ func TestRepoPrefixMatches(t *testing.T) {
 }
 
 func TestRepoPrefixDoesNotMatch(t *testing.T) {
-	gun := "docker.io/notary"
+	gun := data.NewGUN("docker.io/notary")
 	meta, cs, err := testutils.NewRepoMetadata(gun)
 	require.NoError(t, err)
 	s := storage.NewMemStorage()
@@ -128,14 +128,14 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 		}))
 	}
 
-	_, err = uploader.GetSized(data.CanonicalSnapshotRole, notary.MaxDownloadSize)
+	_, err = uploader.GetSized(data.CanonicalSnapshotRole.String(), notary.MaxDownloadSize)
 	require.Error(t, err)
 
 	_, err = uploader.GetSized(
-		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]), notary.MaxDownloadSize)
+		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]).String(), notary.MaxDownloadSize)
 	require.Error(t, err)
 
-	_, err = uploader.GetKey(data.CanonicalTimestampRole)
+	_, err = uploader.GetKey(data.CanonicalTimestampRole.String())
 	require.Error(t, err)
 
 	// the httpstore doesn't actually delete all, so we do it manually
@@ -168,7 +168,7 @@ func TestGetKeysEndpoint(t *testing.T) {
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
-	rolesToStatus := map[string]int{
+	rolesToStatus := map[data.RoleName]int{
 		data.CanonicalTimestampRole: http.StatusOK,
 		data.CanonicalSnapshotRole:  http.StatusOK,
 		data.CanonicalTargetsRole:   http.StatusNotFound,
@@ -382,7 +382,7 @@ func TestRotateKeyEndpoint(t *testing.T) {
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
-	rolesToStatus := map[string]int{
+	rolesToStatus := map[data.RoleName]int{
 		data.CanonicalTimestampRole: http.StatusOK,
 		data.CanonicalSnapshotRole:  http.StatusOK,
 		data.CanonicalTargetsRole:   http.StatusNotFound,

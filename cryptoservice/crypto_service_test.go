@@ -27,9 +27,9 @@ var algoToSigType = map[string]data.SigAlgorithm{
 var passphraseRetriever = func(string, string, bool, int) (string, bool, error) { return "", false, nil }
 
 type CryptoServiceTester struct {
-	role    string
+	role    data.RoleName
 	keyAlgo string
-	gun     string
+	gun     data.GUN
 }
 
 func (c CryptoServiceTester) cryptoServiceFactory() *CryptoService {
@@ -360,8 +360,8 @@ func (c CryptoServiceTester) errorMsg(message string, args ...interface{}) strin
 		c.keyAlgo, fmt.Sprintf(message, args...))
 }
 
-func testCryptoService(t *testing.T, gun string) {
-	roles := []string{
+func testCryptoService(t *testing.T, gun data.GUN) {
+	roles := []data.RoleName{
 		data.CanonicalRootRole,
 		data.CanonicalTargetsRole,
 		data.CanonicalSnapshotRole,
@@ -392,11 +392,11 @@ func testCryptoService(t *testing.T, gun string) {
 }
 
 func TestCryptoServiceWithNonEmptyGUN(t *testing.T) {
-	testCryptoService(t, "org/repo")
+	testCryptoService(t, data.NewGUN("org/repo"))
 }
 
 func TestCryptoServiceWithEmptyGUN(t *testing.T) {
-	testCryptoService(t, "")
+	testCryptoService(t, data.NewGUN(""))
 }
 
 // CryptoSigner conforms to the signed.CryptoService interface behavior

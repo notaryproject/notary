@@ -93,9 +93,9 @@ func TestHTTPStoreGetAllMeta(t *testing.T) {
 }
 
 func TestSetSingleAndSetMultiMeta(t *testing.T) {
-	metas := map[string][]byte{
-		"root":    []byte("root data"),
-		"targets": []byte("targets data"),
+	metas := map[data.RoleName][]byte{
+		data.NewRoleName("root"):    []byte("root data"),
+		data.NewRoleName("targets"): []byte("targets data"),
 	}
 
 	var updates map[string][]byte
@@ -276,7 +276,7 @@ func TestHTTPStoreRotateKey(t *testing.T) {
 	store, err := NewHTTPStore(server.URL, "metadata", "json", "key", http.DefaultTransport)
 	require.NoError(t, err)
 
-	pubKeyBytes, err := store.RotateKey(data.CanonicalSnapshotRole)
+	pubKeyBytes, err := store.RotateKey(data.CanonicalSnapshotRole.String())
 	require.NoError(t, err)
 	require.Equal(t, pubKeyBytes, []byte(testRootKey))
 
@@ -289,7 +289,7 @@ func TestHTTPStoreRotateKey(t *testing.T) {
 		failRoundTripper{},
 	)
 	require.NoError(t, err)
-	_, err = store.RotateKey(data.CanonicalSnapshotRole)
+	_, err = store.RotateKey(data.CanonicalSnapshotRole.String())
 	require.IsType(t, NetworkError{}, err)
 	require.Equal(t, "FAIL", err.Error())
 }
@@ -305,7 +305,7 @@ func TestHTTPStoreGetKey(t *testing.T) {
 	store, err := NewHTTPStore(server.URL, "metadata", "json", "key", http.DefaultTransport)
 	require.NoError(t, err)
 
-	pubKeyBytes, err := store.GetKey(data.CanonicalSnapshotRole)
+	pubKeyBytes, err := store.GetKey(data.CanonicalSnapshotRole.String())
 	require.NoError(t, err)
 	require.Equal(t, pubKeyBytes, []byte(testRootKey))
 
@@ -318,7 +318,7 @@ func TestHTTPStoreGetKey(t *testing.T) {
 		failRoundTripper{},
 	)
 	require.NoError(t, err)
-	_, err = store.GetKey(data.CanonicalSnapshotRole)
+	_, err = store.GetKey(data.CanonicalSnapshotRole.String())
 	require.IsType(t, NetworkError{}, err)
 	require.Equal(t, "FAIL", err.Error())
 }

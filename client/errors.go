@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"github.com/docker/notary/tuf/data"
 )
 
 // ErrRepoNotInitialized is returned when trying to publish an uninitialized
@@ -15,18 +16,18 @@ func (err ErrRepoNotInitialized) Error() string {
 // ErrInvalidRemoteRole is returned when the server is requested to manage
 // a key type that is not permitted
 type ErrInvalidRemoteRole struct {
-	Role string
+	Role data.RoleName
 }
 
 func (err ErrInvalidRemoteRole) Error() string {
 	return fmt.Sprintf(
-		"notary does not permit the server managing the %s key", err.Role)
+		"notary does not permit the server managing the %s key", err.Role.String())
 }
 
 // ErrInvalidLocalRole is returned when the client wants to manage
 // a key type that is not permitted
 type ErrInvalidLocalRole struct {
-	Role string
+	Role data.RoleName
 }
 
 func (err ErrInvalidLocalRole) Error() string {
@@ -38,9 +39,9 @@ func (err ErrInvalidLocalRole) Error() string {
 // repository that doesn't exist
 type ErrRepositoryNotExist struct {
 	remote string
-	gun    string
+	gun    data.GUN
 }
 
 func (err ErrRepositoryNotExist) Error() string {
-	return fmt.Sprintf("%s does not have trust data for %s", err.remote, err.gun)
+	return fmt.Sprintf("%s does not have trust data for %s", err.remote, err.gun.String())
 }

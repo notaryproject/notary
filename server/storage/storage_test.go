@@ -12,16 +12,16 @@ import (
 )
 
 type StoredTUFMeta struct {
-	Gun     string
-	Role    string
+	Gun     data.GUN
+	Role    data.RoleName
 	SHA256  string
 	Data    []byte
 	Version int
 }
 
-func SampleCustomTUFObj(gun, role string, version int, tufdata []byte) StoredTUFMeta {
+func SampleCustomTUFObj(gun data.GUN, role data.RoleName, version int, tufdata []byte) StoredTUFMeta {
 	if tufdata == nil {
-		tufdata = []byte(fmt.Sprintf("%s_%s_%d", gun, role, version))
+		tufdata = []byte(fmt.Sprintf("%s_%s_%d", gun.String(), role.String(), version))
 	}
 	checksum := sha256.Sum256(tufdata)
 	hexChecksum := hex.EncodeToString(checksum[:])
@@ -78,7 +78,7 @@ func assertExpectedTUFMetaInStore(t *testing.T, s MetaStore, expected []StoredTU
 func testUpdateCurrentEmptyStore(t *testing.T, s MetaStore) []StoredTUFMeta {
 	expected := make([]StoredTUFMeta, 0, 10)
 	for _, role := range append(data.BaseRoles, "targets/a") {
-		for _, gun := range []string{"gun1", "gun2"} {
+		for _, gun := range []data.GUN{data.NewGUN("gun1"), data.NewGUN("gun2")} {
 			// Adding a new TUF file should succeed
 			tufObj := SampleCustomTUFObj(gun, role, 1, nil)
 			require.NoError(t, s.UpdateCurrent(tufObj.Gun, MakeUpdate(tufObj)))
@@ -94,7 +94,7 @@ func testUpdateCurrentEmptyStore(t *testing.T, s MetaStore) []StoredTUFMeta {
 // but will return an error if there is an older version of a TUF file.  oldVersionExists
 // specifies whether the older version should already exist in the DB or not.
 func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore, oldVersionExists bool) []StoredTUFMeta {
-	role, gun := data.CanonicalRootRole, "testGUN"
+	role, gun := data.CanonicalRootRole, data.NewGUN("testGUN")
 
 	expected := []StoredTUFMeta{
 		SampleCustomTUFObj(gun, role, 1, nil),
@@ -129,27 +129,27 @@ func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore, oldVersionExists b
 // GetVersion should successfully retrieve a version of an existing TUF file,
 // but will return an error if the requested version does not exist.
 func testGetVersion(t *testing.T, s MetaStore) {
-	_, _, err := s.GetVersion("gun", "role", 2)
+	_, _, err := s.GetVersion(data.NewGUN("gun"), data.NewRoleName("role"), 2)
 	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
 
-	s.UpdateCurrent("gun", MetaUpdate{"role", 2, []byte("version2")})
-	_, d, err := s.GetVersion("gun", "role", 2)
+	s.UpdateCurrent(data.NewGUN("gun"), MetaUpdate{data.NewRoleName("role"), 2, []byte("version2")})
+	_, d, err := s.GetVersion(data.NewGUN("gun"), data.NewRoleName("role"), 2)
 	require.Nil(t, err, "Expected error to be nil")
 	require.Equal(t, []byte("version2"), d, "Data was incorrect")
 
 	// Getting newer version fails
-	_, _, err = s.GetVersion("gun", "role", 3)
+	_, _, err = s.GetVersion(data.NewGUN("gun"), data.NewRoleName("role"), 3)
 	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
 
 	// Getting another gun/role fails
-	_, _, err = s.GetVersion("badgun", "badrole", 2)
+	_, _, err = s.GetVersion(data.NewGUN("badgun"), data.NewRoleName("badrole"), 2)
 	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
 }
 
 // UpdateMany succeeds if the updates do not conflict with each other or with what's
 // already in the DB
 func testUpdateManyNoConflicts(t *testing.T, s MetaStore) []StoredTUFMeta {
-	gun := "testGUN"
+	gun := data.NewGUN("testGUN")
 	firstBatch := make([]StoredTUFMeta, 4)
 	updates := make([]MetaUpdate, 4)
 	for i, role := range data.BaseRoles {
@@ -195,7 +195,7 @@ func testUpdateManyNoConflicts(t *testing.T, s MetaStore) []StoredTUFMeta {
 // UpdateMany does not insert any rows (or at least rolls them back) if there
 // are any conflicts.
 func testUpdateManyConflictRollback(t *testing.T, s MetaStore) []StoredTUFMeta {
-	gun := "testGUN"
+	gun := data.NewGUN("testGUN")
 	successBatch := make([]StoredTUFMeta, 4)
 	updates := make([]MetaUpdate, 4)
 	for i, role := range data.BaseRoles {
@@ -256,7 +256,7 @@ func testUpdateManyConflictRollback(t *testing.T, s MetaStore) []StoredTUFMeta {
 
 // Delete will remove all TUF metadata, all versions, associated with a gun
 func testDeleteSuccess(t *testing.T, s MetaStore) {
-	gun := "testGUN"
+	gun := data.NewGUN("testGUN")
 	// If there is nothing in the DB, delete is a no-op success
 	require.NoError(t, s.Delete(gun))
 
@@ -304,7 +304,7 @@ func testGetChanges(t *testing.T, s MetaStore) {
 	require.Len(t, c, 0)
 
 	// add some records
-	require.NoError(t, s.UpdateMany("alpine", []MetaUpdate{
+	require.NoError(t, s.UpdateMany(data.NewGUN("alpine"), []MetaUpdate{
 		{
 			Role:    data.CanonicalTimestampRole,
 			Version: 1,
@@ -326,7 +326,7 @@ func testGetChanges(t *testing.T, s MetaStore) {
 			Data:    []byte{'4'},
 		},
 	}))
-	require.NoError(t, s.UpdateMany("busybox", []MetaUpdate{
+	require.NoError(t, s.UpdateMany(data.NewGUN("busybox"), []MetaUpdate{
 		{
 			Role:    data.CanonicalTimestampRole,
 			Version: 1,

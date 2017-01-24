@@ -10,7 +10,7 @@ import (
 
 // Witness creates change objects to witness (i.e. re-sign) the given
 // roles on the next publish. One change is created per role
-func (r *NotaryRepository) Witness(roles ...string) ([]string, error) {
+func (r *NotaryRepository) Witness(roles ...data.RoleName) ([]string, error) {
 	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
 	if err != nil {
 		return nil, err
@@ -31,13 +31,13 @@ func (r *NotaryRepository) Witness(roles ...string) ([]string, error) {
 		if err != nil {
 			break
 		}
-		successful = append(successful, role)
+		successful = append(successful, role.String())
 	}
 	return successful, err
 }
 
-func witnessTargets(repo *tuf.Repo, invalid *tuf.Repo, role string) error {
-	if r, ok := repo.Targets[role]; ok {
+func witnessTargets(repo *tuf.Repo, invalid *tuf.Repo, role data.RoleName) error {
+	if r, ok := repo.Targets[role.String()]; ok {
 		// role is already valid, mark for re-signing/updating
 		r.Dirty = true
 		return nil
@@ -54,9 +54,9 @@ func witnessTargets(repo *tuf.Repo, invalid *tuf.Repo, role string) error {
 				Reason: "role does not specify enough valid signing keys to meet its required threshold",
 			}
 		}
-		if r, ok := invalid.Targets[role]; ok {
+		if r, ok := invalid.Targets[role.String()]; ok {
 			// role is recognized but invalid, move to valid data and mark for re-signing
-			repo.Targets[role] = r
+			repo.Targets[role.String()] = r
 			r.Dirty = true
 			return nil
 		}

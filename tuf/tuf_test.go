@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testGUN = "gun"
+var testGUN = data.NewGUN("gun")
 
 func initRepo(t *testing.T, cryptoService signed.CryptoService) *Repo {
 	rootKey, err := cryptoService.Create("root", testGUN, data.ED25519Key)
@@ -88,7 +88,7 @@ func writeRepo(t *testing.T, dir string, repo *Repo) {
 	ioutil.WriteFile(dir+"/root.json", rootJSON, 0755)
 
 	for r := range repo.Targets {
-		signedTargets, err := repo.SignTargets(r, data.DefaultExpires("targets"))
+		signedTargets, err := repo.SignTargets(data.NewRoleName(r), data.DefaultExpires("targets"))
 		require.NoError(t, err)
 		targetsJSON, _ := json.Marshal(signedTargets)
 		p := path.Join(dir, r+".json")
@@ -139,7 +139,7 @@ func TestUpdateDelegations(t *testing.T) {
 	_, ok := repo.Targets["targets/test"]
 	require.False(t, ok, "no empty targets file should be created for deepest delegation")
 
-	r, ok := repo.Targets[data.CanonicalTargetsRole]
+	r, ok := repo.Targets[data.CanonicalTargetsRole.String()]
 	require.True(t, ok)
 	require.Len(t, r.Signed.Delegations.Roles, 1)
 	require.Len(t, r.Signed.Delegations.Keys, 1)
@@ -174,37 +174,37 @@ func TestPurgeDelegationsKeyFromTop(t *testing.T) {
 	ed25519 := signed.NewEd25519()
 	repo := initRepo(t, ed25519)
 
-	vetinari := path.Join(data.CanonicalTargetsRole, "vetinari")
-	sybil := path.Join(data.CanonicalTargetsRole, "sybil")
-	vimes := path.Join(data.CanonicalTargetsRole, "vimes")
+	vetinari := path.Join(data.CanonicalTargetsRole.String(), "vetinari")
+	sybil := path.Join(data.CanonicalTargetsRole.String(), "sybil")
+	vimes := path.Join(data.CanonicalTargetsRole.String(), "vimes")
 	carrot := path.Join(vimes, "carrot")
-	targetsWild := path.Join(data.CanonicalTargetsRole, "*")
+	targetsWild := data.NewRoleName(path.Join(data.CanonicalTargetsRole.String(), "*"))
 
 	// create 2 keys, we'll purge one of them
-	testKey1, err := ed25519.Create(vetinari, testGUN, data.ED25519Key)
+	testKey1, err := ed25519.Create(data.RoleName(vetinari), testGUN, data.ED25519Key)
 	require.NoError(t, err)
-	testKey2, err := ed25519.Create(vetinari, testGUN, data.ED25519Key)
+	testKey2, err := ed25519.Create(data.RoleName(vetinari), testGUN, data.ED25519Key)
 	require.NoError(t, err)
 
 	// create some delegations
-	err = repo.UpdateDelegationKeys(vetinari, []data.PublicKey{testKey1, testKey2}, []string{}, 1)
+	err = repo.UpdateDelegationKeys(data.NewRoleName(vetinari), []data.PublicKey{testKey1, testKey2}, []string{}, 1)
 	require.NoError(t, err)
-	err = repo.UpdateDelegationPaths(vetinari, []string{""}, []string{}, false)
-	require.NoError(t, err)
-
-	err = repo.UpdateDelegationKeys(sybil, []data.PublicKey{testKey1}, []string{}, 1)
-	require.NoError(t, err)
-	err = repo.UpdateDelegationPaths(sybil, []string{""}, []string{}, false)
+	err = repo.UpdateDelegationPaths(data.NewRoleName(vetinari), []string{""}, []string{}, false)
 	require.NoError(t, err)
 
-	err = repo.UpdateDelegationKeys(vimes, []data.PublicKey{testKey2}, []string{}, 1)
+	err = repo.UpdateDelegationKeys(data.NewRoleName(sybil), []data.PublicKey{testKey1}, []string{}, 1)
 	require.NoError(t, err)
-	err = repo.UpdateDelegationPaths(vimes, []string{""}, []string{}, false)
+	err = repo.UpdateDelegationPaths(data.NewRoleName(sybil), []string{""}, []string{}, false)
 	require.NoError(t, err)
 
-	err = repo.UpdateDelegationKeys(carrot, []data.PublicKey{testKey1}, []string{}, 1)
+	err = repo.UpdateDelegationKeys(data.NewRoleName(vimes), []data.PublicKey{testKey2}, []string{}, 1)
 	require.NoError(t, err)
-	err = repo.UpdateDelegationPaths(carrot, []string{""}, []string{}, false)
+	err = repo.UpdateDelegationPaths(data.NewRoleName(vimes), []string{""}, []string{}, false)
+	require.NoError(t, err)
+
+	err = repo.UpdateDelegationKeys(data.NewRoleName(carrot), []data.PublicKey{testKey1}, []string{}, 1)
+	require.NoError(t, err)
+	err = repo.UpdateDelegationPaths(data.NewRoleName(carrot), []string{""}, []string{}, false)
 	require.NoError(t, err)
 
 	id1, err := utils.CanonicalKeyID(testKey1)
@@ -212,23 +212,23 @@ func TestPurgeDelegationsKeyFromTop(t *testing.T) {
 	err = repo.PurgeDelegationKeys(targetsWild, []string{id1})
 	require.NoError(t, err)
 
-	role, err := repo.GetDelegationRole(vetinari)
+	role, err := repo.GetDelegationRole(data.NewRoleName(vetinari))
 	require.NoError(t, err)
 	require.Len(t, role.Keys, 1)
 	_, ok := role.Keys[testKey2.ID()]
 	require.True(t, ok)
 
-	role, err = repo.GetDelegationRole(sybil)
+	role, err = repo.GetDelegationRole(data.NewRoleName(sybil))
 	require.NoError(t, err)
 	require.Len(t, role.Keys, 0)
 
-	role, err = repo.GetDelegationRole(vimes)
+	role, err = repo.GetDelegationRole(data.NewRoleName(vimes))
 	require.NoError(t, err)
 	require.Len(t, role.Keys, 1)
 	_, ok = role.Keys[testKey2.ID()]
 	require.True(t, ok)
 
-	role, err = repo.GetDelegationRole(carrot)
+	role, err = repo.GetDelegationRole(data.NewRoleName(carrot))
 	require.NoError(t, err)
 	require.Len(t, role.Keys, 0)
 
@@ -241,11 +241,11 @@ func TestPurgeDelegationsKeyFromDeep(t *testing.T) {
 	ed25519 := signed.NewEd25519()
 	repo := initRepo(t, ed25519)
 
-	vetinari := path.Join(data.CanonicalTargetsRole, "vetinari")
-	sybil := path.Join(data.CanonicalTargetsRole, "sybil")
-	vimes := path.Join(data.CanonicalTargetsRole, "vimes")
-	carrot := path.Join(vimes, "carrot")
-	vimesWild := path.Join(vimes, "*")
+	vetinari := data.RoleName(path.Join(data.CanonicalTargetsRole.String(), "vetinari"))
+	sybil := data.RoleName(path.Join(data.CanonicalTargetsRole.String(), "sybil"))
+	vimes := data.RoleName(path.Join(data.CanonicalTargetsRole.String(), "vimes"))
+	carrot := data.RoleName(path.Join(vimes.String(), "carrot"))
+	vimesWild := data.RoleName(path.Join(vimes.String(), "*"))
 
 	// create 2 keys, we'll purge one of them
 	testKey1, err := ed25519.Create(vetinari, testGUN, data.ED25519Key)
@@ -322,7 +322,7 @@ func TestUpdateDelegationsParentMissing(t *testing.T) {
 	require.Error(t, err)
 	require.IsType(t, data.ErrInvalidRole{}, err)
 
-	r, ok := repo.Targets[data.CanonicalTargetsRole]
+	r, ok := repo.Targets[data.CanonicalTargetsRole.String()]
 	require.True(t, ok)
 	require.Len(t, r.Signed.Delegations.Roles, 0)
 
@@ -363,7 +363,7 @@ func TestUpdateDelegationsInvalidRole(t *testing.T) {
 	require.Error(t, err)
 	require.IsType(t, data.ErrInvalidRole{}, err)
 
-	r, ok := repo.Targets[data.CanonicalTargetsRole]
+	r, ok := repo.Targets[data.CanonicalTargetsRole.String()]
 	require.True(t, ok)
 	require.Len(t, r.Signed.Delegations.Roles, 0)
 
@@ -387,7 +387,7 @@ func TestUpdateDelegationsRoleThatIsMissingDelegationKey(t *testing.T) {
 	err = repo.UpdateDelegationPaths("targets/role", []string{""}, []string{}, false)
 	require.NoError(t, err)
 
-	r, ok := repo.Targets[data.CanonicalTargetsRole]
+	r, ok := repo.Targets[data.CanonicalTargetsRole.String()]
 	require.True(t, ok)
 	require.Len(t, r.Signed.Delegations.Roles, 1)
 	require.Len(t, r.Signed.Delegations.Keys, 1)
@@ -427,7 +427,7 @@ func TestUpdateDelegationsAddKeyToRole(t *testing.T) {
 	err = repo.UpdateDelegationPaths("targets/test", []string{"test"}, []string{}, false)
 	require.NoError(t, err)
 
-	r, ok := repo.Targets[data.CanonicalTargetsRole]
+	r, ok := repo.Targets[data.CanonicalTargetsRole.String()]
 	require.True(t, ok)
 	require.Len(t, r.Signed.Delegations.Roles, 1)
 	require.Len(t, r.Signed.Delegations.Keys, 1)
@@ -464,7 +464,7 @@ func TestDeleteDelegations(t *testing.T) {
 	err = repo.UpdateDelegationPaths("targets/test", []string{"test"}, []string{}, false)
 	require.NoError(t, err)
 
-	r, ok := repo.Targets[data.CanonicalTargetsRole]
+	r, ok := repo.Targets[data.CanonicalTargetsRole.String()]
 	require.True(t, ok)
 	require.Len(t, r.Signed.Delegations.Roles, 1)
 	require.Len(t, r.Signed.Delegations.Keys, 1)
@@ -526,14 +526,14 @@ func TestDeleteDelegationsRoleNotExist(t *testing.T) {
 	// initRepo leaves all the roles as Dirty. Set to false
 	// to test removing a non-existent role doesn't mark
 	// a role as dirty
-	repo.Targets[data.CanonicalTargetsRole].Dirty = false
+	repo.Targets[data.CanonicalTargetsRole.String()].Dirty = false
 
 	role, err := data.NewRole("targets/test", 1, []string{}, []string{""})
 	require.NoError(t, err)
 
 	err = repo.DeleteDelegation(role.Name)
 	require.NoError(t, err)
-	r, ok := repo.Targets[data.CanonicalTargetsRole]
+	r, ok := repo.Targets[data.CanonicalTargetsRole.String()]
 	require.True(t, ok)
 	require.Len(t, r.Signed.Delegations.Roles, 0)
 	require.Len(t, r.Signed.Delegations.Keys, 0)
@@ -553,7 +553,7 @@ func TestDeleteDelegationsInvalidRole(t *testing.T) {
 	require.Error(t, err)
 	require.IsType(t, data.ErrInvalidRole{}, err)
 
-	r, ok := repo.Targets[data.CanonicalTargetsRole]
+	r, ok := repo.Targets[data.CanonicalTargetsRole.String()]
 	require.True(t, ok)
 	require.Len(t, r.Signed.Delegations.Roles, 0)
 }
@@ -569,7 +569,7 @@ func TestDeleteDelegationsParentMissing(t *testing.T) {
 	require.Error(t, err)
 	require.IsType(t, data.ErrInvalidRole{}, err)
 
-	r, ok := repo.Targets[data.CanonicalTargetsRole]
+	r, ok := repo.Targets[data.CanonicalTargetsRole.String()]
 	require.True(t, ok)
 	require.Len(t, r.Signed.Delegations.Roles, 0)
 }
@@ -586,7 +586,7 @@ func TestDeleteDelegationsMissingParentSigningKey(t *testing.T) {
 	err = repo.UpdateDelegationPaths("targets/test", []string{"test"}, []string{}, false)
 	require.NoError(t, err)
 
-	r, ok := repo.Targets[data.CanonicalTargetsRole]
+	r, ok := repo.Targets[data.CanonicalTargetsRole.String()]
 	require.True(t, ok)
 	require.Len(t, r.Signed.Delegations.Roles, 1)
 	require.Len(t, r.Signed.Delegations.Keys, 1)
@@ -644,7 +644,7 @@ func TestDeleteDelegationsMidSliceRole(t *testing.T) {
 	err = repo.DeleteDelegation("targets/test2")
 	require.NoError(t, err)
 
-	r, ok := repo.Targets[data.CanonicalTargetsRole]
+	r, ok := repo.Targets[data.CanonicalTargetsRole.String()]
 	require.True(t, ok)
 	require.Len(t, r.Signed.Delegations.Roles, 2)
 	require.Len(t, r.Signed.Delegations.Keys, 1)
@@ -672,7 +672,7 @@ func TestGetDelegationRoleAndMetadataExistDelegationExists(t *testing.T) {
 
 	gottenRole, err := repo.GetDelegationRole("targets/level1/level2")
 	require.NoError(t, err)
-	require.Equal(t, "targets/level1/level2", gottenRole.Name)
+	require.EqualValues(t, "targets/level1/level2", gottenRole.Name)
 	require.Equal(t, 1, gottenRole.Threshold)
 	require.Equal(t, []string{""}, gottenRole.Paths)
 	_, ok := gottenRole.Keys[testKey.ID()]
@@ -750,7 +750,7 @@ func TestAddTargetsRoleAndMetadataExist(t *testing.T) {
 	_, err := repo.AddTargets(data.CanonicalTargetsRole, data.Files{"f": f})
 	require.NoError(t, err)
 
-	r, ok := repo.Targets[data.CanonicalTargetsRole]
+	r, ok := repo.Targets[data.CanonicalTargetsRole.String()]
 	require.True(t, ok)
 	targetsF, ok := r.Signed.Targets["f"]
 	require.True(t, ok)
@@ -948,7 +948,7 @@ func TestAddBaseKeysToRoot(t *testing.T) {
 		case data.CanonicalSnapshotRole:
 			require.True(t, repo.Snapshot.Dirty)
 		case data.CanonicalTargetsRole:
-			require.True(t, repo.Targets[data.CanonicalTargetsRole].Dirty)
+			require.True(t, repo.Targets[data.CanonicalTargetsRole.String()].Dirty)
 		case data.CanonicalTimestampRole:
 			require.True(t, repo.Timestamp.Dirty)
 		case data.CanonicalRootRole:
@@ -979,7 +979,7 @@ func TestRemoveBaseKeysFromRoot(t *testing.T) {
 		case data.CanonicalSnapshotRole:
 			require.True(t, repo.Snapshot.Dirty)
 		case data.CanonicalTargetsRole:
-			require.True(t, repo.Targets[data.CanonicalTargetsRole].Dirty)
+			require.True(t, repo.Targets[data.CanonicalTargetsRole.String()].Dirty)
 		case data.CanonicalTimestampRole:
 			require.True(t, repo.Timestamp.Dirty)
 		case data.CanonicalRootRole:
@@ -1014,7 +1014,7 @@ func TestReplaceBaseKeysInRoot(t *testing.T) {
 		case data.CanonicalSnapshotRole:
 			require.True(t, repo.Snapshot.Dirty)
 		case data.CanonicalTargetsRole:
-			require.True(t, repo.Targets[data.CanonicalTargetsRole].Dirty)
+			require.True(t, repo.Targets[data.CanonicalTargetsRole.String()].Dirty)
 		case data.CanonicalTimestampRole:
 			require.True(t, repo.Timestamp.Dirty)
 		case data.CanonicalRootRole:
@@ -1086,7 +1086,7 @@ func TestGetDelegationValidRoles(t *testing.T) {
 
 	delgRole, err := repo.GetDelegationRole("targets/test")
 	require.NoError(t, err)
-	require.Equal(t, "targets/test", delgRole.Name)
+	require.EqualValues(t, "targets/test", delgRole.Name)
 	require.Equal(t, 1, delgRole.Threshold)
 	require.Equal(t, []string{testKey1.ID()}, delgRole.ListKeyIDs())
 	require.Equal(t, []string{"path", "anotherpath"}, delgRole.Paths)
@@ -1101,7 +1101,7 @@ func TestGetDelegationValidRoles(t *testing.T) {
 
 	delgRole, err = repo.GetDelegationRole("targets/a")
 	require.NoError(t, err)
-	require.Equal(t, "targets/a", delgRole.Name)
+	require.EqualValues(t, "targets/a", delgRole.Name)
 	require.Equal(t, 1, delgRole.Threshold)
 	require.Equal(t, []string{testKey2.ID()}, delgRole.ListKeyIDs())
 	require.Equal(t, []string{""}, delgRole.Paths)
@@ -1116,7 +1116,7 @@ func TestGetDelegationValidRoles(t *testing.T) {
 
 	delgRole, err = repo.GetDelegationRole("targets/test/b")
 	require.NoError(t, err)
-	require.Equal(t, "targets/test/b", delgRole.Name)
+	require.EqualValues(t, "targets/test/b", delgRole.Name)
 	require.Equal(t, 1, delgRole.Threshold)
 	require.Equal(t, []string{testKey3.ID()}, delgRole.ListKeyIDs())
 	require.Equal(t, []string{"path/subpath", "anotherpath"}, delgRole.Paths)
@@ -1267,7 +1267,7 @@ func TestGetDelegationRoleKeyMissing(t *testing.T) {
 
 	// add a delegation that has a KeyID that doesn't exist
 	// in the relevant key map
-	tar := repo.Targets[data.CanonicalTargetsRole]
+	tar := repo.Targets[data.CanonicalTargetsRole.String()]
 	tar.Signed.Delegations.Roles = []*data.Role{
 		{
 			RootRole: data.RootRole{
@@ -1303,7 +1303,7 @@ func verifyRootSignatureAgainstKey(t *testing.T, signedRoot *data.Signed, key da
 }
 
 func TestSignRootOldKeyCertExists(t *testing.T) {
-	gun := "docker/test-sign-root"
+	gun := data.NewGUN("docker/test-sign-root")
 	referenceTime := time.Now()
 
 	cs := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(
@@ -1356,7 +1356,7 @@ func TestSignRootOldKeyCertExists(t *testing.T) {
 }
 
 func TestSignRootOldKeyCertMissing(t *testing.T) {
-	gun := "docker/test-sign-root"
+	gun := data.NewGUN("docker/test-sign-root")
 	referenceTime := time.Now()
 
 	cs := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(
@@ -1417,7 +1417,7 @@ func TestSignRootOldKeyCertMissing(t *testing.T) {
 // rotation. After signing with the previous keys, they can be discarded from
 // the root role.
 func TestRootKeyRotation(t *testing.T) {
-	gun := "docker/test-sign-root"
+	gun := data.NewGUN("docker/test-sign-root")
 	referenceTime := time.Now()
 
 	cs := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(

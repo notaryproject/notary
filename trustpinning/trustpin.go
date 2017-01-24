@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
 )
 
@@ -18,7 +19,7 @@ type TrustPinConfig struct {
 }
 
 type trustPinChecker struct {
-	gun           string
+	gun           data.GUN
 	config        TrustPinConfig
 	pinnedCAPool  *x509.CertPool
 	pinnedCertIDs []string
@@ -28,10 +29,10 @@ type trustPinChecker struct {
 type CertChecker func(leafCert *x509.Certificate, intCerts []*x509.Certificate) bool
 
 // NewTrustPinChecker returns a new certChecker function from a TrustPinConfig for a GUN
-func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string, firstBootstrap bool) (CertChecker, error) {
+func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun data.GUN, firstBootstrap bool) (CertChecker, error) {
 	t := trustPinChecker{gun: gun, config: trustPinConfig}
 	// Determine the mode, and if it's even valid
-	if pinnedCerts, ok := trustPinConfig.Certs[gun]; ok {
+	if pinnedCerts, ok := trustPinConfig.Certs[gun.String()]; ok {
 		logrus.Debugf("trust-pinning using Cert IDs")
 		t.pinnedCertIDs = pinnedCerts
 		return t.certsCheck, nil
@@ -104,12 +105,12 @@ func (t trustPinChecker) tofusCheck(leafCert *x509.Certificate, intCerts []*x509
 
 // Will return the CA filepath corresponding to the most specific (longest) entry in the map that is still a prefix
 // of the provided gun.  Returns an error if no entry matches this GUN as a prefix.
-func getPinnedCAFilepathByPrefix(gun string, t TrustPinConfig) (string, error) {
+func getPinnedCAFilepathByPrefix(gun data.GUN, t TrustPinConfig) (string, error) {
 	specificGUN := ""
 	specificCAFilepath := ""
 	foundCA := false
 	for gunPrefix, caFilepath := range t.CA {
-		if strings.HasPrefix(gun, gunPrefix) && len(gunPrefix) >= len(specificGUN) {
+		if strings.HasPrefix(gun.String(), gunPrefix) && len(gunPrefix) >= len(specificGUN) {
 			specificGUN = gunPrefix
 			specificCAFilepath = caFilepath
 			foundCA = true

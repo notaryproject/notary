@@ -1,5 +1,9 @@
 package storage
 
+import (
+	"github.com/docker/notary/tuf/data"
+)
+
 // NoSizeLimit is represented as -1 for arguments to GetMeta
 const NoSizeLimit int64 = -1
 
@@ -8,7 +12,7 @@ const NoSizeLimit int64 = -1
 type MetadataStore interface {
 	GetSized(name string, size int64) ([]byte, error)
 	Set(name string, blob []byte) error
-	SetMulti(map[string][]byte) error
+	SetMulti(map[data.RoleName][]byte) error
 	RemoveAll() error
 	Remove(name string) error
 }

@@ -428,18 +428,18 @@ func blockType(k data.PrivateKey) (string, error) {
 }
 
 // KeyToPEM returns a PEM encoded key from a Private Key
-func KeyToPEM(privKey data.PrivateKey, role, gun string) ([]byte, error) {
+func KeyToPEM(privKey data.PrivateKey, role data.RoleName, gun data.GUN) ([]byte, error) {
 	bt, err := blockType(privKey)
 	if err != nil {
 		return nil, err
 	}
 
 	headers := map[string]string{}
-	if role != "" {
-		headers["role"] = role
+	if role.String() != "" {
+		headers["role"] = role.String()
 	}
-	if gun != "" {
-		headers["gun"] = gun
+	if gun.String() != "" {
+		headers["gun"] = gun.String()
 	}
 
 	block := &pem.Block{
@@ -453,7 +453,7 @@ func KeyToPEM(privKey data.PrivateKey, role, gun string) ([]byte, error) {
 
 // EncryptPrivateKey returns an encrypted PEM key given a Privatekey
 // and a passphrase
-func EncryptPrivateKey(key data.PrivateKey, role, gun, passphrase string) ([]byte, error) {
+func EncryptPrivateKey(key data.PrivateKey, role data.RoleName, gun data.GUN, passphrase string) ([]byte, error) {
 	bt, err := blockType(key)
 	if err != nil {
 		return nil, err
@@ -476,10 +476,10 @@ func EncryptPrivateKey(key data.PrivateKey, role, gun, passphrase string) ([]byt
 	}
 
 	if role != "" {
-		encryptedPEMBlock.Headers["role"] = role
+		encryptedPEMBlock.Headers["role"] = role.String()
 	}
 	if gun != "" {
-		encryptedPEMBlock.Headers["gun"] = gun
+		encryptedPEMBlock.Headers["gun"] = gun.String()
 	}
 
 	return pem.EncodeToMemory(encryptedPEMBlock), nil
@@ -538,7 +538,7 @@ func CertBundleToKey(leafCert *x509.Certificate, intCerts []*x509.Certificate) (
 }
 
 // NewCertificate returns an X509 Certificate following a template, given a GUN and validity interval.
-func NewCertificate(gun string, startTime, endTime time.Time) (*x509.Certificate, error) {
+func NewCertificate(gun data.GUN, startTime, endTime time.Time) (*x509.Certificate, error) {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
@@ -549,7 +549,7 @@ func NewCertificate(gun string, startTime, endTime time.Time) (*x509.Certificate
 	return &x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
-			CommonName: gun,
+			CommonName: gun.String(),
 		},
 		NotBefore: startTime,
 		NotAfter:  endTime,

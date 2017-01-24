@@ -18,7 +18,7 @@ import (
 	"github.com/docker/notary/tuf/signed"
 )
 
-func getRole(ctx context.Context, store storage.MetaStore, gun, role, checksum, version string) (*time.Time, []byte, error) {
+func getRole(ctx context.Context, store storage.MetaStore, gun data.GUN, role data.RoleName, checksum, version string) (*time.Time, []byte, error) {
 	var (
 		lastModified *time.Time
 		out          []byte
@@ -61,7 +61,7 @@ func getRole(ctx context.Context, store storage.MetaStore, gun, role, checksum, 
 // the timestamp and snapshot, based on the keys held by the server, a new one
 // might be generated and signed due to expiry of the previous one or updates
 // to other roles.
-func getMaybeServerSigned(ctx context.Context, store storage.MetaStore, gun, role string) (*time.Time, []byte, error) {
+func getMaybeServerSigned(ctx context.Context, store storage.MetaStore, gun data.GUN, role data.RoleName) (*time.Time, []byte, error) {
 	cryptoServiceVal := ctx.Value(notary.CtxKeyCryptoSvc)
 	cryptoService, ok := cryptoServiceVal.(signed.CryptoService)
 	if !ok {
@@ -74,7 +74,7 @@ func getMaybeServerSigned(ctx context.Context, store storage.MetaStore, gun, rol
 		err          error
 	)
 	if role != data.CanonicalTimestampRole && role != data.CanonicalSnapshotRole {
-		return nil, nil, fmt.Errorf("role %s cannot be server signed", role)
+		return nil, nil, fmt.Errorf("role %s cannot be server signed", role.String())
 	}
 	lastModified, out, err = timestamp.GetOrCreateTimestamp(gun, store, cryptoService)
 	if err != nil {

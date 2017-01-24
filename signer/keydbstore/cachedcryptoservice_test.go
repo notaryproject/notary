@@ -21,7 +21,7 @@ func requireGetKeySuccess(t *testing.T, dbKeyService signed.CryptoService, expec
 	require.Equal(t, retrKey.Algorithm(), expectedKey.Algorithm())
 	require.Equal(t, retrKey.Public(), expectedKey.Public())
 	require.Equal(t, retrKey.Private(), expectedKey.Private())
-	require.Equal(t, retrRole, expectedRole)
+	require.EqualValues(t, retrRole, expectedRole)
 }
 
 func requireGetPubKeySuccess(t *testing.T, dbKeyService signed.CryptoService, expectedRole string, expectedPubKey data.PublicKey) {
@@ -49,7 +49,7 @@ type unAddableKeyService struct {
 	signed.CryptoService
 }
 
-func (u unAddableKeyService) AddKey(_, _ string, _ data.PrivateKey) error {
+func (u unAddableKeyService) AddKey(_ data.RoleName, _ data.GUN, _ data.PrivateKey) error {
 	return fmt.Errorf("can't add to keyservice")
 }
 
@@ -81,8 +81,8 @@ func TestGetSuccessPopulatesCache(t *testing.T) {
 	require.NoError(t, err)
 
 	// getting for the first time is successful, and after that getting from cache should be too
-	requireGetKeySuccess(t, cached, data.CanonicalTimestampRole, testKey)
-	requireGetKeySuccessFromCache(t, cached, underlying, data.CanonicalTimestampRole, testKey)
+	requireGetKeySuccess(t, cached, data.CanonicalTimestampRole.String(), testKey)
+	requireGetKeySuccessFromCache(t, cached, underlying, data.CanonicalTimestampRole.String(), testKey)
 }
 
 // Creating a key, on success, populates the cache, but does not do so on failure
@@ -102,7 +102,7 @@ func TestAddKeyPopulatesCacheIfSuccessful(t *testing.T) {
 	require.NoError(t, err)
 
 	// Now even if it's deleted from the underlying database, it's fine because it's cached
-	requireGetKeySuccessFromCache(t, cached, underlying, data.CanonicalTimestampRole, testKeys[0])
+	requireGetKeySuccessFromCache(t, cached, underlying, data.CanonicalTimestampRole.String(), testKeys[0])
 
 	// Writing in the key service fails
 	cached = NewCachedKeyService(unAddableKeyService{underlying})
@@ -139,7 +139,7 @@ func TestDeleteKeyRemovesKeyFromCache(t *testing.T) {
 	// Deleting fails to remove the key from the underlying store
 	err = cached.RemoveKey(testKey.ID())
 	require.Error(t, err)
-	requireGetKeySuccess(t, failingUnderlying, data.CanonicalTimestampRole, testKey)
+	requireGetKeySuccess(t, failingUnderlying, data.CanonicalTimestampRole.String(), testKey)
 
 	// now actually remove the key from the underlying store to test that it's gone from the cache
 	failingUnderlying.failToRemove = false

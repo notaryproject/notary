@@ -88,7 +88,7 @@ func RemoveUnusedKeys(t *data.SignedTargets) {
 
 // FindRoleIndex returns the index of the role named <name> or -1 if no
 // matching role is found.
-func FindRoleIndex(rs []*data.Role, name string) int {
+func FindRoleIndex(rs []*data.Role, name data.RoleName) int {
 	for i, r := range rs {
 		if r.Name == name {
 			return i
@@ -100,10 +100,10 @@ func FindRoleIndex(rs []*data.Role, name string) int {
 // ConsistentName generates the appropriate HTTP URL path for the role,
 // based on whether the repo is marked as consistent. The RemoteStore
 // is responsible for adding file extensions.
-func ConsistentName(role string, hashSHA256 []byte) string {
+func ConsistentName(role data.RoleName, hashSHA256 []byte) data.RoleName {
 	if len(hashSHA256) > 0 {
 		hash := hex.EncodeToString(hashSHA256)
-		return fmt.Sprintf("%s.%s", role, hash)
+		return data.NewRoleName(fmt.Sprintf("%s.%s", role.String(), hash))
 	}
 	return role
 }

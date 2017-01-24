@@ -84,8 +84,8 @@ We shall call this: TOFUS.
 
 Validation failure at any step will result in an ErrValidationFailed error.
 */
-func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trustPinning TrustPinConfig) (*data.SignedRoot, error) {
-	logrus.Debugf("entered ValidateRoot with dns: %s", gun)
+func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun data.GUN, trustPinning TrustPinConfig) (*data.SignedRoot, error) {
+	logrus.Debugf("entered ValidateRoot with dns: %s", gun.String())
 	signedRoot, err := data.RootFromSigned(root)
 	if err != nil {
 		return nil, err
@@ -191,13 +191,13 @@ func MatchCNToGun(commonName, gun string) bool {
 // validRootLeafCerts returns a list of possibly (if checkExpiry is true) non-expired, non-sha1 certificates
 // found in root whose Common-Names match the provided GUN. Note that this
 // "validity" alone does not imply any measure of trust.
-func validRootLeafCerts(allLeafCerts map[string]*x509.Certificate, gun string, checkExpiry bool) (map[string]*x509.Certificate, error) {
+func validRootLeafCerts(allLeafCerts map[string]*x509.Certificate, gun data.GUN, checkExpiry bool) (map[string]*x509.Certificate, error) {
 	validLeafCerts := make(map[string]*x509.Certificate)
 
 	// Go through every leaf certificate and check that the CN matches the gun
 	for id, cert := range allLeafCerts {
 		// Validate that this leaf certificate has a CN that matches the gun
-		if !MatchCNToGun(cert.Subject.CommonName, gun) {
+		if !MatchCNToGun(cert.Subject.CommonName, gun.String()) {
 			logrus.Debugf("error leaf certificate CN: %s doesn't match the given GUN: %s",
 				cert.Subject.CommonName, gun)
 			continue

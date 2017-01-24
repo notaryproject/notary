@@ -18,10 +18,10 @@ func NewMemoryStore(initial map[string][]byte) *MemoryStore {
 		initial = make(map[string][]byte)
 	} else {
 		// add all seed meta to consistent
-		for name, data := range initial {
-			checksum := sha256.Sum256(data)
-			path := utils.ConsistentName(name, checksum[:])
-			consistent[path] = data
+		for name, d := range initial {
+			checksum := sha256.Sum256(d)
+			path := utils.ConsistentName(data.NewRoleName(name), checksum[:])
+			consistent[path.String()] = d
 		}
 	}
 	return &MemoryStore{
@@ -88,16 +88,16 @@ func (m *MemoryStore) Set(name string, meta []byte) error {
 	}
 
 	checksum := sha256.Sum256(meta)
-	path := utils.ConsistentName(name, checksum[:])
-	m.consistent[path] = meta
+	path := utils.ConsistentName(data.NewRoleName(name), checksum[:])
+	m.consistent[path.String()] = meta
 	return nil
 }
 
 // SetMulti sets multiple pieces of metadata for multiple names
 // in a single operation.
-func (m *MemoryStore) SetMulti(metas map[string][]byte) error {
+func (m *MemoryStore) SetMulti(metas map[data.RoleName][]byte) error {
 	for role, blob := range metas {
-		m.Set(role, blob)
+		m.Set(role.String(), blob)
 	}
 	return nil
 }
@@ -107,9 +107,9 @@ func (m *MemoryStore) SetMulti(metas map[string][]byte) error {
 func (m *MemoryStore) Remove(name string) error {
 	if meta, ok := m.data[name]; ok {
 		checksum := sha256.Sum256(meta)
-		path := utils.ConsistentName(name, checksum[:])
+		path := utils.ConsistentName(data.NewRoleName(name), checksum[:])
 		delete(m.data, name)
-		delete(m.consistent, path)
+		delete(m.consistent, path.String())
 	}
 	return nil
 }

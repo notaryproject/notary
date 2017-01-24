@@ -48,7 +48,7 @@ func TestValidationErrorFormat(t *testing.T) {
 
 	// No snapshot is passed, and the server doesn't have the snapshot key,
 	// so ErrBadHierarchy
-	err = client.SetMulti(map[string][]byte{
+	err = client.SetMulti(map[data.RoleName][]byte{
 		data.CanonicalRootRole:    rs,
 		data.CanonicalTargetsRole: rt,
 	})

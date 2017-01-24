@@ -24,9 +24,9 @@ func IsExpired(t time.Time) bool {
 }
 
 // VerifyExpiry returns ErrExpired if the metadata is expired
-func VerifyExpiry(s *data.SignedCommon, role string) error {
+func VerifyExpiry(s *data.SignedCommon, role data.RoleName) error {
 	if IsExpired(s.Expires) {
-		logrus.Errorf("Metadata for %s expired", role)
+		logrus.Errorf("Metadata for %s expired", role.String())
 		return ErrExpired{Role: role, Expired: s.Expires.Format("Mon Jan 2 15:04:05 MST 2006")}
 	}
 	return nil
