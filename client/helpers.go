@@ -47,7 +47,7 @@ func applyChangelist(repo *tuf.Repo, invalid *tuf.Repo, cl changelist.Changelist
 		case c.Scope() == changelist.ScopeRoot:
 			err = applyRootChange(repo, c)
 		default:
-			return fmt.Errorf("scope not supported: %s", c.Scope())
+			return fmt.Errorf("scope not supported: %s", c.Scope().String())
 		}
 		if err != nil {
 			logrus.Debugf("error attempting to apply change #%d: %s, on scope: %s path: %s type: %s", index, c.Action(), c.Scope(), c.Path(), c.Type())

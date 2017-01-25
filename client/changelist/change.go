@@ -27,11 +27,11 @@ const (
 // TUFChange represents a change to a TUF repo
 type TUFChange struct {
 	// Abbreviated because Go doesn't permit a field and method of the same name
-	Actn       string        `json:"action"`
-	Role       data.RoleName `json:"role"`
-	ChangeType string        `json:"type"`
-	ChangePath string        `json:"path"`
-	Data       []byte        `json:"data"`
+	Actn       string `json:"action"`
+	Role       string `json:"role"`
+	ChangeType string `json:"type"`
+	ChangePath string `json:"path"`
+	Data       []byte `json:"data"`
 }
 
 // TUFRootData represents a modification of the keys associated
@@ -45,7 +45,7 @@ type TUFRootData struct {
 func NewTUFChange(action string, role data.RoleName, changeType, changePath string, content []byte) *TUFChange {
 	return &TUFChange{
 		Actn:       action,
-		Role:       role,
+		Role:       role.String(),
 		ChangeType: changeType,
 		ChangePath: changePath,
 		Data:       content,
@@ -59,7 +59,7 @@ func (c TUFChange) Action() string {
 
 // Scope returns c.Role
 func (c TUFChange) Scope() data.RoleName {
-	return c.Role
+	return data.NewRoleName(c.Role)
 }
 
 // Type returns c.ChangeType
