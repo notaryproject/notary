@@ -108,7 +108,6 @@ func TestUpdateSucceedsEvenIfCannotWriteNewRepo(t *testing.T) {
 	serverMeta, _, err := testutils.NewRepoMetadata(data.NewGUN("docker.com/notary"), metadataDelegations...)
 	meta := make(map[string][]byte)
 	for k, v := range serverMeta {
-		fmt.Println("k:", k, " v:", string(v))
 		meta[k.String()] = v
 	}
 	require.NoError(t, err)
@@ -182,11 +181,9 @@ func TestUpdateSucceedsEvenIfCannotWriteExistingRepo(t *testing.T) {
 				actual, err := repo.cache.GetSized(r.String(), store.NoSizeLimit)
 				require.NoError(t, err, "problem getting repo metadata for %s", r.String())
 				if reflect.DeepEqual(role, r) {
-					fmt.Printf("role == r, expected: %s \n actual: %s\n", expected, actual)
 					require.False(t, bytes.Equal(expected, actual),
 						"%s: expected to not update because %s was unwritable", r.String(), role)
 				} else {
-					fmt.Printf("role != r, expected: %s \n actual: %s\n", expected, actual)
 					require.True(t, bytes.Equal(expected, actual),
 						"%s: expected to update since only %s was unwritable", r.String(), role)
 				}
