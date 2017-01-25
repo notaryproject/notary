@@ -493,14 +493,6 @@ func TestGetConsistentInfo(t *testing.T) {
 	repo.Snapshot.Signed.Meta["targets/nohashes"] = data.FileMeta{Length: 1}
 
 	extraMeta := []data.RoleName{data.NewRoleName("only512"), data.NewRoleName("targets/random"), data.NewRoleName("targets/nohashes")}
-	//extraMeta := []string{"only512", "targets/random", "targets/nohashes"}
-
-	/*
-		var roleNames []data.RoleName
-		for _, i := range extraMeta {
-			roleNames = append(roleNames, data.NewRoleName(i))
-		}
-	*/
 
 	meta, err := testutils.SignAndSerialize(repo)
 	require.NoError(t, err)

@@ -45,9 +45,6 @@ func testKeyCanOnlyBeAddedOnce(t *testing.T, dbStore signed.CryptoService) []dat
 
 	// Test writing new key in database alone, not cache
 	err := dbStore.AddKey(data.CanonicalTimestampRole, data.NewGUN("gun"), expectedKeys[0])
-	if err != nil {
-		fmt.Println("Error here:", err.Error())
-	}
 	require.NoError(t, err)
 	requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole.String(), expectedKeys[0])
 
