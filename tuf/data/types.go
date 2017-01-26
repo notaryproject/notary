@@ -25,6 +25,7 @@ func (g GUN) String() string {
 	return string(g)
 }
 
+// NewGUN generates a GUN object from the provided string
 func NewGUN(g string) GUN {
 	return GUN(g)
 }
@@ -36,14 +37,17 @@ func (r RoleName) String() string {
 	return string(r)
 }
 
+// Provides the parent path string from the provided child RoleName
 func (r RoleName) Parent() string {
 	return path.Dir(r.String())
 }
 
+// NewRoleName generates a RoleName object from the provided string
 func NewRoleName(role string) RoleName {
 	return RoleName(role)
 }
 
+// MetadataRoleMapToStringMap generates a map string of butes from a map RoleName of bytes
 func MetadataRoleMapToStringMap(roles map[RoleName][]byte) map[string][]byte {
 	metadata := make(map[string][]byte)
 	for k, v := range roles {
@@ -52,6 +56,7 @@ func MetadataRoleMapToStringMap(roles map[RoleName][]byte) map[string][]byte {
 	return metadata
 }
 
+// NewRoleName generates an array of RoleName objects from the a slice of strings
 func NewRoleList(roles []string) []RoleName {
 	var roleNames []RoleName
 	for _, role := range roles {
