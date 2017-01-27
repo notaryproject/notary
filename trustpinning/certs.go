@@ -12,6 +12,8 @@ import (
 	"github.com/docker/notary/tuf/utils"
 )
 
+const wildcard = "*"
+
 // ErrValidationFail is returned when there is no valid trusted certificates
 // being served inside of the roots.json
 type ErrValidationFail struct {
@@ -175,6 +177,17 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 	return data.RootFromSigned(root)
 }
 
+// MatchCNToGun checks that the common name in a cert is valid for the given gun.
+// This allows wildcards as suffixes, e.g. `namespace/*`
+func MatchCNToGun(commonName, gun string) bool {
+	if strings.HasSuffix(commonName, wildcard) {
+		prefix := strings.TrimRight(commonName, wildcard)
+		logrus.Debugf("checking gun %s against wildcard prefix %s", gun, prefix)
+		return strings.HasPrefix(gun, prefix)
+	}
+	return commonName == gun
+}
+
 // validRootLeafCerts returns a list of possibly (if checkExpiry is true) non-expired, non-sha1 certificates
 // found in root whose Common-Names match the provided GUN. Note that this
 // "validity" alone does not imply any measure of trust.
@@ -183,8 +196,8 @@ func validRootLeafCerts(allLeafCerts map[string]*x509.Certificate, gun string, c
 
 	// Go through every leaf certificate and check that the CN matches the gun
 	for id, cert := range allLeafCerts {
-		// Validate that this leaf certificate has a CN that matches the exact gun
-		if cert.Subject.CommonName != gun {
+		// Validate that this leaf certificate has a CN that matches the gun
+		if !MatchCNToGun(cert.Subject.CommonName, gun) {
 			logrus.Debugf("error leaf certificate CN: %s doesn't match the given GUN: %s",
 				cert.Subject.CommonName, gun)
 			continue

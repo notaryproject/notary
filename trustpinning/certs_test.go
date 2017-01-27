@@ -1299,3 +1299,79 @@ func TestValidateRootWithExpiredIntermediate(t *testing.T) {
 	)
 	require.Error(t, err, "failed to invalidate expired intermediate certificate")
 }
+
+func TestCheckingWildcardCert(t *testing.T) {
+	memStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
+	cs := cryptoservice.NewCryptoService(memStore)
+	testPubKey, err := cs.Create(data.CanonicalRootRole, "docker.io/notary/*", data.ECDSAKey)
+	require.NoError(t, err)
+	testPrivKey, _, err := memStore.GetKey(testPubKey.ID())
+	require.NoError(t, err)
+
+	testCert, err := generateTestingCertificate(testPrivKey, "docker.io/notary/*", notary.Year)
+	require.NoError(t, err)
+	testCertPubKey, err := utils.ParsePEMPublicKey(utils.CertToPEM(testCert))
+	require.NoError(t, err)
+
+	rootRole, err := data.NewRole(data.CanonicalRootRole, 1, []string{testCertPubKey.ID()}, nil)
+	require.NoError(t, err)
+	testRoot, err := data.NewRoot(
+		map[string]data.PublicKey{testCertPubKey.ID(): testCertPubKey},
+		map[string]*data.RootRole{
+			data.CanonicalRootRole:      &rootRole.RootRole,
+			data.CanonicalTimestampRole: &rootRole.RootRole,
+			data.CanonicalTargetsRole:   &rootRole.RootRole,
+			data.CanonicalSnapshotRole:  &rootRole.RootRole},
+		false,
+	)
+	testRoot.Signed.Version = 1
+	require.NoError(t, err, "Failed to create new root")
+
+	signedTestRoot, err := testRoot.ToSigned()
+	require.NoError(t, err)
+
+	err = signed.Sign(cs, signedTestRoot, []data.PublicKey{testCertPubKey}, 1, nil)
+	require.NoError(t, err)
+
+	_, err = trustpinning.ValidateRoot(
+		nil,
+		signedTestRoot,
+		"docker.io/notary/test",
+		trustpinning.TrustPinConfig{},
+	)
+	require.NoError(t, err, "expected wildcard cert to validate")
+
+	_, err = trustpinning.ValidateRoot(
+		nil,
+		signedTestRoot,
+		"docker.io/not-a-match",
+		trustpinning.TrustPinConfig{},
+	)
+	require.Error(t, err, "expected wildcard cert not to validate")
+}
+
+func TestWildcardMatching(t *testing.T) {
+	var wildcardTests = []struct {
+		CN  string
+		gun string
+		out bool
+	}{
+		{"docker.com/*", "docker.com/notary", true},
+		{"docker.com/**", "docker.com/notary", true},
+		{"*", "docker.com/any", true},
+		{"*", "", true},
+		{"**", "docker.com/any", true},
+		{"test/*******", "test/many/wildcard", true},
+		{"test/**/*/", "test/test", false},
+		{"test/*/wild", "test/test/wild", false},
+		{"*/all", "test/all", false},
+		{"docker.com/*/*", "docker.com/notary/test", false},
+		{"docker.com/*/**", "docker.com/notary/test", false},
+		{"", "*", false},
+		{"*abc*", "abc", false},
+		{"test/*/wild*", "test/test/wild", false},
+	}
+	for _, tt := range wildcardTests {
+		require.Equal(t, trustpinning.MatchCNToGun(tt.CN, tt.gun), tt.out)
+	}
+}
