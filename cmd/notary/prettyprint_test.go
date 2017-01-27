@@ -103,7 +103,7 @@ func TestPrettyPrintRootAndSigningKeys(t *testing.T) {
 	// add keys to the key stores
 	require.NoError(t, keyStores[0].AddKey(trustmanager.KeyInfo{Role: root, Gun: ""}, keys[0]))
 	require.NoError(t, keyStores[1].AddKey(trustmanager.KeyInfo{Role: root, Gun: ""}, keys[0]))
-	require.NoError(t, keyStores[0].AddKey(trustmanager.KeyInfo{Role: data.CanonicalTargetsRole, Gun: data.NewGUN(strings.Repeat("/a", 30))}, keys[1]))
+	require.NoError(t, keyStores[0].AddKey(trustmanager.KeyInfo{Role: data.CanonicalTargetsRole, Gun: data.GUN(strings.Repeat("/a", 30))}, keys[1]))
 	require.NoError(t, keyStores[1].AddKey(trustmanager.KeyInfo{Role: data.CanonicalSnapshotRole, Gun: "short/gun"}, keys[1]))
 	require.NoError(t, keyStores[0].AddKey(trustmanager.KeyInfo{Role: "targets/a", Gun: ""}, keys[3]))
 	require.NoError(t, keyStores[0].AddKey(trustmanager.KeyInfo{Role: "invalidRole", Gun: ""}, keys[2]))

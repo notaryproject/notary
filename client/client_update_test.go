@@ -38,13 +38,13 @@ func newBlankRepo(t *testing.T, url string) *NotaryRepository {
 }
 
 var metadataDelegations = []string{"targets/a", "targets/a/b", "targets/b", "targets/a/b/c", "targets/b/c"}
-var delegationsWithNonEmptyMetadata = []data.RoleName{data.NewRoleName("targets/a"), data.NewRoleName("targets/a/b"), data.NewRoleName("targets/b")}
+var delegationsWithNonEmptyMetadata = []data.RoleName{data.RoleName("targets/a"), data.RoleName("targets/a/b"), data.RoleName("targets/b")}
 
 func newServerSwizzler(t *testing.T) (map[data.RoleName][]byte, *testutils.MetadataSwizzler) {
-	serverMeta, cs, err := testutils.NewRepoMetadata(data.NewGUN("docker.com/notary"), metadataDelegations...)
+	serverMeta, cs, err := testutils.NewRepoMetadata(data.GUN("docker.com/notary"), metadataDelegations...)
 	require.NoError(t, err)
 
-	serverSwizzler := testutils.NewMetadataSwizzler(data.NewGUN("docker.com/notary"), serverMeta, cs)
+	serverSwizzler := testutils.NewMetadataSwizzler(data.GUN("docker.com/notary"), serverMeta, cs)
 	require.NoError(t, err)
 
 	return serverMeta, serverSwizzler
@@ -62,7 +62,7 @@ func bumpVersions(t *testing.T, s *testutils.MetadataSwizzler, offset int) {
 }
 
 // create a server that just serves static metadata files from a metaStore
-func readOnlyServer(t *testing.T, cache store.MetadataStore, notFoundStatus int, gun string) *httptest.Server {
+func readOnlyServer(t *testing.T, cache store.MetadataStore, notFoundStatus int, gun data.GUN) *httptest.Server {
 	m := mux.NewRouter()
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -105,14 +105,14 @@ func TestUpdateSucceedsEvenIfCannotWriteNewRepo(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
-	serverMeta, _, err := testutils.NewRepoMetadata(data.NewGUN("docker.com/notary"), metadataDelegations...)
+	serverMeta, _, err := testutils.NewRepoMetadata(data.GUN("docker.com/notary"), metadataDelegations...)
 	meta := make(map[string][]byte)
 	for k, v := range serverMeta {
 		meta[k.String()] = v
 	}
 	require.NoError(t, err)
 
-	ts := readOnlyServer(t, store.NewMemoryStore(meta), http.StatusNotFound, "docker.com/notary")
+	ts := readOnlyServer(t, store.NewMemoryStore(meta), http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	for role := range serverMeta {
@@ -145,7 +145,7 @@ func TestUpdateSucceedsEvenIfCannotWriteExistingRepo(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 	serverMeta, serverSwizzler := newServerSwizzler(t)
-	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	// download existing metadata
@@ -169,8 +169,8 @@ func TestUpdateSucceedsEvenIfCannotWriteExistingRepo(t *testing.T) {
 			require.NoError(t, err)
 
 			for r, expected := range serverMeta {
-				fmt.Println("root role?", strings.Contains(r.String(), "root"))
-				if r.String() != data.CanonicalRootRole.String() && strings.Contains(r.String(), "root") {
+				fmt.Println("root role?", strings.Contains(r.String(), "root "), " role=", r.String(), "not root")
+				if r != data.CanonicalRootRole && strings.Contains(r.String(), "root") {
 					// don't fetch versioned root roles here
 					fmt.Printf("root role found %s\n", r.String())
 					continue
@@ -180,7 +180,7 @@ func TestUpdateSucceedsEvenIfCannotWriteExistingRepo(t *testing.T) {
 				}
 				actual, err := repo.cache.GetSized(r.String(), store.NoSizeLimit)
 				require.NoError(t, err, "problem getting repo metadata for %s", r.String())
-				if reflect.DeepEqual(role, r) {
+				if role == r {
 					require.False(t, bytes.Equal(expected, actual),
 						"%s: expected to not update because %s was unwritable", r.String(), role)
 				} else {
@@ -219,7 +219,7 @@ func TestUpdateInOfflineMode(t *testing.T) {
 	require.IsType(t, store.ErrOffline{}, err)
 
 	// set existing metadata on the repo
-	serverMeta, _, err := testutils.NewRepoMetadata(data.NewGUN("docker.com/notary"), metadataDelegations...)
+	serverMeta, _, err := testutils.NewRepoMetadata(data.GUN("docker.com/notary"), metadataDelegations...)
 	require.NoError(t, err)
 	for name, metaBytes := range serverMeta {
 		require.NoError(t, invalidURLRepo.cache.Set(name.String(), metaBytes))
@@ -271,10 +271,10 @@ func TestUpdateReplacesCorruptOrMissingMetadata(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
-	serverMeta, cs, err := testutils.NewRepoMetadata(data.NewGUN("docker.com/notary"), metadataDelegations...)
+	serverMeta, cs, err := testutils.NewRepoMetadata(data.GUN("docker.com/notary"), metadataDelegations...)
 	require.NoError(t, err)
 
-	ts := readOnlyServer(t, store.NewMemoryStore(data.MetadataRoleMapToStringMap(serverMeta)), http.StatusNotFound, "docker.com/notary")
+	ts := readOnlyServer(t, store.NewMemoryStore(data.MetadataRoleMapToStringMap(serverMeta)), http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	repo := newBlankRepo(t, ts.URL)
@@ -284,7 +284,7 @@ func TestUpdateReplacesCorruptOrMissingMetadata(t *testing.T) {
 	require.NoError(t, err)
 
 	// we want to swizzle the local cache, not the server, so create a new one
-	repoSwizzler := testutils.NewMetadataSwizzler(data.NewGUN("docker.com/notary"), serverMeta, cs)
+	repoSwizzler := testutils.NewMetadataSwizzler(data.GUN("docker.com/notary"), serverMeta, cs)
 	repoSwizzler.MetadataCache = repo.cache
 
 	origMeta := testutils.CopyRepoMetadata(serverMeta)
@@ -332,7 +332,7 @@ func TestUpdateFailsIfServerRootKeyChangedWithoutMultiSign(t *testing.T) {
 	serverMeta, serverSwizzler := newServerSwizzler(t)
 	origMeta := testutils.CopyRepoMetadata(serverMeta)
 
-	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	repo := newBlankRepo(t, ts.URL)
@@ -686,7 +686,7 @@ func TestUpdateNonRootRemote50XCannotUseLocalCache(t *testing.T) {
 
 func testUpdateRemoteNon200Error(t *testing.T, opts updateOpts, errExpected interface{}) {
 	_, serverSwizzler := newServerSwizzler(t)
-	ts := readOnlyServer(t, serverSwizzler.MetadataCache, opts.notFoundCode, "docker.com/notary")
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, opts.notFoundCode, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	repo := newBlankRepo(t, ts.URL)
@@ -798,7 +798,7 @@ func TestUpdateRemoteChecksumWrongCannotUseLocalCache(t *testing.T) {
 
 func testUpdateRemoteFileChecksumWrong(t *testing.T, opts updateOpts, errExpected bool) {
 	_, serverSwizzler := newServerSwizzler(t)
-	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	repo := newBlankRepo(t, ts.URL)
@@ -865,7 +865,7 @@ var waysToMessUpServerBadMeta = []swizzleExpectations{
 	{desc: "lower metadata version", expectErrs: []interface{}{
 		&trustpinning.ErrValidationFail{}, signed.ErrLowVersion{}, data.ErrInvalidMetadata{}},
 		swizzle: func(s *testutils.MetadataSwizzler, role string) error {
-			return s.OffsetMetadataVersion(data.NewRoleName(role), -3)
+			return s.OffsetMetadataVersion(data.RoleName(role), -3)
 		}},
 }
 
@@ -881,7 +881,7 @@ var waysToMessUpServerBadSigs = []swizzleExpectations{
 	{desc: "insufficient signatures", expectErrs: []interface{}{
 		&trustpinning.ErrValidationFail{}, signed.ErrRoleThreshold{}},
 		swizzle: func(s *testutils.MetadataSwizzler, role string) error {
-			return s.SetThreshold(data.NewRoleName(role), 2)
+			return s.SetThreshold(data.RoleName(role), 2)
 		}},
 }
 
@@ -992,7 +992,7 @@ func TestUpdateRootRemoteCorruptedCannotUseLocalCache(t *testing.T) {
 
 func waysToMessUpServerNonRootPerRole(t *testing.T) map[string][]swizzleExpectations {
 	perRoleSwizzling := make(map[string][]swizzleExpectations)
-	for _, missing := range []string{data.CanonicalRootRole.String(), data.CanonicalTargetsRole.String()} {
+	for _, missing := range []data.RoleName{data.CanonicalRootRole, data.CanonicalTargetsRole} {
 		perRoleSwizzling[data.CanonicalSnapshotRole.String()] = append(
 			perRoleSwizzling[data.CanonicalSnapshotRole.String()],
 			swizzleExpectations{
@@ -1019,7 +1019,7 @@ func waysToMessUpServerNonRootPerRole(t *testing.T) map[string][]swizzleExpectat
 		expectErrs: []interface{}{data.ErrInvalidMetadata{}},
 		swizzle: func(s *testutils.MetadataSwizzler, role string) error {
 			return s.MutateTimestamp(func(ts *data.Timestamp) {
-				delete(ts.Meta, data.CanonicalSnapshotRole.String())
+				delete(ts.Meta, data.CanonicalSnapshotRole)
 			})
 		},
 	}}
@@ -1090,7 +1090,7 @@ func TestUpdateNonRootRemoteCorruptedNoLocalCache(t *testing.T) {
 
 	for role, expectations := range waysToMessUpServerNonRootPerRole(t) {
 		for _, testData := range expectations {
-			roleName := data.NewRoleName(role)
+			roleName := data.RoleName(role)
 			switch roleName {
 			case data.CanonicalSnapshotRole:
 				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
@@ -1106,7 +1106,7 @@ func TestUpdateNonRootRemoteCorruptedNoLocalCache(t *testing.T) {
 				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
 					role: roleName,
 				}, testData, true)
-			case data.NewRoleName("targets/a"):
+			case data.RoleName("targets/a"):
 				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
 					role: roleName,
 				}, testData, true)
@@ -1146,7 +1146,7 @@ func TestUpdateNonRootRemoteCorruptedCanUseLocalCache(t *testing.T) {
 	}
 	for role, expectations := range waysToMessUpServerNonRootPerRole(t) {
 		for _, testData := range expectations {
-			roleName := data.NewRoleName(role)
+			roleName := data.RoleName(role)
 			switch roleName {
 			case data.CanonicalSnapshotRole:
 				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
@@ -1163,7 +1163,7 @@ func TestUpdateNonRootRemoteCorruptedCanUseLocalCache(t *testing.T) {
 					localCache: true,
 					role:       roleName,
 				}, testData, true)
-			case data.NewRoleName("targets/a"):
+			case data.RoleName("targets/a"):
 				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
 					localCache: true,
 					role:       roleName,
@@ -1181,7 +1181,7 @@ func checkBadDelegationRoleSkipped(t *testing.T, delgRoleName string) func(*Nota
 			if roleName != data.CanonicalTargetsRole && !data.IsDelegation(roleName) {
 				continue
 			}
-			_, hasTarget := repo.tufRepo.Targets[roleName.String()]
+			_, hasTarget := repo.tufRepo.Targets[roleName]
 			require.Equal(t, !strings.HasPrefix(roleName.String(), delgRoleName), hasTarget)
 		}
 
@@ -1237,7 +1237,7 @@ func TestUpdateNonRootRemoteCorruptedCannotUseLocalCache(t *testing.T) {
 
 	for role, expectations := range waysToMessUpServerNonRootPerRole(t) {
 		for _, testData := range expectations {
-			roleName := data.NewRoleName(role)
+			roleName := data.RoleName(role)
 			switch roleName {
 			case data.CanonicalSnapshotRole:
 				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
@@ -1261,7 +1261,7 @@ func TestUpdateNonRootRemoteCorruptedCannotUseLocalCache(t *testing.T) {
 					localCache:       true,
 					role:             roleName,
 				}, testData, true)
-			case data.NewRoleName("targets/a"):
+			case data.RoleName("targets/a"):
 				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
 					serverHasNewData: true,
 					localCache:       true,
@@ -1274,7 +1274,7 @@ func TestUpdateNonRootRemoteCorruptedCannotUseLocalCache(t *testing.T) {
 
 func testUpdateRemoteCorruptValidChecksum(t *testing.T, opts updateOpts, expt swizzleExpectations, shouldErr bool) {
 	_, serverSwizzler := newServerSwizzler(t)
-	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	repo := newBlankRepo(t, ts.URL)
@@ -1359,7 +1359,7 @@ func TestUpdateLocalAndRemoteRootCorrupt(t *testing.T) {
 
 func testUpdateLocalAndRemoteRootCorrupt(t *testing.T, forWrite bool, localExpt, serverExpt swizzleExpectations) {
 	_, serverSwizzler := newServerSwizzler(t)
-	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	repo := newBlankRepo(t, ts.URL)
@@ -1429,7 +1429,7 @@ func TestUpdateRemoteKeyRotated(t *testing.T) {
 
 func testUpdateRemoteKeyRotated(t *testing.T, role data.RoleName) {
 	_, serverSwizzler := newServerSwizzler(t)
-	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	repo := newBlankRepo(t, ts.URL)
@@ -1444,7 +1444,7 @@ func testUpdateRemoteKeyRotated(t *testing.T, role data.RoleName) {
 	require.NoError(t, err)
 
 	// bump the version
-	bumpRole := data.NewRoleName(role.Parent())
+	bumpRole := data.RoleName(role.Parent())
 	if !data.IsDelegation(role) {
 		bumpRole = data.CanonicalRootRole
 	}
@@ -1514,7 +1514,7 @@ func requireRootSignatures(t *testing.T, serverSwizzler *testutils.MetadataSwizz
 func TestValidateRootRotationWithOldRole(t *testing.T) {
 	// start with a repo with a root with 2 keys, optionally signing 1
 	_, serverSwizzler := newServerSwizzler(t)
-	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	repo := newBlankRepo(t, ts.URL)
@@ -1531,7 +1531,7 @@ func TestValidateRootRotationWithOldRole(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rootBytes, &signedRoot))
 
 	// save the old role to prove that it is not needed for client updates
-	oldVersion := data.NewRoleName(fmt.Sprintf("%v.%v", data.CanonicalRootRole, signedRoot.Signed.Version))
+	oldVersion := data.RoleName(fmt.Sprintf("%v.%v", data.CanonicalRootRole, signedRoot.Signed.Version))
 	signedRoot.Signed.Roles[oldVersion] = &data.RootRole{
 		Threshold: 1,
 		KeyIDs:    signedRoot.Signed.Roles[data.CanonicalRootRole].KeyIDs,
@@ -1610,7 +1610,7 @@ func TestValidateRootRotationWithOldRole(t *testing.T) {
 func TestRootRoleInvariant(t *testing.T) {
 	// start with a repo
 	_, serverSwizzler := newServerSwizzler(t)
-	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	repo := newBlankRepo(t, ts.URL)
@@ -1623,7 +1623,7 @@ func TestRootRoleInvariant(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rootBytes, &signedRoot))
 
 	// save the old role to prove that it is not needed for client updates
-	oldVersion := data.NewRoleName(fmt.Sprintf("%v.%v", data.CanonicalRootRole.String(), signedRoot.Signed.Version))
+	oldVersion := data.RoleName(fmt.Sprintf("%v.%v", data.CanonicalRootRole.String(), signedRoot.Signed.Version))
 	signedRoot.Signed.Roles[oldVersion] = &data.RootRole{
 		Threshold: 1,
 		KeyIDs:    signedRoot.Signed.Roles[data.CanonicalRootRole].KeyIDs,
@@ -1691,7 +1691,7 @@ func TestRootRoleInvariant(t *testing.T) {
 func TestBadIntermediateTransitions(t *testing.T) {
 	// start with a repo
 	_, serverSwizzler := newServerSwizzler(t)
-	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	repo := newBlankRepo(t, ts.URL)
@@ -1748,7 +1748,7 @@ func TestBadIntermediateTransitions(t *testing.T) {
 func TestExpiredIntermediateTransitions(t *testing.T) {
 	// start with a repo
 	_, serverSwizzler := newServerSwizzler(t)
-	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	repo := newBlankRepo(t, ts.URL)
@@ -1817,17 +1817,17 @@ func TestDownloadTargetsLarge(t *testing.T) {
 	// Add a ton of target files to the targets role to make this targets metadata huge
 	// 75,000 targets results in > 5MB (~6.5MB on recent runs)
 	for i := 0; i < numTargets; i++ {
-		_, err = tufRepo.AddTargets(data.CanonicalTargetsRole, data.Files{strconv.Itoa(i): fMeta})
+		_, err = tufRepo.AddTargets(data.CanonicalTargetsRole, data.Files{data.RoleName(strconv.Itoa(i)): fMeta})
 		require.NoError(t, err)
 	}
 
 	serverMeta, err := testutils.SignAndSerialize(tufRepo)
 	require.NoError(t, err)
 
-	serverSwizzler := testutils.NewMetadataSwizzler(data.NewGUN("docker.com/notary"), serverMeta, cs)
+	serverSwizzler := testutils.NewMetadataSwizzler(data.GUN("docker.com/notary"), serverMeta, cs)
 	require.NoError(t, err)
 
-	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	notaryRepo := newBlankRepo(t, ts.URL)
@@ -1855,13 +1855,13 @@ func TestDownloadTargetsDeep(t *testing.T) {
 		"targets/level2/b/i/1",
 	}
 
-	serverMeta, cs, err := testutils.NewRepoMetadata(data.NewGUN("docker.com/notary"), delegations...)
+	serverMeta, cs, err := testutils.NewRepoMetadata(data.GUN("docker.com/notary"), delegations...)
 	require.NoError(t, err)
 
-	serverSwizzler := testutils.NewMetadataSwizzler(data.NewGUN("docker.com/notary"), serverMeta, cs)
+	serverSwizzler := testutils.NewMetadataSwizzler(data.GUN("docker.com/notary"), serverMeta, cs)
 	require.NoError(t, err)
 
-	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	repo := newBlankRepo(t, ts.URL)
@@ -1908,24 +1908,24 @@ func TestDownloadSnapshotLargeDelegationsMany(t *testing.T) {
 	// This can also be done by adding legitimate delegations but it will be much slower
 	// 75,000 delegation roles results in > 5MB (~7.3MB on recent runs)
 	for i := 0; i < numSnapsnotMeta; i++ {
-		roleName := data.NewRoleName(fmt.Sprintf("targets/%d", i))
+		roleName := data.RoleName(fmt.Sprintf("targets/%d", i))
 		// for a tiny fraction of the delegations,  make sure role is added, so the meta is downloaded
 		if i%1000 == 0 {
 			require.NoError(t, tufRepo.UpdateDelegationKeys(roleName, data.KeyList{delgKey}, nil, 1))
 			_, err := tufRepo.InitTargets(roleName) // make sure metadata is created
 			require.NoError(t, err)
 		} else {
-			tufRepo.Snapshot.AddMeta(roleName.String(), fMeta)
+			tufRepo.Snapshot.AddMeta(roleName, fMeta)
 		}
 	}
 
 	serverMeta, err := testutils.SignAndSerialize(tufRepo)
 	require.NoError(t, err)
 
-	serverSwizzler := testutils.NewMetadataSwizzler(data.NewGUN("docker.com/notary"), serverMeta, cs)
+	serverSwizzler := testutils.NewMetadataSwizzler(data.GUN("docker.com/notary"), serverMeta, cs)
 	require.NoError(t, err)
 
-	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	notaryRepo := newBlankRepo(t, ts.URL)
@@ -1952,7 +1952,7 @@ func TestDownloadSnapshotLargeDelegationsMany(t *testing.T) {
 func TestRootOnDiskTrustPinning(t *testing.T) {
 	meta, serverSwizzler := newServerSwizzler(t)
 
-	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
+	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	restrictiveTrustPinning := trustpinning.TrustPinConfig{DisableTOFU: true}

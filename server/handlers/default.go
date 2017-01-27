@@ -44,7 +44,7 @@ func AtomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 }
 
 func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	gun := data.NewGUN(vars["imageName"])
+	gun := data.GUN(vars["imageName"])
 	s := ctx.Value(notary.CtxKeyMetaStore)
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	store, ok := s.(storage.MetaStore)
@@ -70,8 +70,8 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 		if err == io.EOF {
 			break
 		}
-		role := data.NewRoleName(strings.TrimSuffix(part.FileName(), ".json"))
-		if role == "" {
+		role := data.RoleName(strings.TrimSuffix(part.FileName(), ".json"))
+		if role.String() == "" {
 			logger.Info("400 POST empty role")
 			return errors.ErrNoFilename.WithDetail(nil)
 		} else if !data.ValidRole(role) {
@@ -139,7 +139,7 @@ func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, var
 		return errors.ErrNoStorage.WithDetail(nil)
 	}
 
-	lastModified, output, err := getRole(ctx, store, data.NewGUN(gun), data.NewRoleName(tufRole), checksum, version)
+	lastModified, output, err := getRole(ctx, store, data.GUN(gun), data.RoleName(tufRole), checksum, version)
 	if err != nil {
 		logger.Infof("404 GET %s role", tufRole)
 		return err
@@ -161,7 +161,7 @@ func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, var
 // DeleteHandler deletes all data for a GUN. A 200 responses indicates success.
 func DeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	vars := mux.Vars(r)
-	gun := data.NewGUN(vars["imageName"])
+	gun := data.GUN(vars["imageName"])
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	s := ctx.Value(notary.CtxKeyMetaStore)
 	store, ok := s.(storage.MetaStore)
@@ -194,9 +194,9 @@ func getKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	switch role {
 	case data.CanonicalTimestampRole.String():
-		key, err = timestamp.GetOrCreateTimestampKey(data.NewGUN(gun), store, crypto, keyAlgorithm)
+		key, err = timestamp.GetOrCreateTimestampKey(data.GUN(gun), store, crypto, keyAlgorithm)
 	case data.CanonicalSnapshotRole.String():
-		key, err = snapshot.GetOrCreateSnapshotKey(data.NewGUN(gun), store, crypto, keyAlgorithm)
+		key, err = snapshot.GetOrCreateSnapshotKey(data.GUN(gun), store, crypto, keyAlgorithm)
 	default:
 		logger.Infof("400 GET %s key: %v", role, err)
 		return errors.ErrInvalidRole.WithDetail(role)
@@ -232,9 +232,9 @@ func rotateKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Reques
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	switch role {
 	case data.CanonicalTimestampRole.String():
-		key, err = timestamp.RotateTimestampKey(data.NewGUN(gun), store, crypto, keyAlgorithm)
+		key, err = timestamp.RotateTimestampKey(data.GUN(gun), store, crypto, keyAlgorithm)
 	case data.CanonicalSnapshotRole.String():
-		key, err = snapshot.RotateSnapshotKey(data.NewGUN(gun), store, crypto, keyAlgorithm)
+		key, err = snapshot.RotateSnapshotKey(data.GUN(gun), store, crypto, keyAlgorithm)
 	default:
 		logger.Infof("400 POST %s key: %v", role, err)
 		return errors.ErrInvalidRole.WithDetail(role)

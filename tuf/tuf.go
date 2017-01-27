@@ -57,7 +57,7 @@ type StopWalk struct{}
 // the Repo instance.
 type Repo struct {
 	Root          *data.SignedRoot
-	Targets       map[string]*data.SignedTargets
+	Targets       map[data.RoleName]*data.SignedTargets
 	Snapshot      *data.SignedSnapshot
 	Timestamp     *data.SignedTimestamp
 	cryptoService signed.CryptoService
@@ -75,7 +75,7 @@ type Repo struct {
 // can be nil.
 func NewRepo(cryptoService signed.CryptoService) *Repo {
 	return &Repo{
-		Targets:       make(map[string]*data.SignedTargets),
+		Targets:       make(map[data.RoleName]*data.SignedTargets),
 		cryptoService: cryptoService,
 	}
 }
@@ -102,7 +102,7 @@ func (tr *Repo) AddBaseKeys(role data.RoleName, keys ...data.PublicKey) error {
 			tr.Snapshot.Dirty = true
 		}
 	case data.CanonicalTargetsRole:
-		if target, ok := tr.Targets[data.CanonicalTargetsRole.String()]; ok {
+		if target, ok := tr.Targets[data.CanonicalTargetsRole]; ok {
 			target.Dirty = true
 		}
 	case data.CanonicalTimestampRole:
@@ -189,7 +189,7 @@ func (tr *Repo) markRoleDirty(role data.RoleName) {
 			tr.Snapshot.Dirty = true
 		}
 	case data.CanonicalTargetsRole:
-		if target, ok := tr.Targets[data.CanonicalTargetsRole.String()]; ok {
+		if target, ok := tr.Targets[data.CanonicalTargetsRole]; ok {
 			target.Dirty = true
 		}
 	case data.CanonicalTimestampRole:
@@ -230,7 +230,7 @@ func (tr *Repo) GetDelegationRole(roleName data.RoleName) (data.DelegationRole, 
 	}
 	// Traverse target metadata, down to delegation itself
 	// Get all public keys for the base role from TUF metadata
-	_, ok = tr.Targets[data.CanonicalTargetsRole.String()]
+	_, ok = tr.Targets[data.CanonicalTargetsRole]
 	if !ok {
 		return data.DelegationRole{}, ErrNotLoaded{data.CanonicalTargetsRole}
 	}
@@ -295,7 +295,7 @@ func (tr *Repo) GetAllLoadedRoles() []*data.Role {
 	for name, rr := range tr.Root.Signed.Roles {
 		res = append(res, &data.Role{
 			RootRole: *rr,
-			Name:     data.NewRoleName(name.String()),
+			Name:     data.RoleName(name),
 		})
 	}
 	for _, delegate := range tr.Targets {
@@ -388,14 +388,14 @@ func (tr *Repo) UpdateDelegationKeys(roleName data.RoleName, addKeys data.KeyLis
 	if !data.IsDelegation(roleName) {
 		return data.ErrInvalidRole{Role: roleName, Reason: "not a valid delegated role"}
 	}
-	parentRole := data.NewRoleName(roleName.Parent())
+	parentRole := data.RoleName(roleName.Parent())
 
 	if err := tr.VerifyCanSign(parentRole); err != nil {
 		return err
 	}
 
 	// check the parent role's metadata
-	_, ok := tr.Targets[roleName.Parent()]
+	_, ok := tr.Targets[parentRole]
 	if !ok { // the parent targetfile may not exist yet - if not, then create it
 		var err error
 		_, err = tr.InitTargets(parentRole)
@@ -488,7 +488,7 @@ func (tr *Repo) UpdateDelegationPaths(roleName data.RoleName, addPaths, removePa
 	}
 	parent := roleName.Parent()
 
-	if err := tr.VerifyCanSign(data.NewRoleName(parent)); err != nil {
+	if err := tr.VerifyCanSign(data.RoleName(parent)); err != nil {
 		return err
 	}
 
@@ -518,13 +518,13 @@ func (tr *Repo) DeleteDelegation(roleName data.RoleName) error {
 	}
 
 	parent := roleName.Parent()
-	if err := tr.VerifyCanSign(data.NewRoleName(parent)); err != nil {
+	if err := tr.VerifyCanSign(data.RoleName(parent)); err != nil {
 		return err
 	}
 
 	// delete delegated data from Targets map and Snapshot - if they don't
 	// exist, these are no-op
-	delete(tr.Targets, roleName.String())
+	delete(tr.Targets, roleName)
 	tr.Snapshot.DeleteMeta(roleName)
 
 	p, ok := tr.Targets[parent]
@@ -586,7 +586,7 @@ func (tr *Repo) InitTargets(role data.RoleName) (*data.SignedTargets, error) {
 		}
 	}
 	targets := data.NewTargets()
-	tr.Targets[role.String()] = targets
+	tr.Targets[role] = targets
 	return targets, nil
 }
 
@@ -600,10 +600,10 @@ func (tr *Repo) InitSnapshot() error {
 		return err
 	}
 
-	if _, ok := tr.Targets[data.CanonicalTargetsRole.String()]; !ok {
+	if _, ok := tr.Targets[data.CanonicalTargetsRole]; !ok {
 		return ErrNotLoaded{Role: data.CanonicalTargetsRole}
 	}
-	targets, err := tr.Targets[data.CanonicalTargetsRole.String()].ToSigned()
+	targets, err := tr.Targets[data.CanonicalTargetsRole].ToSigned()
 	if err != nil {
 		return err
 	}
@@ -633,9 +633,9 @@ func (tr *Repo) InitTimestamp() error {
 // TargetMeta returns the FileMeta entry for the given path in the
 // targets file associated with the given role. This may be nil if
 // the target isn't found in the targets file.
-func (tr Repo) TargetMeta(role, path string) *data.FileMeta {
+func (tr Repo) TargetMeta(role data.RoleName, path string) *data.FileMeta {
 	if t, ok := tr.Targets[role]; ok {
-		if m, ok := t.Signed.Targets[path]; ok {
+		if m, ok := t.Signed.Targets[data.RoleName(path)]; ok {
 			return &m
 		}
 	}
@@ -644,7 +644,7 @@ func (tr Repo) TargetMeta(role, path string) *data.FileMeta {
 
 // TargetDelegations returns a slice of Roles that are valid publishers
 // for the target path provided.
-func (tr Repo) TargetDelegations(role, path string) []*data.Role {
+func (tr Repo) TargetDelegations(role data.RoleName, path string) []*data.Role {
 	var roles []*data.Role
 	if t, ok := tr.Targets[role]; ok {
 		for _, r := range t.Signed.Delegations.Roles {
@@ -704,7 +704,7 @@ type walkVisitorFunc func(*data.SignedTargets, data.DelegationRole) interface{}
 // WalkTargets will apply the specified visitor function to iteratively walk the targets/delegation metadata tree,
 // until receiving a StopWalk.  The walk starts from the base "targets" role, and searches for the correct targetPath and/or rolePath
 // to call the visitor function on.  Any roles passed into skipRoles will be excluded from the walk, as well as roles in those subtrees
-func (tr *Repo) WalkTargets(targetPath, rolePath string, visitTargets walkVisitorFunc, skipRoles ...string) error {
+func (tr *Repo) WalkTargets(targetPath string, role data.RoleName, visitTargets walkVisitorFunc, skipRoles ...data.RoleName) error {
 	// Start with the base targets role, which implicitly has the "" targets path
 	targetsRole, err := tr.GetBaseRole(data.CanonicalTargetsRole)
 	if err != nil {
@@ -719,35 +719,35 @@ func (tr *Repo) WalkTargets(targetPath, rolePath string, visitTargets walkVisito
 	}
 
 	for len(roles) > 0 {
-		role := roles[0]
+		currentRole := roles[0]
 		roles = roles[1:]
 
 		// Check the role metadata
-		signedTgt, ok := tr.Targets[role.Name.String()]
+		signedTgt, ok := tr.Targets[currentRole.Name]
 		if !ok {
 			// The role meta doesn't exist in the repo so continue onward
 			continue
 		}
 
 		// We're at a prefix of the desired role subtree, so add its delegation role children and continue walking
-		if strings.HasPrefix(rolePath, role.Name.String()+"/") {
-			roles = append(roles, signedTgt.GetValidDelegations(role)...)
+		if strings.HasPrefix(role.String(), currentRole.Name.String()+"/") {
+			roles = append(roles, signedTgt.GetValidDelegations(currentRole)...)
 			continue
 		}
 
 		// Determine whether to visit this role or not:
-		// If the paths validate against the specified targetPath and the rolePath is empty or is in the subtree.
+		// If the paths validate against the specified targetPath and the role is empty or is a path in the subtree.
 		// Also check if we are choosing to skip visiting this role on this walk (see ListTargets and GetTargetByName priority)
-		if isValidPath(targetPath, role) && isAncestorRole(role.Name.String(), rolePath) && !utils.StrSliceContains(skipRoles, role.Name.String()) {
+		if isValidPath(targetPath, currentRole) && isAncestorRole(currentRole.Name, role) && !utils.RoleNameSliceContains(skipRoles, currentRole.Name) {
 			// If we had matching path or role name, visit this target and determine whether or not to keep walking
-			res := visitTargets(signedTgt, role)
+			res := visitTargets(signedTgt, currentRole)
 			switch typedRes := res.(type) {
 			case StopWalk:
 				// If the visitor function signalled a stop, return nil to finish the walk
 				return nil
 			case nil:
 				// If the visitor function signalled to continue, add this role's delegation to the walk
-				roles = append(roles, signedTgt.GetValidDelegations(role)...)
+				roles = append(roles, signedTgt.GetValidDelegations(currentRole)...)
 			case error:
 				// Propagate any errors from the visitor
 				return typedRes
@@ -765,8 +765,8 @@ func (tr *Repo) WalkTargets(targetPath, rolePath string, visitTargets walkVisito
 // Will return true if given an empty candidateAncestor role name
 // The HasPrefix check is for determining whether the role name for candidateChild is a child (direct or further down the chain)
 // of candidateAncestor, for ex: candidateAncestor targets/a and candidateChild targets/a/b/c
-func isAncestorRole(candidateChild, candidateAncestor string) bool {
-	return candidateAncestor == "" || candidateAncestor == candidateChild || strings.HasPrefix(candidateChild, candidateAncestor+"/")
+func isAncestorRole(candidateChild data.RoleName, candidateAncestor data.RoleName) bool {
+	return candidateAncestor.String() == "" || candidateAncestor == candidateChild || strings.HasPrefix(candidateChild.String(), candidateAncestor.String()+"/")
 }
 
 // helper function that returns whether the delegation Role is valid against the given path
@@ -785,7 +785,7 @@ func (tr *Repo) AddTargets(role data.RoleName, targets data.Files) (data.Files, 
 	}
 
 	// check existence of the role's metadata
-	_, ok := tr.Targets[role.String()]
+	_, ok := tr.Targets[role]
 	if !ok { // the targetfile may not exist yet - if not, then create it
 		var err error
 		_, err = tr.InitTargets(role)
@@ -795,7 +795,7 @@ func (tr *Repo) AddTargets(role data.RoleName, targets data.Files) (data.Files, 
 	}
 
 	addedTargets := make(data.Files)
-	addTargetVisitor := func(targetPath string, targetMeta data.FileMeta) func(*data.SignedTargets, data.DelegationRole) interface{} {
+	addTargetVisitor := func(targetPath data.RoleName, targetMeta data.FileMeta) func(*data.SignedTargets, data.DelegationRole) interface{} {
 		return func(tgt *data.SignedTargets, validRole data.DelegationRole) interface{} {
 			// We've already validated the role's target path in our walk, so just modify the metadata
 			tgt.Signed.Targets[targetPath] = targetMeta
@@ -808,7 +808,7 @@ func (tr *Repo) AddTargets(role data.RoleName, targets data.Files) (data.Files, 
 
 	// Walk the role tree while validating the target paths, and add all of our targets
 	for path, target := range targets {
-		tr.WalkTargets(path, role.String(), addTargetVisitor(path, target))
+		tr.WalkTargets(path.String(), role, addTargetVisitor(path, target))
 	}
 	if len(addedTargets) != len(targets) {
 		return nil, fmt.Errorf("Could not add all targets")
@@ -822,7 +822,7 @@ func (tr *Repo) RemoveTargets(role data.RoleName, targets ...string) error {
 		return err
 	}
 
-	removeTargetVisitor := func(targetPath string) func(*data.SignedTargets, data.DelegationRole) interface{} {
+	removeTargetVisitor := func(targetPath data.RoleName) func(*data.SignedTargets, data.DelegationRole) interface{} {
 		return func(tgt *data.SignedTargets, validRole data.DelegationRole) interface{} {
 			// We've already validated the role path in our walk, so just modify the metadata
 			// We don't check against the target path against the valid role paths because it's
@@ -834,10 +834,10 @@ func (tr *Repo) RemoveTargets(role data.RoleName, targets ...string) error {
 	}
 
 	// if the role exists but metadata does not yet, then our work is done
-	_, ok := tr.Targets[role.String()]
+	_, ok := tr.Targets[role]
 	if ok {
 		for _, path := range targets {
-			tr.WalkTargets("", role.String(), removeTargetVisitor(path))
+			tr.WalkTargets("", role, removeTargetVisitor(data.RoleName(path)))
 		}
 	}
 
@@ -854,7 +854,7 @@ func (tr *Repo) UpdateSnapshot(role data.RoleName, s *data.Signed) error {
 	if err != nil {
 		return err
 	}
-	tr.Snapshot.Signed.Meta[role.String()] = meta
+	tr.Snapshot.Signed.Meta[role] = meta
 	tr.Snapshot.Dirty = true
 	return nil
 }
@@ -869,7 +869,7 @@ func (tr *Repo) UpdateTimestamp(s *data.Signed) error {
 	if err != nil {
 		return err
 	}
-	tr.Timestamp.Signed.Meta[data.CanonicalSnapshotRole.String()] = meta
+	tr.Timestamp.Signed.Meta[data.CanonicalSnapshotRole] = meta
 	tr.Timestamp.Dirty = true
 	return nil
 }
@@ -933,15 +933,15 @@ func oldRootVersionName(version int) string {
 // SignTargets signs the targets file for the given top level or delegated targets role
 func (tr *Repo) SignTargets(role data.RoleName, expires time.Time) (*data.Signed, error) {
 	logrus.Debugf("sign targets called for role %s", role)
-	if _, ok := tr.Targets[role.String()]; !ok {
+	if _, ok := tr.Targets[role]; !ok {
 		return nil, data.ErrInvalidRole{
 			Role:   role,
 			Reason: "SignTargets called with non-existent targets role",
 		}
 	}
-	tr.Targets[role.String()].Signed.Expires = expires
-	tr.Targets[role.String()].Signed.Version++
-	signed, err := tr.Targets[role.String()].ToSigned()
+	tr.Targets[role].Signed.Expires = expires
+	tr.Targets[role].Signed.Version++
+	signed, err := tr.Targets[role].ToSigned()
 	if err != nil {
 		logrus.Debug("errored getting targets data.Signed object")
 		return nil, err
@@ -966,7 +966,7 @@ func (tr *Repo) SignTargets(role data.RoleName, expires time.Time) (*data.Signed
 		logrus.Debug("errored signing ", role)
 		return nil, err
 	}
-	tr.Targets[role.String()].Signatures = signed.Signatures
+	tr.Targets[role].Signatures = signed.Signatures
 	return signed, nil
 }
 
@@ -987,7 +987,7 @@ func (tr *Repo) SignSnapshot(expires time.Time) (*data.Signed, error) {
 		if err != nil {
 			return nil, err
 		}
-		err = tr.UpdateSnapshot(data.NewRoleName(role), signedTargets)
+		err = tr.UpdateSnapshot(data.RoleName(role), signedTargets)
 		if err != nil {
 			return nil, err
 		}

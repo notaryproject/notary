@@ -142,7 +142,7 @@ func (s *SQLKeyDBStore) GetPrivateKey(keyID string) (data.PrivateKey, data.RoleN
 		return nil, "", err
 	}
 
-	return activatingPrivateKey{PrivateKey: privKey, activationFunc: s.markActive}, data.NewRoleName(dbPrivateKey.Role), nil
+	return activatingPrivateKey{PrivateKey: privKey, activationFunc: s.markActive}, data.RoleName(dbPrivateKey.Role), nil
 }
 
 // ListKeys always returns nil. This method is here to satisfy the CryptoService interface

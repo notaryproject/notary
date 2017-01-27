@@ -20,9 +20,30 @@ func StrSliceContains(ss []string, s string) bool {
 	return false
 }
 
+// RoleNameSliceContains checks if the given string appears in the slice
+func RoleNameSliceContains(ss []data.RoleName, s data.RoleName) bool {
+	for _, v := range ss {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
 // StrSliceRemove removes the the given string from the slice, returning a new slice
 func StrSliceRemove(ss []string, s string) []string {
 	res := []string{}
+	for _, v := range ss {
+		if v != s {
+			res = append(res, v)
+		}
+	}
+	return res
+}
+
+// RoleNameSliceRemove removes the the given RoleName from the slice, returning a new slice
+func RoleNameSliceRemove(ss []data.RoleName, s data.RoleName) []data.RoleName {
+	res := []data.RoleName{}
 	for _, v := range ss {
 		if v != s {
 			res = append(res, v)
@@ -103,7 +124,7 @@ func FindRoleIndex(rs []*data.Role, name data.RoleName) int {
 func ConsistentName(role data.RoleName, hashSHA256 []byte) data.RoleName {
 	if len(hashSHA256) > 0 {
 		hash := hex.EncodeToString(hashSHA256)
-		return data.NewRoleName(fmt.Sprintf("%s.%s", role.String(), hash))
+		return data.RoleName(fmt.Sprintf("%s.%s", role.String(), hash))
 	}
 	return role
 }

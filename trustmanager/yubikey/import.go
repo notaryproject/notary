@@ -40,7 +40,7 @@ func (s *YubiImport) Set(name string, bytes []byte) error {
 	}
 	ki := trustmanager.KeyInfo{
 		// GUN is ignored by YubiStore
-		Role: data.NewRoleName(role),
+		Role: data.RoleName(role),
 	}
 	privKey, err := utils.ParsePEMPrivateKey(bytes, "")
 	if err != nil {

@@ -381,13 +381,13 @@ func TestGetHandlerNoStorage(t *testing.T) {
 // response)
 func TestAtomicUpdateValidationFailurePropagated(t *testing.T) {
 	metaStore := storage.NewMemStorage()
-	gun := data.NewGUN("testGUN")
+	gun := data.GUN("testGUN")
 	vars := map[string]string{"imageName": gun.String()}
 
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
-	state := handlerState{store: metaStore, crypto: testutils.CopyKeys(t, cs, data.CanonicalTimestampRole.String())}
+	state := handlerState{store: metaStore, crypto: testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	require.NoError(t, err)
@@ -424,13 +424,13 @@ func (s *failStore) GetCurrent(_, _ string) (*time.Time, []byte, error) {
 // as a detail in the error (which gets serialized as the body of the response)
 func TestAtomicUpdateNonValidationFailureNotPropagated(t *testing.T) {
 	metaStore := storage.NewMemStorage()
-	gun := data.NewGUN("testGUN")
+	gun := data.GUN("testGUN")
 	vars := map[string]string{"imageName": gun.String()}
 
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
-	state := handlerState{store: &failStore{*metaStore}, crypto: testutils.CopyKeys(t, cs, data.CanonicalTimestampRole.String())}
+	state := handlerState{store: &failStore{*metaStore}, crypto: testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	require.NoError(t, err)
@@ -466,14 +466,14 @@ func (s *invalidVersionStore) UpdateMany(_ string, _ []storage.MetaUpdate) error
 // as a detail in the error (which gets serialized as the body of the response)
 func TestAtomicUpdateVersionErrorPropagated(t *testing.T) {
 	metaStore := storage.NewMemStorage()
-	gun := data.NewGUN("testGUN")
+	gun := data.GUN("testGUN")
 	vars := map[string]string{"imageName": gun.String()}
 
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
 	state := handlerState{
-		store: &invalidVersionStore{*metaStore}, crypto: testutils.CopyKeys(t, cs, data.CanonicalTimestampRole.String())}
+		store: &invalidVersionStore{*metaStore}, crypto: testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	require.NoError(t, err)

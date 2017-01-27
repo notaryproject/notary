@@ -81,7 +81,7 @@ func (db *SQLStorage) UpdateCurrent(gun data.GUN, update MetaUpdate) error {
 		// If we're publishing a timestamp, update the changefeed as this is
 		// technically an new version of the TUF repo
 		if update.Role == data.CanonicalTimestampRole {
-			if err := db.writeChangefeed(tx, gun.String(), update.Version, hexChecksum); err != nil {
+			if err := db.writeChangefeed(tx, gun, update.Version, hexChecksum); err != nil {
 				return err
 			}
 		}
@@ -152,7 +152,7 @@ func (db *SQLStorage) UpdateMany(gun data.GUN, updates []MetaUpdate) error {
 				return ErrOldVersion{}
 			}
 			if update.Role == data.CanonicalTimestampRole {
-				if err := db.writeChangefeed(tx, gun.String(), update.Version, hexChecksum); err != nil {
+				if err := db.writeChangefeed(tx, gun, update.Version, hexChecksum); err != nil {
 					return err
 				}
 			}
@@ -165,9 +165,9 @@ func (db *SQLStorage) UpdateMany(gun data.GUN, updates []MetaUpdate) error {
 	return tx.Commit().Error
 }
 
-func (db *SQLStorage) writeChangefeed(tx *gorm.DB, gun string, version int, checksum string) error {
+func (db *SQLStorage) writeChangefeed(tx *gorm.DB, gun data.GUN, version int, checksum string) error {
 	c := &Change{
-		GUN:      gun,
+		GUN:      gun.String(),
 		Version:  version,
 		SHA256:   checksum,
 		Category: changeCategoryUpdate,

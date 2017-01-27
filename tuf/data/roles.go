@@ -11,10 +11,10 @@ import (
 
 // Canonical base role names
 var (
-	CanonicalRootRole      = NewRoleName("root")
-	CanonicalTargetsRole   = NewRoleName("targets")
-	CanonicalSnapshotRole  = NewRoleName("snapshot")
-	CanonicalTimestampRole = NewRoleName("timestamp")
+	CanonicalRootRole      = RoleName("root")
+	CanonicalTargetsRole   = RoleName("targets")
+	CanonicalSnapshotRole  = RoleName("snapshot")
+	CanonicalTimestampRole = RoleName("timestamp")
 )
 
 // BaseRoles is an easy to iterate list of the top level
@@ -105,7 +105,7 @@ func IsWildDelegation(role RoleName) bool {
 		return false
 	}
 	base := role.Parent()
-	if !(IsDelegation(NewRoleName(base)) || NewRoleName(base) == CanonicalTargetsRole) {
+	if !(IsDelegation(RoleName(base)) || RoleName(base) == CanonicalTargetsRole) {
 		return false
 	}
 	return role[len(role)-2:] == "/*"

@@ -91,7 +91,7 @@ func (d *delegationCommander) delegationPurgeKeys(cmd *cobra.Command, args []str
 		return fmt.Errorf("Please provide at least one key ID to be removed using the --key flag")
 	}
 
-	gun := data.NewGUN(args[0])
+	gun := data.GUN(args[0])
 
 	config, err := d.configGetter()
 	if err != nil {
@@ -140,7 +140,7 @@ func (d *delegationCommander) delegationsList(cmd *cobra.Command, args []string)
 		return err
 	}
 
-	gun := data.NewGUN(args[0])
+	gun := data.GUN(args[0])
 
 	rt, err := getTransport(config, gun, readOnly)
 	if err != nil {
@@ -229,19 +229,19 @@ func delegationAddInput(d *delegationCommander, cmd *cobra.Command, args []strin
 	config *viper.Viper, gun data.GUN, role data.RoleName, keyIDs []string, error error) {
 	if len(args) < 2 {
 		cmd.Usage()
-		return nil, data.NewGUN(""), data.NewRoleName(""), nil, fmt.Errorf("must specify the Global Unique Name and the role of the delegation along with optional keyIDs and/or a list of paths to remove")
+		return nil, data.GUN(""), data.RoleName(""), nil, fmt.Errorf("must specify the Global Unique Name and the role of the delegation along with optional keyIDs and/or a list of paths to remove")
 	}
 
 	config, err := d.configGetter()
 	if err != nil {
-		return nil, data.NewGUN(""), data.NewRoleName(""), nil, err
+		return nil, data.GUN(""), data.RoleName(""), nil, err
 	}
 
-	gun = data.NewGUN(args[0])
-	role = data.NewRoleName(args[1])
+	gun = data.GUN(args[0])
+	role = data.RoleName(args[1])
 	// Check if role is valid delegation name before requiring any user input
 	if !data.IsDelegation(role) {
-		return nil, data.NewGUN(""), data.NewRoleName(""), nil, fmt.Errorf("invalid delegation name %s", role)
+		return nil, data.GUN(""), data.RoleName(""), nil, fmt.Errorf("invalid delegation name %s", role)
 	}
 
 	// If we're only given the gun and the role, attempt to remove all data for this delegation
@@ -297,8 +297,8 @@ func (d *delegationCommander) delegationAdd(cmd *cobra.Command, args []string) e
 		return err
 	}
 
-	gun := data.NewGUN(args[0])
-	role := data.NewRoleName(args[1])
+	gun := data.GUN(args[0])
+	role := data.RoleName(args[1])
 
 	pubKeys, err := ingestPublicKeys(args)
 	if err != nil {

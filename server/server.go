@@ -11,7 +11,6 @@ import (
 	"github.com/docker/distribution/health"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/auth"
-	"github.com/docker/notary"
 	"github.com/docker/notary/server/errors"
 	"github.com/docker/notary/server/handlers"
 	"github.com/docker/notary/tuf/data"
@@ -23,7 +22,7 @@ import (
 )
 
 func init() {
-	data.SetDefaultExpiryTimes(notary.NotaryDefaultExpiries)
+	data.SetDefaultExpiryTimes(data.NotaryDefaultExpiries)
 }
 
 func prometheusOpts(operation string) prometheus.SummaryOpts {

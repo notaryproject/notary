@@ -206,7 +206,7 @@ func (trust *NotarySigner) GetKey(keyid string) data.PublicKey {
 func (trust *NotarySigner) getKeyInfo(keyid string) (data.PublicKey, data.RoleName, error) {
 	keyInfo, err := trust.kmClient.GetKeyInfo(context.Background(), &pb.KeyID{ID: keyid})
 	if err != nil {
-		return nil, data.NewRoleName(""), err
+		return nil, data.RoleName(""), err
 	}
 	return data.NewPublicKey(keyInfo.KeyInfo.Algorithm.Algorithm, keyInfo.PublicKey), keyInfo.Role, nil
 }

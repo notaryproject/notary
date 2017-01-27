@@ -133,7 +133,7 @@ func TestIsDelegation(t *testing.T) {
 		path.Join(CanonicalTargetsRole.String(), "under_score"):                tr,
 		path.Join(CanonicalTargetsRole.String(), "hyphen-hyphen"):              tr,
 	} {
-		check(t, IsDelegation(NewRoleName(val)))
+		check(t, IsDelegation(RoleName(val)))
 	}
 
 }
@@ -162,7 +162,7 @@ func TestIsWildDelegation(t *testing.T) {
 		path.Join(CanonicalTargetsRole.String(), "*"):        tr,
 		path.Join(CanonicalTargetsRole.String(), "foo", "*"): tr,
 	} {
-		check(t, IsWildDelegation(NewRoleName(val)))
+		check(t, IsWildDelegation(RoleName(val)))
 	}
 }
 
@@ -171,9 +171,9 @@ func TestValidRoleFunction(t *testing.T) {
 	require.True(t, ValidRole(CanonicalTimestampRole))
 	require.True(t, ValidRole(CanonicalSnapshotRole))
 	require.True(t, ValidRole(CanonicalTargetsRole))
-	require.True(t, ValidRole(NewRoleName(path.Join(CanonicalTargetsRole.String(), "level1"))))
+	require.True(t, ValidRole(RoleName(path.Join(CanonicalTargetsRole.String(), "level1"))))
 	require.True(t, ValidRole(
-		NewRoleName(path.Join(CanonicalTargetsRole.String(), "level1", "level2", "level3"))))
+		RoleName(path.Join(CanonicalTargetsRole.String(), "level1", "level2", "level3"))))
 
 	require.False(t, ValidRole(""))
 	require.False(t, ValidRole(CanonicalRootRole+"/"))
@@ -181,9 +181,9 @@ func TestValidRoleFunction(t *testing.T) {
 	require.False(t, ValidRole(CanonicalSnapshotRole+"/"))
 	require.False(t, ValidRole(CanonicalTargetsRole+"/"))
 
-	require.False(t, ValidRole(NewRoleName(path.Join(CanonicalRootRole.String(), "level1"))))
+	require.False(t, ValidRole(RoleName(path.Join(CanonicalRootRole.String(), "level1"))))
 
-	require.False(t, ValidRole(NewRoleName(path.Join("role"))))
+	require.False(t, ValidRole(RoleName(path.Join("role"))))
 }
 
 func TestIsBaseRole(t *testing.T) {
@@ -192,8 +192,8 @@ func TestIsBaseRole(t *testing.T) {
 	}
 	require.False(t, IsBaseRole("user"))
 	require.False(t, IsBaseRole(
-		NewRoleName(path.Join(CanonicalTargetsRole.String(), "level1", "level2", "level3"))))
-	require.False(t, IsBaseRole(NewRoleName(path.Join(CanonicalTargetsRole.String(), "level1"))))
+		RoleName(path.Join(CanonicalTargetsRole.String(), "level1", "level2", "level3"))))
+	require.False(t, IsBaseRole(RoleName(path.Join(CanonicalTargetsRole.String(), "level1"))))
 	require.False(t, IsBaseRole(""))
 }
 

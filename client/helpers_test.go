@@ -215,7 +215,7 @@ func TestApplyTargetsDelegationCreateDelete(t *testing.T) {
 	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
-	tgts := repo.Targets[data.CanonicalTargetsRole.String()]
+	tgts := repo.Targets[data.CanonicalTargetsRole]
 	require.Len(t, tgts.Signed.Delegations.Roles, 1)
 	require.Len(t, tgts.Signed.Delegations.Keys, 1)
 
@@ -301,7 +301,7 @@ func TestApplyTargetsDelegationCreate2SharedKey(t *testing.T) {
 	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
-	tgts := repo.Targets[data.CanonicalTargetsRole.String()]
+	tgts := repo.Targets[data.CanonicalTargetsRole]
 	require.Len(t, tgts.Signed.Delegations.Roles, 2)
 	require.Len(t, tgts.Signed.Delegations.Keys, 1)
 
@@ -407,7 +407,7 @@ func TestApplyTargetsDelegationCreateEdit(t *testing.T) {
 	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
-	tgts := repo.Targets[data.CanonicalTargetsRole.String()]
+	tgts := repo.Targets[data.CanonicalTargetsRole]
 	require.Len(t, tgts.Signed.Delegations.Roles, 1)
 	require.Len(t, tgts.Signed.Delegations.Keys, 1)
 
@@ -691,7 +691,7 @@ func TestApplyTargetsDelegationCreate2Deep(t *testing.T) {
 	err = applyTargetsChange(repo, nil, ch)
 	require.NoError(t, err)
 
-	tgts := repo.Targets[data.CanonicalTargetsRole.String()]
+	tgts := repo.Targets[data.CanonicalTargetsRole]
 	require.Len(t, tgts.Signed.Delegations.Roles, 1)
 	require.Len(t, tgts.Signed.Delegations.Keys, 1)
 
@@ -970,7 +970,7 @@ func TestChangeTargetMetaFailsIfPrefixError(t *testing.T) {
 	require.Error(t, err)
 
 	// no target in targets or targets/latest
-	require.Empty(t, repo.Targets[data.CanonicalTargetsRole.String()].Signed.Targets)
+	require.Empty(t, repo.Targets[data.CanonicalTargetsRole].Signed.Targets)
 	require.Empty(t, repo.Targets["targets/level1"].Signed.Targets)
 }
 

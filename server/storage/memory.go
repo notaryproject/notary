@@ -76,17 +76,17 @@ func (st *MemStorage) UpdateCurrent(gun data.GUN, update MetaUpdate) error {
 	}
 	st.checksums[gun.String()][checksum] = version
 	if update.Role == data.CanonicalTimestampRole {
-		st.writeChange(gun.String(), update.Version, checksum)
+		st.writeChange(gun, update.Version, checksum)
 	}
 	return nil
 }
 
 // writeChange must only be called by a function already holding a lock on
 // the MemStorage. Behaviour is undefined otherwise
-func (st *MemStorage) writeChange(gun string, version int, checksum string) {
+func (st *MemStorage) writeChange(gun data.GUN, version int, checksum string) {
 	c := Change{
 		ID:        uint(len(st.changes) + 1),
-		GUN:       gun,
+		GUN:       gun.String(),
 		Version:   version,
 		SHA256:    checksum,
 		CreatedAt: time.Now(),
@@ -140,7 +140,7 @@ func (st *MemStorage) UpdateMany(gun data.GUN, updates []MetaUpdate) error {
 		}
 		st.checksums[gun.String()][checksum] = version
 		if u.Role == data.CanonicalTimestampRole {
-			st.writeChange(gun.String(), u.Version, checksum)
+			st.writeChange(gun, u.Version, checksum)
 		}
 	}
 	return nil

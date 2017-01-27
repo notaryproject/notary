@@ -119,10 +119,10 @@ func loadAndValidateTargets(gun data.GUN, builder tuf.RepoBuilder, roles map[dat
 		// we must load all ancestor roles, starting from `targets` and working down,
 		// for delegations to validate the full parent chain
 		var parentsToLoad []data.RoleName
-		roleName := data.NewRoleName(role)
+		roleName := data.RoleName(role)
 		ancestorRole := roleName
 		for ancestorRole != data.CanonicalTargetsRole {
-			ancestorRole = data.NewRoleName(ancestorRole.Parent())
+			ancestorRole = data.RoleName(ancestorRole.Parent())
 			if !builder.IsLoaded(ancestorRole) {
 				parentsToLoad = append(parentsToLoad, ancestorRole)
 			}

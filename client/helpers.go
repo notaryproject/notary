@@ -141,7 +141,7 @@ func changeTargetMeta(repo *tuf.Repo, c changelist.Change) error {
 		if err != nil {
 			return err
 		}
-		files := data.Files{c.Path(): *meta}
+		files := data.Files{data.RoleName(c.Path()): *meta}
 
 		// Attempt to add the target to this role
 		if _, err = repo.AddTargets(c.Scope(), files); err != nil {
@@ -263,7 +263,7 @@ func serializeCanonicalRole(tufRepo *tuf.Repo, role data.RoleName, extraSigningK
 		s, err = tufRepo.SignRoot(data.DefaultExpires(role), extraSigningKeys)
 	case role == data.CanonicalSnapshotRole:
 		s, err = tufRepo.SignSnapshot(data.DefaultExpires(role))
-	case tufRepo.Targets[role.String()] != nil:
+	case tufRepo.Targets[role] != nil:
 		s, err = tufRepo.SignTargets(
 			role, data.DefaultExpires(data.CanonicalTargetsRole))
 	default:

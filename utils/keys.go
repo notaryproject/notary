@@ -132,7 +132,7 @@ func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGUN 
 					return errors.New("maximum number of passphrase attempts exceeded")
 				}
 			}
-			blockBytes, err = utils.EncryptPrivateKey(privKey, tufdata.NewRoleName(string(block.Headers["role"])), tufdata.NewGUN(string(block.Headers["gun"])), chosenPassphrase)
+			blockBytes, err = utils.EncryptPrivateKey(privKey, tufdata.RoleName(string(block.Headers["role"])), tufdata.GUN(string(block.Headers["gun"])), chosenPassphrase)
 			if err != nil {
 				return errors.New("failed to encrypt key with given passphrase")
 			}

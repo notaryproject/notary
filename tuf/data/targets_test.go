@@ -122,7 +122,7 @@ func TestTargetsFromSignedUnmarshallingErrorsPropagated(t *testing.T) {
 // TargetsFromSigned succeeds if the targets is valid, and copies the signatures
 // rather than assigns them
 func TestTargetsFromSignedCopiesSignatures(t *testing.T) {
-	for _, roleName := range []RoleName{CanonicalTargetsRole, NewRoleName(path.Join(CanonicalTargetsRole.String(), "a"))} {
+	for _, roleName := range []RoleName{CanonicalTargetsRole, RoleName(path.Join(CanonicalTargetsRole.String(), "a"))} {
 		signed, err := validTargetsTemplate().ToSigned()
 		require.NoError(t, err)
 
@@ -139,9 +139,9 @@ func TestTargetsFromSignedCopiesSignatures(t *testing.T) {
 // If the targets metadata contains delegations which are invalid, the targets metadata
 // fails to validate and thus fails to convert into a SignedTargets
 func TestTargetsFromSignedValidatesDelegations(t *testing.T) {
-	for _, roleName := range []RoleName{CanonicalTargetsRole, NewRoleName(path.Join(CanonicalTargetsRole.String(), "a"))} {
+	for _, roleName := range []RoleName{CanonicalTargetsRole, RoleName(path.Join(CanonicalTargetsRole.String(), "a"))} {
 		targets := validTargetsTemplate()
-		delgRole, err := NewRole(NewRoleName(path.Join(roleName.String(), "b")), 1, []string{"key1"}, nil)
+		delgRole, err := NewRole(RoleName(path.Join(roleName.String(), "b")), 1, []string{"key1"}, nil)
 		require.NoError(t, err)
 		targets.Signed.Delegations.Roles = []*Role{delgRole}
 
@@ -174,7 +174,7 @@ func TestTargetsFromSignedValidatesDelegations(t *testing.T) {
 		require.IsType(t, ErrInvalidMetadata{}, err)
 
 		// more than one level deep
-		delgRole.Name = NewRoleName(path.Join(roleName.String(), "x", "y"))
+		delgRole.Name = RoleName(path.Join(roleName.String(), "x", "y"))
 		s, err = targets.ToSigned()
 		require.NoError(t, err)
 		_, err = TargetsFromSigned(s, roleName)
@@ -183,7 +183,7 @@ func TestTargetsFromSignedValidatesDelegations(t *testing.T) {
 
 		// not in delegation hierarchy
 		if IsDelegation(roleName) {
-			delgRole.Name = NewRoleName(path.Join(CanonicalTargetsRole.String(), "z"))
+			delgRole.Name = RoleName(path.Join(CanonicalTargetsRole.String(), "z"))
 			s, err := targets.ToSigned()
 			require.NoError(t, err)
 			_, err = TargetsFromSigned(s, roleName)
@@ -195,7 +195,7 @@ func TestTargetsFromSignedValidatesDelegations(t *testing.T) {
 
 // Type must be "Targets"
 func TestTargetsFromSignedValidatesRoleType(t *testing.T) {
-	for _, roleName := range []RoleName{CanonicalTargetsRole, NewRoleName(path.Join(CanonicalTargetsRole.String(), "a"))} {
+	for _, roleName := range []RoleName{CanonicalTargetsRole, RoleName(path.Join(CanonicalTargetsRole.String(), "a"))} {
 		tg := validTargetsTemplate()
 
 		for _, invalid := range []string{" Targets", CanonicalTargetsRole.String(), "TARGETS"} {
@@ -218,7 +218,7 @@ func TestTargetsFromSignedValidatesRoleType(t *testing.T) {
 
 // The rolename passed to TargetsFromSigned must be a valid targets role name
 func TestTargetsFromSignedValidatesRoleName(t *testing.T) {
-	for _, roleName := range []RoleName{NewRoleName("TARGETS"), NewRoleName("root/a")} {
+	for _, roleName := range []RoleName{RoleName("TARGETS"), RoleName("root/a")} {
 		tg := validTargetsTemplate()
 		s, err := tg.ToSigned()
 		require.NoError(t, err)

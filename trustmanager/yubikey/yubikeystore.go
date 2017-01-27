@@ -250,7 +250,7 @@ func addECDSAKey(
 
 	// Hard-coded policy: the generated certificate expires in 10 years.
 	startTime := time.Now()
-	template, err := utils.NewCertificate(data.NewGUN(role.String()), startTime, startTime.AddDate(10, 0, 0))
+	template, err := utils.NewCertificate(data.GUN(role.String()), startTime, startTime.AddDate(10, 0, 0))
 	if err != nil {
 		return fmt.Errorf("failed to create the certificate template: %v", err)
 	}
@@ -485,7 +485,7 @@ func yubiListKeys(ctx IPKCS11Ctx, session pkcs11.SessionHandle) (keys map[string
 				if err != nil {
 					continue
 				}
-				if !data.ValidRole(data.NewRoleName(cert.Subject.CommonName)) {
+				if !data.ValidRole(data.RoleName(cert.Subject.CommonName)) {
 					continue
 				}
 			}
@@ -512,7 +512,7 @@ func yubiListKeys(ctx IPKCS11Ctx, session pkcs11.SessionHandle) (keys map[string
 		}
 
 		keys[data.NewECDSAPublicKey(pubBytes).ID()] = yubiSlot{
-			role:   data.NewRoleName(cert.Subject.CommonName),
+			role:   data.RoleName(cert.Subject.CommonName),
 			slotID: slot,
 		}
 	}
@@ -750,27 +750,27 @@ func (s *YubiStore) GetKey(keyID string) (data.PrivateKey, data.RoleName, error)
 		if _, ok := err.(errHSMNotPresent); ok {
 			err = trustmanager.ErrKeyNotFound{KeyID: keyID}
 		}
-		return nil, data.NewRoleName(""), err
+		return nil, data.RoleName(""), err
 	}
 	defer cleanup(ctx, session)
 
 	key, ok := s.keys[keyID]
 	if !ok {
-		return nil, data.NewRoleName(""), trustmanager.ErrKeyNotFound{KeyID: keyID}
+		return nil, data.RoleName(""), trustmanager.ErrKeyNotFound{KeyID: keyID}
 	}
 
 	pubKey, alias, err := getECDSAKey(ctx, session, key.slotID)
 	if err != nil {
 		logrus.Debugf("Failed to get key from slot %s: %s", key.slotID, err.Error())
-		return nil, data.NewRoleName(""), err
+		return nil, data.RoleName(""), err
 	}
 	// Check to see if we're returning the intended keyID
 	if pubKey.ID() != keyID {
-		return nil, data.NewRoleName(""), fmt.Errorf("expected root key: %s, but found: %s", keyID, pubKey.ID())
+		return nil, data.RoleName(""), fmt.Errorf("expected root key: %s, but found: %s", keyID, pubKey.ID())
 	}
 	privKey := NewYubiPrivateKey(key.slotID, *pubKey, s.passRetriever)
 	if privKey == nil {
-		return nil, data.NewRoleName(""), errors.New("could not initialize new YubiPrivateKey")
+		return nil, data.RoleName(""), errors.New("could not initialize new YubiPrivateKey")
 	}
 
 	return privKey, alias, err
@@ -918,7 +918,7 @@ func login(ctx IPKCS11Ctx, session pkcs11.SessionHandle, passRetriever notary.Pa
 func buildKeyMap(keys map[string]yubiSlot) map[string]trustmanager.KeyInfo {
 	res := make(map[string]trustmanager.KeyInfo)
 	for k, v := range keys {
-		res[k] = trustmanager.KeyInfo{Role: v.role, Gun: data.NewGUN("")}
+		res[k] = trustmanager.KeyInfo{Role: v.role, Gun: data.GUN("")}
 	}
 	return res
 }

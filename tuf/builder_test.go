@@ -25,7 +25,7 @@ var _cachedMeta map[data.RoleName][]byte
 // we just want sample metadata for a role - so we can build cached metadata
 // and use it once.
 func getSampleMeta(t *testing.T) (map[data.RoleName][]byte, data.GUN) {
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 	delgNames := []string{"targets/a", "targets/a/b", "targets/a/b/force_parent_metadata"}
 	if _cachedMeta == nil {
 		meta, _, err := testutils.NewRepoMetadata(gun, delgNames...)
@@ -74,7 +74,7 @@ func TestBuilderOnlyAcceptsDelegationsAfterParent(t *testing.T) {
 	require.NoError(t, builder.Load(data.CanonicalRootRole, meta[data.CanonicalRootRole], 1, false))
 
 	// delegations can't be loaded without target
-	for _, delgName := range []data.RoleName{data.NewRoleName("targets/a"), data.NewRoleName("targets/a/b")} {
+	for _, delgName := range []data.RoleName{data.RoleName("targets/a"), data.RoleName("targets/a/b")} {
 		err := builder.Load(delgName, meta[delgName], 1, false)
 		require.Error(t, err)
 		require.IsType(t, tuf.ErrInvalidBuilderInput{}, err)
@@ -138,14 +138,14 @@ func TestMarkingIsValid(t *testing.T) {
 	require.True(t, valid.Root.Signatures[0].IsValid)
 	require.True(t, valid.Timestamp.Signatures[0].IsValid)
 	require.True(t, valid.Snapshot.Signatures[0].IsValid)
-	require.True(t, valid.Targets[data.CanonicalTargetsRole.String()].Signatures[0].IsValid)
+	require.True(t, valid.Targets[data.CanonicalTargetsRole].Signatures[0].IsValid)
 	require.True(t, valid.Targets["targets/a"].Signatures[0].IsValid)
 	require.True(t, valid.Targets["targets/a/b"].Signatures[0].IsValid)
 	require.NoError(t, err)
 }
 
 func TestBuilderLoadInvalidDelegations(t *testing.T) {
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 	tufRepo, _, err := testutils.EmptyRepo(gun, "targets/a", "targets/a/b", "targets/b")
 	require.NoError(t, err)
 
@@ -196,7 +196,7 @@ func TestBuilderLoadInvalidDelegations(t *testing.T) {
 }
 
 func TestBuilderLoadInvalidDelegationsOldVersion(t *testing.T) {
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 	tufRepo, _, err := testutils.EmptyRepo(gun, "targets/a", "targets/a/b", "targets/b")
 	require.NoError(t, err)
 
@@ -296,7 +296,7 @@ func TestBuilderStopsAcceptingOrProducingDataOnceDone(t *testing.T) {
 
 // Test the cases in which GenerateSnapshot fails
 func TestGenerateSnapshotInvalidOperations(t *testing.T) {
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
@@ -316,7 +316,7 @@ func TestGenerateSnapshotInvalidOperations(t *testing.T) {
 	for _, prevSnapshot := range []*data.SignedSnapshot{nil, repo.Snapshot} {
 		// copy keys, since we expect one of these generation attempts to succeed and we do
 		// some key deletion tests later
-		newCS := testutils.CopyKeys(t, cs, data.CanonicalSnapshotRole.String())
+		newCS := testutils.CopyKeys(t, cs, data.CanonicalSnapshotRole)
 
 		// --- we can't generate a snapshot if the root isn't loaded
 		builder := tuf.NewRepoBuilder(gun, newCS, trustpinning.TrustPinConfig{})
@@ -403,7 +403,7 @@ func TestGenerateSnapshotInvalidOperations(t *testing.T) {
 
 // Test the cases in which GenerateTimestamp fails
 func TestGenerateTimestampInvalidOperations(t *testing.T) {
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
@@ -481,7 +481,7 @@ func TestGenerateTimestampInvalidOperations(t *testing.T) {
 }
 
 func TestGetConsistentInfo(t *testing.T) {
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 	repo, _, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
@@ -492,7 +492,7 @@ func TestGetConsistentInfo(t *testing.T) {
 	repo.Snapshot.Signed.Meta["targets/random"] = data.FileMeta{Hashes: data.Hashes{"randomsha": []byte("12345")}}
 	repo.Snapshot.Signed.Meta["targets/nohashes"] = data.FileMeta{Length: 1}
 
-	extraMeta := []data.RoleName{data.NewRoleName("only512"), data.NewRoleName("targets/random"), data.NewRoleName("targets/nohashes")}
+	extraMeta := []data.RoleName{data.RoleName("only512"), data.RoleName("targets/random"), data.RoleName("targets/nohashes")}
 
 	meta, err := testutils.SignAndSerialize(repo)
 	require.NoError(t, err)
@@ -506,7 +506,7 @@ func TestGetConsistentInfo(t *testing.T) {
 	// the fake roles have invalid-ish checksums: the ConsistentInfos for those will return
 	// non-consistent names but non -1 sizes
 	for _, checkName := range extraMeta {
-		ci := builder.GetConsistentInfo(data.NewRoleName(checkName.String()))
+		ci := builder.GetConsistentInfo(data.RoleName(checkName.String()))
 		require.EqualValues(t, checkName.String(), ci.ConsistentName()) // because no sha256 hash
 		require.True(t, ci.ChecksumKnown())
 		require.True(t, ci.Length() > -1)
@@ -533,7 +533,7 @@ func TestGetConsistentInfo(t *testing.T) {
 
 		case data.CanonicalRootRole:
 			cName := utils.ConsistentName(data.CanonicalRootRole,
-				repo.Snapshot.Signed.Meta[data.CanonicalRootRole.String()].Hashes[notary.SHA256])
+				repo.Snapshot.Signed.Meta[data.CanonicalRootRole].Hashes[notary.SHA256])
 
 			require.Equal(t, cName, ci.ConsistentName())
 			require.True(t, ci.ChecksumKnown())
@@ -579,7 +579,7 @@ func checkOnlySnapshotConsistentAfterTimestamp(t *testing.T, repo *tuf.Repo, met
 		switch checkName {
 		case data.CanonicalSnapshotRole:
 			cName := utils.ConsistentName(data.CanonicalSnapshotRole,
-				repo.Timestamp.Signed.Meta[data.CanonicalSnapshotRole.String()].Hashes[notary.SHA256])
+				repo.Timestamp.Signed.Meta[data.CanonicalSnapshotRole].Hashes[notary.SHA256])
 			require.Equal(t, cName, ci.ConsistentName())
 			require.True(t, ci.ChecksumKnown())
 			require.True(t, ci.Length() > -1)
@@ -615,7 +615,7 @@ func checkOtherRolesConsistentAfterSnapshot(t *testing.T, repo *tuf.Repo, meta m
 				fileInfo = repo.Timestamp.Signed.Meta
 			}
 
-			cName := utils.ConsistentName(checkName, fileInfo[checkName.String()].Hashes[notary.SHA256])
+			cName := utils.ConsistentName(checkName, fileInfo[checkName].Hashes[notary.SHA256])
 			require.Equal(t, cName, ci.ConsistentName())
 			require.True(t, ci.Length() > -1)
 		}
@@ -627,7 +627,7 @@ func checkOtherRolesConsistentAfterSnapshot(t *testing.T, repo *tuf.Repo, meta m
 // whether that is snapshot (because it was loaded after timestamp) or timestamp (because builder
 // retroactive checks the loaded snapshot's checksum).  Timestamp ONLY checks the snapshot checksum.
 func TestTimestampPreAndPostChecksumming(t *testing.T) {
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 	repo, _, err := testutils.EmptyRepo(gun, "targets/other", "targets/other/other")
 	require.NoError(t, err)
 
@@ -637,7 +637,7 @@ func TestTimestampPreAndPostChecksumming(t *testing.T) {
 	require.NoError(t, err)
 	for _, roleName := range append(data.BaseRoles, "targets/other") {
 		// add a wrong checksum for every role, including timestamp itself
-		repo.Timestamp.Signed.Meta[roleName.String()] = fakeChecksum
+		repo.Timestamp.Signed.Meta[roleName] = fakeChecksum
 	}
 	// this will overwrite the snapshot checksum with the right one
 	meta, err := testutils.SignAndSerialize(repo)
@@ -659,7 +659,7 @@ func TestTimestampPreAndPostChecksumming(t *testing.T) {
 	require.True(t, builder.IsLoaded(data.CanonicalTimestampRole))
 	require.False(t, builder.IsLoaded(data.CanonicalSnapshotRole))
 	// all the other metadata can be loaded in, even though the checksums are wrong according to timestamp
-	for _, roleName := range []data.RoleName{data.CanonicalTargetsRole, data.NewRoleName("targets/other")} {
+	for _, roleName := range []data.RoleName{data.CanonicalTargetsRole, data.RoleName("targets/other")} {
 		require.NoError(t, builder.Load(roleName, meta[roleName], 1, false))
 	}
 
@@ -700,8 +700,8 @@ func setupSnapshotChecksumming(t *testing.T, gun data.GUN) map[data.RoleName][]b
 	fakeChecksum, err := data.NewFileMeta(bytes.NewBuffer([]byte("fake")), notary.SHA256, notary.SHA512)
 	require.NoError(t, err)
 	// fake the snapshot and timestamp checksums
-	repo.Snapshot.Signed.Meta[data.CanonicalSnapshotRole.String()] = fakeChecksum
-	repo.Snapshot.Signed.Meta[data.CanonicalTimestampRole.String()] = fakeChecksum
+	repo.Snapshot.Signed.Meta[data.CanonicalSnapshotRole] = fakeChecksum
+	repo.Snapshot.Signed.Meta[data.CanonicalTimestampRole] = fakeChecksum
 
 	meta, err := testutils.SignAndSerialize(repo)
 	require.NoError(t, err)
@@ -724,7 +724,7 @@ func setupSnapshotChecksumming(t *testing.T, gun data.GUN) map[data.RoleName][]b
 // If the checksum doesn't match, or if there is no checksum, then the other metadata
 // cannot be loaded.
 func TestSnapshotLoadedFirstChecksumsOthers(t *testing.T) {
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 	meta := setupSnapshotChecksumming(t, gun)
 	// --- load root then snapshot
 	builder := tuf.NewRepoBuilder(gun, nil, trustpinning.TrustPinConfig{})
@@ -739,7 +739,7 @@ func TestSnapshotLoadedFirstChecksumsOthers(t *testing.T) {
 	// checks right away if the snapshot is loaded) - in the case of targets/other/other, which should
 	// not be in snapshot at all, loading should fail even without a space because there is no checksum
 	// for it
-	for _, roleNameToLoad := range []data.RoleName{data.CanonicalTargetsRole, data.NewRoleName("targets/other")} {
+	for _, roleNameToLoad := range []data.RoleName{data.CanonicalTargetsRole, data.RoleName("targets/other")} {
 		err := builder.Load(roleNameToLoad, append(meta[roleNameToLoad], ' '), 0, false)
 		require.Error(t, err)
 		checksumErr, ok := err.(data.ErrMismatchedChecksum)
@@ -761,7 +761,7 @@ func TestSnapshotLoadedFirstChecksumsOthers(t *testing.T) {
 // and validate that metadata.  If anything fails to validate, or there is metadata for which this
 // snapshot has no checksums for, the snapshot will fail to validate.
 func TestSnapshotLoadedAfterChecksumsOthersRetroactively(t *testing.T) {
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 	meta := setupSnapshotChecksumming(t, gun)
 
 	// --- load all the other metadata first, but with an extra space at the end which should

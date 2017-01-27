@@ -210,7 +210,7 @@ func KeyInfoFromPEM(pemBytes []byte, filename string) (string, KeyInfo, error) {
 	if block == nil {
 		return "", KeyInfo{}, fmt.Errorf("could not decode PEM block for key %s", filename)
 	}
-	return keyID, KeyInfo{Gun: data.NewGUN(block.Headers["gun"]), Role: data.NewRoleName(block.Headers["role"])}, nil
+	return keyID, KeyInfo{Gun: data.GUN(block.Headers["gun"]), Role: data.RoleName(block.Headers["role"])}, nil
 }
 
 // getKeyRole finds the role for the given keyID. It attempts to look
@@ -228,11 +228,11 @@ func getKeyRole(s Storage, keyID string) (data.RoleName, error) {
 			}
 			block, _ := pem.Decode(d)
 			if block != nil {
-				return data.NewRoleName(block.Headers["role"]), nil
+				return data.RoleName(block.Headers["role"]), nil
 			}
 		}
 	}
-	return data.NewRoleName(""), ErrKeyNotFound{KeyID: keyID}
+	return data.RoleName(""), ErrKeyNotFound{KeyID: keyID}
 }
 
 // GetPasswdDecryptBytes gets the password to decrypt the given pem bytes.

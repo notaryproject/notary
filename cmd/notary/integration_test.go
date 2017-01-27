@@ -1692,7 +1692,7 @@ func TestWitness(t *testing.T) {
 	err = keyStore.AddKey(
 		trustmanager.KeyInfo{
 			Gun:  "gun",
-			Role: data.NewRoleName(delgName),
+			Role: data.RoleName(delgName),
 		},
 		privKey,
 	)
@@ -1754,7 +1754,7 @@ func TestWitness(t *testing.T) {
 	err = keyStore.AddKey(
 		trustmanager.KeyInfo{
 			Gun:  "gun",
-			Role: data.NewRoleName(delgName),
+			Role: data.RoleName(delgName),
 		},
 		privKey2,
 	)
@@ -1843,7 +1843,7 @@ func generateCertPrivKeyPair(t *testing.T, gun, keyAlgorithm string) (*x509.Cert
 	require.NoError(t, err)
 	startTime := time.Now()
 	endTime := startTime.AddDate(10, 0, 0)
-	cert, err := cryptoservice.GenerateCertificate(privKey, data.NewGUN(gun), startTime, endTime)
+	cert, err := cryptoservice.GenerateCertificate(privKey, data.GUN(gun), startTime, endTime)
 	require.NoError(t, err)
 	parsedPubKey, _ := utils.ParsePEMPublicKey(utils.CertToPEM(cert))
 	keyID, err := utils.CanonicalKeyID(parsedPubKey)

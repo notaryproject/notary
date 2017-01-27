@@ -94,8 +94,8 @@ func TestHTTPStoreGetAllMeta(t *testing.T) {
 
 func TestSetSingleAndSetMultiMeta(t *testing.T) {
 	metas := map[data.RoleName][]byte{
-		data.NewRoleName("root"):    []byte("root data"),
-		data.NewRoleName("targets"): []byte("targets data"),
+		data.RoleName("root"):    []byte("root data"),
+		data.RoleName("targets"): []byte("targets data"),
 	}
 
 	var updates map[string][]byte

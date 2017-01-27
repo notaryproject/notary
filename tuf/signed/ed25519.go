@@ -107,5 +107,5 @@ func (e *Ed25519) GetPrivateKey(keyID string) (data.PrivateKey, data.RoleName, e
 	if k, ok := e.keys[keyID]; ok {
 		return k.privKey, k.role, nil
 	}
-	return nil, data.NewRoleName(""), trustmanager.ErrKeyNotFound{KeyID: keyID}
+	return nil, data.RoleName(""), trustmanager.ErrKeyNotFound{KeyID: keyID}
 }

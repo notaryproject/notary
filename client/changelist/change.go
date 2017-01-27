@@ -59,7 +59,7 @@ func (c TUFChange) Action() string {
 
 // Scope returns c.Role
 func (c TUFChange) Scope() data.RoleName {
-	return data.NewRoleName(c.Role)
+	return data.RoleName(c.Role)
 }
 
 // Type returns c.ChangeType

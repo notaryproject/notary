@@ -33,7 +33,7 @@ const (
 )
 
 func init() {
-	data.SetDefaultExpiryTimes(notary.NotaryDefaultExpiries)
+	data.SetDefaultExpiryTimes(data.NotaryDefaultExpiries)
 }
 
 // NotaryRepository stores all the information needed to operate on a notary
@@ -387,19 +387,19 @@ func (r *NotaryRepository) RemoveTarget(targetName string, roles ...data.RoleNam
 // its entries will be strictly shadowed by those in other parts of the "targets/a"
 // subtree and also the "targets/x" subtree, as we will defer parsing it until
 // we explicitly reach it in our iteration of the provided list of roles.
-func (r *NotaryRepository) ListTargets(roles ...string) ([]*TargetWithRole, error) {
+func (r *NotaryRepository) ListTargets(roles ...data.RoleName) ([]*TargetWithRole, error) {
 	if err := r.Update(false); err != nil {
 		return nil, err
 	}
 
 	if len(roles) == 0 {
-		roles = []string{data.CanonicalTargetsRole.String()}
+		roles = []data.RoleName{data.CanonicalTargetsRole}
 	}
-	targets := make(map[string]*TargetWithRole)
+	targets := make(map[data.RoleName]*TargetWithRole)
 	for _, role := range roles {
 		var roleName data.RoleName
 		// Define an array of roles to skip for this walk (see IMPORTANT comment above)
-		skipRoles := utils.StrSliceRemove(roles, role)
+		skipRoles := utils.RoleNameSliceRemove(roles, role)
 
 		// Define a visitor function to populate the targets map in priority order
 		listVisitorFunc := func(tgt *data.SignedTargets, validRole data.DelegationRole) interface{} {
@@ -407,13 +407,13 @@ func (r *NotaryRepository) ListTargets(roles ...string) ([]*TargetWithRole, erro
 			for targetName, targetMeta := range tgt.Signed.Targets {
 				// Follow the priority by not overriding previously set targets
 				// and check that this path is valid with this role
-				if _, ok := targets[targetName]; ok || !validRole.CheckPaths(targetName) {
+				if _, ok := targets[targetName]; ok || !validRole.CheckPaths(targetName.String()) {
 					continue
 				}
 				roleName = validRole.Name
 				targets[targetName] = &TargetWithRole{
 					Target: Target{
-						Name:   targetName,
+						Name:   targetName.String(),
 						Hashes: targetMeta.Hashes,
 						Length: targetMeta.Length,
 					},
@@ -441,20 +441,20 @@ func (r *NotaryRepository) ListTargets(roles ...string) ([]*TargetWithRole, erro
 // the target entry found in the subtree of the highest priority role
 // will be returned.
 // See the IMPORTANT section on ListTargets above. Those roles also apply here.
-func (r *NotaryRepository) GetTargetByName(name string, roles ...string) (*TargetWithRole, error) {
+func (r *NotaryRepository) GetTargetByName(name string, roles ...data.RoleName) (*TargetWithRole, error) {
 	if err := r.Update(false); err != nil {
 		return nil, err
 	}
 
 	if len(roles) == 0 {
-		roles = append(roles, data.CanonicalTargetsRole.String())
+		roles = append(roles, data.CanonicalTargetsRole)
 	}
 	var resultMeta data.FileMeta
 	var resultRoleName data.RoleName
 	var foundTarget bool
 	for _, role := range roles {
 		// Define an array of roles to skip for this walk (see IMPORTANT comment above)
-		skipRoles := utils.StrSliceRemove(roles, role)
+		skipRoles := utils.RoleNameSliceRemove(roles, role)
 
 		// Define a visitor function to find the specified target
 		getTargetVisitorFunc := func(tgt *data.SignedTargets, validRole data.DelegationRole) interface{} {
@@ -463,7 +463,7 @@ func (r *NotaryRepository) GetTargetByName(name string, roles ...string) (*Targe
 			}
 			// We found the target and validated path compatibility in our walk,
 			// so we should stop our walk and set the resultMeta and resultRoleName variables
-			if resultMeta, foundTarget = tgt.Signed.Targets[name]; foundTarget {
+			if resultMeta, foundTarget = tgt.Signed.Targets[data.RoleName(name)]; foundTarget {
 				resultRoleName = validRole.Name
 				return tuf.StopWalk{}
 			}
@@ -507,15 +507,15 @@ func (r *NotaryRepository) GetAllTargetMetadataByName(name string) ([]TargetSign
 		if name == "" {
 			targetMetaToAdd = tgt.Signed.Targets
 		} else {
-			if meta, ok := tgt.Signed.Targets[name]; ok {
-				targetMetaToAdd = data.Files{name: meta}
+			if meta, ok := tgt.Signed.Targets[data.RoleName(name)]; ok {
+				targetMetaToAdd = data.Files{data.RoleName(name): meta}
 			}
 		}
 
 		for targetName, resultMeta := range targetMetaToAdd {
 			targetInfo := TargetSignedStruct{
 				Role:       validRole,
-				Target:     Target{Name: targetName, Hashes: resultMeta.Hashes, Length: resultMeta.Length},
+				Target:     Target{Name: targetName.String(), Hashes: resultMeta.Hashes, Length: resultMeta.Length},
 				Signatures: tgt.Signatures,
 			}
 			targetInfoList = append(targetInfoList, targetInfo)
@@ -571,7 +571,7 @@ func (r *NotaryRepository) ListRoles() ([]RoleWithSignatures, error) {
 		case data.CanonicalRootRole:
 			roleWithSig.Signatures = r.tufRepo.Root.Signatures
 		case data.CanonicalTargetsRole:
-			roleWithSig.Signatures = r.tufRepo.Targets[data.CanonicalTargetsRole.String()].Signatures
+			roleWithSig.Signatures = r.tufRepo.Targets[data.CanonicalTargetsRole].Signatures
 		case data.CanonicalSnapshotRole:
 			roleWithSig.Signatures = r.tufRepo.Snapshot.Signatures
 		case data.CanonicalTimestampRole:
@@ -580,9 +580,9 @@ func (r *NotaryRepository) ListRoles() ([]RoleWithSignatures, error) {
 			if !data.IsDelegation(role.Name) {
 				continue
 			}
-			if _, ok := r.tufRepo.Targets[role.Name.String()]; ok {
+			if _, ok := r.tufRepo.Targets[role.Name]; ok {
 				// We'll only find a signature if we've published any targets with this delegation
-				roleWithSig.Signatures = r.tufRepo.Targets[role.Name.String()].Signatures
+				roleWithSig.Signatures = r.tufRepo.Targets[role.Name].Signatures
 			}
 		}
 		roleWithSigs = append(roleWithSigs, roleWithSig)
@@ -793,12 +793,12 @@ func getOldRootPublicKeys(root *data.SignedRoot) data.KeyList {
 func signTargets(updates map[data.RoleName][]byte, repo *tuf.Repo, initialPublish bool) error {
 	// iterate through all the targets files - if they are dirty, sign and update
 	for roleName, roleObj := range repo.Targets {
-		if roleObj.Dirty || (roleName == data.CanonicalTargetsRole.String() && initialPublish) {
+		if roleObj.Dirty || (roleName == data.CanonicalTargetsRole && initialPublish) {
 			targetsJSON, err := serializeCanonicalRole(repo, data.RoleName(roleName), nil)
 			if err != nil {
 				return err
 			}
-			updates[data.NewRoleName(roleName)] = targetsJSON
+			updates[data.RoleName(roleName)] = targetsJSON
 		}
 	}
 	return nil
@@ -852,9 +852,9 @@ func (r *NotaryRepository) saveMetadata(ignoreSnapshot bool) error {
 		return err
 	}
 
-	targetsToSave := make(map[string][]byte)
+	targetsToSave := make(map[data.RoleName][]byte)
 	for t := range r.tufRepo.Targets {
-		signedTargets, err := r.tufRepo.SignTargets(data.NewRoleName(t), data.DefaultExpires(data.CanonicalTargetsRole))
+		signedTargets, err := r.tufRepo.SignTargets(data.RoleName(t), data.DefaultExpires(data.CanonicalTargetsRole))
 		if err != nil {
 			return err
 		}
@@ -867,7 +867,7 @@ func (r *NotaryRepository) saveMetadata(ignoreSnapshot bool) error {
 
 	for role, blob := range targetsToSave {
 		// If the parent directory does not exist, the cache.Set will create it
-		r.cache.Set(role, blob)
+		r.cache.Set(role.String(), blob)
 	}
 
 	if ignoreSnapshot {

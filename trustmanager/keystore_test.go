@@ -29,12 +29,12 @@ func TestAddKey(t *testing.T) {
 	testAddKeyWithRole(t, data.CanonicalRootRole)
 	testAddKeyWithRole(t, data.CanonicalTargetsRole)
 	testAddKeyWithRole(t, data.CanonicalSnapshotRole)
-	testAddKeyWithRole(t, data.NewRoleName("targets/a/b/c"))
-	testAddKeyWithRole(t, data.NewRoleName("invalidRole"))
+	testAddKeyWithRole(t, data.RoleName("targets/a/b/c"))
+	testAddKeyWithRole(t, data.RoleName("invalidRole"))
 }
 
 func testAddKeyWithRole(t *testing.T, role data.RoleName) {
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 	testExt := "key"
 
 	// Temporary directory where test files will be created
@@ -77,10 +77,10 @@ func TestKeyStoreInternalState(t *testing.T) {
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 
 	// Mimic a notary repo setup, and test that bringing up a keyfilestore creates the correct keyInfoMap
-	roles := []data.RoleName{data.CanonicalRootRole, data.CanonicalTargetsRole, data.CanonicalSnapshotRole, data.NewRoleName("targets/delegation")}
+	roles := []data.RoleName{data.CanonicalRootRole, data.CanonicalTargetsRole, data.CanonicalSnapshotRole, data.RoleName("targets/delegation")}
 	// Keep track of the key IDs for each role, so we can validate later against the keystore state
 	roleToID := make(map[string]string)
 	for _, role := range roles {
@@ -162,15 +162,15 @@ func TestGet(t *testing.T) {
 	nonRootRolesToTest := []data.RoleName{
 		data.CanonicalTargetsRole,
 		data.CanonicalSnapshotRole,
-		data.NewRoleName("targets/a/b/c"),
-		data.NewRoleName("invalidRole"),
+		data.RoleName("targets/a/b/c"),
+		data.RoleName("invalidRole"),
 	}
 
-	gun := data.NewGUN("docker.io/notary")
+	gun := data.GUN("docker.io/notary")
 
 	testGetKeyWithRole(t, "", data.CanonicalRootRole)
 	for _, role := range nonRootRolesToTest {
-		testGetKeyWithRole(t, data.NewGUN(""), role)
+		testGetKeyWithRole(t, data.GUN(""), role)
 		testGetKeyWithRole(t, gun, role)
 	}
 }
@@ -395,7 +395,7 @@ func TestAddGetKeyMemStore(t *testing.T) {
 	require.NoError(t, err, "could not generate private key")
 
 	// Call the AddKey function
-	err = store.AddKey(KeyInfo{Role: testAlias, Gun: data.NewGUN("")}, privKey)
+	err = store.AddKey(KeyInfo{Role: testAlias, Gun: data.GUN("")}, privKey)
 	require.NoError(t, err, "failed to add key to store")
 
 	// Check to see if file exists
@@ -408,7 +408,7 @@ func TestAddGetKeyMemStore(t *testing.T) {
 }
 
 func TestAddGetKeyInfoMemStore(t *testing.T) {
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 
 	// Create our store
 	store := NewKeyMemoryStore(passphraseRetriever)
@@ -417,7 +417,7 @@ func TestAddGetKeyInfoMemStore(t *testing.T) {
 	require.NoError(t, err, "could not generate private key")
 
 	// Call the AddKey function
-	err = store.AddKey(KeyInfo{Role: data.CanonicalRootRole, Gun: data.NewGUN("")}, rootKey)
+	err = store.AddKey(KeyInfo{Role: data.CanonicalRootRole, Gun: data.GUN("")}, rootKey)
 	require.NoError(t, err, "failed to add key to store")
 
 	// Get and validate key info
@@ -471,7 +471,7 @@ func TestGetDecryptedWithTamperedCipherText(t *testing.T) {
 	require.NoError(t, err, "could not generate private key")
 
 	// Call the AddEncryptedKey function
-	err = store.AddKey(KeyInfo{Role: testAlias, Gun: data.NewGUN("")}, privKey)
+	err = store.AddKey(KeyInfo{Role: testAlias, Gun: data.GUN("")}, privKey)
 	require.NoError(t, err, "failed to add key to store")
 
 	// Since we're generating this manually we need to add the extension '.'
@@ -562,7 +562,7 @@ func testGetDecryptedWithInvalidPassphrase(t *testing.T, store KeyStore, newStor
 	require.NoError(t, err, "could not generate private key")
 
 	// Call the AddKey function
-	err = store.AddKey(KeyInfo{Role: testAlias, Gun: data.NewGUN("")}, privKey)
+	err = store.AddKey(KeyInfo{Role: testAlias, Gun: data.GUN("")}, privKey)
 	require.NoError(t, err, "failed to add key to store")
 
 	// Try to decrypt the file with an invalid passphrase
@@ -575,12 +575,12 @@ func TestRemoveKey(t *testing.T) {
 	testRemoveKeyWithRole(t, data.CanonicalRootRole)
 	testRemoveKeyWithRole(t, data.CanonicalTargetsRole)
 	testRemoveKeyWithRole(t, data.CanonicalSnapshotRole)
-	testRemoveKeyWithRole(t, data.NewRoleName("targets/a/b/c"))
-	testRemoveKeyWithRole(t, data.NewRoleName("invalidRole"))
+	testRemoveKeyWithRole(t, data.RoleName("targets/a/b/c"))
+	testRemoveKeyWithRole(t, data.RoleName("invalidRole"))
 }
 
 func testRemoveKeyWithRole(t *testing.T, role data.RoleName) {
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 	testExt := "key"
 
 	// Temporary directory where test files will be created
@@ -615,8 +615,8 @@ func testRemoveKeyWithRole(t *testing.T, role data.RoleName) {
 }
 
 func TestKeysAreCached(t *testing.T) {
-	gun := data.NewGUN("docker.com/notary")
-	testAlias := data.NewRoleName("alias")
+	gun := data.GUN("docker.com/notary")
+	testAlias := data.RoleName("alias")
 
 	// Temporary directory where test files will be created
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")

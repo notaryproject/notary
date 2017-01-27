@@ -25,11 +25,6 @@ func (g GUN) String() string {
 	return string(g)
 }
 
-// NewGUN generates a GUN object from the provided string
-func NewGUN(g string) GUN {
-	return GUN(g)
-}
-
 // RoleName type for specifying role
 type RoleName string
 
@@ -37,14 +32,9 @@ func (r RoleName) String() string {
 	return string(r)
 }
 
-// Provides the parent path string from the provided child RoleName
-func (r RoleName) Parent() string {
-	return path.Dir(r.String())
-}
-
-// NewRoleName generates a RoleName object from the provided string
-func NewRoleName(role string) RoleName {
-	return RoleName(role)
+// Parent provides the parent path string from the provided child RoleName
+func (r RoleName) Parent() RoleName {
+	return RoleName(path.Dir(r.String()))
 }
 
 // MetadataRoleMapToStringMap generates a map string of butes from a map RoleName of bytes
@@ -56,11 +46,11 @@ func MetadataRoleMapToStringMap(roles map[RoleName][]byte) map[string][]byte {
 	return metadata
 }
 
-// NewRoleName generates an array of RoleName objects from the a slice of strings
+// RoleNameList generates an array of RoleName objects from the a slice of strings
 func NewRoleList(roles []string) []RoleName {
 	var roleNames []RoleName
 	for _, role := range roles {
-		roleNames = append(roleNames, NewRoleName(role))
+		roleNames = append(roleNames, RoleName(role))
 	}
 	return roleNames
 }
@@ -73,6 +63,15 @@ func (k SigAlgorithm) String() string {
 }
 
 const defaultHashAlgorithm = "sha256"
+
+// NotaryDefaultExpiries is the construct used to configure the default expiry times of
+// the various role files.
+var NotaryDefaultExpiries = map[RoleName]time.Duration{
+	RoleName("root"):      notary.NotaryRootExpiry,
+	RoleName("targets"):   notary.NotaryTargetsExpiry,
+	RoleName("snapshot"):  notary.NotarySnapshotExpiry,
+	RoleName("timestamp"): notary.NotaryTimestampExpiry,
+}
 
 // Signature types
 const (
@@ -156,7 +155,7 @@ type Signature struct {
 
 // Files is the map of paths to file meta container in targets and delegations
 // metadata files
-type Files map[string]FileMeta
+type Files map[RoleName]FileMeta
 
 // Hashes is the map of hash type to digest created for each metadata
 // and target file
@@ -309,18 +308,18 @@ func NewDelegations() *Delegations {
 }
 
 // These values are recommended TUF expiry times.
-var defaultExpiryTimes = map[string]time.Duration{
-	CanonicalRootRole.String():      notary.Year,
-	CanonicalTargetsRole.String():   90 * notary.Day,
-	CanonicalSnapshotRole.String():  7 * notary.Day,
-	CanonicalTimestampRole.String(): notary.Day,
+var defaultExpiryTimes = map[RoleName]time.Duration{
+	CanonicalRootRole:      notary.Year,
+	CanonicalTargetsRole:   90 * notary.Day,
+	CanonicalSnapshotRole:  7 * notary.Day,
+	CanonicalTimestampRole: notary.Day,
 }
 
 // SetDefaultExpiryTimes allows one to change the default expiries.
-func SetDefaultExpiryTimes(times map[string]time.Duration) {
+func SetDefaultExpiryTimes(times map[RoleName]time.Duration) {
 	for key, value := range times {
 		if _, ok := defaultExpiryTimes[key]; !ok {
-			logrus.Errorf("Attempted to set default expiry for an unknown role: %s", key)
+			logrus.Errorf("Attempted to set default expiry for an unknown role: %s", key.String())
 			continue
 		}
 		defaultExpiryTimes[key] = value
@@ -329,7 +328,7 @@ func SetDefaultExpiryTimes(times map[string]time.Duration) {
 
 // DefaultExpires gets the default expiry time for the given role
 func DefaultExpires(role RoleName) time.Time {
-	if d, ok := defaultExpiryTimes[role.String()]; ok {
+	if d, ok := defaultExpiryTimes[role]; ok {
 		return time.Now().Add(d)
 	}
 	var t time.Time

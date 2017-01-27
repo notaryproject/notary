@@ -63,7 +63,7 @@ func TestGetTimestampNoPreviousTimestamp(t *testing.T) {
 	for _, timestampJSON := range [][]byte{nil, []byte("invalid JSON")} {
 		store := storage.NewMemStorage()
 
-		gun := data.NewGUN("gun")
+		gun := data.GUN("gun")
 		// so we know it's not a failure in getting root or snapshot
 		require.NoError(t,
 			store.UpdateCurrent(gun, storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0,
@@ -188,7 +188,7 @@ func TestCannotMakeNewTimestampIfNoRootOrSnapshot(t *testing.T) {
 		store := storage.NewMemStorage()
 		for roleName, jsonBytes := range dataToSet {
 			require.NoError(t, store.UpdateCurrent("gun",
-				storage.MetaUpdate{Role: data.NewRoleName(roleName), Version: 0, Data: jsonBytes}))
+				storage.MetaUpdate{Role: data.RoleName(roleName), Version: 0, Data: jsonBytes}))
 		}
 		require.NoError(t, store.UpdateCurrent("gun",
 			storage.MetaUpdate{Role: data.CanonicalTimestampRole, Version: 1, Data: timestampJSON}))
@@ -239,7 +239,7 @@ func (f FailingStore) GetCurrent(gun data.GUN, role data.RoleName) (*time.Time, 
 func TestGetTimestampKeyCreateWithFailingStore(t *testing.T) {
 	store := FailingStore{storage.NewMemStorage()}
 	crypto := signed.NewEd25519()
-	k, err := GetOrCreateTimestampKey(data.NewGUN("gun"), store, crypto, data.ED25519Key)
+	k, err := GetOrCreateTimestampKey(data.GUN("gun"), store, crypto, data.ED25519Key)
 	require.Error(t, err, "Expected error")
 	require.Nil(t, k, "Key should be nil")
 }
@@ -255,7 +255,7 @@ func (c CorruptedStore) GetCurrent(gun data.GUN, role data.RoleName) (*time.Time
 func TestGetTimestampKeyCreateWithCorruptedStore(t *testing.T) {
 	store := CorruptedStore{storage.NewMemStorage()}
 	crypto := signed.NewEd25519()
-	k, err := GetOrCreateTimestampKey(data.NewGUN("gun"), store, crypto, data.ED25519Key)
+	k, err := GetOrCreateTimestampKey(data.GUN("gun"), store, crypto, data.ED25519Key)
 	require.Error(t, err, "Expected error")
 	require.Nil(t, k, "Key should be nil")
 }

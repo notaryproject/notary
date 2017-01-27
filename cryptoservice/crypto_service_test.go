@@ -392,11 +392,11 @@ func testCryptoService(t *testing.T, gun data.GUN) {
 }
 
 func TestCryptoServiceWithNonEmptyGUN(t *testing.T) {
-	testCryptoService(t, data.NewGUN("org/repo"))
+	testCryptoService(t, data.GUN("org/repo"))
 }
 
 func TestCryptoServiceWithEmptyGUN(t *testing.T) {
-	testCryptoService(t, data.NewGUN(""))
+	testCryptoService(t, data.GUN(""))
 }
 
 // CryptoSigner conforms to the signed.CryptoService interface behavior

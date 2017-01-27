@@ -37,7 +37,7 @@ func (r *NotaryRepository) Witness(roles ...data.RoleName) ([]string, error) {
 }
 
 func witnessTargets(repo *tuf.Repo, invalid *tuf.Repo, role data.RoleName) error {
-	if r, ok := repo.Targets[role.String()]; ok {
+	if r, ok := repo.Targets[role]; ok {
 		// role is already valid, mark for re-signing/updating
 		r.Dirty = true
 		return nil
@@ -54,9 +54,9 @@ func witnessTargets(repo *tuf.Repo, invalid *tuf.Repo, role data.RoleName) error
 				Reason: "role does not specify enough valid signing keys to meet its required threshold",
 			}
 		}
-		if r, ok := invalid.Targets[role.String()]; ok {
+		if r, ok := invalid.Targets[role]; ok {
 			// role is recognized but invalid, move to valid data and mark for re-signing
-			repo.Targets[role.String()] = r
+			repo.Targets[role] = r
 			r.Dirty = true
 			return nil
 		}

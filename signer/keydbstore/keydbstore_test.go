@@ -44,7 +44,7 @@ func testKeyCanOnlyBeAddedOnce(t *testing.T, dbStore signed.CryptoService) []dat
 	}
 
 	// Test writing new key in database alone, not cache
-	err := dbStore.AddKey(data.CanonicalTimestampRole, data.NewGUN("gun"), expectedKeys[0])
+	err := dbStore.AddKey(data.CanonicalTimestampRole, data.GUN("gun"), expectedKeys[0])
 	require.NoError(t, err)
 	requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole.String(), expectedKeys[0])
 
@@ -165,8 +165,8 @@ func testSigningWithKeyMarksAsActive(t *testing.T, dbStore signed.CryptoService)
 
 func testCreateKey(t *testing.T, dbStore signed.CryptoService) (data.PrivateKey, data.PrivateKey, data.PrivateKey) {
 	// Create a test key, and check that it is successfully added to the database
-	role := data.NewRoleName(data.CanonicalSnapshotRole.String())
-	gun := data.NewGUN("gun")
+	role := data.RoleName(data.CanonicalSnapshotRole.String())
+	gun := data.GUN("gun")
 
 	// First create an ECDSA key
 	createdECDSAKey, err := dbStore.Create(role, gun, data.ECDSAKey)
@@ -226,7 +226,7 @@ func testUnimplementedInterfaceMethods(t *testing.T, dbStore signed.CryptoServic
 	// add one key to the db
 	testKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	err = dbStore.AddKey(data.CanonicalTimestampRole, data.NewGUN("gun"), testKey)
+	err = dbStore.AddKey(data.CanonicalTimestampRole, data.GUN("gun"), testKey)
 	require.NoError(t, err)
 	requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole.String(), testKey)
 

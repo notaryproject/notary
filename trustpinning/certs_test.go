@@ -312,19 +312,19 @@ func TestValidateRootWithPinnedCertAndIntermediates(t *testing.T) {
 				otherKey.ID():     otherKey,
 			},
 			Roles: map[data.RoleName]*data.RootRole{
-				data.NewRoleName("root"): {
+				data.RoleName("root"): {
 					KeyIDs:    []string{ecdsax509Key.ID()},
 					Threshold: 1,
 				},
-				data.NewRoleName("targets"): {
+				data.RoleName("targets"): {
 					KeyIDs:    []string{otherKey.ID()},
 					Threshold: 1,
 				},
-				data.NewRoleName("snapshot"): {
+				data.RoleName("snapshot"): {
 					KeyIDs:    []string{otherKey.ID()},
 					Threshold: 1,
 				},
-				data.NewRoleName("timestamp"): {
+				data.RoleName("timestamp"): {
 					KeyIDs:    []string{otherKey.ID()},
 					Threshold: 1,
 				},
@@ -568,7 +568,7 @@ func TestValidateSuccessfulRootRotation(t *testing.T) {
 
 func testValidateSuccessfulRootRotation(t *testing.T, keyAlg, rootKeyType string) {
 	// The gun to test
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 
 	memKeyStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memKeyStore)
@@ -652,7 +652,7 @@ func TestValidateRootRotationMissingOrigSig(t *testing.T) {
 }
 
 func testValidateRootRotationMissingOrigSig(t *testing.T, keyAlg, rootKeyType string) {
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 
 	memKeyStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memKeyStore)
@@ -733,7 +733,7 @@ func TestValidateRootRotationMissingNewSig(t *testing.T) {
 }
 
 func testValidateRootRotationMissingNewSig(t *testing.T, keyAlg, rootKeyType string) {
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 
 	memKeyStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memKeyStore)
@@ -802,7 +802,7 @@ func testValidateRootRotationMissingNewSig(t *testing.T, keyAlg, rootKeyType str
 // the specified trust pinning is respected with the new root for the Certs and TOFUs settings
 func TestValidateRootRotationTrustPinning(t *testing.T) {
 	// The gun to test
-	gun := data.NewGUN("docker.com/notary")
+	gun := data.GUN("docker.com/notary")
 
 	memKeyStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memKeyStore)
@@ -910,7 +910,7 @@ func TestValidateRootRotationTrustPinning(t *testing.T) {
 // TestValidateRootRotationTrustPinningInvalidCA runs a full root certificate rotation but ensures that
 // the specified trust pinning rejects the new root for not being signed by the specified CA
 func TestValidateRootRotationTrustPinningInvalidCA(t *testing.T) {
-	gun := data.NewGUN("notary-signer")
+	gun := data.GUN("notary-signer")
 	keyAlg := data.RSAKey
 	// Temporary directory where test files will be created
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
@@ -1004,7 +1004,7 @@ func generateExpiredTestingCertificate(rootKey data.PrivateKey, gun data.GUN) (*
 }
 
 func TestParsePEMPublicKey(t *testing.T) {
-	gun := data.NewGUN("notary")
+	gun := data.GUN("notary")
 	memStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memStore)
 
@@ -1065,7 +1065,7 @@ func TestParsePEMPublicKey(t *testing.T) {
 }
 
 func TestCheckingCertExpiry(t *testing.T) {
-	gun := data.NewGUN("notary")
+	gun := data.GUN("notary")
 	memStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memStore)
 	testPubKey, err := cs.Create(data.CanonicalRootRole, gun, data.ECDSAKey)
@@ -1261,19 +1261,19 @@ func TestValidateRootWithExpiredIntermediate(t *testing.T) {
 				otherKey.ID():     otherKey,
 			},
 			Roles: map[data.RoleName]*data.RootRole{
-				data.NewRoleName("root"): {
+				data.RoleName("root"): {
 					KeyIDs:    []string{ecdsax509Key.ID()},
 					Threshold: 1,
 				},
-				data.NewRoleName("targets"): {
+				data.RoleName("targets"): {
 					KeyIDs:    []string{otherKey.ID()},
 					Threshold: 1,
 				},
-				data.NewRoleName("snapshot"): {
+				data.RoleName("snapshot"): {
 					KeyIDs:    []string{otherKey.ID()},
 					Threshold: 1,
 				},
-				data.NewRoleName("timestamp"): {
+				data.RoleName("timestamp"): {
 					KeyIDs:    []string{otherKey.ID()},
 					Threshold: 1,
 				},
