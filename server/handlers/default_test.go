@@ -416,7 +416,7 @@ type failStore struct {
 	storage.MemStorage
 }
 
-func (s *failStore) GetCurrent(_, _ string) (*time.Time, []byte, error) {
+func (s *failStore) GetCurrent(_ data.GUN, _ data.RoleName) (*time.Time, []byte, error) {
 	return nil, nil, fmt.Errorf("oh no! storage has failed")
 }
 
@@ -458,7 +458,7 @@ type invalidVersionStore struct {
 	storage.MemStorage
 }
 
-func (s *invalidVersionStore) UpdateMany(_ string, _ []storage.MetaUpdate) error {
+func (s *invalidVersionStore) UpdateMany(_ data.GUN, _ []storage.MetaUpdate) error {
 	return storage.ErrOldVersion{}
 }
 

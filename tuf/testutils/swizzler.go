@@ -108,9 +108,9 @@ func NewMetadataSwizzler(gun data.GUN, initialMetadata map[data.RoleName][]byte,
 	cryptoService signed.CryptoService) *MetadataSwizzler {
 
 	var roles []data.RoleName
-	metadata := make(map[string][]byte)
+	metadata := make(map[data.RoleName][]byte)
 	for k, v := range initialMetadata {
-		metadata[k.String()] = v
+		metadata[k] = v
 		roles = append(roles, k)
 	}
 

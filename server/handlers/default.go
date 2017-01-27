@@ -44,7 +44,7 @@ func AtomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 }
 
 func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	gun := data.GUN(vars["imageName"])
+	gun := vars["imageName"]
 	s := ctx.Value(notary.CtxKeyMetaStore)
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	store, ok := s.(storage.MetaStore)
@@ -94,7 +94,7 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 			Data:    inBuf.Bytes(),
 		})
 	}
-	updates, err = validateUpdate(cryptoService, gun, updates, store)
+	updates, err = validateUpdate(cryptoService, data.GUN(gun), updates, store)
 	if err != nil {
 		serializable, serializableError := validation.NewSerializableError(err)
 		if serializableError != nil {
@@ -103,7 +103,7 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 		}
 		return errors.ErrInvalidUpdate.WithDetail(serializable)
 	}
-	err = store.UpdateMany(gun, updates)
+	err = store.UpdateMany(data.GUN(gun), updates)
 	if err != nil {
 		// If we have an old version error, surface to user with error code
 		if _, ok := err.(storage.ErrOldVersion); ok {

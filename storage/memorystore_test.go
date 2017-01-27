@@ -53,7 +53,7 @@ func TestMemoryStoreMetadataOperations(t *testing.T) {
 
 func TestMemoryStoreGetSized(t *testing.T) {
 	content := []byte("content")
-	s := NewMemoryStore(map[string][]byte{"content": content})
+	s := NewMemoryStore(map[data.RoleName][]byte{"content": content})
 
 	// we can get partial size
 	meta, err := s.GetSized("content", 3)

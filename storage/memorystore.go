@@ -12,16 +12,16 @@ import (
 
 // NewMemoryStore returns a MetadataStore that operates entirely in memory.
 // Very useful for testing
-func NewMemoryStore(initial map[string][]byte) *MemoryStore {
-	var consistent = make(map[string][]byte)
+func NewMemoryStore(initial map[data.RoleName][]byte) *MemoryStore {
+	var consistent = make(map[data.RoleName][]byte)
 	if initial == nil {
-		initial = make(map[string][]byte)
+		initial = make(map[data.RoleName][]byte)
 	} else {
 		// add all seed meta to consistent
 		for name, d := range initial {
 			checksum := sha256.Sum256(d)
-			path := utils.ConsistentName(data.RoleName(name), checksum[:])
-			consistent[path.String()] = d
+			path := utils.ConsistentName(name, checksum[:])
+			consistent[path] = d
 		}
 	}
 	return &MemoryStore{
@@ -33,8 +33,8 @@ func NewMemoryStore(initial map[string][]byte) *MemoryStore {
 // MemoryStore implements a mock RemoteStore entirely in memory.
 // For testing purposes only.
 type MemoryStore struct {
-	data       map[string][]byte
-	consistent map[string][]byte
+	data       map[data.RoleName][]byte
+	consistent map[data.RoleName][]byte
 }
 
 // GetSized returns up to size bytes of data references by name.
@@ -43,7 +43,7 @@ type MemoryStore struct {
 // size for everything but a timestamp and sometimes a root,
 // neither of which should be exceptionally large
 func (m MemoryStore) GetSized(name string, size int64) ([]byte, error) {
-	d, ok := m.data[name]
+	d, ok := m.data[data.RoleName(name)]
 	if ok {
 		if size == NoSizeLimit {
 			size = notary.MaxDownloadSize
@@ -53,7 +53,7 @@ func (m MemoryStore) GetSized(name string, size int64) ([]byte, error) {
 		}
 		return d[:size], nil
 	}
-	d, ok = m.consistent[name]
+	d, ok = m.consistent[data.RoleName(name)]
 	if ok {
 		if int64(len(d)) < size {
 			return d, nil
@@ -65,10 +65,10 @@ func (m MemoryStore) GetSized(name string, size int64) ([]byte, error) {
 
 // Get returns the data associated with name
 func (m MemoryStore) Get(name string) ([]byte, error) {
-	if d, ok := m.data[name]; ok {
+	if d, ok := m.data[data.RoleName(name)]; ok {
 		return d, nil
 	}
-	if d, ok := m.consistent[name]; ok {
+	if d, ok := m.consistent[data.RoleName(name)]; ok {
 		return d, nil
 	}
 	return nil, ErrMetaNotFound{Resource: name}
@@ -76,7 +76,7 @@ func (m MemoryStore) Get(name string) ([]byte, error) {
 
 // Set sets the metadata value for the given name
 func (m *MemoryStore) Set(name string, meta []byte) error {
-	m.data[name] = meta
+	m.data[data.RoleName(name)] = meta
 
 	parsedMeta := &data.SignedMeta{}
 	err := json.Unmarshal(meta, parsedMeta)
@@ -84,12 +84,12 @@ func (m *MemoryStore) Set(name string, meta []byte) error {
 		// no parse error means this is metadata and not a key, so store by version
 		version := parsedMeta.Signed.Version
 		versionedName := fmt.Sprintf("%d.%s", version, name)
-		m.data[versionedName] = meta
+		m.data[data.RoleName(versionedName)] = meta
 	}
 
 	checksum := sha256.Sum256(meta)
 	path := utils.ConsistentName(data.RoleName(name), checksum[:])
-	m.consistent[path.String()] = meta
+	m.consistent[path] = meta
 	return nil
 }
 
@@ -105,11 +105,11 @@ func (m *MemoryStore) SetMulti(metas map[data.RoleName][]byte) error {
 // Remove removes the metadata for a single role - if the metadata doesn't
 // exist, no error is returned
 func (m *MemoryStore) Remove(name string) error {
-	if meta, ok := m.data[name]; ok {
+	if meta, ok := m.data[data.RoleName(name)]; ok {
 		checksum := sha256.Sum256(meta)
 		path := utils.ConsistentName(data.RoleName(name), checksum[:])
-		delete(m.data, name)
-		delete(m.consistent, path.String())
+		delete(m.data, data.RoleName(name))
+		delete(m.consistent, path)
 	}
 	return nil
 }
@@ -130,7 +130,7 @@ func (m MemoryStore) Location() string {
 func (m *MemoryStore) ListFiles() []string {
 	names := make([]string, 0, len(m.data))
 	for n := range m.data {
-		names = append(names, n)
+		names = append(names, n.String())
 	}
 	return names
 }

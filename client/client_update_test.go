@@ -106,9 +106,9 @@ func TestUpdateSucceedsEvenIfCannotWriteNewRepo(t *testing.T) {
 	}
 
 	serverMeta, _, err := testutils.NewRepoMetadata(data.GUN("docker.com/notary"), metadataDelegations...)
-	meta := make(map[string][]byte)
+	meta := make(map[data.RoleName][]byte)
 	for k, v := range serverMeta {
-		meta[k.String()] = v
+		meta[k] = v
 	}
 	require.NoError(t, err)
 
@@ -169,10 +169,8 @@ func TestUpdateSucceedsEvenIfCannotWriteExistingRepo(t *testing.T) {
 			require.NoError(t, err)
 
 			for r, expected := range serverMeta {
-				fmt.Println("root role?", strings.Contains(r.String(), "root "), " role=", r.String(), "not root")
 				if r != data.CanonicalRootRole && strings.Contains(r.String(), "root") {
 					// don't fetch versioned root roles here
-					fmt.Printf("root role found %s\n", r.String())
 					continue
 				}
 				if strings.ContainsAny(r.String(), "123456789") {
@@ -274,7 +272,7 @@ func TestUpdateReplacesCorruptOrMissingMetadata(t *testing.T) {
 	serverMeta, cs, err := testutils.NewRepoMetadata(data.GUN("docker.com/notary"), metadataDelegations...)
 	require.NoError(t, err)
 
-	ts := readOnlyServer(t, store.NewMemoryStore(data.MetadataRoleMapToStringMap(serverMeta)), http.StatusNotFound, data.GUN("docker.com/notary"))
+	ts := readOnlyServer(t, store.NewMemoryStore(serverMeta), http.StatusNotFound, data.GUN("docker.com/notary"))
 	defer ts.Close()
 
 	repo := newBlankRepo(t, ts.URL)

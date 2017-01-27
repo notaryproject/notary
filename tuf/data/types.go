@@ -46,7 +46,7 @@ func MetadataRoleMapToStringMap(roles map[RoleName][]byte) map[string][]byte {
 	return metadata
 }
 
-// RoleNameList generates an array of RoleName objects from the a slice of strings
+// NewRoleList generates an array of RoleName objects from the a slice of strings
 func NewRoleList(roles []string) []RoleName {
 	var roleNames []RoleName
 	for _, role := range roles {
