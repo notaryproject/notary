@@ -84,7 +84,7 @@ type retrievePassword func(alias string) (password string, err error)
 
 ###Proposed Flow
 
-![Proposed flow](https://github.com/rhonnava/notary_proposal/blob/master/NewFlow.png)
+![Proposed flow](https://github.com/rhonnava/notary/blob/master/cmd/notary-signer/NewFlow.png)
 
 
 
