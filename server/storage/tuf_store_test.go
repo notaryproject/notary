@@ -35,7 +35,7 @@ func metaFromRepo(t *testing.T, gun data.GUN, version int) map[string]StoredTUFM
 // to the snapshot specified in the checksum, to potentially other role metadata by checksum
 func testTUFMetaStoreGetCurrent(t *testing.T, s MetaStore) {
 	tufDBStore := NewTUFMetaStorage(s)
-	gun := data.GUN("testGUN")
+	var gun data.GUN = "testGUN"
 
 	initialRootTUF := SampleCustomTUFObj(gun, data.CanonicalRootRole, 1, nil)
 	ConsistentEmptyGetCurrentTest(t, tufDBStore, initialRootTUF)

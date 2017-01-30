@@ -22,7 +22,7 @@ func TestGenerateCertificate(t *testing.T) {
 	require.NoError(t, err, "could not add key to store")
 
 	// Check GenerateCertificate method
-	gun := data.GUN("docker.com/notary")
+	var gun data.GUN = "docker.com/notary"
 	startTime := time.Now()
 	cert, err := GenerateCertificate(privKey, gun, startTime, startTime.AddDate(10, 0, 0))
 	require.NoError(t, err, "could not generate certificate")

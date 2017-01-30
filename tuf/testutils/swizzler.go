@@ -558,7 +558,7 @@ func (m *MetadataSwizzler) UpdateSnapshotHashes(roles ...data.RoleName) error {
 				return err
 			}
 
-			snapshot.Signed.Meta[role] = meta
+			snapshot.Signed.Meta[role.String()] = meta
 		}
 	}
 
@@ -603,7 +603,7 @@ func (m *MetadataSwizzler) UpdateTimestampHash() error {
 		return err
 	}
 
-	timestamp.Signed.Meta[data.CanonicalSnapshotRole] = snapshotMeta
+	timestamp.Signed.Meta[data.CanonicalSnapshotRole.String()] = snapshotMeta
 
 	timestampSigned, err = timestamp.ToSigned()
 	if err != nil {

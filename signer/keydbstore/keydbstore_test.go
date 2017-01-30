@@ -166,7 +166,7 @@ func testSigningWithKeyMarksAsActive(t *testing.T, dbStore signed.CryptoService)
 func testCreateKey(t *testing.T, dbStore signed.CryptoService) (data.PrivateKey, data.PrivateKey, data.PrivateKey) {
 	// Create a test key, and check that it is successfully added to the database
 	role := data.RoleName(data.CanonicalSnapshotRole.String())
-	gun := data.GUN("gun")
+	var gun data.GUN = "gun"
 
 	// First create an ECDSA key
 	createdECDSAKey, err := dbStore.Create(role, gun, data.ECDSAKey)

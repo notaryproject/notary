@@ -149,7 +149,7 @@ func testGetVersion(t *testing.T, s MetaStore) {
 // UpdateMany succeeds if the updates do not conflict with each other or with what's
 // already in the DB
 func testUpdateManyNoConflicts(t *testing.T, s MetaStore) []StoredTUFMeta {
-	gun := data.GUN("testGUN")
+	var gun data.GUN = "testGUN"
 	firstBatch := make([]StoredTUFMeta, 4)
 	updates := make([]MetaUpdate, 4)
 	for i, role := range data.BaseRoles {
@@ -195,7 +195,7 @@ func testUpdateManyNoConflicts(t *testing.T, s MetaStore) []StoredTUFMeta {
 // UpdateMany does not insert any rows (or at least rolls them back) if there
 // are any conflicts.
 func testUpdateManyConflictRollback(t *testing.T, s MetaStore) []StoredTUFMeta {
-	gun := data.GUN("testGUN")
+	var gun data.GUN = "testGUN"
 	successBatch := make([]StoredTUFMeta, 4)
 	updates := make([]MetaUpdate, 4)
 	for i, role := range data.BaseRoles {
@@ -256,7 +256,7 @@ func testUpdateManyConflictRollback(t *testing.T, s MetaStore) []StoredTUFMeta {
 
 // Delete will remove all TUF metadata, all versions, associated with a gun
 func testDeleteSuccess(t *testing.T, s MetaStore) {
-	gun := data.GUN("testGUN")
+	var gun data.GUN = "testGUN"
 	// If there is nothing in the DB, delete is a no-op success
 	require.NoError(t, s.Delete(gun))
 

@@ -635,7 +635,7 @@ func (tr *Repo) InitTimestamp() error {
 // the target isn't found in the targets file.
 func (tr Repo) TargetMeta(role data.RoleName, path string) *data.FileMeta {
 	if t, ok := tr.Targets[role]; ok {
-		if m, ok := t.Signed.Targets[data.RoleName(path)]; ok {
+		if m, ok := t.Signed.Targets[data.RoleName(path).String()]; ok {
 			return &m
 		}
 	}
@@ -798,17 +798,17 @@ func (tr *Repo) AddTargets(role data.RoleName, targets data.Files) (data.Files, 
 	addTargetVisitor := func(targetPath data.RoleName, targetMeta data.FileMeta) func(*data.SignedTargets, data.DelegationRole) interface{} {
 		return func(tgt *data.SignedTargets, validRole data.DelegationRole) interface{} {
 			// We've already validated the role's target path in our walk, so just modify the metadata
-			tgt.Signed.Targets[targetPath] = targetMeta
+			tgt.Signed.Targets[targetPath.String()] = targetMeta
 			tgt.Dirty = true
 			// Also add to our new addedTargets map to keep track of every target we've added successfully
-			addedTargets[targetPath] = targetMeta
+			addedTargets[targetPath.String()] = targetMeta
 			return StopWalk{}
 		}
 	}
 
 	// Walk the role tree while validating the target paths, and add all of our targets
 	for path, target := range targets {
-		tr.WalkTargets(path.String(), role, addTargetVisitor(path, target))
+		tr.WalkTargets(path, role, addTargetVisitor(data.RoleName(path), target))
 	}
 	if len(addedTargets) != len(targets) {
 		return nil, fmt.Errorf("Could not add all targets")
@@ -827,7 +827,7 @@ func (tr *Repo) RemoveTargets(role data.RoleName, targets ...string) error {
 			// We've already validated the role path in our walk, so just modify the metadata
 			// We don't check against the target path against the valid role paths because it's
 			// possible we got into an invalid state and are trying to fix it
-			delete(tgt.Signed.Targets, targetPath)
+			delete(tgt.Signed.Targets, targetPath.String())
 			tgt.Dirty = true
 			return StopWalk{}
 		}
@@ -854,7 +854,7 @@ func (tr *Repo) UpdateSnapshot(role data.RoleName, s *data.Signed) error {
 	if err != nil {
 		return err
 	}
-	tr.Snapshot.Signed.Meta[role] = meta
+	tr.Snapshot.Signed.Meta[role.String()] = meta
 	tr.Snapshot.Dirty = true
 	return nil
 }
@@ -869,7 +869,7 @@ func (tr *Repo) UpdateTimestamp(s *data.Signed) error {
 	if err != nil {
 		return err
 	}
-	tr.Timestamp.Signed.Meta[data.CanonicalSnapshotRole] = meta
+	tr.Timestamp.Signed.Meta[data.CanonicalSnapshotRole.String()] = meta
 	tr.Timestamp.Dirty = true
 	return nil
 }

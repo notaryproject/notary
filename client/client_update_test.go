@@ -998,7 +998,7 @@ func waysToMessUpServerNonRootPerRole(t *testing.T) map[string][]swizzleExpectat
 				expectErrs: []interface{}{data.ErrInvalidMetadata{}},
 				swizzle: func(s *testutils.MetadataSwizzler, role string) error {
 					return s.MutateSnapshot(func(sn *data.Snapshot) {
-						delete(sn.Meta, missing)
+						delete(sn.Meta, missing.String())
 					})
 				},
 			})
@@ -1017,7 +1017,7 @@ func waysToMessUpServerNonRootPerRole(t *testing.T) map[string][]swizzleExpectat
 		expectErrs: []interface{}{data.ErrInvalidMetadata{}},
 		swizzle: func(s *testutils.MetadataSwizzler, role string) error {
 			return s.MutateTimestamp(func(ts *data.Timestamp) {
-				delete(ts.Meta, data.CanonicalSnapshotRole)
+				delete(ts.Meta, data.CanonicalSnapshotRole.String())
 			})
 		},
 	}}
@@ -1815,7 +1815,7 @@ func TestDownloadTargetsLarge(t *testing.T) {
 	// Add a ton of target files to the targets role to make this targets metadata huge
 	// 75,000 targets results in > 5MB (~6.5MB on recent runs)
 	for i := 0; i < numTargets; i++ {
-		_, err = tufRepo.AddTargets(data.CanonicalTargetsRole, data.Files{data.RoleName(strconv.Itoa(i)): fMeta})
+		_, err = tufRepo.AddTargets(data.CanonicalTargetsRole, data.Files{strconv.Itoa(i): fMeta})
 		require.NoError(t, err)
 	}
 

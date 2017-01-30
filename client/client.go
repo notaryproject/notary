@@ -252,24 +252,24 @@ func (r *NotaryRepository) initializeRoles(rootKeys []data.PublicKey, localRoles
 
 	// we want to create all the local keys first so we don't have to
 	// make unnecessary network calls
-	for _, roleName := range localRoles {
+	for _, role := range localRoles {
 		// This is currently hardcoding the keys to ECDSA.
 		var key data.PublicKey
 
-		key, err = r.CryptoService.Create(roleName, r.gun, data.ECDSAKey)
+		key, err = r.CryptoService.Create(role, r.gun, data.ECDSAKey)
 		if err != nil {
 			return
 		}
-		switch roleName {
+		switch role {
 		case data.CanonicalSnapshotRole:
 			snapshot = data.NewBaseRole(
-				roleName,
+				role,
 				notary.MinThreshold,
 				key,
 			)
 		case data.CanonicalTargetsRole:
 			targets = data.NewBaseRole(
-				roleName,
+				role,
 				notary.MinThreshold,
 				key,
 			)
@@ -407,13 +407,13 @@ func (r *NotaryRepository) ListTargets(roles ...data.RoleName) ([]*TargetWithRol
 			for targetName, targetMeta := range tgt.Signed.Targets {
 				// Follow the priority by not overriding previously set targets
 				// and check that this path is valid with this role
-				if _, ok := targets[targetName]; ok || !validRole.CheckPaths(targetName.String()) {
+				if _, ok := targets[data.RoleName(targetName)]; ok || !validRole.CheckPaths(targetName) {
 					continue
 				}
 				roleName = validRole.Name
-				targets[targetName] = &TargetWithRole{
+				targets[data.RoleName(targetName)] = &TargetWithRole{
 					Target: Target{
-						Name:   targetName.String(),
+						Name:   targetName,
 						Hashes: targetMeta.Hashes,
 						Length: targetMeta.Length,
 					},
@@ -463,7 +463,7 @@ func (r *NotaryRepository) GetTargetByName(name string, roles ...data.RoleName) 
 			}
 			// We found the target and validated path compatibility in our walk,
 			// so we should stop our walk and set the resultMeta and resultRoleName variables
-			if resultMeta, foundTarget = tgt.Signed.Targets[data.RoleName(name)]; foundTarget {
+			if resultMeta, foundTarget = tgt.Signed.Targets[name]; foundTarget {
 				resultRoleName = validRole.Name
 				return tuf.StopWalk{}
 			}
@@ -507,15 +507,15 @@ func (r *NotaryRepository) GetAllTargetMetadataByName(name string) ([]TargetSign
 		if name == "" {
 			targetMetaToAdd = tgt.Signed.Targets
 		} else {
-			if meta, ok := tgt.Signed.Targets[data.RoleName(name)]; ok {
-				targetMetaToAdd = data.Files{data.RoleName(name): meta}
+			if meta, ok := tgt.Signed.Targets[name]; ok {
+				targetMetaToAdd = data.Files{name: meta}
 			}
 		}
 
 		for targetName, resultMeta := range targetMetaToAdd {
 			targetInfo := TargetSignedStruct{
 				Role:       validRole,
-				Target:     Target{Name: targetName.String(), Hashes: resultMeta.Hashes, Length: resultMeta.Length},
+				Target:     Target{Name: targetName, Hashes: resultMeta.Hashes, Length: resultMeta.Length},
 				Signatures: tgt.Signatures,
 			}
 			targetInfoList = append(targetInfoList, targetInfo)

@@ -141,7 +141,7 @@ func changeTargetMeta(repo *tuf.Repo, c changelist.Change) error {
 		if err != nil {
 			return err
 		}
-		files := data.Files{data.RoleName(c.Path()): *meta}
+		files := data.Files{c.Path(): *meta}
 
 		// Attempt to add the target to this role
 		if _, err = repo.AddTargets(c.Scope(), files); err != nil {

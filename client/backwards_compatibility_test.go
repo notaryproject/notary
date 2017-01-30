@@ -80,7 +80,7 @@ func Test0Dot1Migration(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, recursiveCopy("../fixtures/compatibility/notary0.1", tmpDir))
 
-	gun := data.GUN("docker.com/notary0.1/samplerepo")
+	var gun data.GUN = "docker.com/notary0.1/samplerepo"
 	passwd := "randompass"
 
 	ts := fullTestServer(t)
@@ -127,7 +127,7 @@ func Test0Dot3Migration(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, recursiveCopy("../fixtures/compatibility/notary0.3", tmpDir))
 
-	gun := data.GUN("docker.com/notary0.3/samplerepo")
+	var gun data.GUN = "docker.com/notary0.3/samplerepo"
 	passwd := "randompass"
 
 	ts := fullTestServer(t)
@@ -183,7 +183,7 @@ func Test0Dot1RepoFormat(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, recursiveCopy("../fixtures/compatibility/notary0.1", tmpDir))
 
-	gun := data.GUN("docker.com/notary0.1/samplerepo")
+	var gun data.GUN = "docker.com/notary0.1/samplerepo"
 	passwd := "randompass"
 
 	ts := fullTestServer(t)
@@ -243,7 +243,7 @@ func Test0Dot3RepoFormat(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, recursiveCopy("../fixtures/compatibility/notary0.3", tmpDir))
 
-	gun := data.GUN("docker.com/notary0.3/tst")
+	var gun data.GUN = "docker.com/notary0.3/tst"
 	passwd := "password"
 
 	ts := fullTestServer(t)
@@ -300,7 +300,7 @@ func Test0Dot3RepoFormat(t *testing.T) {
 
 // Ensures that the current client can download metadata that is published from notary 0.1 repos
 func TestDownloading0Dot1RepoFormat(t *testing.T) {
-	gun := data.GUN("docker.com/notary0.1/samplerepo")
+	var gun data.GUN = "docker.com/notary0.1/samplerepo"
 	passwd := "randompass"
 
 	metaCache, err := store.NewFileStore(
@@ -325,7 +325,7 @@ func TestDownloading0Dot1RepoFormat(t *testing.T) {
 
 // Ensures that the current client can download metadata that is published from notary 0.3 repos
 func TestDownloading0Dot3RepoFormat(t *testing.T) {
-	gun := data.GUN("docker.com/notary0.3/tst")
+	var gun data.GUN = "docker.com/notary0.3/tst"
 	passwd := "randompass"
 
 	metaCache, err := store.NewFileStore(

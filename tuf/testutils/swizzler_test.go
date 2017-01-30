@@ -21,7 +21,7 @@ import (
 // for those targets), and returns the swizzler along with a copy of the original
 // metadata
 func createNewSwizzler(t *testing.T) (*MetadataSwizzler, map[data.RoleName][]byte) {
-	gun := data.GUN("docker.com/notary")
+	var gun data.GUN = "docker.com/notary"
 	m, cs, err := NewRepoMetadata(gun, "targets/a", "targets/a/b", "targets/a/b/c")
 	require.NoError(t, err)
 
@@ -44,7 +44,7 @@ func TestNewSwizzler(t *testing.T) {
 	require.NoError(t, json.Unmarshal(origMeta[data.CanonicalTimestampRole], timestamp))
 
 	for _, role := range f.Roles {
-		filemeta, ok := snapshot.Signed.Meta[role]
+		filemeta, ok := snapshot.Signed.Meta[role.String()]
 		if role != data.CanonicalTimestampRole && role != data.CanonicalSnapshotRole {
 			require.True(t, ok)
 			require.NotNil(t, filemeta)
@@ -55,7 +55,7 @@ func TestNewSwizzler(t *testing.T) {
 	}
 
 	require.Len(t, timestamp.Signed.Meta, 1)
-	filemeta, ok := timestamp.Signed.Meta[data.CanonicalSnapshotRole]
+	filemeta, ok := timestamp.Signed.Meta[data.CanonicalSnapshotRole.String()]
 	require.True(t, ok)
 	require.NotNil(t, filemeta)
 	require.NotEmpty(t, filemeta)
@@ -119,10 +119,10 @@ func TestSwizzlerAddExtraSpace(t *testing.T) {
 			// make sure the hash is not the same as the hash in snapshot
 			newHash := sha256.Sum256(newMeta)
 			require.False(t, bytes.Equal(
-				snapshot.Signed.Meta[data.CanonicalTargetsRole].Hashes["sha256"],
+				snapshot.Signed.Meta[data.CanonicalTargetsRole.String()].Hashes["sha256"],
 				newHash[:]))
 			require.NotEqual(t,
-				snapshot.Signed.Meta[data.CanonicalTargetsRole].Length,
+				snapshot.Signed.Meta[data.CanonicalTargetsRole.String()].Length,
 				len(newMeta))
 		}
 	}
@@ -466,9 +466,9 @@ func TestSwizzlerUpdateSnapshotHashesSpecifiedRoles(t *testing.T) {
 		case data.CanonicalTimestampRole:
 			continue
 		case data.CanonicalTargetsRole:
-			require.NotEqual(t, origSnapshot.Signed.Meta[role], newSnapshot.Signed.Meta[role])
+			require.NotEqual(t, origSnapshot.Signed.Meta[role.String()], newSnapshot.Signed.Meta[role.String()])
 		default:
-			require.Equal(t, origSnapshot.Signed.Meta[role], newSnapshot.Signed.Meta[role])
+			require.Equal(t, origSnapshot.Signed.Meta[role.String()], newSnapshot.Signed.Meta[role.String()])
 		}
 	}
 }
@@ -514,9 +514,9 @@ func TestSwizzlerUpdateSnapshotHashesNoSpecifiedRoles(t *testing.T) {
 		case "targets/a":
 			fallthrough
 		case "targets/a/b":
-			require.NotEqual(t, origSnapshot.Signed.Meta[role], newSnapshot.Signed.Meta[role])
+			require.NotEqual(t, origSnapshot.Signed.Meta[role.String()], newSnapshot.Signed.Meta[role.String()])
 		default:
-			require.Equal(t, origSnapshot.Signed.Meta[role], newSnapshot.Signed.Meta[role])
+			require.Equal(t, origSnapshot.Signed.Meta[role.String()], newSnapshot.Signed.Meta[role.String()])
 		}
 	}
 }
@@ -552,8 +552,8 @@ func TestSwizzlerUpdateTimestamp(t *testing.T) {
 	require.Len(t, origTimestamp.Signed.Meta, 1)
 	require.Len(t, newTimestamp.Signed.Meta, 1)
 	require.False(t, reflect.DeepEqual(
-		origTimestamp.Signed.Meta[data.CanonicalSnapshotRole],
-		newTimestamp.Signed.Meta[data.CanonicalSnapshotRole]))
+		origTimestamp.Signed.Meta[data.CanonicalSnapshotRole.String()],
+		newTimestamp.Signed.Meta[data.CanonicalSnapshotRole.String()]))
 }
 
 // functions which require re-signing the metadata will return ErrNoKeyForRole if

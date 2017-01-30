@@ -75,7 +75,7 @@ func NewTargets() *SignedTargets {
 // will return nil in the case of the target not being found.
 func (t SignedTargets) GetMeta(path string) *FileMeta {
 	for role, meta := range t.Signed.Targets {
-		if role.String() == path {
+		if role == path {
 			return &meta
 		}
 	}
@@ -143,7 +143,7 @@ func (t SignedTargets) buildDelegationRoles() []DelegationRole {
 
 // AddTarget adds or updates the meta for the given path
 func (t *SignedTargets) AddTarget(path string, meta FileMeta) {
-	t.Signed.Targets[RoleName(path)] = meta
+	t.Signed.Targets[path] = meta
 	t.Dirty = true
 }
 

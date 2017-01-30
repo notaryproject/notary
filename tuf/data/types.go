@@ -67,10 +67,10 @@ const defaultHashAlgorithm = "sha256"
 // NotaryDefaultExpiries is the construct used to configure the default expiry times of
 // the various role files.
 var NotaryDefaultExpiries = map[RoleName]time.Duration{
-	RoleName("root"):      notary.NotaryRootExpiry,
-	RoleName("targets"):   notary.NotaryTargetsExpiry,
-	RoleName("snapshot"):  notary.NotarySnapshotExpiry,
-	RoleName("timestamp"): notary.NotaryTimestampExpiry,
+	CanonicalRootRole:      notary.NotaryRootExpiry,
+	CanonicalTargetsRole:   notary.NotaryTargetsExpiry,
+	CanonicalSnapshotRole:  notary.NotarySnapshotExpiry,
+	CanonicalTimestampRole: notary.NotaryTimestampExpiry,
 }
 
 // Signature types
@@ -155,7 +155,7 @@ type Signature struct {
 
 // Files is the map of paths to file meta container in targets and delegations
 // metadata files
-type Files map[RoleName]FileMeta
+type Files map[string]FileMeta
 
 // Hashes is the map of hash type to digest created for each metadata
 // and target file

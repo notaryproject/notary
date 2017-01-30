@@ -1303,7 +1303,7 @@ func verifyRootSignatureAgainstKey(t *testing.T, signedRoot *data.Signed, key da
 }
 
 func TestSignRootOldKeyCertExists(t *testing.T) {
-	gun := data.GUN("docker/test-sign-root")
+	var gun data.GUN = "docker/test-sign-root"
 	referenceTime := time.Now()
 
 	cs := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(
@@ -1356,7 +1356,7 @@ func TestSignRootOldKeyCertExists(t *testing.T) {
 }
 
 func TestSignRootOldKeyCertMissing(t *testing.T) {
-	gun := data.GUN("docker/test-sign-root")
+	var gun data.GUN = "docker/test-sign-root"
 	referenceTime := time.Now()
 
 	cs := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(
@@ -1417,7 +1417,7 @@ func TestSignRootOldKeyCertMissing(t *testing.T) {
 // rotation. After signing with the previous keys, they can be discarded from
 // the root role.
 func TestRootKeyRotation(t *testing.T) {
-	gun := data.GUN("docker/test-sign-root")
+	var gun data.GUN = "docker/test-sign-root"
 	referenceTime := time.Now()
 
 	cs := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(

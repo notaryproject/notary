@@ -34,7 +34,7 @@ func TestAddKey(t *testing.T) {
 }
 
 func testAddKeyWithRole(t *testing.T, role data.RoleName) {
-	gun := data.GUN("docker.com/notary")
+	var gun data.GUN = ("docker.com/notary")
 	testExt := "key"
 
 	// Temporary directory where test files will be created
@@ -77,7 +77,7 @@ func TestKeyStoreInternalState(t *testing.T) {
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
-	gun := data.GUN("docker.com/notary")
+	var gun data.GUN = ("docker.com/notary")
 
 	// Mimic a notary repo setup, and test that bringing up a keyfilestore creates the correct keyInfoMap
 	roles := []data.RoleName{data.CanonicalRootRole, data.CanonicalTargetsRole, data.CanonicalSnapshotRole, data.RoleName("targets/delegation")}
@@ -166,7 +166,7 @@ func TestGet(t *testing.T) {
 		data.RoleName("invalidRole"),
 	}
 
-	gun := data.GUN("docker.io/notary")
+	var gun data.GUN = "docker.io/notary"
 
 	testGetKeyWithRole(t, "", data.CanonicalRootRole)
 	for _, role := range nonRootRolesToTest {
@@ -408,7 +408,7 @@ func TestAddGetKeyMemStore(t *testing.T) {
 }
 
 func TestAddGetKeyInfoMemStore(t *testing.T) {
-	gun := data.GUN("docker.com/notary")
+	var gun data.GUN = ("docker.com/notary")
 
 	// Create our store
 	store := NewKeyMemoryStore(passphraseRetriever)
@@ -580,7 +580,7 @@ func TestRemoveKey(t *testing.T) {
 }
 
 func testRemoveKeyWithRole(t *testing.T, role data.RoleName) {
-	gun := data.GUN("docker.com/notary")
+	var gun data.GUN = ("docker.com/notary")
 	testExt := "key"
 
 	// Temporary directory where test files will be created
@@ -615,7 +615,7 @@ func testRemoveKeyWithRole(t *testing.T, role data.RoleName) {
 }
 
 func TestKeysAreCached(t *testing.T) {
-	gun := data.GUN("docker.com/notary")
+	var gun data.GUN = ("docker.com/notary")
 	testAlias := data.RoleName("alias")
 
 	// Temporary directory where test files will be created

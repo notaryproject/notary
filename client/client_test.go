@@ -568,7 +568,7 @@ func TestInitRepoAttemptsExceeded(t *testing.T) {
 }
 
 func testInitRepoAttemptsExceeded(t *testing.T, rootType string) {
-	gun := data.GUN("docker.com/notary")
+	var gun data.GUN = "docker.com/notary"
 	// Temporary directory where test files will be created
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
@@ -606,7 +606,7 @@ func giveUpPassphraseRetriever(_, _ string, _ bool, _ int) (string, bool, error)
 }
 
 func testInitRepoPasswordInvalid(t *testing.T, rootType string) {
-	gun := data.GUN("docker.com/notary")
+	var gun data.GUN = "docker.com/notary"
 	// Temporary directory where test files will be created
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
@@ -1651,7 +1651,7 @@ func testPublishNoData(t *testing.T, rootType string, clearCache, serverManagesS
 // Publishing an uninitialized repo will fail, but initializing and republishing
 // after should succeed
 func TestPublishUninitializedRepo(t *testing.T) {
-	gun := data.GUN("docker.com/notary")
+	var gun data.GUN = "docker.com/notary"
 	ts := fullTestServer(t)
 	defer ts.Close()
 
@@ -2018,7 +2018,7 @@ func TestPublishSnapshotLocalKeysCreatedFirst(t *testing.T) {
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	defer os.RemoveAll(tempBaseDir)
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
-	gun := data.GUN("docker.com/notary")
+	var gun data.GUN = "docker.com/notary"
 
 	requestMade := false
 	ts := httptest.NewServer(http.HandlerFunc(
@@ -2284,7 +2284,7 @@ func TestPublishTargetsDelegationNoTargetsKeyNeeded(t *testing.T) {
 // - owner of a repo may not have the delegated keys, so can't sign a delegated
 //   role
 func TestPublishTargetsDelegationSuccessNeedsToDownloadRoles(t *testing.T) {
-	gun := data.GUN("docker.com/notary")
+	var gun data.GUN = "docker.com/notary"
 	ts := fullTestServer(t)
 	defer ts.Close()
 

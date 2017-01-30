@@ -381,7 +381,7 @@ func TestGetHandlerNoStorage(t *testing.T) {
 // response)
 func TestAtomicUpdateValidationFailurePropagated(t *testing.T) {
 	metaStore := storage.NewMemStorage()
-	gun := data.GUN("testGUN")
+	var gun data.GUN = "testGUN"
 	vars := map[string]string{"imageName": gun.String()}
 
 	repo, cs, err := testutils.EmptyRepo(gun)
@@ -424,7 +424,7 @@ func (s *failStore) GetCurrent(_ data.GUN, _ data.RoleName) (*time.Time, []byte,
 // as a detail in the error (which gets serialized as the body of the response)
 func TestAtomicUpdateNonValidationFailureNotPropagated(t *testing.T) {
 	metaStore := storage.NewMemStorage()
-	gun := data.GUN("testGUN")
+	var gun data.GUN = "testGUN"
 	vars := map[string]string{"imageName": gun.String()}
 
 	repo, cs, err := testutils.EmptyRepo(gun)
@@ -466,7 +466,7 @@ func (s *invalidVersionStore) UpdateMany(_ data.GUN, _ []storage.MetaUpdate) err
 // as a detail in the error (which gets serialized as the body of the response)
 func TestAtomicUpdateVersionErrorPropagated(t *testing.T) {
 	metaStore := storage.NewMemStorage()
-	gun := data.GUN("testGUN")
+	var gun data.GUN = "testGUN"
 	vars := map[string]string{"imageName": gun.String()}
 
 	repo, cs, err := testutils.EmptyRepo(gun)

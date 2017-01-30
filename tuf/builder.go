@@ -228,18 +228,18 @@ func (rb *repoBuilder) GetConsistentInfo(roleName data.RoleName) ConsistentInfo 
 		info.fileMeta.Length = notary.MaxTimestampSize
 	case data.CanonicalSnapshotRole:
 		if rb.repo.Timestamp != nil {
-			info.fileMeta = rb.repo.Timestamp.Signed.Meta[roleName]
+			info.fileMeta = rb.repo.Timestamp.Signed.Meta[roleName.String()]
 		}
 	case data.CanonicalRootRole:
 		switch {
 		case rb.bootstrappedRootChecksum != nil:
 			info.fileMeta = *rb.bootstrappedRootChecksum
 		case rb.repo.Snapshot != nil:
-			info.fileMeta = rb.repo.Snapshot.Signed.Meta[roleName]
+			info.fileMeta = rb.repo.Snapshot.Signed.Meta[roleName.String()]
 		}
 	default:
 		if rb.repo.Snapshot != nil {
-			info.fileMeta = rb.repo.Snapshot.Signed.Meta[roleName]
+			info.fileMeta = rb.repo.Snapshot.Signed.Meta[roleName.String()]
 		}
 	}
 	return info
@@ -528,7 +528,7 @@ func (rb *repoBuilder) loadSnapshot(content []byte, minVersion int, allowExpired
 	// this snapshot to bootstrap the next builder if needed - and we don't need to do
 	// the 2-value assignment since we've already validated the signedSnapshot, which MUST
 	// have root metadata
-	rootMeta := signedSnapshot.Signed.Meta[data.CanonicalRootRole]
+	rootMeta := signedSnapshot.Signed.Meta[data.CanonicalRootRole.String()]
 	rb.nextRootChecksum = &rootMeta
 
 	if err := rb.validateChecksumsFromSnapshot(signedSnapshot); err != nil {
@@ -614,7 +614,7 @@ func (rb *repoBuilder) validateChecksumsFromTimestamp(ts *data.SignedTimestamp) 
 	sn, ok := rb.loadedNotChecksummed[data.CanonicalSnapshotRole]
 	if ok {
 		// by this point, the SignedTimestamp has been validated so it must have a snapshot hash
-		snMeta := ts.Signed.Meta[data.CanonicalSnapshotRole].Hashes
+		snMeta := ts.Signed.Meta[data.CanonicalSnapshotRole.String()].Hashes
 		if err := data.CheckHashes(sn, data.CanonicalSnapshotRole, snMeta); err != nil {
 			return err
 		}
@@ -630,7 +630,7 @@ func (rb *repoBuilder) validateChecksumsFromSnapshot(sn *data.SignedSnapshot) er
 		case data.CanonicalSnapshotRole, data.CanonicalTimestampRole:
 			break
 		default:
-			if err := data.CheckHashes(loadedBytes, roleName, sn.Signed.Meta[roleName].Hashes); err != nil {
+			if err := data.CheckHashes(loadedBytes, roleName, sn.Signed.Meta[roleName.String()].Hashes); err != nil {
 				return err
 			}
 			goodRoles = append(goodRoles, roleName.String())
@@ -716,12 +716,12 @@ func (rb *repoBuilder) getChecksumsFor(role data.RoleName) *data.Hashes {
 		if rb.repo.Timestamp == nil {
 			return nil
 		}
-		hashes = rb.repo.Timestamp.Signed.Meta[data.CanonicalSnapshotRole].Hashes
+		hashes = rb.repo.Timestamp.Signed.Meta[data.CanonicalSnapshotRole.String()].Hashes
 	default:
 		if rb.repo.Snapshot == nil {
 			return nil
 		}
-		hashes = rb.repo.Snapshot.Signed.Meta[role].Hashes
+		hashes = rb.repo.Snapshot.Signed.Meta[role.String()].Hashes
 	}
 	return &hashes
 }

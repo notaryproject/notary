@@ -63,7 +63,7 @@ func TestGetTimestampNoPreviousTimestamp(t *testing.T) {
 	for _, timestampJSON := range [][]byte{nil, []byte("invalid JSON")} {
 		store := storage.NewMemStorage()
 
-		gun := data.GUN("gun")
+		var gun data.GUN = "gun"
 		// so we know it's not a failure in getting root or snapshot
 		require.NoError(t,
 			store.UpdateCurrent(gun, storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0,

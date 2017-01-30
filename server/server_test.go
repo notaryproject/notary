@@ -59,7 +59,7 @@ func TestRunReservedPort(t *testing.T) {
 }
 
 func TestRepoPrefixMatches(t *testing.T) {
-	gun := data.GUN("docker.io/notary")
+	var gun data.GUN = "docker.io/notary"
 	meta, cs, err := testutils.NewRepoMetadata(gun)
 	require.NoError(t, err)
 
@@ -99,7 +99,7 @@ func TestRepoPrefixMatches(t *testing.T) {
 }
 
 func TestRepoPrefixDoesNotMatch(t *testing.T) {
-	gun := data.GUN("docker.io/notary")
+	var gun data.GUN = "docker.io/notary"
 	meta, cs, err := testutils.NewRepoMetadata(gun)
 	require.NoError(t, err)
 	s := storage.NewMemStorage()
