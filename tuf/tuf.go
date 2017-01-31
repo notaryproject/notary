@@ -217,9 +217,9 @@ func (tr *Repo) GetBaseRole(name data.RoleName) (data.BaseRole, error) {
 }
 
 // GetDelegationRole gets a delegation role from this repo's metadata, walking from the targets role down to the delegation itself
-func (tr *Repo) GetDelegationRole(roleName data.RoleName) (data.DelegationRole, error) {
-	if !data.IsDelegation(roleName) {
-		return data.DelegationRole{}, data.ErrInvalidRole{Role: roleName, Reason: "invalid delegation name"}
+func (tr *Repo) GetDelegationRole(name data.RoleName) (data.DelegationRole, error) {
+	if !data.IsDelegation(name) {
+		return data.DelegationRole{}, data.ErrInvalidRole{Role: name, Reason: "invalid delegation name"}
 	}
 	if tr.Root == nil {
 		return data.DelegationRole{}, ErrNotLoaded{data.CanonicalRootRole}
@@ -241,8 +241,8 @@ func (tr *Repo) GetDelegationRole(roleName data.RoleName) (data.DelegationRole, 
 	buildDelegationRoleVisitor := func(tgt *data.SignedTargets, validRole data.DelegationRole) interface{} {
 		// Try to find the delegation and build a DelegationRole structure
 		for _, role := range tgt.Signed.Delegations.Roles {
-			if role.Name == roleName {
-				delgRole, err := tgt.BuildDelegationRole(roleName)
+			if role.Name == name {
+				delgRole, err := tgt.BuildDelegationRole(name)
 				if err != nil {
 					return err
 				}
@@ -269,7 +269,7 @@ func (tr *Repo) GetDelegationRole(roleName data.RoleName) (data.DelegationRole, 
 	}
 
 	// Walk to the parent of this delegation, since that is where its role metadata exists
-	err := tr.WalkTargets("", roleName.Parent(), buildDelegationRoleVisitor)
+	err := tr.WalkTargets("", name.Parent(), buildDelegationRoleVisitor)
 	if err != nil {
 		return data.DelegationRole{}, err
 	}
@@ -278,7 +278,7 @@ func (tr *Repo) GetDelegationRole(roleName data.RoleName) (data.DelegationRole, 
 	// invalid. N.B. it may be that it existed at one point but an ancestor has since
 	// been modified/removed.
 	if foundRole == nil {
-		return data.DelegationRole{}, data.ErrInvalidRole{Role: roleName, Reason: "delegation does not exist"}
+		return data.DelegationRole{}, data.ErrInvalidRole{Role: name, Reason: "delegation does not exist"}
 	}
 
 	return *foundRole, nil
@@ -388,17 +388,17 @@ func (tr *Repo) UpdateDelegationKeys(roleName data.RoleName, addKeys data.KeyLis
 	if !data.IsDelegation(roleName) {
 		return data.ErrInvalidRole{Role: roleName, Reason: "not a valid delegated role"}
 	}
-	parentRole := data.RoleName(roleName.Parent())
+	parent := data.RoleName(roleName.Parent())
 
-	if err := tr.VerifyCanSign(parentRole); err != nil {
+	if err := tr.VerifyCanSign(parent); err != nil {
 		return err
 	}
 
 	// check the parent role's metadata
-	_, ok := tr.Targets[parentRole]
+	_, ok := tr.Targets[parent]
 	if !ok { // the parent targetfile may not exist yet - if not, then create it
 		var err error
-		_, err = tr.InitTargets(parentRole)
+		_, err = tr.InitTargets(parent)
 		if err != nil {
 			return err
 		}
