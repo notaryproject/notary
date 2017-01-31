@@ -342,8 +342,7 @@ func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	// If roles is empty, we default to adding to targets
-	roleNames := data.NewRoleList(t.roles)
-	if err = nRepo.AddTarget(target, roleNames...); err != nil {
+	if err = nRepo.AddTarget(target, data.NewRoleList(t.roles)...); err != nil {
 		return err
 	}
 
@@ -725,9 +724,8 @@ func (t *tufCommander) tufRemove(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	roles := data.NewRoleList(t.roles)
 	// If roles is empty, we default to removing from targets
-	if err = repo.RemoveTarget(targetName, roles...); err != nil {
+	if err = repo.RemoveTarget(targetName, data.NewRoleList(t.roles)...); err != nil {
 		return err
 	}
 

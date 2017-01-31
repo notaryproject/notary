@@ -255,7 +255,6 @@ func (r *NotaryRepository) initializeRoles(rootKeys []data.PublicKey, localRoles
 	for _, role := range localRoles {
 		// This is currently hardcoding the keys to ECDSA.
 		var key data.PublicKey
-
 		key, err = r.CryptoService.Create(role, r.gun, data.ECDSAKey)
 		if err != nil {
 			return
@@ -397,7 +396,6 @@ func (r *NotaryRepository) ListTargets(roles ...data.RoleName) ([]*TargetWithRol
 	}
 	targets := make(map[data.RoleName]*TargetWithRole)
 	for _, role := range roles {
-		var roleName data.RoleName
 		// Define an array of roles to skip for this walk (see IMPORTANT comment above)
 		skipRoles := utils.RoleNameSliceRemove(roles, role)
 
@@ -410,14 +408,13 @@ func (r *NotaryRepository) ListTargets(roles ...data.RoleName) ([]*TargetWithRol
 				if _, ok := targets[data.RoleName(targetName)]; ok || !validRole.CheckPaths(targetName) {
 					continue
 				}
-				roleName = validRole.Name
 				targets[data.RoleName(targetName)] = &TargetWithRole{
 					Target: Target{
 						Name:   targetName,
 						Hashes: targetMeta.Hashes,
 						Length: targetMeta.Length,
 					},
-					Role: roleName,
+					Role: validRole.Name,
 				}
 			}
 			return nil

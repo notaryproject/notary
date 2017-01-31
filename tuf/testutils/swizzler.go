@@ -542,9 +542,7 @@ func (m *MetadataSwizzler) UpdateSnapshotHashes(roles ...data.RoleName) error {
 
 	// just rebuild everything if roles is not specified
 	if len(roles) == 0 {
-		for _, role := range m.Roles {
-			roles = append(roles, role)
-		}
+		roles = m.Roles
 	}
 
 	for _, role := range roles {

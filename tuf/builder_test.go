@@ -550,7 +550,6 @@ func TestGetConsistentInfo(t *testing.T) {
 func checkTimestampSnapshotRequired(t *testing.T, meta map[string][]byte, extraMeta []data.RoleName, builder tuf.RepoBuilder) {
 	// if neither snapshot nor timestamp are loaded, no matter how much other data is loaded, consistent info
 	// is empty except for timestamp: timestamps have no checksums, and the length is always -1
-
 	for _, roleToLoad := range []data.RoleName{data.CanonicalRootRole, data.CanonicalTargetsRole} {
 		require.NoError(t, builder.Load(roleToLoad, meta[roleToLoad.String()], 1, false))
 		for _, checkName := range append(data.BaseRoles, extraMeta...) {

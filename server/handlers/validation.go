@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-
 	"sort"
 
 	"github.com/Sirupsen/logrus"

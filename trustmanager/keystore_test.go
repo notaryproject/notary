@@ -162,8 +162,8 @@ func TestGet(t *testing.T) {
 	nonRootRolesToTest := []data.RoleName{
 		data.CanonicalTargetsRole,
 		data.CanonicalSnapshotRole,
-		data.RoleName("targets/a/b/c"),
-		data.RoleName("invalidRole"),
+		"targets/a/b/c",
+		"invalidRole",
 	}
 
 	var gun data.GUN = "docker.io/notary"
