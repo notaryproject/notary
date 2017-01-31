@@ -223,7 +223,7 @@ func getRemoteKey(url string, gun data.GUN, role data.RoleName, rt http.RoundTri
 	if err != nil {
 		return nil, err
 	}
-	rawPubKey, err := remote.GetKey(role.String())
+	rawPubKey, err := remote.GetKey(role)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +242,7 @@ func rotateRemoteKey(url string, gun data.GUN, role data.RoleName, rt http.Round
 	if err != nil {
 		return nil, err
 	}
-	rawPubKey, err := remote.RotateKey(role.String())
+	rawPubKey, err := remote.RotateKey(role)
 	if err != nil {
 		return nil, err
 	}

@@ -86,7 +86,7 @@ func TestRepoPrefixMatches(t *testing.T) {
 		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]).String(), notary.MaxDownloadSize)
 	require.NoError(t, err)
 
-	_, err = uploader.GetKey(data.CanonicalTimestampRole.String())
+	_, err = uploader.GetKey(data.CanonicalTimestampRole)
 	require.NoError(t, err)
 
 	// the httpstore doesn't actually delete all, so we do it manually
@@ -135,7 +135,7 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]).String(), notary.MaxDownloadSize)
 	require.Error(t, err)
 
-	_, err = uploader.GetKey(data.CanonicalTimestampRole.String())
+	_, err = uploader.GetKey(data.CanonicalTimestampRole)
 	require.Error(t, err)
 
 	// the httpstore doesn't actually delete all, so we do it manually
