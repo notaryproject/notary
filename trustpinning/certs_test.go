@@ -1317,7 +1317,7 @@ func TestCheckingWildcardCert(t *testing.T) {
 	require.NoError(t, err)
 	testRoot, err := data.NewRoot(
 		map[string]data.PublicKey{testCertPubKey.ID(): testCertPubKey},
-		map[string]*data.RootRole{
+		map[data.RoleName]*data.RootRole{
 			data.CanonicalRootRole:      &rootRole.RootRole,
 			data.CanonicalTimestampRole: &rootRole.RootRole,
 			data.CanonicalTargetsRole:   &rootRole.RootRole,
