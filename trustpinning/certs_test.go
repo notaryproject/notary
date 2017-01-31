@@ -1372,6 +1372,6 @@ func TestWildcardMatching(t *testing.T) {
 		{"test/*/wild*", "test/test/wild", false},
 	}
 	for _, tt := range wildcardTests {
-		require.Equal(t, trustpinning.MatchCNToGun(tt.CN, tt.gun), tt.out)
+		require.Equal(t, trustpinning.MatchCNToGun(tt.CN, data.GUN(tt.gun)), tt.out)
 	}
 }

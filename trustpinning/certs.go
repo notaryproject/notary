@@ -179,13 +179,13 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun data.GUN, tr
 
 // MatchCNToGun checks that the common name in a cert is valid for the given gun.
 // This allows wildcards as suffixes, e.g. `namespace/*`
-func MatchCNToGun(commonName, gun string) bool {
+func MatchCNToGun(commonName string, gun data.GUN) bool {
 	if strings.HasSuffix(commonName, wildcard) {
 		prefix := strings.TrimRight(commonName, wildcard)
-		logrus.Debugf("checking gun %s against wildcard prefix %s", gun, prefix)
-		return strings.HasPrefix(gun, prefix)
+		logrus.Debugf("checking gun %s against wildcard prefix %s", gun.String(), prefix)
+		return strings.HasPrefix(gun.String(), prefix)
 	}
-	return commonName == gun
+	return commonName == gun.String()
 }
 
 // validRootLeafCerts returns a list of possibly (if checkExpiry is true) non-expired, non-sha1 certificates
@@ -197,7 +197,7 @@ func validRootLeafCerts(allLeafCerts map[string]*x509.Certificate, gun data.GUN,
 	// Go through every leaf certificate and check that the CN matches the gun
 	for id, cert := range allLeafCerts {
 		// Validate that this leaf certificate has a CN that matches the gun
-		if !MatchCNToGun(cert.Subject.CommonName, gun.String()) {
+		if !MatchCNToGun(cert.Subject.CommonName, gun) {
 			logrus.Debugf("error leaf certificate CN: %s doesn't match the given GUN: %s",
 				cert.Subject.CommonName, gun)
 			continue

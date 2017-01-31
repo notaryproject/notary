@@ -312,7 +312,7 @@ func TestRotateKeyNoGUN(t *testing.T) {
 }
 
 // initialize a repo with keys, so they can be rotated
-func setUpRepo(t *testing.T, tempBaseDir, gun string, ret notary.PassRetriever) (
+func setUpRepo(t *testing.T, tempBaseDir string, gun data.GUN, ret notary.PassRetriever) (
 	*httptest.Server, map[string]string) {
 
 	// Set up server
@@ -333,7 +333,7 @@ func setUpRepo(t *testing.T, tempBaseDir, gun string, ret notary.PassRetriever) 
 	ts := httptest.NewServer(server.RootHandler(ctx, nil, cryptoService, nil, nil, nil))
 
 	repo, err := client.NewFileCachedNotaryRepository(
-		tempBaseDir, data.GUN(gun), ts.URL, http.DefaultTransport, ret, trustpinning.TrustPinConfig{})
+		tempBaseDir, gun, ts.URL, http.DefaultTransport, ret, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
 	rootPubKey, err := repo.CryptoService.Create("root", "", data.ECDSAKey)
@@ -355,7 +355,7 @@ func TestRotateKeyRemoteServerManagesKey(t *testing.T) {
 		tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 		defer os.RemoveAll(tempBaseDir)
 		require.NoError(t, err, "failed to create a temporary directory: %s", err)
-		gun := "docker.com/notary"
+		var gun data.GUN = "docker.com/notary"
 
 		ret := passphrase.ConstantRetriever("pass")
 
@@ -373,7 +373,7 @@ func TestRotateKeyRemoteServerManagesKey(t *testing.T) {
 			getRetriever:           func() notary.PassRetriever { return ret },
 			rotateKeyServerManaged: true,
 		}
-		require.NoError(t, k.keysRotate(&cobra.Command{}, []string{gun, role, "-r"}))
+		require.NoError(t, k.keysRotate(&cobra.Command{}, []string{gun.String(), role, "-r"}))
 
 		repo, err := client.NewFileCachedNotaryRepository(tempBaseDir, data.GUN(gun), ts.URL, http.DefaultTransport, ret, trustpinning.TrustPinConfig{})
 		require.NoError(t, err, "error creating repo: %s", err)
@@ -410,7 +410,7 @@ func TestRotateKeyBothKeys(t *testing.T) {
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	defer os.RemoveAll(tempBaseDir)
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 
 	ret := passphrase.ConstantRetriever("pass")
 
@@ -426,8 +426,8 @@ func TestRotateKeyBothKeys(t *testing.T) {
 		},
 		getRetriever: func() notary.PassRetriever { return ret },
 	}
-	require.NoError(t, k.keysRotate(&cobra.Command{}, []string{gun, data.CanonicalTargetsRole.String()}))
-	require.NoError(t, k.keysRotate(&cobra.Command{}, []string{gun, data.CanonicalSnapshotRole.String()}))
+	require.NoError(t, k.keysRotate(&cobra.Command{}, []string{gun.String(), data.CanonicalTargetsRole.String()}))
+	require.NoError(t, k.keysRotate(&cobra.Command{}, []string{gun.String(), data.CanonicalSnapshotRole.String()}))
 
 	repo, err := client.NewFileCachedNotaryRepository(tempBaseDir, data.GUN(gun), ts.URL, nil, ret, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
@@ -469,7 +469,7 @@ func TestRotateKeyRootIsInteractive(t *testing.T) {
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	defer os.RemoveAll(tempBaseDir)
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 
 	ret := passphrase.ConstantRetriever("pass")
 
@@ -490,7 +490,7 @@ func TestRotateKeyRootIsInteractive(t *testing.T) {
 	out := bytes.NewBuffer(make([]byte, 0, 10))
 	c.SetOutput(out)
 
-	require.NoError(t, k.keysRotate(c, []string{gun, data.CanonicalRootRole.String()}))
+	require.NoError(t, k.keysRotate(c, []string{gun.String(), data.CanonicalRootRole.String()}))
 
 	require.Contains(t, out.String(), "Aborting action")
 

@@ -77,7 +77,7 @@ func TestNewSwizzler(t *testing.T) {
 func TestSwizzlerSetInvalidJSON(t *testing.T) {
 	f, origMeta := createNewSwizzler(t)
 
-	f.SetInvalidJSON(data.CanonicalSnapshotRole.String())
+	f.SetInvalidJSON(data.CanonicalSnapshotRole)
 
 	for role, metaBytes := range origMeta {
 		newMeta, err := f.MetadataCache.GetSized(role.String(), store.NoSizeLimit)
@@ -99,7 +99,7 @@ func TestSwizzlerSetInvalidJSON(t *testing.T) {
 func TestSwizzlerAddExtraSpace(t *testing.T) {
 	f, origMeta := createNewSwizzler(t)
 
-	f.AddExtraSpace(data.CanonicalTargetsRole.String())
+	f.AddExtraSpace(data.CanonicalTargetsRole)
 
 	snapshot := &data.SignedSnapshot{}
 	require.NoError(t, json.Unmarshal(origMeta[data.CanonicalSnapshotRole], snapshot))
@@ -133,7 +133,7 @@ func TestSwizzlerAddExtraSpace(t *testing.T) {
 func TestSwizzlerSetInvalidSigned(t *testing.T) {
 	f, origMeta := createNewSwizzler(t)
 
-	f.SetInvalidSigned(data.CanonicalTargetsRole.String())
+	f.SetInvalidSigned(data.CanonicalTargetsRole)
 
 	for role, metaBytes := range origMeta {
 		newMeta, err := f.MetadataCache.GetSized(role.String(), store.NoSizeLimit)
@@ -157,7 +157,7 @@ func TestSwizzlerSetInvalidSigned(t *testing.T) {
 func TestSwizzlerSetInvalidSignedMeta(t *testing.T) {
 	f, origMeta := createNewSwizzler(t)
 
-	err := f.SetInvalidSignedMeta(data.CanonicalRootRole.String())
+	err := f.SetInvalidSignedMeta(data.CanonicalRootRole)
 	require.NoError(t, err)
 
 	for role, metaBytes := range origMeta {
@@ -182,7 +182,7 @@ func TestSwizzlerSetInvalidSignedMeta(t *testing.T) {
 func TestSwizzlerSetInvalidMetadataType(t *testing.T) {
 	f, origMeta := createNewSwizzler(t)
 
-	f.SetInvalidMetadataType(data.CanonicalTargetsRole.String())
+	f.SetInvalidMetadataType(data.CanonicalTargetsRole)
 
 	for role, metaBytes := range origMeta {
 		newMeta, err := f.MetadataCache.GetSized(role.String(), store.NoSizeLimit)
@@ -205,7 +205,7 @@ func TestSwizzlerSetInvalidMetadataType(t *testing.T) {
 func TestSwizzlerInvalidateMetadataSignatures(t *testing.T) {
 	f, origMeta := createNewSwizzler(t)
 
-	f.InvalidateMetadataSignatures(data.CanonicalRootRole.String())
+	f.InvalidateMetadataSignatures(data.CanonicalRootRole)
 
 	for role, metaBytes := range origMeta {
 		newMeta, err := f.MetadataCache.GetSized(role.String(), store.NoSizeLimit)
@@ -255,7 +255,7 @@ func TestSwizzlerRemoveMetadata(t *testing.T) {
 func TestSwizzlerSignMetadataWithInvalidKey(t *testing.T) {
 	f, origMeta := createNewSwizzler(t)
 
-	f.SignMetadataWithInvalidKey(data.CanonicalTimestampRole.String())
+	f.SignMetadataWithInvalidKey(data.CanonicalTimestampRole)
 
 	for role, metaBytes := range origMeta {
 		newMeta, err := f.MetadataCache.GetSized(role.String(), store.NoSizeLimit)
@@ -305,7 +305,7 @@ func TestSwizzlerOffsetMetadataVersion(t *testing.T) {
 func TestSwizzlerExpireMetadata(t *testing.T) {
 	f, origMeta := createNewSwizzler(t)
 
-	err := f.ExpireMetadata(data.CanonicalRootRole.String())
+	err := f.ExpireMetadata(data.CanonicalRootRole)
 	require.NoError(t, err)
 
 	for role, metaBytes := range origMeta {
@@ -446,7 +446,7 @@ func TestSwizzlerUpdateSnapshotHashesSpecifiedRoles(t *testing.T) {
 	require.True(t, bytes.Equal(*origSigned.Signed, *newSigned.Signed))
 
 	// change these 3 metadata items
-	f.InvalidateMetadataSignatures(data.CanonicalTargetsRole.String())
+	f.InvalidateMetadataSignatures(data.CanonicalTargetsRole)
 	f.InvalidateMetadataSignatures("targets/a")
 	f.InvalidateMetadataSignatures("targets/a/b")
 	// update the snapshot with just 1 role
@@ -491,7 +491,7 @@ func TestSwizzlerUpdateSnapshotHashesNoSpecifiedRoles(t *testing.T) {
 	require.True(t, bytes.Equal(*origSigned.Signed, *newSigned.Signed))
 
 	// change these 2 metadata items
-	f.InvalidateMetadataSignatures(data.CanonicalTargetsRole.String())
+	f.InvalidateMetadataSignatures(data.CanonicalTargetsRole)
 	f.InvalidateMetadataSignatures("targets/a")
 	f.InvalidateMetadataSignatures("targets/a/b")
 	// update the snapshot with just no specified roles
@@ -572,7 +572,7 @@ func TestMissingSigningKey(t *testing.T) {
 
 	// these are all the functions that require re-signing
 	require.IsType(t, ErrNoKeyForRole{}, f.OffsetMetadataVersion(data.CanonicalSnapshotRole, 1))
-	require.IsType(t, ErrNoKeyForRole{}, f.ExpireMetadata(data.CanonicalSnapshotRole.String()))
+	require.IsType(t, ErrNoKeyForRole{}, f.ExpireMetadata(data.CanonicalSnapshotRole))
 	require.IsType(t, ErrNoKeyForRole{}, f.SetThreshold(data.CanonicalSnapshotRole, 2))
 	require.IsType(t, ErrNoKeyForRole{}, f.UpdateSnapshotHashes())
 	require.IsType(t, ErrNoKeyForRole{}, f.UpdateTimestampHash())

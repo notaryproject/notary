@@ -229,7 +229,7 @@ func TestUpdateInOfflineMode(t *testing.T) {
 	require.NoError(t, offlineRepo.Update(false))
 }
 
-type swizzleFunc func(*testutils.MetadataSwizzler, string) error
+type swizzleFunc func(*testutils.MetadataSwizzler, data.RoleName) error
 type swizzleExpectations struct {
 	desc       string
 	swizzle    swizzleFunc
@@ -291,7 +291,7 @@ func TestUpdateReplacesCorruptOrMissingMetadata(t *testing.T) {
 		for _, expt := range waysToMessUpLocalMetadata {
 			text, messItUp := expt.desc, expt.swizzle
 			for _, forWrite := range []bool{true, false} {
-				require.NoError(t, messItUp(repoSwizzler, role.String()), "could not fuzz %s (%s)", role, text)
+				require.NoError(t, messItUp(repoSwizzler, role), "could not fuzz %s (%s)", role, text)
 				err := repo.Update(forWrite)
 				// If this is a root role, we should error if it's corrupted or invalid data;
 				// missing metadata is ok.
@@ -354,7 +354,7 @@ func TestUpdateFailsIfServerRootKeyChangedWithoutMultiSign(t *testing.T) {
 	for _, expt := range waysToMessUpLocalMetadata {
 		text, messItUp := expt.desc, expt.swizzle
 		for _, forWrite := range []bool{true, false} {
-			require.NoError(t, messItUp(repoSwizzler, data.CanonicalRootRole.String()), "could not fuzz root (%s)", text)
+			require.NoError(t, messItUp(repoSwizzler, data.CanonicalRootRole), "could not fuzz root (%s)", text)
 			messedUpMeta, err := repo.cache.GetSized(data.CanonicalRootRole.String(), store.NoSizeLimit)
 
 			if _, ok := err.(store.ErrMetaNotFound); ok { // one of the ways to mess up is to delete metadata
@@ -699,7 +699,7 @@ func testUpdateRemoteNon200Error(t *testing.T, opts updateOpts, errExpected inte
 		bumpVersions(t, serverSwizzler, 1)
 	}
 
-	require.NoError(t, serverSwizzler.RemoveMetadata(opts.role.String()), "failed to remove %s", opts.role)
+	require.NoError(t, serverSwizzler.RemoveMetadata(opts.role), "failed to remove %s", opts.role)
 
 	err := repo.Update(opts.forWrite)
 	if errExpected == nil {
@@ -811,7 +811,7 @@ func testUpdateRemoteFileChecksumWrong(t *testing.T, opts updateOpts, errExpecte
 		bumpVersions(t, serverSwizzler, 1)
 	}
 
-	require.NoError(t, serverSwizzler.AddExtraSpace(opts.role.String()), "failed to checksum-corrupt to %s", opts.role)
+	require.NoError(t, serverSwizzler.AddExtraSpace(opts.role), "failed to checksum-corrupt to %s", opts.role)
 
 	err := repo.Update(opts.forWrite)
 	if !errExpected {
@@ -862,7 +862,7 @@ var waysToMessUpServerBadMeta = []swizzleExpectations{
 
 	{desc: "lower metadata version", expectErrs: []interface{}{
 		&trustpinning.ErrValidationFail{}, signed.ErrLowVersion{}, data.ErrInvalidMetadata{}},
-		swizzle: func(s *testutils.MetadataSwizzler, role string) error {
+		swizzle: func(s *testutils.MetadataSwizzler, role data.RoleName) error {
 			return s.OffsetMetadataVersion(data.RoleName(role), -3)
 		}},
 }
@@ -878,7 +878,7 @@ var waysToMessUpServerBadSigs = []swizzleExpectations{
 
 	{desc: "insufficient signatures", expectErrs: []interface{}{
 		&trustpinning.ErrValidationFail{}, signed.ErrRoleThreshold{}},
-		swizzle: func(s *testutils.MetadataSwizzler, role string) error {
+		swizzle: func(s *testutils.MetadataSwizzler, role data.RoleName) error {
 			return s.SetThreshold(data.RoleName(role), 2)
 		}},
 }
@@ -906,7 +906,7 @@ func waysToMessUpServerRoot() []swizzleExpectations {
 					desc: fmt.Sprintf("no %s keys", roleName),
 					expectErrs: []interface{}{
 						&trustpinning.ErrValidationFail{}, signed.ErrRoleThreshold{}},
-					swizzle: func(s *testutils.MetadataSwizzler, role string) error {
+					swizzle: func(s *testutils.MetadataSwizzler, role data.RoleName) error {
 						return s.MutateRoot(func(r *data.Root) {
 							r.Roles[roleName].KeyIDs = []string{}
 						})
@@ -914,7 +914,7 @@ func waysToMessUpServerRoot() []swizzleExpectations {
 				swizzleExpectations{
 					desc:       fmt.Sprintf("no %s role", roleName),
 					expectErrs: []interface{}{data.ErrInvalidMetadata{}},
-					swizzle: func(s *testutils.MetadataSwizzler, role string) error {
+					swizzle: func(s *testutils.MetadataSwizzler, role data.RoleName) error {
 						return s.MutateRoot(func(r *data.Root) { delete(r.Roles, roleName) })
 					}},
 			)
@@ -996,7 +996,7 @@ func waysToMessUpServerNonRootPerRole(t *testing.T) map[string][]swizzleExpectat
 			swizzleExpectations{
 				desc:       fmt.Sprintf("snapshot missing root meta checksum"),
 				expectErrs: []interface{}{data.ErrInvalidMetadata{}},
-				swizzle: func(s *testutils.MetadataSwizzler, role string) error {
+				swizzle: func(s *testutils.MetadataSwizzler, role data.RoleName) error {
 					return s.MutateSnapshot(func(sn *data.Snapshot) {
 						delete(sn.Meta, missing.String())
 					})
@@ -1006,7 +1006,7 @@ func waysToMessUpServerNonRootPerRole(t *testing.T) map[string][]swizzleExpectat
 	perRoleSwizzling[data.CanonicalTargetsRole.String()] = []swizzleExpectations{{
 		desc:       fmt.Sprintf("target missing delegations data"),
 		expectErrs: []interface{}{data.ErrMismatchedChecksum{}},
-		swizzle: func(s *testutils.MetadataSwizzler, role string) error {
+		swizzle: func(s *testutils.MetadataSwizzler, role data.RoleName) error {
 			return s.MutateTargets(func(tg *data.Targets) {
 				tg.Delegations.Roles = tg.Delegations.Roles[1:]
 			})
@@ -1015,7 +1015,7 @@ func waysToMessUpServerNonRootPerRole(t *testing.T) map[string][]swizzleExpectat
 	perRoleSwizzling[data.CanonicalTimestampRole.String()] = []swizzleExpectations{{
 		desc:       fmt.Sprintf("timestamp missing snapshot meta checksum"),
 		expectErrs: []interface{}{data.ErrInvalidMetadata{}},
-		swizzle: func(s *testutils.MetadataSwizzler, role string) error {
+		swizzle: func(s *testutils.MetadataSwizzler, role data.RoleName) error {
 			return s.MutateTimestamp(func(ts *data.Timestamp) {
 				delete(ts.Meta, data.CanonicalSnapshotRole.String())
 			})
@@ -1024,7 +1024,7 @@ func waysToMessUpServerNonRootPerRole(t *testing.T) map[string][]swizzleExpectat
 	perRoleSwizzling["targets/a"] = []swizzleExpectations{{
 		desc:       fmt.Sprintf("delegation has invalid role"),
 		expectErrs: []interface{}{data.ErrInvalidMetadata{}},
-		swizzle: func(s *testutils.MetadataSwizzler, role string) error {
+		swizzle: func(s *testutils.MetadataSwizzler, role data.RoleName) error {
 			return s.MutateTargets(func(tg *data.Targets) {
 				var keyIDs []string
 				for k := range tg.Delegations.Keys {
@@ -1289,7 +1289,7 @@ func testUpdateRemoteCorruptValidChecksum(t *testing.T, opts updateOpts, expt sw
 
 	msg := fmt.Sprintf("swizzling %s to return: %v (forWrite: %v)", opts.role, expt.desc, opts.forWrite)
 
-	require.NoError(t, expt.swizzle(serverSwizzler, opts.role.String()),
+	require.NoError(t, expt.swizzle(serverSwizzler, opts.role),
 		"failed %s", msg)
 
 	// update the snapshot and timestamp hashes to make sure it's not an involuntary checksum failure
@@ -1375,9 +1375,9 @@ func testUpdateLocalAndRemoteRootCorrupt(t *testing.T, forWrite bool, localExpt,
 
 	bumpVersions(t, serverSwizzler, 1)
 
-	require.NoError(t, localExpt.swizzle(repoSwizzler, data.CanonicalRootRole.String()),
+	require.NoError(t, localExpt.swizzle(repoSwizzler, data.CanonicalRootRole),
 		"failed to swizzle local root to %s", localExpt.desc)
-	require.NoError(t, serverExpt.swizzle(serverSwizzler, data.CanonicalRootRole.String()),
+	require.NoError(t, serverExpt.swizzle(serverSwizzler, data.CanonicalRootRole),
 		"failed to swizzle remote root to %s", serverExpt.desc)
 
 	// update the hashes on both

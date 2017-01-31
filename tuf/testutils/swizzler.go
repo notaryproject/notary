@@ -121,30 +121,30 @@ func NewMetadataSwizzler(gun data.GUN, initialMetadata map[data.RoleName][]byte,
 }
 
 // SetInvalidJSON corrupts metadata into something that is no longer valid JSON
-func (m *MetadataSwizzler) SetInvalidJSON(role string) error {
-	metaBytes, err := m.MetadataCache.GetSized(role, store.NoSizeLimit)
+func (m *MetadataSwizzler) SetInvalidJSON(role data.RoleName) error {
+	metaBytes, err := m.MetadataCache.GetSized(role.String(), store.NoSizeLimit)
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.Set(role, metaBytes[5:])
+	return m.MetadataCache.Set(role.String(), metaBytes[5:])
 }
 
 // AddExtraSpace adds an extra space to the beginning and end of the serialized
 // JSON bytes, which should not affect serialization, but will change the checksum
 // of the file.
-func (m *MetadataSwizzler) AddExtraSpace(role string) error {
-	metaBytes, err := m.MetadataCache.GetSized(role, store.NoSizeLimit)
+func (m *MetadataSwizzler) AddExtraSpace(role data.RoleName) error {
+	metaBytes, err := m.MetadataCache.GetSized(role.String(), store.NoSizeLimit)
 	if err != nil {
 		return err
 	}
 	newBytes := append(append([]byte{' '}, metaBytes...), ' ')
-	return m.MetadataCache.Set(role, newBytes)
+	return m.MetadataCache.Set(role.String(), newBytes)
 }
 
 // SetInvalidSigned corrupts the metadata into something that is valid JSON,
 // but not unmarshallable into signed JSON
-func (m *MetadataSwizzler) SetInvalidSigned(role string) error {
-	signedThing, err := signedFromStore(m.MetadataCache, data.RoleName(role))
+func (m *MetadataSwizzler) SetInvalidSigned(role data.RoleName) error {
+	signedThing, err := signedFromStore(m.MetadataCache, role)
 	if err != nil {
 		return err
 	}
@@ -155,18 +155,18 @@ func (m *MetadataSwizzler) SetInvalidSigned(role string) error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.Set(role, metaBytes)
+	return m.MetadataCache.Set(role.String(), metaBytes)
 }
 
 // SetInvalidSignedMeta corrupts the metadata into something that is unmarshallable
 // as a Signed object, but not unmarshallable into a SignedMeta object
-func (m *MetadataSwizzler) SetInvalidSignedMeta(role string) error {
-	signedThing, err := signedFromStore(m.MetadataCache, data.RoleName(role))
+func (m *MetadataSwizzler) SetInvalidSignedMeta(role data.RoleName) error {
+	signedThing, err := signedFromStore(m.MetadataCache, role)
 	if err != nil {
 		return err
 	}
 
-	pubKeys, err := getPubKeys(m.CryptoService, signedThing, data.RoleName(role))
+	pubKeys, err := getPubKeys(m.CryptoService, signedThing, role)
 	if err != nil {
 		return err
 	}
@@ -186,11 +186,11 @@ func (m *MetadataSwizzler) SetInvalidSignedMeta(role string) error {
 	}
 	signedThing.Signed = (*json.RawMessage)(&metaBytes)
 
-	metaBytes, err = serializeMetadata(m.CryptoService, signedThing, data.RoleName(role), pubKeys...)
+	metaBytes, err = serializeMetadata(m.CryptoService, signedThing, role, pubKeys...)
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.Set(role, metaBytes)
+	return m.MetadataCache.Set(role.String(), metaBytes)
 }
 
 // TODO: corrupt metadata in such a way that it can be unmarshalled as a
@@ -198,8 +198,8 @@ func (m *MetadataSwizzler) SetInvalidSignedMeta(role string) error {
 
 // SetInvalidMetadataType unmarshallable, but has the wrong metadata type (not
 // actually a metadata type)
-func (m *MetadataSwizzler) SetInvalidMetadataType(role string) error {
-	signedThing, err := signedFromStore(m.MetadataCache, data.RoleName(role))
+func (m *MetadataSwizzler) SetInvalidMetadataType(role data.RoleName) error {
+	signedThing, err := signedFromStore(m.MetadataCache, role)
 	if err != nil {
 		return err
 	}
@@ -217,20 +217,20 @@ func (m *MetadataSwizzler) SetInvalidMetadataType(role string) error {
 	}
 	signedThing.Signed = (*json.RawMessage)(&metaBytes)
 
-	pubKeys, err := getPubKeys(m.CryptoService, signedThing, data.RoleName(role))
+	pubKeys, err := getPubKeys(m.CryptoService, signedThing, role)
 	if err == nil {
-		metaBytes, err = serializeMetadata(m.CryptoService, signedThing, data.RoleName(role), pubKeys...)
+		metaBytes, err = serializeMetadata(m.CryptoService, signedThing, role, pubKeys...)
 	}
 
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.Set(role, metaBytes)
+	return m.MetadataCache.Set(role.String(), metaBytes)
 }
 
 // InvalidateMetadataSignatures signs with the right key(s) but wrong hash
-func (m *MetadataSwizzler) InvalidateMetadataSignatures(role string) error {
-	signedThing, err := signedFromStore(m.MetadataCache, data.RoleName(role))
+func (m *MetadataSwizzler) InvalidateMetadataSignatures(role data.RoleName) error {
+	signedThing, err := signedFromStore(m.MetadataCache, role)
 	if err != nil {
 		return err
 	}
@@ -248,7 +248,7 @@ func (m *MetadataSwizzler) InvalidateMetadataSignatures(role string) error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.Set(role, metaBytes)
+	return m.MetadataCache.Set(role.String(), metaBytes)
 }
 
 // TODO: AddExtraSignedInfo - add an extra field to Signed that doesn't get
@@ -256,20 +256,20 @@ func (m *MetadataSwizzler) InvalidateMetadataSignatures(role string) error {
 //  problems there.  Should this fail a canonical JSON check?
 
 // RemoveMetadata deletes the metadata entirely
-func (m *MetadataSwizzler) RemoveMetadata(role string) error {
-	return m.MetadataCache.Remove(role)
+func (m *MetadataSwizzler) RemoveMetadata(role data.RoleName) error {
+	return m.MetadataCache.Remove(role.String())
 }
 
 // SignMetadataWithInvalidKey signs the metadata with the wrong key
-func (m *MetadataSwizzler) SignMetadataWithInvalidKey(role string) error {
-	signedThing, err := signedFromStore(m.MetadataCache, data.RoleName(role))
+func (m *MetadataSwizzler) SignMetadataWithInvalidKey(role data.RoleName) error {
+	signedThing, err := signedFromStore(m.MetadataCache, role)
 	if err != nil {
 		return err
 	}
 
 	// create an invalid key, but not in the existing CryptoService
 	cs := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(passphrase.ConstantRetriever("")))
-	key, err := CreateKey(cs, m.Gun, data.RoleName(role), data.ECDSAKey)
+	key, err := CreateKey(cs, m.Gun, role, data.ECDSAKey)
 	if err != nil {
 		return err
 	}
@@ -278,7 +278,7 @@ func (m *MetadataSwizzler) SignMetadataWithInvalidKey(role string) error {
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.Set(role, metaBytes)
+	return m.MetadataCache.Set(role.String(), metaBytes)
 }
 
 // OffsetMetadataVersion updates the metadata version
@@ -340,8 +340,8 @@ func (m *MetadataSwizzler) OffsetMetadataVersion(role data.RoleName, offset int)
 
 // ExpireMetadata expires the metadata, which would make it invalid - don't do anything if
 // we don't have the timestamp key
-func (m *MetadataSwizzler) ExpireMetadata(role string) error {
-	signedThing, err := signedFromStore(m.MetadataCache, data.RoleName(role))
+func (m *MetadataSwizzler) ExpireMetadata(role data.RoleName) error {
+	signedThing, err := signedFromStore(m.MetadataCache, role)
 	if err != nil {
 		return err
 	}
@@ -359,15 +359,15 @@ func (m *MetadataSwizzler) ExpireMetadata(role string) error {
 	}
 	signedThing.Signed = (*json.RawMessage)(&metaBytes)
 
-	pubKeys, err := getPubKeys(m.CryptoService, signedThing, data.RoleName(role))
+	pubKeys, err := getPubKeys(m.CryptoService, signedThing, role)
 	if err == nil {
-		metaBytes, err = serializeMetadata(m.CryptoService, signedThing, data.RoleName(role), pubKeys...)
+		metaBytes, err = serializeMetadata(m.CryptoService, signedThing, role, pubKeys...)
 	}
 
 	if err != nil {
 		return err
 	}
-	return m.MetadataCache.Set(role, metaBytes)
+	return m.MetadataCache.Set(role.String(), metaBytes)
 }
 
 // SetThreshold sets a threshold for a metadata role - can invalidate metadata for which
