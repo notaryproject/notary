@@ -1,4 +1,4 @@
-package main
+package runner
 
 import (
 	"bytes"
@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	Cert = "../../fixtures/notary-signer.crt"
-	Key  = "../../fixtures/notary-signer.key"
+	Cert = "../../../fixtures/notary-signer.crt"
+	Key  = "../../../fixtures/notary-signer.key"
 )
 
 // initializes a viper object with test configuration
@@ -124,9 +124,9 @@ func TestSetupCryptoServicesRethinkDBStoreConnectionFails(t *testing.T) {
 			`{"storage": {
 				"backend": "%s",
 				"db_url": "host:port",
-				"tls_ca_file": "../../fixtures/rethinkdb/ca.pem",
-				"client_cert_file": "../../fixtures/rethinkdb/cert.pem",
-				"client_key_file": "../../fixtures/rethinkdb/key.pem",
+				"tls_ca_file": "../../../fixtures/rethinkdb/ca.pem",
+				"client_cert_file": "../../../fixtures/rethinkdb/cert.pem",
+				"client_key_file": "../../../fixtures/rethinkdb/key.pem",
 				"database": "rethinkdbtest",
 				"username": "signer",
 				"password": "password"
@@ -274,6 +274,6 @@ func TestSampleConfig(t *testing.T) {
 	// if using signer.Dockerfile.
 	os.Setenv("NOTARY_SIGNER_DEFAULT_ALIAS", "timestamp_1")
 	defer os.Unsetenv("NOTARY_SIGNER_DEFAULT_ALIAS")
-	_, err := parseSignerConfig("../../fixtures/signer-config-local.json", false)
+	_, err := parseSignerConfig("../../../fixtures/signer-config-local.json", false)
 	require.NoError(t, err)
 }

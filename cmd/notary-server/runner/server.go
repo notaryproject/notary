@@ -1,8 +1,12 @@
-package main
+package runner
 
 import (
 	"crypto/tls"
+	"flag"
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
 	"path"
 	"strconv"
 	"strings"
@@ -10,8 +14,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/health"
-	_ "github.com/docker/distribution/registry/auth/htpasswd"
-	_ "github.com/docker/distribution/registry/auth/token"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/notary"
 	"github.com/docker/notary/server"
@@ -21,11 +23,17 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/utils"
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
+	"github.com/docker/notary/version"
 	"github.com/spf13/viper"
 	"golang.org/x/net/context"
 	"gopkg.in/dancannon/gorethink.v3"
+)
+
+// DebugAddress is the debug server address to listen on
+const (
+	jsonLogFormat = "json"
+	DebugAddress  = "localhost:8080"
+	envPrefix     = "NOTARY_SERVER"
 )
 
 // gets the required gun prefixes accepted by this server
@@ -287,4 +295,80 @@ func parseServerConfig(configFilePath string, hRegister healthRegister, doBootst
 		CurrentCacheControlConfig:    currentCache,
 		ConsistentCacheControlConfig: consistentCache,
 	}, nil
+}
+
+// ServerSetup contains instructions on how to setup a running server
+type ServerSetup struct {
+	Debug       bool
+	logFormat   string
+	configFile  string
+	DoBootstrap bool
+	Config      server.Config
+	Context     context.Context
+}
+
+// ReadServerConfig reads any command line flags and uses them to extract the config file and parse it
+func ReadServerConfig() ServerSetup {
+	setup := ServerSetup{}
+
+	// Setup flags
+	flag.StringVar(&setup.configFile, "config", "", "Path to configuration file")
+	flag.BoolVar(&setup.Debug, "debug", false, "Enable the debugging server on localhost:8080")
+	flag.StringVar(&setup.logFormat, "logf", "json", "Set the format of the logs. Only 'json' and 'logfmt' are supported at the moment.")
+	flag.BoolVar(&setup.DoBootstrap, "bootstrap", false, "Do any necessary setup of configured backend storage services")
+
+	// this needs to be in init so that _ALL_ logs are in the correct format
+	if setup.logFormat == jsonLogFormat {
+		logrus.SetFormatter(new(logrus.JSONFormatter))
+	}
+
+	flag.Usage = func() {
+		fmt.Println("usage:", os.Args[0])
+		flag.PrintDefaults()
+	}
+	flag.Parse()
+
+	var err error
+	setup.Context, setup.Config, err = parseServerConfig(setup.configFile, health.RegisterPeriodicFunc, setup.DoBootstrap)
+	if err != nil {
+		logrus.Fatal(err.Error())
+	}
+	return setup
+}
+
+// RunServer actually runs a server, given the setup configuration
+func RunServer(setup ServerSetup) {
+	if setup.Debug {
+		go debugServer(DebugAddress)
+	}
+
+	// when the server starts print the version for debugging and issue logs later
+	logrus.Infof("Version: %s, Git commit: %s", version.NotaryVersion, version.GitCommit)
+
+	c := utils.SetupSignalTrap(utils.LogLevelSignalHandle)
+	if c != nil {
+		defer signal.Stop(c)
+	}
+
+	var err error
+	if setup.DoBootstrap {
+		err = bootstrap(setup.Context)
+	} else {
+		logrus.Info("Starting Server")
+		err = server.Run(setup.Context, setup.Config)
+	}
+
+	if err != nil {
+		logrus.Fatal(err.Error())
+	}
+}
+
+// debugServer starts the debug server with pprof, expvar among other
+// endpoints. The addr should not be exposed externally. For most of these to
+// work, tls cannot be enabled on the endpoint, so it is generally separate.
+func debugServer(addr string) {
+	logrus.Infof("Debug server listening on %s", addr)
+	if err := http.ListenAndServe(addr, nil); err != nil {
+		logrus.Fatalf("error listening on debug interface: %v", err)
+	}
 }

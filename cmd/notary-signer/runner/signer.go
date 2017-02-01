@@ -1,11 +1,15 @@
-package main
+package runner
 
 import (
 	"crypto/tls"
 	"errors"
+	"flag"
 	"fmt"
+	"log"
 	"net"
+	"net/http"
 	"os"
+	"os/signal"
 	"strings"
 	"time"
 
@@ -29,6 +33,7 @@ import (
 	"github.com/docker/notary/tuf/signed"
 	tufutils "github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/utils"
+	"github.com/docker/notary/version"
 	"github.com/spf13/viper"
 	ghealth "google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -38,6 +43,8 @@ import (
 const (
 	envPrefix       = "NOTARY_SIGNER"
 	defaultAliasEnv = "DEFAULT_ALIAS"
+	jsonLogFormat   = "json"
+	debugAddr       = "localhost:8080"
 )
 
 func parseSignerConfig(configFilePath string, doBootstrap bool) (signer.Config, error) {
@@ -247,4 +254,78 @@ func bootstrap(s interface{}) error {
 		return fmt.Errorf("store does not support bootstrapping")
 	}
 	return store.Bootstrap()
+}
+
+// SignerSetup contains instructions on how to setup a running signer
+type SignerSetup struct {
+	Debug       bool
+	logFormat   string
+	configFile  string
+	DoBootstrap bool
+	Config      signer.Config
+}
+
+// ReadSignerConfig reads any command line flags and uses them to extract the config file and parse it
+func ReadSignerConfig() SignerSetup {
+	setup := SignerSetup{}
+	// Setup flags
+	flag.StringVar(&setup.configFile, "config", "", "Path to configuration file")
+	flag.BoolVar(&setup.Debug, "debug", false, "Show the version and exit")
+	flag.StringVar(&setup.logFormat, "logf", "json", "Set the format of the logs. Only 'json' and 'logfmt' are supported at the moment.")
+	flag.BoolVar(&setup.DoBootstrap, "bootstrap", false, "Do any necessary setup of configured backend storage services")
+
+	// this needs to be in init so that _ALL_ logs are in the correct format
+	if setup.logFormat == jsonLogFormat {
+		logrus.SetFormatter(new(logrus.JSONFormatter))
+	}
+
+	flag.Usage = func() {
+		log.Println("usage:", os.Args[0], "<config>")
+		flag.PrintDefaults()
+	}
+
+	flag.Parse()
+
+	var err error
+	setup.Config, err = parseSignerConfig(setup.configFile, setup.DoBootstrap)
+	if err != nil {
+		logrus.Fatal(err.Error())
+	}
+	return setup
+}
+
+// RunSigner actually runs a server, given the setup configuration
+func RunSigner(setup SignerSetup) {
+	if setup.Debug {
+		go debugServer(debugAddr)
+	}
+
+	// when the signer starts print the version for debugging and issue logs later
+	logrus.Infof("Version: %s, Git commit: %s", version.NotaryVersion, version.GitCommit)
+
+	grpcServer, lis, err := setupGRPCServer(setup.Config)
+	if err != nil {
+		logrus.Fatal(err.Error())
+	}
+
+	if setup.Debug {
+		log.Println("RPC server listening on", setup.Config.GRPCAddr)
+	}
+
+	c := utils.SetupSignalTrap(utils.LogLevelSignalHandle)
+	if c != nil {
+		defer signal.Stop(c)
+	}
+
+	grpcServer.Serve(lis)
+}
+
+// debugServer starts the debug server with pprof, expvar among other
+// endpoints. The addr should not be exposed externally. For most of these to
+// work, tls cannot be enabled on the endpoint, so it is generally separate.
+func debugServer(addr string) {
+	logrus.Infof("Debug server listening on %s", addr)
+	if err := http.ListenAndServe(addr, nil); err != nil {
+		logrus.Fatalf("error listening on debug interface: %v", err)
+	}
 }
