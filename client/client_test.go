@@ -3507,10 +3507,10 @@ func TestBootstrapClientBadURL(t *testing.T) {
 	require.EqualError(t, err, err2.Error())
 }
 
-// TestBootstrapClientInvalidURL checks that bootstrapClient correctly
-// returns an error when the URL is valid but does not point to
+// TestClientInvalidURL checks that instantiating a new NotaryRepository
+// correctly returns an error when the URL is valid but does not point to
 // a TUF server
-func TestBootstrapClientInvalidURL(t *testing.T) {
+func TestClientInvalidURL(t *testing.T) {
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
 	repo, err := NewFileCachedNotaryRepository(
@@ -3521,20 +3521,11 @@ func TestBootstrapClientInvalidURL(t *testing.T) {
 		passphraseRetriever,
 		trustpinning.TrustPinConfig{},
 	)
-	require.NoError(t, err, "error creating repo: %s", err)
-
-	c, err := repo.bootstrapClient(false)
-	require.Nil(t, c)
+	// NewFileCachedNotaryRepository should fail and return an error
+	// since it initializes the cache but also the remote repository
+	// from the baseURL and the GUN
+	require.Nil(t, repo)
 	require.Error(t, err)
-
-	c, err2 := repo.bootstrapClient(true)
-	require.Nil(t, c)
-	require.Error(t, err2)
-
-	// same error should be returned because we don't have local data
-	// and are requesting remote root regardless of checkInitialized
-	// value
-	require.EqualError(t, err, err2.Error())
 }
 
 func TestPublishTargetsDelegationCanUseUserKeyWithArbitraryRole(t *testing.T) {
@@ -3702,8 +3693,7 @@ func TestDeleteRemoteRepo(t *testing.T) {
 	requireRepoHasExpectedKeys(t, repo, rootKeyID, true)
 
 	// Try connecting to the remote store directly and make sure that no metadata exists for this gun
-	remoteStore, err := getRemoteStore(repo.baseURL, repo.gun, repo.roundTrip)
-	require.NoError(t, err)
+	remoteStore := repo.remoteStore
 	meta, err := remoteStore.GetSized(data.CanonicalRootRole.String(), store.NoSizeLimit)
 	require.Error(t, err)
 	require.IsType(t, store.ErrMetaNotFound{}, err)
@@ -3728,8 +3718,7 @@ func TestDeleteRemoteRepo(t *testing.T) {
 	require.Len(t, longLivingCl.List(), 1)
 
 	// Check that the other repo's remote data is unaffected
-	remoteStore, err = getRemoteStore(longLivingRepo.baseURL, longLivingRepo.gun, longLivingRepo.roundTrip)
-	require.NoError(t, err)
+	remoteStore = longLivingRepo.remoteStore
 	meta, err = remoteStore.GetSized(data.CanonicalRootRole.String(), store.NoSizeLimit)
 	require.NoError(t, err)
 	require.NotNil(t, meta)
@@ -3743,9 +3732,11 @@ func TestDeleteRemoteRepo(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, meta)
 
-	// Try deleting again with an invalid server URL
-	repo.baseURL = "invalid"
-	require.Error(t, repo.DeleteTrustData(true))
+	// Try setting an invalid server URL before deleting
+	require.Error(t, repo.setBaseURL("invalid"))
+
+	// Try deleting again the remote
+	require.NoError(t, repo.DeleteTrustData(true))
 }
 
 // Test that we get a correct list of roles with keys and signatures
