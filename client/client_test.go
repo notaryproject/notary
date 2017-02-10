@@ -3731,12 +3731,6 @@ func TestDeleteRemoteRepo(t *testing.T) {
 	meta, err = remoteStore.GetSized(data.CanonicalTimestampRole.String(), store.NoSizeLimit)
 	require.NoError(t, err)
 	require.NotNil(t, meta)
-
-	// Try setting an invalid server URL before deleting
-	require.Error(t, repo.setBaseURL("invalid"))
-
-	// Try deleting again the remote
-	require.NoError(t, repo.DeleteTrustData(true))
 }
 
 // Test that we get a correct list of roles with keys and signatures
