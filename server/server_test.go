@@ -77,13 +77,13 @@ func TestRepoPrefixMatches(t *testing.T) {
 	require.NoError(t, err)
 
 	// uploading is cool
-	require.NoError(t, uploader.SetMulti(meta))
+	require.NoError(t, uploader.SetMulti(data.MetadataRoleMapToStringMap(meta)))
 	// getting is cool
 	_, err = uploader.GetSized(data.CanonicalSnapshotRole.String(), notary.MaxDownloadSize)
 	require.NoError(t, err)
 
 	_, err = uploader.GetSized(
-		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]).String(), notary.MaxDownloadSize)
+		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]), notary.MaxDownloadSize)
 	require.NoError(t, err)
 
 	_, err = uploader.GetKey(data.CanonicalTimestampRole)
@@ -117,7 +117,7 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 	uploader, err := store.NewHTTPStore(url, "", "json", "key", http.DefaultTransport)
 	require.NoError(t, err)
 
-	require.Error(t, uploader.SetMulti(meta))
+	require.Error(t, uploader.SetMulti(data.MetadataRoleMapToStringMap(meta)))
 
 	// update the storage so we don't fail just because the metadata is missing
 	for _, roleName := range data.BaseRoles {
@@ -132,7 +132,7 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 	require.Error(t, err)
 
 	_, err = uploader.GetSized(
-		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]).String(), notary.MaxDownloadSize)
+		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]), notary.MaxDownloadSize)
 	require.Error(t, err)
 
 	_, err = uploader.GetKey(data.CanonicalTimestampRole)

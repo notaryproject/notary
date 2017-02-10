@@ -93,7 +93,7 @@ func GetOrCreateTimestamp(gun data.GUN, store storage.MetaStore, cryptoService s
 	}
 	snapshotSHA256Bytes, ok := snapChecksums.Hashes[notary.SHA256]
 	if !ok {
-		return nil, nil, data.ErrMissingMeta{Role: data.CanonicalSnapshotRole}
+		return nil, nil, data.ErrMissingMeta{Role: data.CanonicalSnapshotRole.String()}
 	}
 	snapshotSHA256Hex := hex.EncodeToString(snapshotSHA256Bytes[:])
 	snapshotTime, snapshot, err := snapshot.GetOrCreateSnapshot(gun, snapshotSHA256Hex, store, cryptoService)
@@ -141,7 +141,7 @@ func timestampExpired(ts *data.SignedTimestamp) bool {
 func snapshotExpired(ts *data.SignedTimestamp, snapshot []byte) bool {
 	// If this check failed, it means the current snapshot was not exactly what we expect
 	// via the timestamp. So we can consider it to be "expired."
-	return data.CheckHashes(snapshot, data.CanonicalSnapshotRole,
+	return data.CheckHashes(snapshot, data.CanonicalSnapshotRole.String(),
 		ts.Signed.Meta[data.CanonicalSnapshotRole.String()].Hashes) != nil
 }
 

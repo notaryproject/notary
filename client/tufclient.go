@@ -302,7 +302,7 @@ func (c *TUFClient) tryLoadCacheThenRemote(consistentInfo tuf.ConsistentInfo) ([
 
 func (c *TUFClient) tryLoadRemote(consistentInfo tuf.ConsistentInfo, old []byte) ([]byte, error) {
 	consistentName := consistentInfo.ConsistentName()
-	raw, err := c.remote.GetSized(consistentName.String(), consistentInfo.Length())
+	raw, err := c.remote.GetSized(consistentName, consistentInfo.Length())
 	if err != nil {
 		logrus.Debugf("error downloading %s: %s", consistentName, err)
 		return old, err

@@ -229,19 +229,19 @@ func delegationAddInput(d *delegationCommander, cmd *cobra.Command, args []strin
 	config *viper.Viper, gun data.GUN, role data.RoleName, keyIDs []string, error error) {
 	if len(args) < 2 {
 		cmd.Usage()
-		return nil, data.GUN(""), data.RoleName(""), nil, fmt.Errorf("must specify the Global Unique Name and the role of the delegation along with optional keyIDs and/or a list of paths to remove")
+		return nil, "", "", nil, fmt.Errorf("must specify the Global Unique Name and the role of the delegation along with optional keyIDs and/or a list of paths to remove")
 	}
 
 	config, err := d.configGetter()
 	if err != nil {
-		return nil, data.GUN(""), data.RoleName(""), nil, err
+		return nil, "", "", nil, err
 	}
 
 	gun = data.GUN(args[0])
 	role = data.RoleName(args[1])
 	// Check if role is valid delegation name before requiring any user input
 	if !data.IsDelegation(role) {
-		return nil, data.GUN(""), data.RoleName(""), nil, fmt.Errorf("invalid delegation name %s", role)
+		return nil, "", "", nil, fmt.Errorf("invalid delegation name %s", role)
 	}
 
 	// If we're only given the gun and the role, attempt to remove all data for this delegation

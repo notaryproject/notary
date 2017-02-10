@@ -28,7 +28,7 @@ func (es OfflineStore) Set(name string, blob []byte) error {
 }
 
 // SetMulti returns ErrOffline
-func (es OfflineStore) SetMulti(map[data.RoleName][]byte) error {
+func (es OfflineStore) SetMulti(map[string][]byte) error {
 	return err
 }
 

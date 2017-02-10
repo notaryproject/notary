@@ -250,7 +250,7 @@ func addECDSAKey(
 
 	// Hard-coded policy: the generated certificate expires in 10 years.
 	startTime := time.Now()
-	template, err := utils.NewCertificate(data.GUN(role.String()), startTime, startTime.AddDate(10, 0, 0))
+	template, err := utils.NewCertificate(role.String(), startTime, startTime.AddDate(10, 0, 0))
 	if err != nil {
 		return fmt.Errorf("failed to create the certificate template: %v", err)
 	}
@@ -750,27 +750,27 @@ func (s *YubiStore) GetKey(keyID string) (data.PrivateKey, data.RoleName, error)
 		if _, ok := err.(errHSMNotPresent); ok {
 			err = trustmanager.ErrKeyNotFound{KeyID: keyID}
 		}
-		return nil, data.RoleName(""), err
+		return nil, "", err
 	}
 	defer cleanup(ctx, session)
 
 	key, ok := s.keys[keyID]
 	if !ok {
-		return nil, data.RoleName(""), trustmanager.ErrKeyNotFound{KeyID: keyID}
+		return nil, "", trustmanager.ErrKeyNotFound{KeyID: keyID}
 	}
 
 	pubKey, alias, err := getECDSAKey(ctx, session, key.slotID)
 	if err != nil {
 		logrus.Debugf("Failed to get key from slot %s: %s", key.slotID, err.Error())
-		return nil, data.RoleName(""), err
+		return nil, "", err
 	}
 	// Check to see if we're returning the intended keyID
 	if pubKey.ID() != keyID {
-		return nil, data.RoleName(""), fmt.Errorf("expected root key: %s, but found: %s", keyID, pubKey.ID())
+		return nil, "", fmt.Errorf("expected root key: %s, but found: %s", keyID, pubKey.ID())
 	}
 	privKey := NewYubiPrivateKey(key.slotID, *pubKey, s.passRetriever)
 	if privKey == nil {
-		return nil, data.RoleName(""), errors.New("could not initialize new YubiPrivateKey")
+		return nil, "", errors.New("could not initialize new YubiPrivateKey")
 	}
 
 	return privKey, alias, err

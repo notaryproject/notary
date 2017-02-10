@@ -26,7 +26,7 @@ var _cachedMeta map[data.RoleName][]byte
 // and use it once.
 func getSampleMeta(t *testing.T) (map[data.RoleName][]byte, data.GUN) {
 	var gun data.GUN = "docker.com/notary"
-	delgNames := []string{"targets/a", "targets/a/b", "targets/a/b/force_parent_metadata"}
+	delgNames := []data.RoleName{"targets/a", "targets/a/b", "targets/a/b/force_parent_metadata"}
 	if _cachedMeta == nil {
 		meta, _, err := testutils.NewRepoMetadata(gun, delgNames...)
 		require.NoError(t, err)
@@ -492,7 +492,7 @@ func TestGetConsistentInfo(t *testing.T) {
 	repo.Snapshot.Signed.Meta["targets/random"] = data.FileMeta{Hashes: data.Hashes{"randomsha": []byte("12345")}}
 	repo.Snapshot.Signed.Meta["targets/nohashes"] = data.FileMeta{Length: 1}
 
-	extraMeta := []data.RoleName{data.RoleName("only512"), data.RoleName("targets/random"), data.RoleName("targets/nohashes")}
+	extraMeta := []data.RoleName{"only512", "targets/random", "targets/nohashes"}
 
 	meta, err := testutils.SignAndSerialize(repo)
 	require.NoError(t, err)
@@ -535,7 +535,7 @@ func TestGetConsistentInfo(t *testing.T) {
 			cName := utils.ConsistentName(data.CanonicalRootRole,
 				repo.Snapshot.Signed.Meta[data.CanonicalRootRole.String()].Hashes[notary.SHA256])
 
-			require.Equal(t, cName, ci.ConsistentName())
+			require.EqualValues(t, cName, ci.ConsistentName())
 			require.True(t, ci.ChecksumKnown())
 			require.True(t, ci.Length() > -1)
 
@@ -554,7 +554,7 @@ func checkTimestampSnapshotRequired(t *testing.T, meta map[string][]byte, extraM
 		require.NoError(t, builder.Load(roleToLoad, meta[roleToLoad.String()], 1, false))
 		for _, checkName := range append(data.BaseRoles, extraMeta...) {
 			ci := builder.GetConsistentInfo(checkName)
-			require.Equal(t, checkName, ci.ConsistentName())
+			require.EqualValues(t, checkName, ci.ConsistentName())
 
 			switch checkName {
 			case data.CanonicalTimestampRole:
@@ -579,17 +579,17 @@ func checkOnlySnapshotConsistentAfterTimestamp(t *testing.T, repo *tuf.Repo, met
 		case data.CanonicalSnapshotRole:
 			cName := utils.ConsistentName(data.CanonicalSnapshotRole,
 				repo.Timestamp.Signed.Meta[data.CanonicalSnapshotRole.String()].Hashes[notary.SHA256])
-			require.Equal(t, cName, ci.ConsistentName())
+			require.EqualValues(t, cName, ci.ConsistentName())
 			require.True(t, ci.ChecksumKnown())
 			require.True(t, ci.Length() > -1)
 		case data.CanonicalTimestampRole:
 			// timestamp's canonical name is always "timestamp" and its size is always the max
 			// timestamp size
-			require.Equal(t, data.CanonicalTimestampRole, ci.ConsistentName())
+			require.EqualValues(t, data.CanonicalTimestampRole, ci.ConsistentName())
 			require.True(t, ci.ChecksumKnown())
 			require.Equal(t, notary.MaxTimestampSize, ci.Length())
 		default:
-			require.Equal(t, checkName, ci.ConsistentName())
+			require.EqualValues(t, checkName, ci.ConsistentName())
 			require.False(t, ci.ChecksumKnown())
 			require.Equal(t, int64(-1), ci.Length())
 		}
@@ -606,7 +606,7 @@ func checkOtherRolesConsistentAfterSnapshot(t *testing.T, repo *tuf.Repo, meta m
 		switch checkName {
 		case data.CanonicalTimestampRole:
 			// timestamp's canonical name is always "timestamp" and its size is always -1
-			require.Equal(t, data.CanonicalTimestampRole, ci.ConsistentName())
+			require.EqualValues(t, data.CanonicalTimestampRole, ci.ConsistentName())
 			require.Equal(t, notary.MaxTimestampSize, ci.Length())
 		default:
 			fileInfo := repo.Snapshot.Signed.Meta
@@ -615,7 +615,7 @@ func checkOtherRolesConsistentAfterSnapshot(t *testing.T, repo *tuf.Repo, meta m
 			}
 
 			cName := utils.ConsistentName(checkName, fileInfo[checkName.String()].Hashes[notary.SHA256])
-			require.Equal(t, cName, ci.ConsistentName())
+			require.EqualValues(t, cName, ci.ConsistentName())
 			require.True(t, ci.Length() > -1)
 		}
 	}
@@ -738,7 +738,7 @@ func TestSnapshotLoadedFirstChecksumsOthers(t *testing.T) {
 	// checks right away if the snapshot is loaded) - in the case of targets/other/other, which should
 	// not be in snapshot at all, loading should fail even without a space because there is no checksum
 	// for it
-	for _, roleNameToLoad := range []data.RoleName{data.CanonicalTargetsRole, data.RoleName("targets/other")} {
+	for _, roleNameToLoad := range []data.RoleName{data.CanonicalTargetsRole, "targets/other"} {
 		err := builder.Load(roleNameToLoad, append(meta[roleNameToLoad], ' '), 0, false)
 		require.Error(t, err)
 		checksumErr, ok := err.(data.ErrMismatchedChecksum)

@@ -68,7 +68,7 @@ func CopyKeys(t *testing.T, from signed.CryptoService, roles ...data.RoleName) s
 // EmptyRepo creates an in memory crypto service
 // and initializes a repo with no targets.  Delegations are only created
 // if delegation roles are passed in.
-func EmptyRepo(gun data.GUN, delegationRoles ...string) (*tuf.Repo, signed.CryptoService, error) {
+func EmptyRepo(gun data.GUN, delegationRoles ...data.RoleName) (*tuf.Repo, signed.CryptoService, error) {
 	cs := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(passphrase.ConstantRetriever("")))
 	r := tuf.NewRepo(cs)
 
@@ -98,8 +98,13 @@ func EmptyRepo(gun data.GUN, delegationRoles ...string) (*tuf.Repo, signed.Crypt
 
 	// sort the delegation roles so that we make sure to create the parents
 	// first
-	sort.Strings(delegationRoles)
-	for _, delgName := range delegationRoles {
+	var roleNames []string
+	for _, role := range delegationRoles {
+		roleNames = append(roleNames, role.String())
+	}
+
+	sort.Strings(roleNames)
+	for _, delgName := range roleNames {
 		// create a delegations key and a delegation in the TUF repo
 		delgKey, err := CreateKey(cs, gun, data.RoleName(delgName), data.ECDSAKey)
 		if err != nil {
@@ -117,7 +122,7 @@ func EmptyRepo(gun data.GUN, delegationRoles ...string) (*tuf.Repo, signed.Crypt
 }
 
 // NewRepoMetadata creates a TUF repo and returns the metadata
-func NewRepoMetadata(gun data.GUN, delegationRoles ...string) (map[data.RoleName][]byte, signed.CryptoService, error) {
+func NewRepoMetadata(gun data.GUN, delegationRoles ...data.RoleName) (map[data.RoleName][]byte, signed.CryptoService, error) {
 	tufRepo, cs, err := EmptyRepo(gun, delegationRoles...)
 	if err != nil {
 		return nil, nil, err
@@ -145,13 +150,12 @@ func SignAndSerialize(tufRepo *tuf.Repo) (map[data.RoleName][]byte, error) {
 	meta := make(map[data.RoleName][]byte)
 
 	for delgName := range tufRepo.Targets {
-		delg := data.RoleName(delgName)
 		// we'll sign targets later
-		if delg == data.CanonicalTargetsRole {
+		if delgName == data.CanonicalTargetsRole {
 			continue
 		}
 
-		signedThing, err := tufRepo.SignTargets(delg, data.DefaultExpires("targets"))
+		signedThing, err := tufRepo.SignTargets(data.RoleName(delgName), data.DefaultExpires("targets"))
 		if err != nil {
 			return nil, err
 		}
@@ -160,7 +164,7 @@ func SignAndSerialize(tufRepo *tuf.Repo) (map[data.RoleName][]byte, error) {
 			return nil, err
 		}
 
-		meta[delg] = metaBytes
+		meta[delgName] = metaBytes
 	}
 
 	// these need to be generated after the delegations are created and signed so
@@ -189,7 +193,7 @@ func Sign(repo *tuf.Repo) (root, targets, snapshot, timestamp *data.Signed, err 
 	if _, ok := err.(data.ErrInvalidRole); err != nil && !ok {
 		return nil, nil, nil, nil, err
 	}
-	targets, err = repo.SignTargets(data.RoleName("targets"), data.DefaultExpires("targets"))
+	targets, err = repo.SignTargets(data.CanonicalTargetsRole, data.DefaultExpires("targets"))
 	if _, ok := err.(data.ErrInvalidRole); err != nil && !ok {
 		return nil, nil, nil, nil, err
 	}

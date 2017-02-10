@@ -11,10 +11,10 @@ import (
 
 // Canonical base role names
 var (
-	CanonicalRootRole      = RoleName("root")
-	CanonicalTargetsRole   = RoleName("targets")
-	CanonicalSnapshotRole  = RoleName("snapshot")
-	CanonicalTimestampRole = RoleName("timestamp")
+	CanonicalRootRole      RoleName = "root"
+	CanonicalTargetsRole   RoleName = "targets"
+	CanonicalSnapshotRole  RoleName = "snapshot"
+	CanonicalTimestampRole RoleName = "timestamp"
 )
 
 // BaseRoles is an easy to iterate list of the top level
@@ -71,16 +71,17 @@ func ValidRole(name RoleName) bool {
 
 // IsDelegation checks if the role is a delegation or a root role
 func IsDelegation(role RoleName) bool {
+	strRole := role.String()
 	targetsBase := CanonicalTargetsRole + "/"
 
-	whitelistedChars := delegationRegexp.MatchString(role.String())
+	whitelistedChars := delegationRegexp.MatchString(strRole)
 
 	// Limit size of full role string to 255 chars for db column size limit
 	correctLength := len(role) < 256
 
 	// Removes ., .., extra slashes, and trailing slash
-	isClean := path.Clean(role.String()) == role.String()
-	return strings.HasPrefix(role.String(), targetsBase.String()) &&
+	isClean := path.Clean(strRole) == strRole
+	return strings.HasPrefix(strRole, targetsBase.String()) &&
 		whitelistedChars &&
 		correctLength &&
 		isClean
@@ -105,7 +106,7 @@ func IsWildDelegation(role RoleName) bool {
 		return false
 	}
 	base := role.Parent()
-	if !(IsDelegation(RoleName(base)) || RoleName(base) == CanonicalTargetsRole) {
+	if !(IsDelegation(base) || base == CanonicalTargetsRole) {
 		return false
 	}
 	return role[len(role)-2:] == "/*"

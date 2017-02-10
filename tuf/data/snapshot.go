@@ -130,7 +130,7 @@ func (sp *SignedSnapshot) GetMeta(role RoleName) (*FileMeta, error) {
 			return &meta, nil
 		}
 	}
-	return nil, ErrMissingMeta{Role: role}
+	return nil, ErrMissingMeta{Role: role.String()}
 }
 
 // DeleteMeta removes a role from the snapshot. If the role doesn't

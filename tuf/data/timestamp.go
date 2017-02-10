@@ -103,7 +103,7 @@ func (ts *SignedTimestamp) ToSigned() (*Signed, error) {
 func (ts *SignedTimestamp) GetSnapshot() (*FileMeta, error) {
 	snapshotExpected, ok := ts.Signed.Meta[CanonicalSnapshotRole.String()]
 	if !ok {
-		return nil, ErrMissingMeta{Role: CanonicalSnapshotRole}
+		return nil, ErrMissingMeta{Role: CanonicalSnapshotRole.String()}
 	}
 	return &snapshotExpected, nil
 }

@@ -709,7 +709,7 @@ func TestSwizzlerRotateKeyBaseRole(t *testing.T) {
 func TestSwizzlerRotateKeyDelegationRole(t *testing.T) {
 	f, origMeta := createNewSwizzler(t)
 
-	theRole := data.RoleName("targets/a/b")
+	var theRole data.RoleName = "targets/a/b"
 	cs := signed.NewEd25519()
 	pubKey, err := cs.Create(theRole, f.Gun, data.ED25519Key)
 	require.NoError(t, err)

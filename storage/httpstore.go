@@ -201,7 +201,7 @@ func (s HTTPStore) GetSized(name string, size int64) ([]byte, error) {
 
 // Set sends a single piece of metadata to the TUF server
 func (s HTTPStore) Set(name string, blob []byte) error {
-	return s.SetMulti(map[data.RoleName][]byte{data.RoleName(name): blob})
+	return s.SetMulti(map[string][]byte{name: blob})
 }
 
 // Remove always fails, because we should never be able to delete metadata
@@ -212,11 +212,11 @@ func (s HTTPStore) Remove(name string) error {
 
 // NewMultiPartMetaRequest builds a request with the provided metadata updates
 // in multipart form
-func NewMultiPartMetaRequest(url string, metas map[data.RoleName][]byte) (*http.Request, error) {
+func NewMultiPartMetaRequest(url string, metas map[string][]byte) (*http.Request, error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	for role, blob := range metas {
-		part, err := writer.CreateFormFile("files", role.String())
+		part, err := writer.CreateFormFile("files", role)
 		if err != nil {
 			return nil, err
 		}
@@ -240,7 +240,7 @@ func NewMultiPartMetaRequest(url string, metas map[data.RoleName][]byte) (*http.
 // SetMulti does a single batch upload of multiple pieces of TUF metadata.
 // This should be preferred for updating a remote server as it enable the server
 // to remain consistent, either accepting or rejecting the complete update.
-func (s HTTPStore) SetMulti(metas map[data.RoleName][]byte) error {
+func (s HTTPStore) SetMulti(metas map[string][]byte) error {
 	url, err := s.buildMetaURL("")
 	if err != nil {
 		return err

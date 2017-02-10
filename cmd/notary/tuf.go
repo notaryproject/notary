@@ -774,7 +774,7 @@ func (t *tufCommander) tufVerify(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error retrieving target by name:%s, error:%v", targetName, err)
 	}
 
-	if err := data.CheckHashes(payload, data.RoleName(targetName), target.Hashes); err != nil {
+	if err := data.CheckHashes(payload, targetName, target.Hashes); err != nil {
 		return fmt.Errorf("data not present in the trusted collection, %v", err)
 	}
 

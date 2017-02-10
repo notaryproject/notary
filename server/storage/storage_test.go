@@ -78,7 +78,7 @@ func assertExpectedTUFMetaInStore(t *testing.T, s MetaStore, expected []StoredTU
 func testUpdateCurrentEmptyStore(t *testing.T, s MetaStore) []StoredTUFMeta {
 	expected := make([]StoredTUFMeta, 0, 10)
 	for _, role := range append(data.BaseRoles, "targets/a") {
-		for _, gun := range []data.GUN{data.GUN("gun1"), data.GUN("gun2")} {
+		for _, gun := range []data.GUN{"gun1", "gun2"} {
 			// Adding a new TUF file should succeed
 			tufObj := SampleCustomTUFObj(gun, role, 1, nil)
 			require.NoError(t, s.UpdateCurrent(tufObj.Gun, MakeUpdate(tufObj)))
@@ -129,20 +129,20 @@ func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore, oldVersionExists b
 // GetVersion should successfully retrieve a version of an existing TUF file,
 // but will return an error if the requested version does not exist.
 func testGetVersion(t *testing.T, s MetaStore) {
-	_, _, err := s.GetVersion(data.GUN("gun"), data.RoleName("role"), 2)
+	_, _, err := s.GetVersion("gun", "role", 2)
 	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
 
 	s.UpdateCurrent(data.GUN("gun"), MetaUpdate{data.RoleName("role"), 2, []byte("version2")})
-	_, d, err := s.GetVersion(data.GUN("gun"), data.RoleName("role"), 2)
+	_, d, err := s.GetVersion("gun", "role", 2)
 	require.Nil(t, err, "Expected error to be nil")
 	require.Equal(t, []byte("version2"), d, "Data was incorrect")
 
 	// Getting newer version fails
-	_, _, err = s.GetVersion(data.GUN("gun"), data.RoleName("role"), 3)
+	_, _, err = s.GetVersion("gun", "role", 3)
 	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
 
 	// Getting another gun/role fails
-	_, _, err = s.GetVersion(data.GUN("badgun"), data.RoleName("badrole"), 2)
+	_, _, err = s.GetVersion("badgun", "badrole", 2)
 	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
 }
 

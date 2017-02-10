@@ -25,7 +25,7 @@ func TestMemoryStoreMetadataOperations(t *testing.T) {
 	invalidShasum := sha256.Sum256([]byte{})
 
 	require.NoError(t, s.Set("exists", metaContent))
-	require.NoError(t, s.SetMulti(map[data.RoleName][]byte{data.RoleName("multi1"): metaContent, data.RoleName("multi2"): metaContent}))
+	require.NoError(t, s.SetMulti(map[string][]byte{"multi1": metaContent, "multi2": metaContent}))
 
 	for _, metaName := range []string{"exists", "multi1", "multi2"} {
 		role := data.RoleName(metaName)
@@ -33,11 +33,11 @@ func TestMemoryStoreMetadataOperations(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, metaContent, meta)
 
-		meta, err = s.GetSized(utils.ConsistentName(role, shasum[:]).String(), metaSize)
+		meta, err = s.GetSized(utils.ConsistentName(role, shasum[:]), metaSize)
 		require.NoError(t, err)
 		require.Equal(t, metaContent, meta)
 
-		_, err = s.GetSized(utils.ConsistentName(role, invalidShasum[:]).String(), metaSize)
+		_, err = s.GetSized(utils.ConsistentName(role, invalidShasum[:]), metaSize)
 		require.Error(t, err)
 		require.IsType(t, ErrMetaNotFound{}, err)
 	}

@@ -12,7 +12,7 @@ const NoSizeLimit int64 = -1
 type MetadataStore interface {
 	GetSized(name string, size int64) ([]byte, error)
 	Set(name string, blob []byte) error
-	SetMulti(map[data.RoleName][]byte) error
+	SetMulti(map[string][]byte) error
 	RemoveAll() error
 	Remove(name string) error
 }

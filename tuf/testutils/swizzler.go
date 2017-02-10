@@ -376,7 +376,7 @@ func (m *MetadataSwizzler) ExpireMetadata(role data.RoleName) error {
 func (m *MetadataSwizzler) SetThreshold(role data.RoleName, newThreshold int) error {
 	roleSpecifier := data.CanonicalRootRole
 	if data.IsDelegation(role) {
-		roleSpecifier = data.RoleName(role.Parent())
+		roleSpecifier = role.Parent()
 	}
 
 	b, err := m.MetadataCache.GetSized(roleSpecifier.String(), store.NoSizeLimit)
@@ -432,7 +432,7 @@ func (m *MetadataSwizzler) SetThreshold(role data.RoleName, newThreshold int) er
 func (m *MetadataSwizzler) RotateKey(role data.RoleName, key data.PublicKey) error {
 	roleSpecifier := data.CanonicalRootRole
 	if data.IsDelegation(role) {
-		roleSpecifier = data.RoleName(role.Parent())
+		roleSpecifier = role.Parent()
 	}
 
 	b, err := m.MetadataCache.GetSized(roleSpecifier.String(), store.NoSizeLimit)

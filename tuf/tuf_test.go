@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testGUN = data.GUN("gun")
+var testGUN data.GUN = "gun"
 
 func initRepo(t *testing.T, cryptoService signed.CryptoService) *Repo {
 	rootKey, err := cryptoService.Create("root", testGUN, data.ED25519Key)
@@ -88,7 +88,7 @@ func writeRepo(t *testing.T, dir string, repo *Repo) {
 	ioutil.WriteFile(dir+"/root.json", rootJSON, 0755)
 
 	for r := range repo.Targets {
-		signedTargets, err := repo.SignTargets(data.RoleName(r), data.DefaultExpires("targets"))
+		signedTargets, err := repo.SignTargets(r, data.DefaultExpires("targets"))
 		require.NoError(t, err)
 		targetsJSON, _ := json.Marshal(signedTargets)
 		p := path.Join(dir, r.String()+".json")
@@ -174,37 +174,37 @@ func TestPurgeDelegationsKeyFromTop(t *testing.T) {
 	ed25519 := signed.NewEd25519()
 	repo := initRepo(t, ed25519)
 
-	vetinari := path.Join(data.CanonicalTargetsRole.String(), "vetinari")
-	sybil := path.Join(data.CanonicalTargetsRole.String(), "sybil")
-	vimes := path.Join(data.CanonicalTargetsRole.String(), "vimes")
-	carrot := path.Join(vimes, "carrot")
+	vetinari := data.RoleName(path.Join(data.CanonicalTargetsRole.String(), "vetinari"))
+	sybil := data.RoleName(path.Join(data.CanonicalTargetsRole.String(), "sybil"))
+	vimes := data.RoleName(path.Join(data.CanonicalTargetsRole.String(), "vimes"))
+	carrot := data.RoleName(path.Join(vimes.String(), "carrot"))
 	targetsWild := data.RoleName(path.Join(data.CanonicalTargetsRole.String(), "*"))
 
 	// create 2 keys, we'll purge one of them
-	testKey1, err := ed25519.Create(data.RoleName(vetinari), testGUN, data.ED25519Key)
+	testKey1, err := ed25519.Create(vetinari, testGUN, data.ED25519Key)
 	require.NoError(t, err)
-	testKey2, err := ed25519.Create(data.RoleName(vetinari), testGUN, data.ED25519Key)
+	testKey2, err := ed25519.Create(vetinari, testGUN, data.ED25519Key)
 	require.NoError(t, err)
 
 	// create some delegations
-	err = repo.UpdateDelegationKeys(data.RoleName(vetinari), []data.PublicKey{testKey1, testKey2}, []string{}, 1)
+	err = repo.UpdateDelegationKeys(vetinari, []data.PublicKey{testKey1, testKey2}, []string{}, 1)
 	require.NoError(t, err)
-	err = repo.UpdateDelegationPaths(data.RoleName(vetinari), []string{""}, []string{}, false)
-	require.NoError(t, err)
-
-	err = repo.UpdateDelegationKeys(data.RoleName(sybil), []data.PublicKey{testKey1}, []string{}, 1)
-	require.NoError(t, err)
-	err = repo.UpdateDelegationPaths(data.RoleName(sybil), []string{""}, []string{}, false)
+	err = repo.UpdateDelegationPaths(vetinari, []string{""}, []string{}, false)
 	require.NoError(t, err)
 
-	err = repo.UpdateDelegationKeys(data.RoleName(vimes), []data.PublicKey{testKey2}, []string{}, 1)
+	err = repo.UpdateDelegationKeys(sybil, []data.PublicKey{testKey1}, []string{}, 1)
 	require.NoError(t, err)
-	err = repo.UpdateDelegationPaths(data.RoleName(vimes), []string{""}, []string{}, false)
+	err = repo.UpdateDelegationPaths(sybil, []string{""}, []string{}, false)
 	require.NoError(t, err)
 
-	err = repo.UpdateDelegationKeys(data.RoleName(carrot), []data.PublicKey{testKey1}, []string{}, 1)
+	err = repo.UpdateDelegationKeys(vimes, []data.PublicKey{testKey2}, []string{}, 1)
 	require.NoError(t, err)
-	err = repo.UpdateDelegationPaths(data.RoleName(carrot), []string{""}, []string{}, false)
+	err = repo.UpdateDelegationPaths(vimes, []string{""}, []string{}, false)
+	require.NoError(t, err)
+
+	err = repo.UpdateDelegationKeys(carrot, []data.PublicKey{testKey1}, []string{}, 1)
+	require.NoError(t, err)
+	err = repo.UpdateDelegationPaths(carrot, []string{""}, []string{}, false)
 	require.NoError(t, err)
 
 	id1, err := utils.CanonicalKeyID(testKey1)
@@ -212,23 +212,23 @@ func TestPurgeDelegationsKeyFromTop(t *testing.T) {
 	err = repo.PurgeDelegationKeys(targetsWild, []string{id1})
 	require.NoError(t, err)
 
-	role, err := repo.GetDelegationRole(data.RoleName(vetinari))
+	role, err := repo.GetDelegationRole(vetinari)
 	require.NoError(t, err)
 	require.Len(t, role.Keys, 1)
 	_, ok := role.Keys[testKey2.ID()]
 	require.True(t, ok)
 
-	role, err = repo.GetDelegationRole(data.RoleName(sybil))
+	role, err = repo.GetDelegationRole(sybil)
 	require.NoError(t, err)
 	require.Len(t, role.Keys, 0)
 
-	role, err = repo.GetDelegationRole(data.RoleName(vimes))
+	role, err = repo.GetDelegationRole(vimes)
 	require.NoError(t, err)
 	require.Len(t, role.Keys, 1)
 	_, ok = role.Keys[testKey2.ID()]
 	require.True(t, ok)
 
-	role, err = repo.GetDelegationRole(data.RoleName(carrot))
+	role, err = repo.GetDelegationRole(carrot)
 	require.NoError(t, err)
 	require.Len(t, role.Keys, 0)
 

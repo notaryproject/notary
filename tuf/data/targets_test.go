@@ -218,7 +218,7 @@ func TestTargetsFromSignedValidatesRoleType(t *testing.T) {
 
 // The rolename passed to TargetsFromSigned must be a valid targets role name
 func TestTargetsFromSignedValidatesRoleName(t *testing.T) {
-	for _, roleName := range []RoleName{RoleName("TARGETS"), RoleName("root/a")} {
+	for _, roleName := range []RoleName{"TARGETS", "root/a"} {
 		tg := validTargetsTemplate()
 		s, err := tg.ToSigned()
 		require.NoError(t, err)

@@ -32,12 +32,12 @@ func (r RoleName) String() string {
 	return string(r)
 }
 
-// Parent provides the parent path string from the provided child RoleName
+// Parent provides the parent path role from the provided child role
 func (r RoleName) Parent() RoleName {
 	return RoleName(path.Dir(r.String()))
 }
 
-// MetadataRoleMapToStringMap generates a map string of butes from a map RoleName of bytes
+// MetadataRoleMapToStringMap generates a map string of bytes from a map RoleName of bytes
 func MetadataRoleMapToStringMap(roles map[RoleName][]byte) map[string][]byte {
 	metadata := make(map[string][]byte)
 	for k, v := range roles {
@@ -46,7 +46,7 @@ func MetadataRoleMapToStringMap(roles map[RoleName][]byte) map[string][]byte {
 	return metadata
 }
 
-// NewRoleList generates an array of RoleName objects from the a slice of strings
+// NewRoleList generates an array of RoleName objects from a slice of strings
 func NewRoleList(roles []string) []RoleName {
 	var roleNames []RoleName
 	for _, role := range roles {
@@ -173,7 +173,7 @@ type FileMeta struct {
 }
 
 // CheckHashes verifies all the checksums specified by the "hashes" of the payload.
-func CheckHashes(payload []byte, name RoleName, hashes Hashes) error {
+func CheckHashes(payload []byte, name string, hashes Hashes) error {
 	cnt := 0
 
 	// k, v indicate the hash algorithm and the corresponding value

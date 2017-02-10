@@ -435,10 +435,10 @@ func KeyToPEM(privKey data.PrivateKey, role data.RoleName, gun data.GUN) ([]byte
 	}
 
 	headers := map[string]string{}
-	if role.String() != "" {
+	if role != "" {
 		headers["role"] = role.String()
 	}
-	if gun.String() != "" {
+	if gun != "" {
 		headers["gun"] = gun.String()
 	}
 
@@ -538,7 +538,7 @@ func CertBundleToKey(leafCert *x509.Certificate, intCerts []*x509.Certificate) (
 }
 
 // NewCertificate returns an X509 Certificate following a template, given a GUN and validity interval.
-func NewCertificate(gun data.GUN, startTime, endTime time.Time) (*x509.Certificate, error) {
+func NewCertificate(gun string, startTime, endTime time.Time) (*x509.Certificate, error) {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
@@ -549,7 +549,7 @@ func NewCertificate(gun data.GUN, startTime, endTime time.Time) (*x509.Certifica
 	return &x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
-			CommonName: gun.String(),
+			CommonName: gun,
 		},
 		NotBefore: startTime,
 		NotAfter:  endTime,

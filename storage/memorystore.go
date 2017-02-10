@@ -21,7 +21,7 @@ func NewMemoryStore(initial map[data.RoleName][]byte) *MemoryStore {
 		for name, d := range initial {
 			checksum := sha256.Sum256(d)
 			path := utils.ConsistentName(name, checksum[:])
-			consistent[path] = d
+			consistent[data.RoleName(path)] = d
 		}
 	}
 	return &MemoryStore{
@@ -89,15 +89,15 @@ func (m *MemoryStore) Set(name string, meta []byte) error {
 
 	checksum := sha256.Sum256(meta)
 	path := utils.ConsistentName(data.RoleName(name), checksum[:])
-	m.consistent[path] = meta
+	m.consistent[data.RoleName(path)] = meta
 	return nil
 }
 
 // SetMulti sets multiple pieces of metadata for multiple names
 // in a single operation.
-func (m *MemoryStore) SetMulti(metas map[data.RoleName][]byte) error {
+func (m *MemoryStore) SetMulti(metas map[string][]byte) error {
 	for role, blob := range metas {
-		m.Set(role.String(), blob)
+		m.Set(role, blob)
 	}
 	return nil
 }
@@ -109,7 +109,7 @@ func (m *MemoryStore) Remove(name string) error {
 		checksum := sha256.Sum256(meta)
 		path := utils.ConsistentName(data.RoleName(name), checksum[:])
 		delete(m.data, data.RoleName(name))
-		delete(m.consistent, path)
+		delete(m.consistent, data.RoleName(path))
 	}
 	return nil
 }

@@ -22,7 +22,7 @@ func GenerateCertificate(rootKey data.PrivateKey, gun data.GUN, startTime, endTi
 }
 
 func generateCertificate(signer crypto.Signer, gun data.GUN, startTime, endTime time.Time) (*x509.Certificate, error) {
-	template, err := utils.NewCertificate(gun, startTime, endTime)
+	template, err := utils.NewCertificate(gun.String(), startTime, endTime)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the certificate template for: %s (%v)", gun, err)
 	}

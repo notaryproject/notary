@@ -295,7 +295,7 @@ func (tr *Repo) GetAllLoadedRoles() []*data.Role {
 	for name, rr := range tr.Root.Signed.Roles {
 		res = append(res, &data.Role{
 			RootRole: *rr,
-			Name:     data.RoleName(name),
+			Name:     name,
 		})
 	}
 	for _, delegate := range tr.Targets {
@@ -388,7 +388,7 @@ func (tr *Repo) UpdateDelegationKeys(roleName data.RoleName, addKeys data.KeyLis
 	if !data.IsDelegation(roleName) {
 		return data.ErrInvalidRole{Role: roleName, Reason: "not a valid delegated role"}
 	}
-	parent := data.RoleName(roleName.Parent())
+	parent := roleName.Parent()
 
 	if err := tr.VerifyCanSign(parent); err != nil {
 		return err
@@ -488,7 +488,7 @@ func (tr *Repo) UpdateDelegationPaths(roleName data.RoleName, addPaths, removePa
 	}
 	parent := roleName.Parent()
 
-	if err := tr.VerifyCanSign(data.RoleName(parent)); err != nil {
+	if err := tr.VerifyCanSign(parent); err != nil {
 		return err
 	}
 
@@ -518,7 +518,7 @@ func (tr *Repo) DeleteDelegation(roleName data.RoleName) error {
 	}
 
 	parent := roleName.Parent()
-	if err := tr.VerifyCanSign(data.RoleName(parent)); err != nil {
+	if err := tr.VerifyCanSign(parent); err != nil {
 		return err
 	}
 
@@ -795,20 +795,20 @@ func (tr *Repo) AddTargets(role data.RoleName, targets data.Files) (data.Files, 
 	}
 
 	addedTargets := make(data.Files)
-	addTargetVisitor := func(targetPath data.RoleName, targetMeta data.FileMeta) func(*data.SignedTargets, data.DelegationRole) interface{} {
+	addTargetVisitor := func(targetPath string, targetMeta data.FileMeta) func(*data.SignedTargets, data.DelegationRole) interface{} {
 		return func(tgt *data.SignedTargets, validRole data.DelegationRole) interface{} {
 			// We've already validated the role's target path in our walk, so just modify the metadata
-			tgt.Signed.Targets[targetPath.String()] = targetMeta
+			tgt.Signed.Targets[targetPath] = targetMeta
 			tgt.Dirty = true
 			// Also add to our new addedTargets map to keep track of every target we've added successfully
-			addedTargets[targetPath.String()] = targetMeta
+			addedTargets[targetPath] = targetMeta
 			return StopWalk{}
 		}
 	}
 
 	// Walk the role tree while validating the target paths, and add all of our targets
 	for path, target := range targets {
-		tr.WalkTargets(path, role, addTargetVisitor(data.RoleName(path), target))
+		tr.WalkTargets(path, role, addTargetVisitor(path, target))
 	}
 	if len(addedTargets) != len(targets) {
 		return nil, fmt.Errorf("Could not add all targets")
@@ -822,12 +822,12 @@ func (tr *Repo) RemoveTargets(role data.RoleName, targets ...string) error {
 		return err
 	}
 
-	removeTargetVisitor := func(targetPath data.RoleName) func(*data.SignedTargets, data.DelegationRole) interface{} {
+	removeTargetVisitor := func(targetPath string) func(*data.SignedTargets, data.DelegationRole) interface{} {
 		return func(tgt *data.SignedTargets, validRole data.DelegationRole) interface{} {
 			// We've already validated the role path in our walk, so just modify the metadata
 			// We don't check against the target path against the valid role paths because it's
 			// possible we got into an invalid state and are trying to fix it
-			delete(tgt.Signed.Targets, targetPath.String())
+			delete(tgt.Signed.Targets, targetPath)
 			tgt.Dirty = true
 			return StopWalk{}
 		}
@@ -837,7 +837,7 @@ func (tr *Repo) RemoveTargets(role data.RoleName, targets ...string) error {
 	_, ok := tr.Targets[role]
 	if ok {
 		for _, path := range targets {
-			tr.WalkTargets("", role, removeTargetVisitor(data.RoleName(path)))
+			tr.WalkTargets("", role, removeTargetVisitor(path))
 		}
 	}
 
@@ -987,7 +987,7 @@ func (tr *Repo) SignSnapshot(expires time.Time) (*data.Signed, error) {
 		if err != nil {
 			return nil, err
 		}
-		err = tr.UpdateSnapshot(data.RoleName(role), signedTargets)
+		err = tr.UpdateSnapshot(role, signedTargets)
 		if err != nil {
 			return nil, err
 		}

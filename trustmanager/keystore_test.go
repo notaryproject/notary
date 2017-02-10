@@ -615,8 +615,10 @@ func testRemoveKeyWithRole(t *testing.T, role data.RoleName) {
 }
 
 func TestKeysAreCached(t *testing.T) {
-	var gun data.GUN = ("docker.com/notary")
-	testAlias := data.RoleName("alias")
+	var (
+		gun       data.GUN      = "docker.com/notary"
+		testAlias data.RoleName = "alias"
+	)
 
 	// Temporary directory where test files will be created
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")

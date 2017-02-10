@@ -165,7 +165,7 @@ func testSigningWithKeyMarksAsActive(t *testing.T, dbStore signed.CryptoService)
 
 func testCreateKey(t *testing.T, dbStore signed.CryptoService) (data.PrivateKey, data.PrivateKey, data.PrivateKey) {
 	// Create a test key, and check that it is successfully added to the database
-	role := data.RoleName(data.CanonicalSnapshotRole.String())
+	role := data.CanonicalSnapshotRole
 	var gun data.GUN = "gun"
 
 	// First create an ECDSA key
@@ -226,7 +226,7 @@ func testUnimplementedInterfaceMethods(t *testing.T, dbStore signed.CryptoServic
 	// add one key to the db
 	testKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	err = dbStore.AddKey(data.CanonicalTimestampRole, data.GUN("gun"), testKey)
+	err = dbStore.AddKey(data.CanonicalTimestampRole, "gun", testKey)
 	require.NoError(t, err)
 	requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole.String(), testKey)
 

@@ -37,8 +37,8 @@ func newBlankRepo(t *testing.T, url string) *NotaryRepository {
 	return repo
 }
 
-var metadataDelegations = []string{"targets/a", "targets/a/b", "targets/b", "targets/a/b/c", "targets/b/c"}
-var delegationsWithNonEmptyMetadata = []data.RoleName{data.RoleName("targets/a"), data.RoleName("targets/a/b"), data.RoleName("targets/b")}
+var metadataDelegations = []data.RoleName{"targets/a", "targets/a/b", "targets/b", "targets/a/b/c", "targets/b/c"}
+var delegationsWithNonEmptyMetadata = []data.RoleName{"targets/a", "targets/a/b", "targets/b"}
 
 func newServerSwizzler(t *testing.T) (map[data.RoleName][]byte, *testutils.MetadataSwizzler) {
 	serverMeta, cs, err := testutils.NewRepoMetadata(data.GUN("docker.com/notary"), metadataDelegations...)
@@ -117,7 +117,7 @@ func TestUpdateSucceedsEvenIfCannotWriteNewRepo(t *testing.T) {
 
 	for role := range serverMeta {
 		repo := newBlankRepo(t, ts.URL)
-		repo.cache = &unwritableStore{MetadataStore: repo.cache, roleToNotWrite: role}
+		repo.cache = &unwritableStore{MetadataStore: repo.cache, roleToNotWrite: data.RoleName(role)}
 		err := repo.Update(false)
 		require.NoError(t, err)
 
@@ -1837,7 +1837,7 @@ func TestDownloadTargetsLarge(t *testing.T) {
 }
 
 func TestDownloadTargetsDeep(t *testing.T) {
-	delegations := []string{
+	delegations := []data.RoleName{
 		// left subtree
 		"targets/level1",
 		"targets/level1/a",

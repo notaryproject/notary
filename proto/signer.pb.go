@@ -26,7 +26,6 @@ import fmt "fmt"
 import math "math"
 
 import (
-	"github.com/docker/notary/tuf/data"
 	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
 )
@@ -43,9 +42,9 @@ var _ = math.Inf
 const _ = proto1.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type CreateKeyRequest struct {
-	Algorithm string        `protobuf:"bytes,1,opt,name=algorithm" json:"algorithm,omitempty"`
-	Gun       data.GUN      `protobuf:"bytes,2,opt,name=gun" json:"gun,omitempty"`
-	Role      data.RoleName `protobuf:"bytes,3,opt,name=role" json:"role,omitempty"`
+	Algorithm string `protobuf:"bytes,1,opt,name=algorithm" json:"algorithm,omitempty"`
+	Gun       string `protobuf:"bytes,2,opt,name=gun" json:"gun,omitempty"`
+	Role      string `protobuf:"bytes,3,opt,name=role" json:"role,omitempty"`
 }
 
 func (m *CreateKeyRequest) Reset()                    { *m = CreateKeyRequest{} }
@@ -101,9 +100,9 @@ func (*Algorithm) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3
 // GetKeyInfoResponse returns the public key, the role, and the algorithm and key ID.
 // For backwards compatibility, it doesn't embed a PublicKey object
 type GetKeyInfoResponse struct {
-	KeyInfo   *KeyInfo      `protobuf:"bytes,1,opt,name=keyInfo" json:"keyInfo,omitempty"`
-	PublicKey []byte        `protobuf:"bytes,2,opt,name=publicKey,proto3" json:"publicKey,omitempty"`
-	Role      data.RoleName `protobuf:"bytes,3,opt,name=role" json:"role,omitempty"`
+	KeyInfo   *KeyInfo `protobuf:"bytes,1,opt,name=keyInfo" json:"keyInfo,omitempty"`
+	PublicKey []byte   `protobuf:"bytes,2,opt,name=publicKey,proto3" json:"publicKey,omitempty"`
+	Role      string   `protobuf:"bytes,3,opt,name=role" json:"role,omitempty"`
 }
 
 func (m *GetKeyInfoResponse) Reset()                    { *m = GetKeyInfoResponse{} }

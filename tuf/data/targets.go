@@ -74,8 +74,8 @@ func NewTargets() *SignedTargets {
 // GetMeta attempts to find the targets entry for the path. It
 // will return nil in the case of the target not being found.
 func (t SignedTargets) GetMeta(path string) *FileMeta {
-	for role, meta := range t.Signed.Targets {
-		if role == path {
+	for p, meta := range t.Signed.Targets {
+		if p == path {
 			return &meta
 		}
 	}

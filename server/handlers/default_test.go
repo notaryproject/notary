@@ -394,9 +394,9 @@ func TestAtomicUpdateValidationFailurePropagated(t *testing.T) {
 	rs, tgs, _, _, err := testutils.Serialize(r, tg, sn, ts)
 	require.NoError(t, err)
 
-	req, err := store.NewMultiPartMetaRequest("", map[data.RoleName][]byte{
-		data.CanonicalRootRole:    rs,
-		data.CanonicalTargetsRole: tgs,
+	req, err := store.NewMultiPartMetaRequest("", map[string][]byte{
+		data.CanonicalRootRole.String():    rs,
+		data.CanonicalTargetsRole.String(): tgs,
 	})
 	require.NoError(t, err)
 
@@ -437,10 +437,10 @@ func TestAtomicUpdateNonValidationFailureNotPropagated(t *testing.T) {
 	rs, tgs, sns, _, err := testutils.Serialize(r, tg, sn, ts)
 	require.NoError(t, err)
 
-	req, err := store.NewMultiPartMetaRequest("", map[data.RoleName][]byte{
-		data.CanonicalRootRole:     rs,
-		data.CanonicalTargetsRole:  tgs,
-		data.CanonicalSnapshotRole: sns,
+	req, err := store.NewMultiPartMetaRequest("", map[string][]byte{
+		data.CanonicalRootRole.String():     rs,
+		data.CanonicalTargetsRole.String():  tgs,
+		data.CanonicalSnapshotRole.String(): sns,
 	})
 	require.NoError(t, err)
 
@@ -480,10 +480,10 @@ func TestAtomicUpdateVersionErrorPropagated(t *testing.T) {
 	rs, tgs, sns, _, err := testutils.Serialize(r, tg, sn, ts)
 	require.NoError(t, err)
 
-	req, err := store.NewMultiPartMetaRequest("", map[data.RoleName][]byte{
-		data.CanonicalRootRole:     rs,
-		data.CanonicalTargetsRole:  tgs,
-		data.CanonicalSnapshotRole: sns,
+	req, err := store.NewMultiPartMetaRequest("", map[string][]byte{
+		data.CanonicalRootRole.String():     rs,
+		data.CanonicalTargetsRole.String():  tgs,
+		data.CanonicalSnapshotRole.String(): sns,
 	})
 	require.NoError(t, err)
 

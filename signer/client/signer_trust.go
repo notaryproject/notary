@@ -175,7 +175,7 @@ func NewNotarySigner(conn *grpc.ClientConn) *NotarySigner {
 // Create creates a remote key and returns the PublicKey associated with the remote private key
 func (trust *NotarySigner) Create(role data.RoleName, gun data.GUN, algorithm string) (data.PublicKey, error) {
 	publicKey, err := trust.kmClient.CreateKey(context.Background(),
-		&pb.CreateKeyRequest{Algorithm: algorithm, Role: role, Gun: gun})
+		&pb.CreateKeyRequest{Algorithm: algorithm, Role: role.String(), Gun: gun.String()})
 	if err != nil {
 		return nil, err
 	}
@@ -206,9 +206,9 @@ func (trust *NotarySigner) GetKey(keyid string) data.PublicKey {
 func (trust *NotarySigner) getKeyInfo(keyid string) (data.PublicKey, data.RoleName, error) {
 	keyInfo, err := trust.kmClient.GetKeyInfo(context.Background(), &pb.KeyID{ID: keyid})
 	if err != nil {
-		return nil, data.RoleName(""), err
+		return nil, "", err
 	}
-	return data.NewPublicKey(keyInfo.KeyInfo.Algorithm.Algorithm, keyInfo.PublicKey), keyInfo.Role, nil
+	return data.NewPublicKey(keyInfo.KeyInfo.Algorithm.Algorithm, keyInfo.PublicKey), data.RoleName(keyInfo.Role), nil
 }
 
 // GetPrivateKey retrieves by ID an object that can be used to sign, but that does

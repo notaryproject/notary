@@ -193,9 +193,9 @@ func getKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 	var key data.PublicKey
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	switch role {
-	case data.CanonicalTimestampRole.String():
+	case data.CanonicalTimestampRole:
 		key, err = timestamp.GetOrCreateTimestampKey(data.GUN(gun), store, crypto, keyAlgorithm)
-	case data.CanonicalSnapshotRole.String():
+	case data.CanonicalSnapshotRole:
 		key, err = snapshot.GetOrCreateSnapshotKey(data.GUN(gun), store, crypto, keyAlgorithm)
 	default:
 		logger.Infof("400 GET %s key: %v", role, err)
@@ -231,9 +231,9 @@ func rotateKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Reques
 	var key data.PublicKey
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	switch role {
-	case data.CanonicalTimestampRole.String():
+	case data.CanonicalTimestampRole:
 		key, err = timestamp.RotateTimestampKey(data.GUN(gun), store, crypto, keyAlgorithm)
-	case data.CanonicalSnapshotRole.String():
+	case data.CanonicalSnapshotRole:
 		key, err = snapshot.RotateSnapshotKey(data.GUN(gun), store, crypto, keyAlgorithm)
 	default:
 		logger.Infof("400 POST %s key: %v", role, err)
@@ -255,7 +255,7 @@ func rotateKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Reques
 }
 
 // To be called before getKeyHandler or rotateKeyHandler
-func setupKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string, actionVerb string) (string, string, string, storage.MetaStore, signed.CryptoService, error) {
+func setupKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string, actionVerb string) (data.RoleName, string, string, storage.MetaStore, signed.CryptoService, error) {
 	gun, ok := vars["imageName"]
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	if !ok || gun == "" {
@@ -288,7 +288,7 @@ func setupKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request
 		return "", "", "", nil, nil, errors.ErrNoKeyAlgorithm.WithDetail(nil)
 	}
 
-	return role, gun, keyAlgo, store, crypto, nil
+	return data.RoleName(role), gun, keyAlgo, store, crypto, nil
 }
 
 // NotFoundHandler is used as a generic catch all handler to return the ErrMetadataNotFound

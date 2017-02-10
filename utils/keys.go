@@ -95,7 +95,7 @@ func ExportKeys(to io.Writer, s Exporter, from string) error {
 func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGUN string, passRet notary.PassRetriever) error {
 	// importLogic.md contains a small flowchart I made to clear up my understand while writing the cases in this function
 	// it is very rough, but it may help while reading this piece of code
-	byteData, err := ioutil.ReadAll(from)
+	data, err := ioutil.ReadAll(from)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGUN 
 		writeTo string
 		toWrite []byte
 	)
-	for block, rest := pem.Decode(byteData); block != nil; block, rest = pem.Decode(rest) {
+	for block, rest := pem.Decode(data); block != nil; block, rest = pem.Decode(rest) {
 		handleLegacyPath(block)
 		setFallbacks(block, fallbackGUN, fallbackRole)
 

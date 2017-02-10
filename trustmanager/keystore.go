@@ -126,7 +126,7 @@ func (s *GenericKeyStore) AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error
 		return err
 	}
 
-	s.cachedKeys[keyID] = &cachedKey{alias: keyInfo.Role, key: privKey}
+	s.cachedKeys[keyID] = &cachedKey{alias: keyInfo.Role.String(), key: privKey}
 	err = s.store.Set(keyID, pemPrivKey)
 	if err != nil {
 		return err
@@ -142,17 +142,17 @@ func (s *GenericKeyStore) GetKey(keyID string) (data.PrivateKey, data.RoleName, 
 
 	cachedKeyEntry, ok := s.cachedKeys[keyID]
 	if ok {
-		return cachedKeyEntry.key, cachedKeyEntry.alias, nil
+		return cachedKeyEntry.key, data.RoleName(cachedKeyEntry.alias), nil
 	}
 
 	role, err := getKeyRole(s.store, keyID)
 	if err != nil {
-		return nil, role, err
+		return nil, "", err
 	}
 
 	keyBytes, err := s.store.Get(keyID)
 	if err != nil {
-		return nil, role, err
+		return nil, "", err
 	}
 
 	// See if the key is encrypted. If its encrypted we'll fail to parse the private key
@@ -160,10 +160,10 @@ func (s *GenericKeyStore) GetKey(keyID string) (data.PrivateKey, data.RoleName, 
 	if err != nil {
 		privKey, _, err = GetPasswdDecryptBytes(s.PassRetriever, keyBytes, keyID, string(role))
 		if err != nil {
-			return nil, role, err
+			return nil, "", err
 		}
 	}
-	s.cachedKeys[keyID] = &cachedKey{alias: role, key: privKey}
+	s.cachedKeys[keyID] = &cachedKey{alias: role.String(), key: privKey}
 	return privKey, role, nil
 }
 
@@ -232,7 +232,7 @@ func getKeyRole(s Storage, keyID string) (data.RoleName, error) {
 			}
 		}
 	}
-	return data.RoleName(""), ErrKeyNotFound{KeyID: keyID}
+	return "", ErrKeyNotFound{KeyID: keyID}
 }
 
 // GetPasswdDecryptBytes gets the password to decrypt the given pem bytes.

@@ -1334,7 +1334,7 @@ func TestLoadTargetsLoadsNothingIfNoUpdates(t *testing.T) {
 func TestValidateTargetsRequiresStoredParent(t *testing.T) {
 	var gun data.GUN = "docker.com/notary"
 	delgName := data.RoleName("targets/level1")
-	metadata, _, err := testutils.NewRepoMetadata(gun, delgName.String(), path.Join(delgName.String(), "other"))
+	metadata, _, err := testutils.NewRepoMetadata(gun, delgName, data.RoleName(path.Join(delgName.String(), "other")))
 	require.NoError(t, err)
 
 	// load the root into the builder, else we can't load anything else
@@ -1375,7 +1375,7 @@ func TestValidateTargetsRequiresStoredParent(t *testing.T) {
 func TestValidateTargetsParentInUpdate(t *testing.T) {
 	var gun data.GUN = "docker.com/notary"
 	delgName := data.RoleName("targets/level1")
-	metadata, _, err := testutils.NewRepoMetadata(gun, delgName.String(), path.Join(delgName.String(), "other"))
+	metadata, _, err := testutils.NewRepoMetadata(gun, delgName, data.RoleName(path.Join(delgName.String(), "other")))
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
 
