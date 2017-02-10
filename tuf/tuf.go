@@ -704,7 +704,7 @@ type walkVisitorFunc func(*data.SignedTargets, data.DelegationRole) interface{}
 // WalkTargets will apply the specified visitor function to iteratively walk the targets/delegation metadata tree,
 // until receiving a StopWalk.  The walk starts from the base "targets" role, and searches for the correct targetPath and/or rolePath
 // to call the visitor function on.  Any roles passed into skipRoles will be excluded from the walk, as well as roles in those subtrees
-func (tr *Repo) WalkTargets(targetPath string, role data.RoleName, visitTargets walkVisitorFunc, skipRoles ...data.RoleName) error {
+func (tr *Repo) WalkTargets(targetPath string, rolePath data.RoleName, visitTargets walkVisitorFunc, skipRoles ...data.RoleName) error {
 	// Start with the base targets role, which implicitly has the "" targets path
 	targetsRole, err := tr.GetBaseRole(data.CanonicalTargetsRole)
 	if err != nil {
@@ -719,35 +719,35 @@ func (tr *Repo) WalkTargets(targetPath string, role data.RoleName, visitTargets 
 	}
 
 	for len(roles) > 0 {
-		currentRole := roles[0]
+		role := roles[0]
 		roles = roles[1:]
 
 		// Check the role metadata
-		signedTgt, ok := tr.Targets[currentRole.Name]
+		signedTgt, ok := tr.Targets[role.Name]
 		if !ok {
 			// The role meta doesn't exist in the repo so continue onward
 			continue
 		}
 
 		// We're at a prefix of the desired role subtree, so add its delegation role children and continue walking
-		if strings.HasPrefix(role.String(), currentRole.Name.String()+"/") {
-			roles = append(roles, signedTgt.GetValidDelegations(currentRole)...)
+		if strings.HasPrefix(rolePath.String(), role.Name.String()+"/") {
+			roles = append(roles, signedTgt.GetValidDelegations(role)...)
 			continue
 		}
 
 		// Determine whether to visit this role or not:
 		// If the paths validate against the specified targetPath and the role is empty or is a path in the subtree.
 		// Also check if we are choosing to skip visiting this role on this walk (see ListTargets and GetTargetByName priority)
-		if isValidPath(targetPath, currentRole) && isAncestorRole(currentRole.Name, role) && !utils.RoleNameSliceContains(skipRoles, currentRole.Name) {
+		if isValidPath(targetPath, role) && isAncestorRole(role.Name, rolePath) && !utils.RoleNameSliceContains(skipRoles, role.Name) {
 			// If we had matching path or role name, visit this target and determine whether or not to keep walking
-			res := visitTargets(signedTgt, currentRole)
+			res := visitTargets(signedTgt, role)
 			switch typedRes := res.(type) {
 			case StopWalk:
 				// If the visitor function signalled a stop, return nil to finish the walk
 				return nil
 			case nil:
 				// If the visitor function signalled to continue, add this role's delegation to the walk
-				roles = append(roles, signedTgt.GetValidDelegations(currentRole)...)
+				roles = append(roles, signedTgt.GetValidDelegations(role)...)
 			case error:
 				// Propagate any errors from the visitor
 				return typedRes
