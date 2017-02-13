@@ -1024,12 +1024,14 @@ func TestAllNotNearExpiry(t *testing.T) {
 
 func TestRotateRemoteKeyOffline(t *testing.T) {
 	// without a valid roundtripper, rotation should fail since we cannot initialize a HTTPStore
-	key, err := rotateRemoteKey("invalidURL", "gun", data.CanonicalSnapshotRole, nil)
+	remote, err := getRemoteStore("invalidURL", "gun", nil)
+	key, err := rotateRemoteKey(data.CanonicalSnapshotRole, remote)
 	require.Error(t, err)
 	require.Nil(t, key)
 
 	// if the underlying remote store is faulty and cannot rotate keys, we should get back the error
-	key, err = rotateRemoteKey("https://notary-server", "gun", data.CanonicalSnapshotRole, http.DefaultTransport)
+	remote, err = getRemoteStore("https://notary-server", "gun", http.DefaultTransport)
+	key, err = rotateRemoteKey(data.CanonicalSnapshotRole, remote)
 	require.Error(t, err)
 	require.Nil(t, key)
 }
