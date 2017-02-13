@@ -218,11 +218,7 @@ func warnRolesNearExpiry(r *tuf.Repo) {
 }
 
 // Fetches a public key from a remote store, given a gun and role
-func getRemoteKey(url, gun, role string, rt http.RoundTripper) (data.PublicKey, error) {
-	remote, err := getRemoteStore(url, gun, rt)
-	if err != nil {
-		return nil, err
-	}
+func getRemoteKey(role string, remote store.RemoteStore) (data.PublicKey, error) {
 	rawPubKey, err := remote.GetKey(role)
 	if err != nil {
 		return nil, err
@@ -237,11 +233,7 @@ func getRemoteKey(url, gun, role string, rt http.RoundTripper) (data.PublicKey, 
 }
 
 // Rotates a private key in a remote store and returns the public key component
-func rotateRemoteKey(url, gun, role string, rt http.RoundTripper) (data.PublicKey, error) {
-	remote, err := getRemoteStore(url, gun, rt)
-	if err != nil {
-		return nil, err
-	}
+func rotateRemoteKey(role string, remote store.RemoteStore) (data.PublicKey, error) {
 	rawPubKey, err := remote.RotateKey(role)
 	if err != nil {
 		return nil, err
