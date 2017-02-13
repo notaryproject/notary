@@ -18,5 +18,8 @@
 	},
 	"storage": {
 		"backend": "memory"
+	},
+	"escrow": {
+		"backend": "memory"
 	}
 }

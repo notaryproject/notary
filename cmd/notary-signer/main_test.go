@@ -237,8 +237,8 @@ func TestSetupGRPCServerSuccess(t *testing.T) {
 		TLSConfig:      &tlsConf,
 		CryptoServices: make(signer.CryptoServiceIndex),
 	})
-	defer lis.Close()
 	require.NoError(t, err)
+	defer lis.Close()
 	require.Equal(t, "[::]:7899", lis.Addr().String())
 	require.Equal(t, "tcp", lis.Addr().Network())
 	require.NotNil(t, grpcServer)
