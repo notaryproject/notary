@@ -388,7 +388,7 @@ func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func importRootKey(cmd *cobra.Command,rootKey string, nRepo *notaryclient.NotaryRepository, retriever notary.PassRetriever) ([]string, error) {
+func importRootKey(cmd *cobra.Command, rootKey string, nRepo *notaryclient.NotaryRepository, retriever notary.PassRetriever) ([]string, error) {
 	var rootKeyList []string
 	var err error
 
