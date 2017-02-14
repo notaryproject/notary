@@ -603,8 +603,8 @@ func (r *NotaryRepository) ListRoles() ([]RoleWithSignatures, error) {
 
 // Publish pushes the local changes in signed material to the remote notary-server
 // Conceptually it performs an operation similar to a `git rebase`
-func (r *NotaryRepository) Publish() error {
-	if err := r.publish(r.changelist); err != nil {
+func (r *NotaryRepository) Publish(rootKeyIDs []string) error {
+	if err := r.publish(r.changelist, rootKeyIDs); err != nil {
 		return err
 	}
 	if err := r.changelist.Clear(""); err != nil {
