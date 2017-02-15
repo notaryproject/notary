@@ -17,6 +17,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/auth"
+	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/notary"
@@ -912,7 +913,7 @@ func tokenAuth(trustServerURL string, baseTransport *http.Transport, gun string,
 		return nil, nil
 	}
 
-	challengeManager := auth.NewSimpleChallengeManager()
+	challengeManager := challenge.NewSimpleManager()
 	if err := challengeManager.AddResponse(resp); err != nil {
 		return nil, err
 	}
