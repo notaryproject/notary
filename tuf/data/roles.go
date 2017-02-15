@@ -35,7 +35,7 @@ type ErrNoSuchRole struct {
 }
 
 func (e ErrNoSuchRole) Error() string {
-	return fmt.Sprintf("role does not exist: %s", e.Role.String())
+	return fmt.Sprintf("role does not exist: %s", e.Role)
 }
 
 // ErrInvalidRole represents an error regarding a role. Typically

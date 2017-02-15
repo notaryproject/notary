@@ -239,7 +239,7 @@ func (f FailingStore) GetCurrent(gun data.GUN, role data.RoleName) (*time.Time, 
 func TestGetTimestampKeyCreateWithFailingStore(t *testing.T) {
 	store := FailingStore{storage.NewMemStorage()}
 	crypto := signed.NewEd25519()
-	k, err := GetOrCreateTimestampKey(data.GUN("gun"), store, crypto, data.ED25519Key)
+	k, err := GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
 	require.Error(t, err, "Expected error")
 	require.Nil(t, k, "Key should be nil")
 }
@@ -255,7 +255,7 @@ func (c CorruptedStore) GetCurrent(gun data.GUN, role data.RoleName) (*time.Time
 func TestGetTimestampKeyCreateWithCorruptedStore(t *testing.T) {
 	store := CorruptedStore{storage.NewMemStorage()}
 	crypto := signed.NewEd25519()
-	k, err := GetOrCreateTimestampKey(data.GUN("gun"), store, crypto, data.ED25519Key)
+	k, err := GetOrCreateTimestampKey("gun", store, crypto, data.ED25519Key)
 	require.Error(t, err, "Expected error")
 	require.Nil(t, k, "Key should be nil")
 }

@@ -21,7 +21,7 @@ type StoredTUFMeta struct {
 
 func SampleCustomTUFObj(gun data.GUN, role data.RoleName, version int, tufdata []byte) StoredTUFMeta {
 	if tufdata == nil {
-		tufdata = []byte(fmt.Sprintf("%s_%s_%d", gun.String(), role.String(), version))
+		tufdata = []byte(fmt.Sprintf("%s_%s_%d", gun, role, version))
 	}
 	checksum := sha256.Sum256(tufdata)
 	hexChecksum := hex.EncodeToString(checksum[:])
@@ -132,7 +132,7 @@ func testGetVersion(t *testing.T, s MetaStore) {
 	_, _, err := s.GetVersion("gun", "role", 2)
 	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
 
-	s.UpdateCurrent(data.GUN("gun"), MetaUpdate{data.RoleName("role"), 2, []byte("version2")})
+	s.UpdateCurrent("gun", MetaUpdate{"role", 2, []byte("version2")})
 	_, d, err := s.GetVersion("gun", "role", 2)
 	require.Nil(t, err, "Expected error to be nil")
 	require.Equal(t, []byte("version2"), d, "Data was incorrect")
@@ -304,7 +304,7 @@ func testGetChanges(t *testing.T, s MetaStore) {
 	require.Len(t, c, 0)
 
 	// add some records
-	require.NoError(t, s.UpdateMany(data.GUN("alpine"), []MetaUpdate{
+	require.NoError(t, s.UpdateMany("alpine", []MetaUpdate{
 		{
 			Role:    data.CanonicalTimestampRole,
 			Version: 1,
@@ -326,7 +326,7 @@ func testGetChanges(t *testing.T, s MetaStore) {
 			Data:    []byte{'4'},
 		},
 	}))
-	require.NoError(t, s.UpdateMany(data.GUN("busybox"), []MetaUpdate{
+	require.NoError(t, s.UpdateMany("busybox", []MetaUpdate{
 		{
 			Role:    data.CanonicalTimestampRole,
 			Version: 1,

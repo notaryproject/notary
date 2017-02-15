@@ -55,14 +55,14 @@ func isValidRootRoleStructure(metaContainingRole, rootRoleName RoleName, r RootR
 	if r.Threshold < 1 {
 		return ErrInvalidMetadata{
 			role: metaContainingRole,
-			msg:  fmt.Sprintf("invalid threshold specified for %s: %v ", rootRoleName.String(), r.Threshold),
+			msg:  fmt.Sprintf("invalid threshold specified for %s: %v ", rootRoleName, r.Threshold),
 		}
 	}
 	for _, keyID := range r.KeyIDs {
 		if _, ok := validKeys[keyID]; !ok {
 			return ErrInvalidMetadata{
 				role: metaContainingRole,
-				msg:  fmt.Sprintf("key ID %s specified in %s without corresponding key", keyID, rootRoleName.String()),
+				msg:  fmt.Sprintf("key ID %s specified in %s without corresponding key", keyID, rootRoleName),
 			}
 		}
 	}

@@ -121,7 +121,7 @@ func loadAndValidateTargets(gun data.GUN, builder tuf.RepoBuilder, roles map[dat
 		roleName := data.RoleName(role)
 		ancestorRole := roleName
 		for ancestorRole != data.CanonicalTargetsRole {
-			ancestorRole = data.RoleName(ancestorRole.Parent())
+			ancestorRole = ancestorRole.Parent()
 			if !builder.IsLoaded(ancestorRole) {
 				parentsToLoad = append(parentsToLoad, ancestorRole)
 			}

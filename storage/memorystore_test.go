@@ -33,11 +33,11 @@ func TestMemoryStoreMetadataOperations(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, metaContent, meta)
 
-		meta, err = s.GetSized(utils.ConsistentName(role, shasum[:]), metaSize)
+		meta, err = s.GetSized(utils.ConsistentName(role.String(), shasum[:]), metaSize)
 		require.NoError(t, err)
 		require.Equal(t, metaContent, meta)
 
-		_, err = s.GetSized(utils.ConsistentName(role, invalidShasum[:]), metaSize)
+		_, err = s.GetSized(utils.ConsistentName(role.String(), invalidShasum[:]), metaSize)
 		require.Error(t, err)
 		require.IsType(t, ErrMetaNotFound{}, err)
 	}

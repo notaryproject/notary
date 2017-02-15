@@ -42,7 +42,7 @@ func (c ConsistentInfo) ChecksumKnown() bool {
 // ConsistentName returns the consistent name (rolename.sha256) for the role
 // given this consistent information
 func (c ConsistentInfo) ConsistentName() string {
-	return utils.ConsistentName(c.RoleName, c.fileMeta.Hashes[notary.SHA256])
+	return utils.ConsistentName(c.RoleName.String(), c.fileMeta.Hashes[notary.SHA256])
 }
 
 // Length returns the expected length of the role as per this consistent
@@ -300,7 +300,7 @@ func (rb *repoBuilder) loadOptions(roleName data.RoleName, content []byte, minVe
 func (rb *repoBuilder) checkPrereqsLoaded(prereqRoles []data.RoleName) error {
 	for _, req := range prereqRoles {
 		if !rb.IsLoaded(req) {
-			return ErrInvalidBuilderInput{msg: fmt.Sprintf("%s must be loaded first", req.String())}
+			return ErrInvalidBuilderInput{msg: fmt.Sprintf("%s must be loaded first", req)}
 		}
 	}
 	return nil
@@ -629,7 +629,7 @@ func (rb *repoBuilder) validateChecksumsFromTimestamp(ts *data.SignedTimestamp) 
 }
 
 func (rb *repoBuilder) validateChecksumsFromSnapshot(sn *data.SignedSnapshot) error {
-	var goodRoles []string
+	var goodRoles []data.RoleName
 	for roleName, loadedBytes := range rb.loadedNotChecksummed {
 		switch roleName {
 		case data.CanonicalSnapshotRole, data.CanonicalTimestampRole:
@@ -638,11 +638,11 @@ func (rb *repoBuilder) validateChecksumsFromSnapshot(sn *data.SignedSnapshot) er
 			if err := data.CheckHashes(loadedBytes, roleName.String(), sn.Signed.Meta[roleName.String()].Hashes); err != nil {
 				return err
 			}
-			goodRoles = append(goodRoles, roleName.String())
+			goodRoles = append(goodRoles, roleName)
 		}
 	}
 	for _, roleName := range goodRoles {
-		delete(rb.loadedNotChecksummed, data.RoleName(roleName))
+		delete(rb.loadedNotChecksummed, roleName)
 	}
 	return nil
 }

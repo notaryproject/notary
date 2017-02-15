@@ -98,6 +98,9 @@ func EmptyRepo(gun data.GUN, delegationRoles ...data.RoleName) (*tuf.Repo, signe
 
 	// sort the delegation roles so that we make sure to create the parents
 	// first
+	// TODO: go back and fix this when we upgrade to Go 1.8 with the new
+	//       slice sorting support. We should only need to define a `Less(i, j {}interface)`
+	//       on RoleName to be able to call sort.Slice(delegationRoles) (or something like that)
 	var roleNames []string
 	for _, role := range delegationRoles {
 		roleNames = append(roleNames, role.String())
@@ -155,7 +158,7 @@ func SignAndSerialize(tufRepo *tuf.Repo) (map[data.RoleName][]byte, error) {
 			continue
 		}
 
-		signedThing, err := tufRepo.SignTargets(data.RoleName(delgName), data.DefaultExpires("targets"))
+		signedThing, err := tufRepo.SignTargets(delgName, data.DefaultExpires("targets"))
 		if err != nil {
 			return nil, err
 		}

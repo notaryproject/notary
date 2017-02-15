@@ -29,12 +29,12 @@ func TestAddKey(t *testing.T) {
 	testAddKeyWithRole(t, data.CanonicalRootRole)
 	testAddKeyWithRole(t, data.CanonicalTargetsRole)
 	testAddKeyWithRole(t, data.CanonicalSnapshotRole)
-	testAddKeyWithRole(t, data.RoleName("targets/a/b/c"))
-	testAddKeyWithRole(t, data.RoleName("invalidRole"))
+	testAddKeyWithRole(t, "targets/a/b/c")
+	testAddKeyWithRole(t, "invalidRole")
 }
 
 func testAddKeyWithRole(t *testing.T, role data.RoleName) {
-	var gun data.GUN = ("docker.com/notary")
+	var gun data.GUN = "docker.com/notary"
 	testExt := "key"
 
 	// Temporary directory where test files will be created
@@ -77,7 +77,7 @@ func TestKeyStoreInternalState(t *testing.T) {
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
-	var gun data.GUN = ("docker.com/notary")
+	var gun data.GUN = "docker.com/notary"
 
 	// Mimic a notary repo setup, and test that bringing up a keyfilestore creates the correct keyInfoMap
 	roles := []data.RoleName{data.CanonicalRootRole, data.CanonicalTargetsRole, data.CanonicalSnapshotRole, data.RoleName("targets/delegation")}
@@ -395,7 +395,7 @@ func TestAddGetKeyMemStore(t *testing.T) {
 	require.NoError(t, err, "could not generate private key")
 
 	// Call the AddKey function
-	err = store.AddKey(KeyInfo{Role: testAlias, Gun: data.GUN("")}, privKey)
+	err = store.AddKey(KeyInfo{Role: testAlias, Gun: ""}, privKey)
 	require.NoError(t, err, "failed to add key to store")
 
 	// Check to see if file exists
@@ -408,7 +408,7 @@ func TestAddGetKeyMemStore(t *testing.T) {
 }
 
 func TestAddGetKeyInfoMemStore(t *testing.T) {
-	var gun data.GUN = ("docker.com/notary")
+	var gun data.GUN = "docker.com/notary"
 
 	// Create our store
 	store := NewKeyMemoryStore(passphraseRetriever)
@@ -417,7 +417,7 @@ func TestAddGetKeyInfoMemStore(t *testing.T) {
 	require.NoError(t, err, "could not generate private key")
 
 	// Call the AddKey function
-	err = store.AddKey(KeyInfo{Role: data.CanonicalRootRole, Gun: data.GUN("")}, rootKey)
+	err = store.AddKey(KeyInfo{Role: data.CanonicalRootRole, Gun: ""}, rootKey)
 	require.NoError(t, err, "failed to add key to store")
 
 	// Get and validate key info
@@ -471,7 +471,7 @@ func TestGetDecryptedWithTamperedCipherText(t *testing.T) {
 	require.NoError(t, err, "could not generate private key")
 
 	// Call the AddEncryptedKey function
-	err = store.AddKey(KeyInfo{Role: testAlias, Gun: data.GUN("")}, privKey)
+	err = store.AddKey(KeyInfo{Role: testAlias, Gun: ""}, privKey)
 	require.NoError(t, err, "failed to add key to store")
 
 	// Since we're generating this manually we need to add the extension '.'
@@ -575,12 +575,12 @@ func TestRemoveKey(t *testing.T) {
 	testRemoveKeyWithRole(t, data.CanonicalRootRole)
 	testRemoveKeyWithRole(t, data.CanonicalTargetsRole)
 	testRemoveKeyWithRole(t, data.CanonicalSnapshotRole)
-	testRemoveKeyWithRole(t, data.RoleName("targets/a/b/c"))
-	testRemoveKeyWithRole(t, data.RoleName("invalidRole"))
+	testRemoveKeyWithRole(t, "targets/a/b/c")
+	testRemoveKeyWithRole(t, "invalidRole")
 }
 
 func testRemoveKeyWithRole(t *testing.T, role data.RoleName) {
-	var gun data.GUN = ("docker.com/notary")
+	var gun data.GUN = "docker.com/notary"
 	testExt := "key"
 
 	// Temporary directory where test files will be created

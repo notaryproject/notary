@@ -196,11 +196,7 @@ func (t *tufCommander) tufWitness(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	gun := data.GUN(args[0])
-	var roles []data.RoleName
-	roleNames := args[1:]
-	for _, role := range roleNames {
-		roles = append(roles, data.RoleName(role))
-	}
+	roles := data.NewRoleList(args[1:])
 
 	// no online operations are performed by add so the transport argument
 	// should be nil
@@ -1049,6 +1045,6 @@ func publishAndPrintToCLI(cmd *cobra.Command, nRepo *notaryclient.NotaryReposito
 	if err := nRepo.Publish(); err != nil {
 		return err
 	}
-	cmd.Printf("Successfully published changes for repository %s\n", gun.String())
+	cmd.Printf("Successfully published changes for repository %s\n", gun)
 	return nil
 }

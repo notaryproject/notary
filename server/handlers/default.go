@@ -44,7 +44,7 @@ func AtomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 }
 
 func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	gun := vars["imageName"]
+	gun := data.GUN(vars["imageName"])
 	s := ctx.Value(notary.CtxKeyMetaStore)
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	store, ok := s.(storage.MetaStore)
@@ -94,7 +94,7 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 			Data:    inBuf.Bytes(),
 		})
 	}
-	updates, err = validateUpdate(cryptoService, data.GUN(gun), updates, store)
+	updates, err = validateUpdate(cryptoService, gun, updates, store)
 	if err != nil {
 		serializable, serializableError := validation.NewSerializableError(err)
 		if serializableError != nil {
@@ -103,7 +103,7 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 		}
 		return errors.ErrInvalidUpdate.WithDetail(serializable)
 	}
-	err = store.UpdateMany(data.GUN(gun), updates)
+	err = store.UpdateMany(gun, updates)
 	if err != nil {
 		// If we have an old version error, surface to user with error code
 		if _, ok := err.(storage.ErrOldVersion); ok {
@@ -125,7 +125,7 @@ func GetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) err
 }
 
 func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	gun := vars["imageName"]
+	gun := data.GUN(vars["imageName"])
 	checksum := vars["checksum"]
 	version := vars["version"]
 	tufRole := vars["tufRole"]
@@ -139,7 +139,7 @@ func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, var
 		return errors.ErrNoStorage.WithDetail(nil)
 	}
 
-	lastModified, output, err := getRole(ctx, store, data.GUN(gun), data.RoleName(tufRole), checksum, version)
+	lastModified, output, err := getRole(ctx, store, gun, data.RoleName(tufRole), checksum, version)
 	if err != nil {
 		logger.Infof("404 GET %s role", tufRole)
 		return err
@@ -194,9 +194,9 @@ func getKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	switch role {
 	case data.CanonicalTimestampRole:
-		key, err = timestamp.GetOrCreateTimestampKey(data.GUN(gun), store, crypto, keyAlgorithm)
+		key, err = timestamp.GetOrCreateTimestampKey(gun, store, crypto, keyAlgorithm)
 	case data.CanonicalSnapshotRole:
-		key, err = snapshot.GetOrCreateSnapshotKey(data.GUN(gun), store, crypto, keyAlgorithm)
+		key, err = snapshot.GetOrCreateSnapshotKey(gun, store, crypto, keyAlgorithm)
 	default:
 		logger.Infof("400 GET %s key: %v", role, err)
 		return errors.ErrInvalidRole.WithDetail(role)
@@ -232,9 +232,9 @@ func rotateKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Reques
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	switch role {
 	case data.CanonicalTimestampRole:
-		key, err = timestamp.RotateTimestampKey(data.GUN(gun), store, crypto, keyAlgorithm)
+		key, err = timestamp.RotateTimestampKey(gun, store, crypto, keyAlgorithm)
 	case data.CanonicalSnapshotRole:
-		key, err = snapshot.RotateSnapshotKey(data.GUN(gun), store, crypto, keyAlgorithm)
+		key, err = snapshot.RotateSnapshotKey(gun, store, crypto, keyAlgorithm)
 	default:
 		logger.Infof("400 POST %s key: %v", role, err)
 		return errors.ErrInvalidRole.WithDetail(role)
@@ -255,16 +255,16 @@ func rotateKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Reques
 }
 
 // To be called before getKeyHandler or rotateKeyHandler
-func setupKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string, actionVerb string) (data.RoleName, string, string, storage.MetaStore, signed.CryptoService, error) {
-	gun, ok := vars["imageName"]
+func setupKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string, actionVerb string) (data.RoleName, data.GUN, string, storage.MetaStore, signed.CryptoService, error) {
+	gun := data.GUN(vars["imageName"])
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
-	if !ok || gun == "" {
+	if gun == "" {
 		logger.Infof("400 %s no gun in request", actionVerb)
 		return "", "", "", nil, nil, errors.ErrUnknown.WithDetail("no gun")
 	}
 
-	role, ok := vars["tufRole"]
-	if !ok || role == "" {
+	role := data.RoleName(vars["tufRole"])
+	if role == "" {
 		logger.Infof("400 %s no role in request", actionVerb)
 		return "", "", "", nil, nil, errors.ErrUnknown.WithDetail("no role")
 	}
@@ -288,7 +288,7 @@ func setupKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request
 		return "", "", "", nil, nil, errors.ErrNoKeyAlgorithm.WithDetail(nil)
 	}
 
-	return data.RoleName(role), gun, keyAlgo, store, crypto, nil
+	return role, gun, keyAlgo, store, crypto, nil
 }
 
 // NotFoundHandler is used as a generic catch all handler to return the ErrMetadataNotFound

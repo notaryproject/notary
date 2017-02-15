@@ -74,7 +74,7 @@ func TestBuilderOnlyAcceptsDelegationsAfterParent(t *testing.T) {
 	require.NoError(t, builder.Load(data.CanonicalRootRole, meta[data.CanonicalRootRole], 1, false))
 
 	// delegations can't be loaded without target
-	for _, delgName := range []data.RoleName{data.RoleName("targets/a"), data.RoleName("targets/a/b")} {
+	for _, delgName := range []data.RoleName{"targets/a", "targets/a/b"} {
 		err := builder.Load(delgName, meta[delgName], 1, false)
 		require.Error(t, err)
 		require.IsType(t, tuf.ErrInvalidBuilderInput{}, err)
@@ -506,7 +506,7 @@ func TestGetConsistentInfo(t *testing.T) {
 	// the fake roles have invalid-ish checksums: the ConsistentInfos for those will return
 	// non-consistent names but non -1 sizes
 	for _, checkName := range extraMeta {
-		ci := builder.GetConsistentInfo(data.RoleName(checkName.String()))
+		ci := builder.GetConsistentInfo(checkName)
 		require.EqualValues(t, checkName.String(), ci.ConsistentName()) // because no sha256 hash
 		require.True(t, ci.ChecksumKnown())
 		require.True(t, ci.Length() > -1)
@@ -532,7 +532,7 @@ func TestGetConsistentInfo(t *testing.T) {
 			require.Equal(t, notary.MaxTimestampSize, ci.Length())
 
 		case data.CanonicalRootRole:
-			cName := utils.ConsistentName(data.CanonicalRootRole,
+			cName := utils.ConsistentName(data.CanonicalRootRole.String(),
 				repo.Snapshot.Signed.Meta[data.CanonicalRootRole.String()].Hashes[notary.SHA256])
 
 			require.EqualValues(t, cName, ci.ConsistentName())
@@ -577,7 +577,7 @@ func checkOnlySnapshotConsistentAfterTimestamp(t *testing.T, repo *tuf.Repo, met
 
 		switch checkName {
 		case data.CanonicalSnapshotRole:
-			cName := utils.ConsistentName(data.CanonicalSnapshotRole,
+			cName := utils.ConsistentName(data.CanonicalSnapshotRole.String(),
 				repo.Timestamp.Signed.Meta[data.CanonicalSnapshotRole.String()].Hashes[notary.SHA256])
 			require.EqualValues(t, cName, ci.ConsistentName())
 			require.True(t, ci.ChecksumKnown())
@@ -614,7 +614,7 @@ func checkOtherRolesConsistentAfterSnapshot(t *testing.T, repo *tuf.Repo, meta m
 				fileInfo = repo.Timestamp.Signed.Meta
 			}
 
-			cName := utils.ConsistentName(checkName, fileInfo[checkName.String()].Hashes[notary.SHA256])
+			cName := utils.ConsistentName(checkName.String(), fileInfo[checkName.String()].Hashes[notary.SHA256])
 			require.EqualValues(t, cName, ci.ConsistentName())
 			require.True(t, ci.Length() > -1)
 		}
@@ -658,7 +658,7 @@ func TestTimestampPreAndPostChecksumming(t *testing.T) {
 	require.True(t, builder.IsLoaded(data.CanonicalTimestampRole))
 	require.False(t, builder.IsLoaded(data.CanonicalSnapshotRole))
 	// all the other metadata can be loaded in, even though the checksums are wrong according to timestamp
-	for _, roleName := range []data.RoleName{data.CanonicalTargetsRole, data.RoleName("targets/other")} {
+	for _, roleName := range []data.RoleName{data.CanonicalTargetsRole, "targets/other"} {
 		require.NoError(t, builder.Load(roleName, meta[roleName], 1, false))
 	}
 

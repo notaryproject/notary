@@ -315,5 +315,5 @@ func getFilteredChanges(toInspect []Change, filterName string, records int, reve
 }
 
 func entryKey(gun data.GUN, role data.RoleName) string {
-	return fmt.Sprintf("%s.%s", gun.String(), role.String())
+	return fmt.Sprintf("%s.%s", gun, role)
 }

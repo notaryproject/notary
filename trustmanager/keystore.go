@@ -126,7 +126,7 @@ func (s *GenericKeyStore) AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error
 		return err
 	}
 
-	s.cachedKeys[keyID] = &cachedKey{alias: keyInfo.Role.String(), key: privKey}
+	s.cachedKeys[keyID] = &cachedKey{role: keyInfo.Role, key: privKey}
 	err = s.store.Set(keyID, pemPrivKey)
 	if err != nil {
 		return err
@@ -142,7 +142,7 @@ func (s *GenericKeyStore) GetKey(keyID string) (data.PrivateKey, data.RoleName, 
 
 	cachedKeyEntry, ok := s.cachedKeys[keyID]
 	if ok {
-		return cachedKeyEntry.key, data.RoleName(cachedKeyEntry.alias), nil
+		return cachedKeyEntry.key, cachedKeyEntry.role, nil
 	}
 
 	role, err := getKeyRole(s.store, keyID)
@@ -163,7 +163,7 @@ func (s *GenericKeyStore) GetKey(keyID string) (data.PrivateKey, data.RoleName, 
 			return nil, "", err
 		}
 	}
-	s.cachedKeys[keyID] = &cachedKey{alias: role.String(), key: privKey}
+	s.cachedKeys[keyID] = &cachedKey{role: role, key: privKey}
 	return privKey, role, nil
 }
 

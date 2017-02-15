@@ -83,7 +83,7 @@ func TestRepoPrefixMatches(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = uploader.GetSized(
-		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]), notary.MaxDownloadSize)
+		tufutils.ConsistentName(data.CanonicalSnapshotRole.String(), snChecksumBytes[:]), notary.MaxDownloadSize)
 	require.NoError(t, err)
 
 	_, err = uploader.GetKey(data.CanonicalTimestampRole)
@@ -132,7 +132,7 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 	require.Error(t, err)
 
 	_, err = uploader.GetSized(
-		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]), notary.MaxDownloadSize)
+		tufutils.ConsistentName(data.CanonicalSnapshotRole.String(), snChecksumBytes[:]), notary.MaxDownloadSize)
 	require.Error(t, err)
 
 	_, err = uploader.GetKey(data.CanonicalTimestampRole)

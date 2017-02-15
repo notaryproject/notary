@@ -85,7 +85,7 @@ We shall call this: TOFUS.
 Validation failure at any step will result in an ErrValidationFailed error.
 */
 func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun data.GUN, trustPinning TrustPinConfig) (*data.SignedRoot, error) {
-	logrus.Debugf("entered ValidateRoot with dns: %s", gun.String())
+	logrus.Debugf("entered ValidateRoot with dns: %s", gun)
 	signedRoot, err := data.RootFromSigned(root)
 	if err != nil {
 		return nil, err
@@ -182,7 +182,7 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun data.GUN, tr
 func MatchCNToGun(commonName string, gun data.GUN) bool {
 	if strings.HasSuffix(commonName, wildcard) {
 		prefix := strings.TrimRight(commonName, wildcard)
-		logrus.Debugf("checking gun %s against wildcard prefix %s", gun.String(), prefix)
+		logrus.Debugf("checking gun %s against wildcard prefix %s", gun, prefix)
 		return strings.HasPrefix(gun.String(), prefix)
 	}
 	return commonName == gun.String()

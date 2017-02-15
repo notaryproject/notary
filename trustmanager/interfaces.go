@@ -77,6 +77,6 @@ type KeyStore interface {
 }
 
 type cachedKey struct {
-	alias string
-	key   data.PrivateKey
+	role data.RoleName
+	key  data.PrivateKey
 }

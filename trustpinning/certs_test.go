@@ -312,19 +312,19 @@ func TestValidateRootWithPinnedCertAndIntermediates(t *testing.T) {
 				otherKey.ID():     otherKey,
 			},
 			Roles: map[data.RoleName]*data.RootRole{
-				data.RoleName("root"): {
+				"root": {
 					KeyIDs:    []string{ecdsax509Key.ID()},
 					Threshold: 1,
 				},
-				data.RoleName("targets"): {
+				"targets": {
 					KeyIDs:    []string{otherKey.ID()},
 					Threshold: 1,
 				},
-				data.RoleName("snapshot"): {
+				"snapshot": {
 					KeyIDs:    []string{otherKey.ID()},
 					Threshold: 1,
 				},
-				data.RoleName("timestamp"): {
+				"timestamp": {
 					KeyIDs:    []string{otherKey.ID()},
 					Threshold: 1,
 				},
@@ -1261,19 +1261,19 @@ func TestValidateRootWithExpiredIntermediate(t *testing.T) {
 				otherKey.ID():     otherKey,
 			},
 			Roles: map[data.RoleName]*data.RootRole{
-				data.RoleName("root"): {
+				"root": {
 					KeyIDs:    []string{ecdsax509Key.ID()},
 					Threshold: 1,
 				},
-				data.RoleName("targets"): {
+				"targets": {
 					KeyIDs:    []string{otherKey.ID()},
 					Threshold: 1,
 				},
-				data.RoleName("snapshot"): {
+				"snapshot": {
 					KeyIDs:    []string{otherKey.ID()},
 					Threshold: 1,
 				},
-				data.RoleName("timestamp"): {
+				"timestamp": {
 					KeyIDs:    []string{otherKey.ID()},
 					Threshold: 1,
 				},

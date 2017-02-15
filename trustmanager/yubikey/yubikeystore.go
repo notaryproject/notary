@@ -703,7 +703,7 @@ func (s *YubiStore) addKey(keyID string, role data.RoleName, privKey data.Privat
 	// We only allow adding root keys for now
 	if role != data.CanonicalRootRole {
 		return false, fmt.Errorf(
-			"yubikey only supports storing root keys, got %s for key: %s", role.String(), keyID)
+			"yubikey only supports storing root keys, got %s for key: %s", role, keyID)
 	}
 
 	ctx, session, err := SetupHSMEnv(pkcs11Lib, s.libLoader)
@@ -918,7 +918,7 @@ func login(ctx IPKCS11Ctx, session pkcs11.SessionHandle, passRetriever notary.Pa
 func buildKeyMap(keys map[string]yubiSlot) map[string]trustmanager.KeyInfo {
 	res := make(map[string]trustmanager.KeyInfo)
 	for k, v := range keys {
-		res[k] = trustmanager.KeyInfo{Role: v.role, Gun: data.GUN("")}
+		res[k] = trustmanager.KeyInfo{Role: v.role, Gun: ""}
 	}
 	return res
 }

@@ -44,7 +44,7 @@ type ErrNotLoaded struct {
 }
 
 func (err ErrNotLoaded) Error() string {
-	return fmt.Sprintf("%s role has not been loaded", err.Role.String())
+	return fmt.Sprintf("%s role has not been loaded", err.Role)
 }
 
 // StopWalk - used by visitor functions to signal WalkTargets to stop walking
@@ -635,7 +635,7 @@ func (tr *Repo) InitTimestamp() error {
 // the target isn't found in the targets file.
 func (tr Repo) TargetMeta(role data.RoleName, path string) *data.FileMeta {
 	if t, ok := tr.Targets[role]; ok {
-		if m, ok := t.Signed.Targets[data.RoleName(path).String()]; ok {
+		if m, ok := t.Signed.Targets[path]; ok {
 			return &m
 		}
 	}

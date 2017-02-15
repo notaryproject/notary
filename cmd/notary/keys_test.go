@@ -494,7 +494,7 @@ func TestRotateKeyRootIsInteractive(t *testing.T) {
 
 	require.Contains(t, out.String(), "Aborting action")
 
-	repo, err := client.NewFileCachedNotaryRepository(tempBaseDir, data.GUN(gun), ts.URL, nil, ret, trustpinning.TrustPinConfig{})
+	repo, err := client.NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL, nil, ret, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
 	// There should still just be one root key (and one targets and one snapshot)

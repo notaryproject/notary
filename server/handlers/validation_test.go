@@ -1332,8 +1332,10 @@ func TestLoadTargetsLoadsNothingIfNoUpdates(t *testing.T) {
 // When a delegation role appears in the update and the parent does not, the
 // parent is loaded from the DB if it can
 func TestValidateTargetsRequiresStoredParent(t *testing.T) {
-	var gun data.GUN = "docker.com/notary"
-	delgName := data.RoleName("targets/level1")
+	var (
+		gun      data.GUN      = "docker.com/notary"
+		delgName data.RoleName = "targets/level1"
+	)
 	metadata, _, err := testutils.NewRepoMetadata(gun, delgName, data.RoleName(path.Join(delgName.String(), "other")))
 	require.NoError(t, err)
 
@@ -1373,8 +1375,10 @@ func TestValidateTargetsRequiresStoredParent(t *testing.T) {
 // If the parent is not in the store, then the parent must be in the update else
 // validation fails.
 func TestValidateTargetsParentInUpdate(t *testing.T) {
-	var gun data.GUN = "docker.com/notary"
-	delgName := data.RoleName("targets/level1")
+	var (
+		gun      data.GUN      = "docker.com/notary"
+		delgName data.RoleName = "targets/level1"
+	)
 	metadata, _, err := testutils.NewRepoMetadata(gun, delgName, data.RoleName(path.Join(delgName.String(), "other")))
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -1396,8 +1400,8 @@ func TestValidateTargetsParentInUpdate(t *testing.T) {
 	}
 
 	upload := map[data.RoleName]storage.MetaUpdate{
-		data.RoleName("targets/level1"): delgUpdate,
-		data.CanonicalTargetsRole:       targetsUpdate,
+		"targets/level1":          delgUpdate,
+		data.CanonicalTargetsRole: targetsUpdate,
 	}
 
 	// parent update not readable - fail
@@ -1441,7 +1445,7 @@ func TestValidateTargetsRoleNotInParent(t *testing.T) {
 	storeWithParent.UpdateCurrent(gun, origTargetsUpdate)
 
 	// add a delegation role now
-	delgName := data.RoleName("targets/level1")
+	var delgName data.RoleName = "targets/level1"
 	level1Key, err := testutils.CreateKey(cs, gun, delgName, data.ECDSAKey)
 	require.NoError(t, err)
 	require.NoError(t, repo.UpdateDelegationKeys(delgName, []data.PublicKey{level1Key}, []string{}, 1))
