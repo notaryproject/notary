@@ -1,9 +1,8 @@
-package api
+package remoteks
 
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/trustmanager/remoteks"
 	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
 	"strings"
@@ -25,8 +24,8 @@ func NewGRPCStorage(backend trustmanager.Storage) *GRPCStorage {
 }
 
 // Set writes the provided data under the given identifier.
-func (s *GRPCStorage) Set(ctx context.Context, msg *remoteks.SetMsg) (*google_protobuf.Empty, error) {
-	logrus.Info("storing: %s", msg.FileName)
+func (s *GRPCStorage) Set(ctx context.Context, msg *SetMsg) (*google_protobuf.Empty, error) {
+	logrus.Debugf("storing: %s", msg.FileName)
 	err := s.backend.Set(msg.FileName, msg.Data)
 	if err != nil {
 		logrus.Errorf("failed to store: %s", err.Error())
@@ -35,24 +34,24 @@ func (s *GRPCStorage) Set(ctx context.Context, msg *remoteks.SetMsg) (*google_pr
 }
 
 // Remove deletes the data associated with the provided identifier.
-func (s *GRPCStorage) Remove(ctx context.Context, fn *remoteks.FileNameMsg) (*google_protobuf.Empty, error) {
+func (s *GRPCStorage) Remove(ctx context.Context, fn *FileNameMsg) (*google_protobuf.Empty, error) {
 	return &google_protobuf.Empty{}, s.backend.Remove(fn.FileName)
 }
 
 // Get returns the data associated with the provided identifier.
-func (s *GRPCStorage) Get(ctx context.Context, fn *remoteks.FileNameMsg) (*remoteks.ByteMsg, error) {
+func (s *GRPCStorage) Get(ctx context.Context, fn *FileNameMsg) (*ByteMsg, error) {
 	data, err := s.backend.Get(fn.FileName)
 	if err != nil {
-		return &remoteks.ByteMsg{}, err
+		return &ByteMsg{}, err
 	}
-	return &remoteks.ByteMsg{Data: data}, nil
+	return &ByteMsg{Data: data}, nil
 }
 
 // ListFiles returns all known identifiers in the storage backend.
-func (s *GRPCStorage) ListFiles(ctx context.Context, _ *google_protobuf.Empty) (*remoteks.StringListMsg, error) {
+func (s *GRPCStorage) ListFiles(ctx context.Context, _ *google_protobuf.Empty) (*StringListMsg, error) {
 	lst := s.backend.ListFiles()
-	logrus.Infof("found keys: %s", strings.Join(lst, ","))
-	return &remoteks.StringListMsg{
+	logrus.Debugf("found keys: %s", strings.Join(lst, ","))
+	return &StringListMsg{
 		FileNames: lst,
 	}, nil
 }

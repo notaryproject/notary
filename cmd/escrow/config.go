@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/docker/notary"
-	"github.com/docker/notary/signer/api"
 	"github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustmanager/remoteks"
@@ -24,17 +23,13 @@ func setupGRPCServer(v *viper.Viper) (*grpc.Server, error) {
 		return nil, err
 	}
 	server := grpc.NewServer()
-	keyStore := api.NewGRPCStorage(storage)
+	keyStore := remoteks.NewGRPCStorage(storage)
 	remoteks.RegisterStoreServer(server, keyStore)
 	return server, nil
 }
 
 func setupStorage(v *viper.Viper) (trustmanager.Storage, error) {
 	backend := v.GetString("backend")
-	if backend == "" {
-		// not configured to act as a keystore
-		return nil, nil
-	}
 	switch backend {
 	case notary.MemoryBackend:
 		return storage.NewMemoryStore(nil), nil
