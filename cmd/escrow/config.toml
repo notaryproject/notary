@@ -1,4 +1,9 @@
+[storage]
 backend = "file"
 path = "/tmp/keys"
-addr = "0.0.0.0:4450"
 
+[server]
+addr = "0.0.0.0:4450"
+tls_key_file = "../../fixtures/notary-server.key"
+tls_cert_file = "../../fixtures/notary-server.crt"
+client_ca_file = ""
