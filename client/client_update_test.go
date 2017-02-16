@@ -164,7 +164,8 @@ func TestUpdateSucceedsEvenIfCannotWriteExistingRepo(t *testing.T) {
 
 			require.NoError(t, err)
 
-			for r, expected := range serverMeta {
+			for r, _ := range serverMeta {
+				expected, err := serverSwizzler.MetadataCache.GetSized(r, store.NoSizeLimit)
 				if r != data.CanonicalRootRole && strings.Contains(r, "root") {
 					// don't fetch versioned root roles here
 					continue
