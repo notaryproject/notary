@@ -32,8 +32,6 @@ const (
 	SignWithAllOldVersions = -1
 )
 
-var _ Repository = &NotaryRepository{}
-
 func init() {
 	data.SetDefaultExpiryTimes(data.NotaryDefaultExpiries)
 }
