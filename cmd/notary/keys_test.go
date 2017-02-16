@@ -336,7 +336,7 @@ func setUpRepo(t *testing.T, tempBaseDir string, gun data.GUN, ret notary.PassRe
 		tempBaseDir, gun, ts.URL, http.DefaultTransport, ret, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
-	rootPubKey, err := repo.CryptoService.Create("root", "", data.ECDSAKey)
+	rootPubKey, err := repo.CryptoService.Create(data.CanonicalRootRole, "", data.ECDSAKey)
 	require.NoError(t, err, "error generating root key: %s", err)
 
 	err = repo.Initialize([]string{rootPubKey.ID()})

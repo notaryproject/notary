@@ -359,7 +359,7 @@ func TestUpdateDelegationsInvalidRole(t *testing.T) {
 	roleKey, err := ed25519.Create("Invalid Role", testGUN, data.ED25519Key)
 	require.NoError(t, err)
 
-	err = repo.UpdateDelegationKeys("root", []data.PublicKey{roleKey}, []string{}, 1)
+	err = repo.UpdateDelegationKeys(data.CanonicalRootRole, []data.PublicKey{roleKey}, []string{}, 1)
 	require.Error(t, err)
 	require.IsType(t, data.ErrInvalidRole{}, err)
 

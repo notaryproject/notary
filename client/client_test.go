@@ -194,7 +194,7 @@ func createRepoAndKey(t *testing.T, rootType, tempBaseDir, gun, url string) (
 		tempBaseDir, data.GUN(gun), url, http.DefaultTransport, rec.retriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
-	rootPubKey, err := repo.CryptoService.Create("root", repo.gun, rootType)
+	rootPubKey, err := repo.CryptoService.Create(data.CanonicalRootRole, repo.gun, rootType)
 	require.NoError(t, err, "error generating root key: %s", err)
 
 	rec.requireCreated(t, []string{data.CanonicalRootRole.String()},
@@ -1530,7 +1530,7 @@ func testValidateRootKey(t *testing.T, rootType string) {
 
 	keyids := []string{}
 	for role, roleData := range decodedRoot.Roles {
-		if role == "root" {
+		if role == data.CanonicalRootRole {
 			keyids = append(keyids, roleData.KeyIDs...)
 		}
 	}
@@ -1672,7 +1672,7 @@ func TestPublishUninitializedRepo(t *testing.T) {
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, false)
 
 	// now, initialize and republish in the same directory
-	rootPubKey, err := repo.CryptoService.Create("root", repo.gun, data.ECDSAKey)
+	rootPubKey, err := repo.CryptoService.Create(data.CanonicalRootRole, repo.gun, data.ECDSAKey)
 	require.NoError(t, err, "error generating root key: %s", err)
 
 	require.NoError(t, repo.Initialize([]string{rootPubKey.ID()}))
@@ -3207,7 +3207,7 @@ func TestAddDelegationChangefileValid(t *testing.T) {
 	targetPubKey := repo.CryptoService.GetKey(targetKeyIds[0])
 	require.NotNil(t, targetPubKey)
 
-	err := repo.AddDelegation("root", []data.PublicKey{targetPubKey}, []string{""})
+	err := repo.AddDelegation(data.CanonicalRootRole, []data.PublicKey{targetPubKey}, []string{""})
 	require.Error(t, err)
 	require.IsType(t, data.ErrInvalidRole{}, err)
 	require.Empty(t, getChanges(t, repo))
@@ -3294,7 +3294,7 @@ func TestRemoveDelegationChangefileValid(t *testing.T) {
 	rootPubKey := repo.CryptoService.GetKey(rootKeyID)
 	require.NotNil(t, rootPubKey)
 
-	err := repo.RemoveDelegationKeys("root", []string{rootKeyID})
+	err := repo.RemoveDelegationKeys(data.CanonicalRootRole, []string{rootKeyID})
 	require.Error(t, err)
 	require.IsType(t, data.ErrInvalidRole{}, err)
 	require.Empty(t, getChanges(t, repo))
