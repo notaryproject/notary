@@ -1,6 +1,8 @@
 package testutils
 
 import (
+	"fmt"
+
 	store "github.com/docker/notary/storage"
 )
 
@@ -68,4 +70,14 @@ func (sm ShortMemoryStore) GetSized(name string, size int64) ([]byte, error) {
 		return nil, err
 	}
 	return d[1:], err
+}
+
+// UnreadableStore returns an error every time GetSized is called
+type UnreadableStore struct {
+	store.MetadataStore
+}
+
+// GetSized returns an error
+func (um UnreadableStore) GetSized(name string, size int64) ([]byte, error) {
+	return nil, fmt.Errorf("unreadable")
 }
