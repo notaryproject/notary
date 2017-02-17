@@ -227,6 +227,6 @@ func (trust *NotarySigner) ListKeys(role data.RoleName) []string {
 }
 
 // ListAllKeys not supported for NotarySigner
-func (trust *NotarySigner) ListAllKeys() map[string]string {
-	return map[string]string{}
+func (trust *NotarySigner) ListAllKeys() map[string]data.RoleName {
+	return map[string]data.RoleName{}
 }

@@ -151,7 +151,7 @@ func (s *SQLKeyDBStore) ListKeys(role data.RoleName) []string {
 }
 
 // ListAllKeys always returns nil. This method is here to satisfy the CryptoService interface
-func (s *SQLKeyDBStore) ListAllKeys() map[string]string {
+func (s *SQLKeyDBStore) ListAllKeys() map[string]data.RoleName {
 	return nil
 }
 

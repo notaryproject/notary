@@ -643,7 +643,7 @@ func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 
 	// these are the TUF files we will need to update, serialized as JSON before
 	// we send anything to remote
-	updatedFiles := make(map[string][]byte)
+	updatedFiles := make(map[data.RoleName][]byte)
 
 	// Fetch old keys to support old clients
 	legacyKeys, err := r.oldKeysForLegacyClientSupport(r.LegacyVersions, initialPublish)
@@ -674,7 +674,7 @@ func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 	if snapshotJSON, err := serializeCanonicalRole(
 		r.tufRepo, data.CanonicalSnapshotRole, nil); err == nil {
 		// Only update the snapshot if we've successfully signed it.
-		updatedFiles[data.CanonicalSnapshotRole.String()] = snapshotJSON
+		updatedFiles[data.CanonicalSnapshotRole] = snapshotJSON
 	} else if signErr, ok := err.(signed.ErrInsufficientSignatures); ok && signErr.FoundKeys == 0 {
 		// If signing fails due to us not having the snapshot key, then
 		// assume the server is going to sign, and do not include any snapshot
@@ -691,10 +691,10 @@ func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 		return err
 	}
 
-	return remote.SetMulti(updatedFiles)
+	return remote.SetMulti(data.MetadataRoleMapToStringMap(updatedFiles))
 }
 
-func signRootIfNecessary(updates map[string][]byte, repo *tuf.Repo, extraSigningKeys data.KeyList, initialPublish bool) error {
+func signRootIfNecessary(updates map[data.RoleName][]byte, repo *tuf.Repo, extraSigningKeys data.KeyList, initialPublish bool) error {
 	if len(extraSigningKeys) > 0 {
 		repo.Root.Dirty = true
 	}
@@ -703,13 +703,13 @@ func signRootIfNecessary(updates map[string][]byte, repo *tuf.Repo, extraSigning
 		if err != nil {
 			return err
 		}
-		updates[data.CanonicalRootRole.String()] = rootJSON
+		updates[data.CanonicalRootRole] = rootJSON
 	} else if initialPublish {
 		rootJSON, err := repo.Root.MarshalJSON()
 		if err != nil {
 			return err
 		}
-		updates[data.CanonicalRootRole.String()] = rootJSON
+		updates[data.CanonicalRootRole] = rootJSON
 	}
 	return nil
 }
@@ -787,15 +787,15 @@ func getOldRootPublicKeys(root *data.SignedRoot) data.KeyList {
 	return rootRole.ListKeys()
 }
 
-func signTargets(updates map[string][]byte, repo *tuf.Repo, initialPublish bool) error {
+func signTargets(updates map[data.RoleName][]byte, repo *tuf.Repo, initialPublish bool) error {
 	// iterate through all the targets files - if they are dirty, sign and update
 	for roleName, roleObj := range repo.Targets {
 		if roleObj.Dirty || (roleName == data.CanonicalTargetsRole && initialPublish) {
-			targetsJSON, err := serializeCanonicalRole(repo, data.RoleName(roleName), nil)
+			targetsJSON, err := serializeCanonicalRole(repo, roleName, nil)
 			if err != nil {
 				return err
 			}
-			updates[roleName.String()] = targetsJSON
+			updates[roleName] = targetsJSON
 		}
 	}
 	return nil
@@ -851,7 +851,7 @@ func (r *NotaryRepository) saveMetadata(ignoreSnapshot bool) error {
 
 	targetsToSave := make(map[data.RoleName][]byte)
 	for t := range r.tufRepo.Targets {
-		signedTargets, err := r.tufRepo.SignTargets(data.RoleName(t), data.DefaultExpires(data.CanonicalTargetsRole))
+		signedTargets, err := r.tufRepo.SignTargets(t, data.DefaultExpires(data.CanonicalTargetsRole))
 		if err != nil {
 			return err
 		}

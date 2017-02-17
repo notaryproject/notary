@@ -278,7 +278,7 @@ func Test0Dot3RepoFormat(t *testing.T) {
 	delegations, err := repo.GetDelegationRoles()
 	require.NoError(t, err)
 	require.Len(t, delegations, 1)
-	require.EqualValues(t, data.GUN("targets/releases"), delegations[0].Name)
+	require.Equal(t, data.RoleName("targets/releases"), delegations[0].Name)
 
 	// Also check that we can add/remove keys by rotating keys
 	oldTargetsKeys := repo.CryptoService.ListKeys(data.CanonicalTargetsRole)

@@ -55,6 +55,15 @@ func NewRoleList(roles []string) []RoleName {
 	return roleNames
 }
 
+// RoleListToStringList generates an array of string objects from a slice of roles
+func RolesListToStringList(roles []RoleName) []string {
+	var roleNames []string
+	for _, role := range roles {
+		roleNames = append(roleNames, role.String())
+	}
+	return roleNames
+}
+
 // SigAlgorithm for types of signatures
 type SigAlgorithm string
 

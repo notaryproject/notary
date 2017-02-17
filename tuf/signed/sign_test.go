@@ -52,8 +52,8 @@ func (mts *FailingCryptoService) AddKey(role data.RoleName, gun data.GUN, key da
 	return nil
 }
 
-func (mts *FailingCryptoService) ListAllKeys() map[string]string {
-	return map[string]string{}
+func (mts *FailingCryptoService) ListAllKeys() map[string]data.RoleName {
+	return map[string]data.RoleName{}
 }
 
 func (mts *FailingCryptoService) GetKey(keyID string) data.PublicKey {
@@ -92,12 +92,12 @@ func (mts *MockCryptoService) ListKeys(role data.RoleName) []string {
 	return []string{mts.testKey.ID()}
 }
 
-func (mts *MockCryptoService) ListAllKeys() map[string]string {
-	return map[string]string{
-		mts.testKey.ID(): data.CanonicalRootRole.String(),
-		mts.testKey.ID(): data.CanonicalTargetsRole.String(),
-		mts.testKey.ID(): data.CanonicalSnapshotRole.String(),
-		mts.testKey.ID(): data.CanonicalTimestampRole.String(),
+func (mts *MockCryptoService) ListAllKeys() map[string]data.RoleName {
+	return map[string]data.RoleName{
+		mts.testKey.ID(): data.CanonicalRootRole,
+		mts.testKey.ID(): data.CanonicalTargetsRole,
+		mts.testKey.ID(): data.CanonicalSnapshotRole,
+		mts.testKey.ID(): data.CanonicalTimestampRole,
 	}
 }
 

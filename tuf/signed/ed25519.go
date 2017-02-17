@@ -59,10 +59,10 @@ func (e *Ed25519) ListKeys(role data.RoleName) []string {
 }
 
 // ListAllKeys returns the map of keys IDs to role
-func (e *Ed25519) ListAllKeys() map[string]string {
-	keys := make(map[string]string)
+func (e *Ed25519) ListAllKeys() map[string]data.RoleName {
+	keys := make(map[string]data.RoleName)
 	for id, edKey := range e.keys {
-		keys[id] = edKey.role.String()
+		keys[id] = edKey.role
 	}
 	return keys
 }

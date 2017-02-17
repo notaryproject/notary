@@ -221,7 +221,7 @@ func (rdb RethinkDBKeyStore) ListKeys(role data.RoleName) []string {
 }
 
 // ListAllKeys always returns nil. This method is here to satisfy the CryptoService interface
-func (rdb RethinkDBKeyStore) ListAllKeys() map[string]string {
+func (rdb RethinkDBKeyStore) ListAllKeys() map[string]data.RoleName {
 	return nil
 }
 

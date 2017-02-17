@@ -172,6 +172,6 @@ func testListKeys(t *testing.T, cs signed.CryptoService, expectedRolesToKeys map
 	keys := cs.ListAllKeys()
 	require.Len(t, keys, len(expectedRolesToKeys))
 	for role, keyID := range expectedRolesToKeys {
-		require.Equal(t, role, keys[keyID])
+		require.Equal(t, data.RoleName(role), keys[keyID])
 	}
 }

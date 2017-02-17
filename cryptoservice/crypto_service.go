@@ -155,11 +155,11 @@ func (cs *CryptoService) ListKeys(role data.RoleName) []string {
 }
 
 // ListAllKeys returns a map of key IDs to role
-func (cs *CryptoService) ListAllKeys() map[string]string {
-	res := make(map[string]string)
+func (cs *CryptoService) ListAllKeys() map[string]data.RoleName {
+	res := make(map[string]data.RoleName)
 	for _, ks := range cs.keyStores {
 		for k, r := range ks.ListKeys() {
-			res[k] = r.Role.String() // keys are content addressed so don't care about overwrites
+			res[k] = r.Role // keys are content addressed so don't care about overwrites
 		}
 	}
 	return res

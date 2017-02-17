@@ -30,7 +30,7 @@ type KeyService interface {
 
 	// ListAllKeys returns a map of all available signing key IDs to role, or
 	// an empty map or nil if there are no keys.
-	ListAllKeys() map[string]string
+	ListAllKeys() map[string]data.RoleName
 }
 
 // CryptoService is deprecated and all instances of its use should be

@@ -213,7 +213,7 @@ func (t *tufCommander) tufWitness(cmd *cobra.Command, args []string) error {
 
 	cmd.Printf(
 		"The following roles were successfully marked for witnessing on the next publish:\n\t- %s\n",
-		strings.Join(success, "\n\t- "),
+		strings.Join(data.RolesListToStringList(success), "\n\t- "),
 	)
 
 	return maybeAutoPublish(cmd, t.autoPublish, gun, config, t.retriever)

@@ -313,7 +313,7 @@ func TestRotateKeyNoGUN(t *testing.T) {
 
 // initialize a repo with keys, so they can be rotated
 func setUpRepo(t *testing.T, tempBaseDir string, gun data.GUN, ret notary.PassRetriever) (
-	*httptest.Server, map[string]string) {
+	*httptest.Server, map[string]data.RoleName) {
 
 	// Set up server
 	ctx := context.WithValue(
@@ -387,7 +387,7 @@ func TestRotateKeyRemoteServerManagesKey(t *testing.T) {
 		if role == data.CanonicalSnapshotRole.String() {
 			require.Len(t, finalKeys, 2)
 			for k, r := range initialKeys {
-				if r != data.CanonicalSnapshotRole.String() {
+				if r != data.CanonicalSnapshotRole {
 					_, ok := finalKeys[k]
 					require.True(t, ok)
 				}
@@ -445,21 +445,21 @@ func TestRotateKeyBothKeys(t *testing.T) {
 	for keyID, role := range initialKeys {
 		r, ok := newKeys[keyID]
 		switch r {
-		case data.CanonicalSnapshotRole.String(), data.CanonicalTargetsRole.String():
+		case data.CanonicalSnapshotRole, data.CanonicalTargetsRole:
 			require.False(t, ok, "original key %s still there", keyID)
-		case data.CanonicalRootRole.String():
+		case data.CanonicalRootRole:
 			require.Equal(t, role, r)
 			require.True(t, ok, "old root key has changed")
 		}
 	}
 
-	found := make(map[string]bool)
+	found := make(map[data.RoleName]bool)
 	for _, role := range newKeys {
 		found[role] = true
 	}
-	require.True(t, found[data.CanonicalTargetsRole.String()], "targets key was not created")
-	require.True(t, found[data.CanonicalSnapshotRole.String()], "snapshot key was not created")
-	require.True(t, found[data.CanonicalRootRole.String()], "root key was removed somehow")
+	require.True(t, found[data.CanonicalTargetsRole], "targets key was not created")
+	require.True(t, found[data.CanonicalSnapshotRole], "snapshot key was not created")
+	require.True(t, found[data.CanonicalRootRole], "root key was removed somehow")
 }
 
 // RotateKey when rotating a root requires extra confirmation

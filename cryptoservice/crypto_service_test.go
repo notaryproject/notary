@@ -294,7 +294,7 @@ func (c CryptoServiceTester) TestListFromMultipleKeystores(t *testing.T) {
 	for k, role := range keyMap {
 		_, ok := expectedKeysIDs[k]
 		require.True(t, ok)
-		require.Equal(t, "root", role)
+		require.Equal(t, data.RoleName("root"), role)
 	}
 }
 
