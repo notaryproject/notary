@@ -1,11 +1,13 @@
 package remoteks
 
 import (
+	"strings"
+
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/notary/trustmanager"
 	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
-	"strings"
+
+	"github.com/docker/notary/trustmanager"
 )
 
 // GRPCStorage is an implementer of the GRPC storage server. It passes through

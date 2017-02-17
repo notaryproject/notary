@@ -2,15 +2,17 @@ package main
 
 import (
 	"fmt"
+	"net"
+
+	"github.com/spf13/viper"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+
 	"github.com/docker/notary"
 	"github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustmanager/remoteks"
 	"github.com/docker/notary/utils"
-	"github.com/spf13/viper"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"net"
 )
 
 func parseConfig(path string) (*viper.Viper, error) {

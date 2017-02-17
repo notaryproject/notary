@@ -32,7 +32,7 @@ type Storage interface {
 	Location() string
 }
 
-// KeyInfo stores the role, path, and gun for a corresponding private key ID
+// KeyInfo stores the role and gun for a corresponding private key ID
 // It is assumed that each private key ID is unique
 type KeyInfo struct {
 	Gun  data.GUN

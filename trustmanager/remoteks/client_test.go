@@ -2,11 +2,13 @@ package remoteks
 
 import (
 	"crypto/tls"
-	"github.com/docker/notary/storage"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 	"net"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+
+	"github.com/docker/notary/storage"
 )
 
 const addr = "127.0.0.1:9876"
@@ -51,6 +53,9 @@ func TestRemoteStore(t *testing.T) {
 		client:   NewStoreClient(cc),
 		location: addr,
 	}
+
+	loc := c.Location()
+	require.Equal(t, "Remote Key Store @ "+addr, loc)
 
 	err = c.Set(name, bytes)
 	require.NoError(t, err)

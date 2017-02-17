@@ -3,12 +3,14 @@ package remoteks
 import (
 	"crypto/tls"
 	"fmt"
+
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/notary/trustmanager"
 	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/docker/notary/trustmanager"
 )
 
 // RemoteStore is a wrapper around the GRPC storage client, translating between
@@ -49,8 +51,7 @@ func (s *RemoteStore) Set(fileName string, data []byte) error {
 }
 
 // Remove deletes a file from the store relative to the store's base directory.
-// The path is cleaned before being made absolute to ensure no path traversal
-// outside the base directory is possible.
+// Paths are expected to be cleaned server side.
 func (s *RemoteStore) Remove(fileName string) error {
 	fm := &FileNameMsg{
 		FileName: fileName,
@@ -60,9 +61,7 @@ func (s *RemoteStore) Remove(fileName string) error {
 }
 
 // Get returns the file content found at fileName relative to the base directory
-// of the file store. The path is cleaned before being made absolute to ensure
-// path traversal outside the store is not possible. If the file is not found
-// an error to that effect is returned.
+// of the file store. Paths are expected to be cleaned server side.
 func (s *RemoteStore) Get(fileName string) ([]byte, error) {
 	fm := &FileNameMsg{
 		FileName: fileName,

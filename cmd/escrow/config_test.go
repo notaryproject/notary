@@ -1,12 +1,14 @@
 package main
 
 import (
-	"github.com/docker/notary"
-	"github.com/docker/notary/storage"
+	"testing"
+
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"testing"
+
+	"github.com/docker/notary"
+	"github.com/docker/notary/storage"
 )
 
 func TestParseConfigError(t *testing.T) {
