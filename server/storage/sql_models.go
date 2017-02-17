@@ -12,14 +12,10 @@ const (
 )
 
 // TUFFileTableName returns the name used for the tuf file table
-var TUFFileTableName = func() string {
-	return "tuf_files"
-}
+var TUFFileTableName = "tuf_files"
 
 // ChangefeedTableName returns the name used for the changefeed table
-var ChangefeedTableName = func() string {
-	return "changefeed"
-}
+var ChangefeedTableName = "changefeed"
 
 // TUFFile represents a TUF file in the database
 type TUFFile struct {
@@ -33,7 +29,7 @@ type TUFFile struct {
 
 // TableName sets a specific table name for TUFFile
 func (g TUFFile) TableName() string {
-	return TUFFileTableName()
+	return TUFFileTableName
 }
 
 // Change defines the the fields required for an object in the changefeed
@@ -48,7 +44,7 @@ type Change struct {
 
 // TableName sets a specific table name for Changefeed
 func (c Change) TableName() string {
-	return ChangefeedTableName()
+	return ChangefeedTableName
 }
 
 // CreateTUFTable creates the DB table for TUFFile
