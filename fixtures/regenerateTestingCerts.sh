@@ -99,6 +99,30 @@ cat "intermediate-ca.crt" >> "notary-signer.crt"
 
 rm "notary-signer.cnf" "notary-signer.csr"
 
+# Then generate notary-escrow
+# Use the existing notary-escrow key
+openssl req -new -key "notary-escrow.key" -out "notary-escrow.csr" -sha256 \
+        -subj '/C=US/ST=CA/L=San Francisco/O=Docker/CN=notary-escrow'
+
+cat > "notary-escrow.cnf" <<EOL
+[notary_escrow]
+authorityKeyIdentifier=keyid,issuer
+basicConstraints = critical,CA:FALSE
+extendedKeyUsage=serverAuth,clientAuth
+keyUsage = critical, digitalSignature, keyEncipherment
+subjectAltName = DNS:notary-escrow, DNS:notaryescrow, DNS:localhost, IP:127.0.0.1
+subjectKeyIdentifier=hash
+EOL
+
+openssl x509 -req -days 750 -in "notary-escrow.csr" -sha256 \
+        -CA "intermediate-ca.crt" -CAkey "intermediate-ca.key"  -CAcreateserial \
+        -out "notary-escrow.crt" -extfile "notary-escrow.cnf" -extensions notary_escrow
+# append the intermediate cert to this one to make it a proper bundle
+cat "intermediate-ca.crt" >> "notary-escrow.crt"
+
+rm "notary-escrow.cnf" "notary-escrow.csr"
+
+
 # Then generate secure.example.com
 # Use the existing secure.example.com key
 openssl req -new -key "secure.example.com.key" -out "secure.example.com.csr" -sha256 \
