@@ -55,7 +55,7 @@ func NewRoleList(roles []string) []RoleName {
 	return roleNames
 }
 
-// RoleListToStringList generates an array of string objects from a slice of roles
+// RolesListToStringList generates an array of string objects from a slice of roles
 func RolesListToStringList(roles []RoleName) []string {
 	var roleNames []string
 	for _, role := range roles {
