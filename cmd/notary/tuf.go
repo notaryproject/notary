@@ -359,11 +359,6 @@ func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
 
 	gun := data.GUN(args[0])
 
-	trustPin, err := getTrustPinning(config)
-	if err != nil {
-		return err
-	}
-
 	// Only initialize a roundtripper if we get the remote flag
 	var rt http.RoundTripper
 	var remoteDeleteInfo string
@@ -375,16 +370,15 @@ func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
 		remoteDeleteInfo = " and remote"
 	}
 
-	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
-
-	if err != nil {
-		return err
-	}
-
 	cmd.Printf("Deleting trust data for repository %s\n", gun)
 
-	if err := nRepo.DeleteTrustData(t.deleteRemote); err != nil {
+	if err := notaryclient.DeleteTrustData(
+		config.GetString("trust_dir"),
+		gun,
+		getRemoteTrustServer(config),
+		rt,
+		t.deleteRemote,
+	); err != nil {
 		return err
 	}
 	cmd.Printf("Successfully deleted local%s trust data for repository %s\n", remoteDeleteInfo, gun)

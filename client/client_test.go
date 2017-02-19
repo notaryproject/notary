@@ -837,13 +837,15 @@ func testAddTargetToSpecifiedInvalidRoles(t *testing.T, clearCache bool) {
 func testErrorWritingChangefiles(t *testing.T, writeChangeFile func(*NotaryRepository) error) {
 	ts, _, _ := simpleTestServer(t)
 	defer ts.Close()
-
-	repo, _ := initializeRepo(t, data.ECDSAKey, "docker.com/notary", ts.URL, false)
+	gun := "docker.com/notary"
+	repo, _ := initializeRepo(t, data.ECDSAKey, gun, ts.URL, false)
 	defer os.RemoveAll(repo.baseDir)
 
 	// first, make the actual changefile unwritable by making the changelist
 	// directory unwritable
-	changelistPath := filepath.Join(repo.tufRepoPath, "changelist")
+	changelistPath := filepath.Join(
+		filepath.Join(repo.baseDir, tufDir, filepath.FromSlash(gun)), "changelist",
+	)
 	err := os.MkdirAll(changelistPath, 0744)
 	require.NoError(t, err, "could not create changelist dir")
 	err = os.Chmod(changelistPath, 0600)
@@ -2463,7 +2465,12 @@ func TestPublishRemoveDelegationKeyFromDelegationRole(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	cl, err := changelist.NewFileChangelist(filepath.Join(ownerRepo.tufRepoPath, "changelist"))
+	cl, err := changelist.NewFileChangelist(
+		filepath.Join(
+			filepath.Join(ownerRepo.baseDir, tufDir, filepath.FromSlash(gun)),
+			"changelist",
+		),
+	)
 	require.NoError(t, err)
 	require.NoError(t, cl.Add(changelist.NewTUFChange(
 		changelist.ActionUpdate,
@@ -3404,7 +3411,9 @@ func TestFullAddDelegationChangefileApplicable(t *testing.T) {
 	})
 	require.NoError(t, err)
 	change := newCreateDelegationChange(delegationName, tdJSON)
-	cl, err := changelist.NewFileChangelist(filepath.Join(repo.tufRepoPath, "changelist"))
+	cl, err := changelist.NewFileChangelist(
+		filepath.Join(repo.baseDir, tufDir, filepath.FromSlash(gun), "changelist"),
+	)
 	require.NoError(t, err)
 	addChange(cl, change, delegationName)
 
@@ -3455,7 +3464,9 @@ func TestFullRemoveDelegationChangefileApplicable(t *testing.T) {
 	})
 	require.NoError(t, err)
 	change := newUpdateDelegationChange(delegationName, tdJSON)
-	cl, err := changelist.NewFileChangelist(filepath.Join(repo.tufRepoPath, "changelist"))
+	cl, err := changelist.NewFileChangelist(
+		filepath.Join(repo.baseDir, tufDir, filepath.FromSlash(gun), "changelist"),
+	)
 	require.NoError(t, err)
 	addChange(cl, change, delegationName)
 
@@ -3586,12 +3597,12 @@ func testPublishTargetsDelegationCanUseUserKeyWithArbitraryRole(t *testing.T, x5
 
 // TestDeleteRepo tests that local repo data is deleted from the client library call
 func TestDeleteRepo(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 
 	ts, _, _ := simpleTestServer(t)
 	defer ts.Close()
 
-	repo, rootKeyID := initializeRepo(t, data.ECDSAKey, gun, ts.URL, false)
+	repo, rootKeyID := initializeRepo(t, data.ECDSAKey, gun.String(), ts.URL, false)
 	defer os.RemoveAll(repo.baseDir)
 
 	// Assert initialization was successful before we delete
@@ -3609,7 +3620,7 @@ func TestDeleteRepo(t *testing.T) {
 	require.Len(t, cl.List(), 1)
 
 	// Delete all local trust data for repo
-	err = repo.DeleteTrustData(false)
+	err = DeleteTrustData(repo.baseDir, gun, "", nil, false)
 	require.NoError(t, err)
 
 	// Assert no metadata for this repo exists locally
@@ -3622,7 +3633,7 @@ func TestDeleteRepo(t *testing.T) {
 	require.Len(t, cl.List(), 0)
 
 	// Check that the tuf/<GUN> directory itself is gone
-	_, err = os.Stat(repo.tufRepoPath)
+	_, err = os.Stat(filepath.Join(repo.baseDir, tufDir, filepath.FromSlash(gun.String())))
 	require.Error(t, err)
 
 	// Assert keys for this repo exist locally
@@ -3631,13 +3642,13 @@ func TestDeleteRepo(t *testing.T) {
 
 // TestDeleteRemoteRepo tests that local and remote repo data is deleted from the client library call
 func TestDeleteRemoteRepo(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 
 	ts := fullTestServer(t)
 	defer ts.Close()
 
 	// Create and publish a repo to delete
-	repo, rootKeyID := initializeRepo(t, data.ECDSAKey, gun, ts.URL, false)
+	repo, rootKeyID := initializeRepo(t, data.ECDSAKey, gun.String(), ts.URL, false)
 	defer os.RemoveAll(repo.baseDir)
 
 	require.NoError(t, repo.Publish())
@@ -3673,7 +3684,7 @@ func TestDeleteRemoteRepo(t *testing.T) {
 	require.Len(t, repoCl.List(), 1)
 
 	// Delete all local and remote trust data for one repo
-	err = repo.DeleteTrustData(true)
+	err = DeleteTrustData(repo.baseDir, gun, ts.URL, http.DefaultTransport, true)
 	require.NoError(t, err)
 
 	// Assert no metadata for that repo exists locally
@@ -3686,7 +3697,7 @@ func TestDeleteRemoteRepo(t *testing.T) {
 	require.Len(t, repoCl.List(), 0)
 
 	// Check that the tuf/<GUN> directory itself is gone
-	_, err = os.Stat(repo.tufRepoPath)
+	_, err = os.Stat(filepath.Join(repo.baseDir, tufDir, filepath.FromSlash(gun.String())))
 	require.Error(t, err)
 
 	// Assert keys for this repo still exist locally

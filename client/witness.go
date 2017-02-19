@@ -1,8 +1,6 @@
 package client
 
 import (
-	"path/filepath"
-
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/tuf"
 	"github.com/docker/notary/tuf/data"
@@ -11,12 +9,7 @@ import (
 // Witness creates change objects to witness (i.e. re-sign) the given
 // roles on the next publish. One change is created per role
 func (r *NotaryRepository) Witness(roles ...data.RoleName) ([]data.RoleName, error) {
-	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
-	if err != nil {
-		return nil, err
-	}
-	defer cl.Close()
-
+	var err error
 	successful := make([]data.RoleName, 0, len(roles))
 	for _, role := range roles {
 		// scope is role
@@ -27,7 +20,7 @@ func (r *NotaryRepository) Witness(roles ...data.RoleName) ([]data.RoleName, err
 			"",
 			nil,
 		)
-		err = cl.Add(c)
+		err = r.changelist.Add(c)
 		if err != nil {
 			break
 		}

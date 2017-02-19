@@ -27,6 +27,9 @@ type Changelist interface {
 	// NewIterator returns an iterator for walking through the list
 	// of changes currently stored
 	NewIterator() (ChangeIterator, error)
+
+	// Location returns the place the changelist is stores
+	Location() string
 }
 
 const (

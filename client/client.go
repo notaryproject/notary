@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"regexp"
 	"time"
@@ -22,6 +21,7 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/utils"
+	"os"
 )
 
 const (
@@ -41,7 +41,7 @@ type NotaryRepository struct {
 	baseDir        string
 	gun            data.GUN
 	baseURL        string
-	tufRepoPath    string
+	changelist     changelist.Changelist
 	cache          store.MetadataStore
 	remoteStore    store.RemoteStore
 	CryptoService  signed.CryptoService
@@ -80,23 +80,30 @@ func NewFileCachedNotaryRepository(baseDir string, gun data.GUN, baseURL string,
 		return nil, err
 	}
 
-	return NewNotaryRepository(baseDir, gun, baseURL, remoteStore, cache, trustPinning, cryptoService)
+	cl, err := changelist.NewFileChangelist(filepath.Join(
+		filepath.Join(baseDir, tufDir, filepath.FromSlash(gun.String()), "changelist"),
+	))
+	if err != nil {
+		return nil, err
+	}
+
+	return NewNotaryRepository(baseDir, gun, baseURL, remoteStore, cache, trustPinning, cryptoService, cl)
 }
 
 // NewNotaryRepository is the base method that returns a new notary repository.
 // It takes the base directory under where all the trust files will be stored
 // (This is normally defaults to "~/.notary" or "~/.docker/trust" when enabling
 // docker content trust).
-// It expects initiated remote store and cache.
+// It expects an initialized remote store and cache.
 func NewNotaryRepository(baseDir string, gun data.GUN, baseURL string, remoteStore store.RemoteStore, cache store.MetadataStore,
-	trustPinning trustpinning.TrustPinConfig, cryptoService signed.CryptoService) (
+	trustPinning trustpinning.TrustPinConfig, cryptoService signed.CryptoService, cl changelist.Changelist) (
 	*NotaryRepository, error) {
 
 	nRepo := &NotaryRepository{
 		gun:            gun,
-		baseDir:        baseDir,
 		baseURL:        baseURL,
-		tufRepoPath:    filepath.Join(baseDir, tufDir, filepath.FromSlash(gun.String())),
+		baseDir:        baseDir,
+		changelist:     cl,
 		cache:          cache,
 		remoteStore:    remoteStore,
 		CryptoService:  cryptoService,
@@ -300,8 +307,7 @@ func (r *NotaryRepository) initializeRoles(rootKeys []data.PublicKey, localRoles
 }
 
 // adds a TUF Change template to the given roles
-func addChange(cl *changelist.FileChangelist, c changelist.Change, roles ...data.RoleName) error {
-
+func addChange(cl changelist.Changelist, c changelist.Change, roles ...data.RoleName) error {
 	if len(roles) == 0 {
 		roles = []data.RoleName{data.CanonicalTargetsRole}
 	}
@@ -342,11 +348,6 @@ func (r *NotaryRepository) AddTarget(target *Target, roles ...data.RoleName) err
 	if len(target.Hashes) == 0 {
 		return fmt.Errorf("no hashes specified for target \"%s\"", target.Name)
 	}
-	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
-	if err != nil {
-		return err
-	}
-	defer cl.Close()
 	logrus.Debugf("Adding target \"%s\" with sha256 \"%x\" and size %d bytes.\n", target.Name, target.Hashes["sha256"], target.Length)
 
 	meta := data.FileMeta{Length: target.Length, Hashes: target.Hashes}
@@ -358,22 +359,17 @@ func (r *NotaryRepository) AddTarget(target *Target, roles ...data.RoleName) err
 	template := changelist.NewTUFChange(
 		changelist.ActionCreate, "", changelist.TypeTargetsTarget,
 		target.Name, metaJSON)
-	return addChange(cl, template, roles...)
+	return addChange(r.changelist, template, roles...)
 }
 
 // RemoveTarget creates new changelist entries to remove a target from the given
 // roles in the repository when the changelist gets applied at publish time.
 // If roles are unspecified, the default role is "target".
 func (r *NotaryRepository) RemoveTarget(targetName string, roles ...data.RoleName) error {
-
-	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
-	if err != nil {
-		return err
-	}
 	logrus.Debugf("Removing target \"%s\"", targetName)
 	template := changelist.NewTUFChange(changelist.ActionDelete, "",
 		changelist.TypeTargetsTarget, targetName, nil)
-	return addChange(cl, template, roles...)
+	return addChange(r.changelist, template, roles...)
 }
 
 // ListTargets lists all targets for the current repository. The list of
@@ -531,13 +527,7 @@ func (r *NotaryRepository) GetAllTargetMetadataByName(name string) ([]TargetSign
 
 // GetChangelist returns the list of the repository's unpublished changes
 func (r *NotaryRepository) GetChangelist() (changelist.Changelist, error) {
-	changelistDir := filepath.Join(r.tufRepoPath, "changelist")
-	cl, err := changelist.NewFileChangelist(changelistDir)
-	if err != nil {
-		logrus.Debug("Error initializing changelist")
-		return nil, err
-	}
-	return cl, nil
+	return r.changelist, nil
 }
 
 // RoleWithSignatures is a Role with its associated signatures
@@ -588,18 +578,14 @@ func (r *NotaryRepository) ListRoles() ([]RoleWithSignatures, error) {
 // Publish pushes the local changes in signed material to the remote notary-server
 // Conceptually it performs an operation similar to a `git rebase`
 func (r *NotaryRepository) Publish() error {
-	cl, err := r.GetChangelist()
-	if err != nil {
+	if err := r.publish(r.changelist); err != nil {
 		return err
 	}
-	if err = r.publish(cl); err != nil {
-		return err
-	}
-	if err = cl.Clear(""); err != nil {
+	if err := r.changelist.Clear(""); err != nil {
 		// This is not a critical problem when only a single host is pushing
 		// but will cause weird behaviour if changelist cleanup is failing
 		// and there are multiple hosts writing to the repo.
-		logrus.Warn("Unable to clear changelist. You may want to manually delete the folder ", filepath.Join(r.tufRepoPath, "changelist"))
+		logrus.Warn("Unable to clear changelist. You may want to manually delete the folder ", r.changelist.Location())
 	}
 	return nil
 }
@@ -1132,14 +1118,19 @@ func (r *NotaryRepository) rootFileKeyChange(cl changelist.Changelist, role data
 
 // DeleteTrustData removes the trust data stored for this repo in the TUF cache on the client side
 // Note that we will not delete any private key material from local storage
-func (r *NotaryRepository) DeleteTrustData(deleteRemote bool) error {
+func DeleteTrustData(baseDir string, gun data.GUN, URL string, rt http.RoundTripper, deleteRemote bool) error {
+	localRepo := filepath.Join(baseDir, tufDir, filepath.FromSlash(gun.String()))
 	// Remove the tufRepoPath directory, which includes local TUF metadata files and changelist information
-	if err := os.RemoveAll(r.tufRepoPath); err != nil {
+	if err := os.RemoveAll(localRepo); err != nil {
 		return fmt.Errorf("error clearing TUF repo data: %v", err)
 	}
 	// Note that this will require admin permission in this NotaryRepository's roundtripper
 	if deleteRemote {
-		remote := r.remoteStore
+		remote, err := getRemoteStore(URL, gun, rt)
+		if err != nil {
+			logrus.Error("unable to instantiate remote store")
+			return err
+		}
 		if err := remote.RemoveAll(); err != nil {
 			return err
 		}
