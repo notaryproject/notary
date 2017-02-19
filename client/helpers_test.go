@@ -10,6 +10,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/notary/client/changelist"
+	"github.com/docker/notary/storage"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/testutils"
 	"github.com/stretchr/testify/require"
@@ -1023,14 +1024,19 @@ func TestAllNotNearExpiry(t *testing.T) {
 }
 
 func TestRotateRemoteKeyOffline(t *testing.T) {
+	// http store requires an absolute baseURL
+	_, err := getRemoteStore("invalidURL", "gun", nil)
+	require.Error(t, err)
+
 	// without a valid roundtripper, rotation should fail since we cannot initialize a HTTPStore
-	remote, err := getRemoteStore("invalidURL", "gun", nil)
+	var remote storage.RemoteStore = storage.OfflineStore{}
 	key, err := rotateRemoteKey(data.CanonicalSnapshotRole, remote)
 	require.Error(t, err)
 	require.Nil(t, key)
 
 	// if the underlying remote store is faulty and cannot rotate keys, we should get back the error
 	remote, err = getRemoteStore("https://notary-server", "gun", http.DefaultTransport)
+	require.NoError(t, err)
 	key, err = rotateRemoteKey(data.CanonicalSnapshotRole, remote)
 	require.Error(t, err)
 	require.Nil(t, key)
