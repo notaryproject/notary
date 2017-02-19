@@ -9,17 +9,44 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/docker/notary/storage"
+	"github.com/docker/notary/trustmanager"
 )
-
-const addr = "127.0.0.1:9876"
 
 var insecureTLS = tls.Config{
 	InsecureSkipVerify: true,
 }
 
-func setupTestServer(t *testing.T) *grpc.Server {
+type TestError struct{}
+
+func (err TestError) Error() string {
+	return "test error"
+}
+
+type ErroringStorage struct{}
+
+func (s ErroringStorage) Set(string, []byte) error {
+	return TestError{}
+}
+
+func (s ErroringStorage) Remove(string) error {
+	return TestError{}
+}
+
+func (s ErroringStorage) Get(string) ([]byte, error) {
+	return nil, TestError{}
+}
+
+func (s ErroringStorage) ListFiles() []string {
+	return nil
+}
+
+func (s ErroringStorage) Location() string {
+	return "erroringstorage"
+}
+
+func setupTestServer(t *testing.T, addr string, store trustmanager.Storage) *grpc.Server {
 	s := grpc.NewServer()
-	st := NewGRPCStorage(storage.NewMemoryStore(nil))
+	st := NewGRPCStorage(store)
 	l, err := net.Listen(
 		"tcp",
 		addr,
@@ -36,8 +63,9 @@ func setupTestServer(t *testing.T) *grpc.Server {
 func TestRemoteStore(t *testing.T) {
 	name := "testfile"
 	bytes := []byte{'1'}
+	addr := "127.0.0.1:9876"
 
-	s := setupTestServer(t)
+	s := setupTestServer(t, addr, storage.NewMemoryStore(nil))
 	defer s.Stop()
 
 	// can't just use NewRemoteStore because it correctly sets up tls
@@ -76,4 +104,40 @@ func TestRemoteStore(t *testing.T) {
 
 	_, err = c.Get(name)
 	require.Error(t, err)
+}
+
+// GRPC converts our errors into *grpc.rpcError types.
+func TestErrors(t *testing.T) {
+	name := "testfile"
+	bytes := []byte{'1'}
+	addr := "127.0.0.1:9877"
+
+	s := setupTestServer(t, addr, ErroringStorage{})
+	defer s.Stop()
+
+	// can't just use NewRemoteStore because it correctly sets up tls
+	// config and for testing purposes it's easier for the client to just
+	// be insecure
+	cc, err := grpc.Dial(
+		addr,
+		grpc.WithInsecure(),
+		grpc.WithBlock(),
+	)
+	require.NoError(t, err)
+	c := &RemoteStore{
+		client:   NewStoreClient(cc),
+		location: addr,
+	}
+
+	err = c.Set(name, bytes)
+	require.Error(t, err)
+	require.Equal(t, "test error", grpc.ErrorDesc(err))
+
+	_, err = c.Get(name)
+	require.Error(t, err)
+	require.Equal(t, "test error", grpc.ErrorDesc(err))
+
+	err = c.Remove(name)
+	require.Error(t, err)
+	require.Equal(t, "test error", grpc.ErrorDesc(err))
 }
