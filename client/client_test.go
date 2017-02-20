@@ -1684,6 +1684,7 @@ func TestPublishUninitializedRepo(t *testing.T) {
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, true)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, true)
 
+	// check we can just call publish again
 	require.NoError(t, repo.Publish())
 }
 

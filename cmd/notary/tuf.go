@@ -407,14 +407,7 @@ func importRootKey(cmd *cobra.Command, rootKey string, nRepo *notaryclient.Notar
 	}
 
 	var rootKeyID string
-	if len(rootKeyList) < 1 {
-		cmd.Println("No root keys found. Generating a new root key...")
-		rootPublicKey, err := nRepo.CryptoService.Create(data.CanonicalRootRole, "", data.ECDSAKey)
-		if err != nil {
-			return nil, err
-		}
-		rootKeyID = rootPublicKey.ID()
-	} else {
+	if len(rootKeyList) > 0 {
 		// Chooses the first root key available, which is initialization specific
 		// but should return the HW one first.
 		rootKeyID = rootKeyList[0]
@@ -699,18 +692,7 @@ func (t *tufCommander) tufPublish(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var rootKeyIDs []string
-
-	if err := nRepo.Update(true); err != nil {
-		if _, ok := err.(notaryclient.ErrRepositoryNotExist); ok {
-			rootKeyIDs, err = importRootKey(cmd, t.rootKey, nRepo, t.retriever)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return publishAndPrintToCLI(cmd, nRepo, rootKeyIDs)
+	return publishAndPrintToCLI(cmd, nRepo)
 }
 
 func (t *tufCommander) tufRemove(cmd *cobra.Command, args []string) error {
@@ -1056,7 +1038,7 @@ func maybeAutoPublish(cmd *cobra.Command, doPublish bool, gun data.GUN, config *
 	}
 
 	cmd.Println("Auto-publishing changes to", nRepo.GetGUN())
-	return publishAndPrintToCLI(cmd, nRepo, nil)
+	return publishAndPrintToCLI(cmd, nRepo)
 }
 
 func publishAndPrintToCLI(cmd *cobra.Command, nRepo *notaryclient.NotaryRepository, gun data.GUN) error {
