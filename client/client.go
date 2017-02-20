@@ -181,6 +181,24 @@ func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ..
 		}
 		privKeys = append(privKeys, privKey)
 	}
+	if len(privKeys) == 0 {
+		var rootKeyID string
+		rootKeyList := r.CryptoService.ListKeys(data.CanonicalRootRole)
+		if len(rootKeyList) == 0 {
+			rootPublicKey, err := r.CryptoService.Create(data.CanonicalRootRole, "", data.ECDSAKey)
+			if err != nil {
+				return err
+			}
+			rootKeyID = rootPublicKey.ID()
+		} else {
+			rootKeyID = rootKeyList[0]
+		}
+		privKey, _, err := r.CryptoService.GetPrivateKey(rootKeyID)
+		if err != nil {
+			return err
+		}
+		privKeys = append(privKeys, privKey)
+	}
 
 	// currently we only support server managing timestamps and snapshots, and
 	// nothing else - timestamps are always managed by the server, and implicit
@@ -253,7 +271,6 @@ func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ..
 
 func (r *NotaryRepository) initializeRoles(rootKeys []data.PublicKey, localRoles, remoteRoles []string) (
 	root, targets, snapshot, timestamp data.BaseRole, err error) {
-
 	root = data.NewBaseRole(
 		data.CanonicalRootRole,
 		notary.MinThreshold,
@@ -583,8 +600,8 @@ func (r *NotaryRepository) ListRoles() ([]RoleWithSignatures, error) {
 
 // Publish pushes the local changes in signed material to the remote notary-server
 // Conceptually it performs an operation similar to a `git rebase`
-func (r *NotaryRepository) Publish(rootKeyIDs []string) error {
-	if err := r.publish(r.changelist, rootKeyIDs); err != nil {
+func (r *NotaryRepository) Publish() error {
+	if err := r.publish(r.changelist); err != nil {
 		return err
 	}
 	if err := r.changelist.Clear(""); err != nil {
@@ -598,14 +615,14 @@ func (r *NotaryRepository) Publish(rootKeyIDs []string) error {
 
 // publish pushes the changes in the given changelist to the remote notary-server
 // Conceptually it performs an operation similar to a `git rebase`
-func (r *NotaryRepository) publish(cl changelist.Changelist, rootKeyIDs []string) error {
+func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 	var initialPublish bool
 	// update first before publishing
 	if err := r.Update(true); err != nil {
 		// If the remote is not aware of the repo, then this is being published
 		// for the first time.  Try to initialize the repository before publishing.
 		if _, ok := err.(ErrRepositoryNotExist); ok {
-			err := r.Initialize(rootKeyIDs)
+			err := r.Initialize(nil)
 			if err != nil {
 				logrus.Debugf("Unable to initialize repository at publish-time: %s",
 					err.Error())
@@ -1011,7 +1028,7 @@ func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool, keyList
 	if err := r.rootFileKeyChange(cl, role, changelist.ActionCreate, pubKeyList); err != nil {
 		return err
 	}
-	return r.publish(cl, []string{r.GetGUN()})
+	return r.publish(cl)
 }
 
 // Given a set of new keys to rotate to and a set of keys to drop, returns the list of current keys to use

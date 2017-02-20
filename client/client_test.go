@@ -1666,24 +1666,13 @@ func TestPublishUninitializedRepo(t *testing.T) {
 		http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repository: %s", err)
 	err = repo.Publish()
-	require.Error(t, err)
-
-	// no metadata created
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalRootRole, false)
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, false)
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, false)
-
-	// now, initialize and republish in the same directory
-	rootPubKey, err := repo.CryptoService.Create("root", repo.gun, data.ECDSAKey)
-	require.NoError(t, err, "error generating root key: %s", err)
-
-	require.NoError(t, repo.Initialize([]string{rootPubKey.ID()}))
-
+	require.NoError(t, err)
 	// now metadata is created
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalRootRole, true)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, true)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, true)
 
+	// check we can just call publish again
 	require.NoError(t, repo.Publish())
 }
 
