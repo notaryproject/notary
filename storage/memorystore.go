@@ -12,18 +12,19 @@ import (
 
 // NewMemoryStore returns a MetadataStore that operates entirely in memory.
 // Very useful for testing
-func NewMemoryStore(initial map[string][]byte) *MemoryStore {
-	var consistent = make(map[string][]byte)
-	if initial == nil {
-		initial = make(map[string][]byte)
-	} else {
-		// add all seed meta to consistent
-		for name, data := range initial {
-			checksum := sha256.Sum256(data)
-			path := utils.ConsistentName(name, checksum[:])
-			consistent[path] = data
-		}
+func NewMemoryStore(seed map[data.RoleName][]byte) *MemoryStore {
+	var (
+		consistent = make(map[string][]byte)
+		initial    = make(map[string][]byte)
+	)
+	// add all seed meta to consistent
+	for name, d := range seed {
+		checksum := sha256.Sum256(d)
+		path := utils.ConsistentName(name.String(), checksum[:])
+		initial[name.String()] = d
+		consistent[path] = d
 	}
+
 	return &MemoryStore{
 		data:       initial,
 		consistent: consistent,

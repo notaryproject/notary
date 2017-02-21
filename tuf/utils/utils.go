@@ -20,9 +20,19 @@ func StrSliceContains(ss []string, s string) bool {
 	return false
 }
 
-// StrSliceRemove removes the the given string from the slice, returning a new slice
-func StrSliceRemove(ss []string, s string) []string {
-	res := []string{}
+// RoleNameSliceContains checks if the given string appears in the slice
+func RoleNameSliceContains(ss []data.RoleName, s data.RoleName) bool {
+	for _, v := range ss {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+// RoleNameSliceRemove removes the the given RoleName from the slice, returning a new slice
+func RoleNameSliceRemove(ss []data.RoleName, s data.RoleName) []data.RoleName {
+	res := []data.RoleName{}
 	for _, v := range ss {
 		if v != s {
 			res = append(res, v)
@@ -88,7 +98,7 @@ func RemoveUnusedKeys(t *data.SignedTargets) {
 
 // FindRoleIndex returns the index of the role named <name> or -1 if no
 // matching role is found.
-func FindRoleIndex(rs []*data.Role, name string) int {
+func FindRoleIndex(rs []*data.Role, name data.RoleName) int {
 	for i, r := range rs {
 		if r.Name == name {
 			return i

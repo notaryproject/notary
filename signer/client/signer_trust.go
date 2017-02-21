@@ -173,9 +173,9 @@ func NewNotarySigner(conn *grpc.ClientConn) *NotarySigner {
 }
 
 // Create creates a remote key and returns the PublicKey associated with the remote private key
-func (trust *NotarySigner) Create(role, gun, algorithm string) (data.PublicKey, error) {
+func (trust *NotarySigner) Create(role data.RoleName, gun data.GUN, algorithm string) (data.PublicKey, error) {
 	publicKey, err := trust.kmClient.CreateKey(context.Background(),
-		&pb.CreateKeyRequest{Algorithm: algorithm, Role: role, Gun: gun})
+		&pb.CreateKeyRequest{Algorithm: algorithm, Role: role.String(), Gun: gun.String()})
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +184,7 @@ func (trust *NotarySigner) Create(role, gun, algorithm string) (data.PublicKey, 
 }
 
 // AddKey adds a key
-func (trust *NotarySigner) AddKey(role, gun string, k data.PrivateKey) error {
+func (trust *NotarySigner) AddKey(role data.RoleName, gun data.GUN, k data.PrivateKey) error {
 	return errors.New("Adding a key to NotarySigner is not supported")
 }
 
@@ -203,17 +203,17 @@ func (trust *NotarySigner) GetKey(keyid string) data.PublicKey {
 	return pubKey
 }
 
-func (trust *NotarySigner) getKeyInfo(keyid string) (data.PublicKey, string, error) {
+func (trust *NotarySigner) getKeyInfo(keyid string) (data.PublicKey, data.RoleName, error) {
 	keyInfo, err := trust.kmClient.GetKeyInfo(context.Background(), &pb.KeyID{ID: keyid})
 	if err != nil {
 		return nil, "", err
 	}
-	return data.NewPublicKey(keyInfo.KeyInfo.Algorithm.Algorithm, keyInfo.PublicKey), keyInfo.Role, nil
+	return data.NewPublicKey(keyInfo.KeyInfo.Algorithm.Algorithm, keyInfo.PublicKey), data.RoleName(keyInfo.Role), nil
 }
 
 // GetPrivateKey retrieves by ID an object that can be used to sign, but that does
 // not contain any private bytes.  If the key doesn't exist, returns an error.
-func (trust *NotarySigner) GetPrivateKey(keyid string) (data.PrivateKey, string, error) {
+func (trust *NotarySigner) GetPrivateKey(keyid string) (data.PrivateKey, data.RoleName, error) {
 	pubKey, role, err := trust.getKeyInfo(keyid)
 	if err != nil {
 		return nil, "", err
@@ -222,11 +222,11 @@ func (trust *NotarySigner) GetPrivateKey(keyid string) (data.PrivateKey, string,
 }
 
 // ListKeys not supported for NotarySigner
-func (trust *NotarySigner) ListKeys(role string) []string {
+func (trust *NotarySigner) ListKeys(role data.RoleName) []string {
 	return []string{}
 }
 
 // ListAllKeys not supported for NotarySigner
-func (trust *NotarySigner) ListAllKeys() map[string]string {
-	return map[string]string{}
+func (trust *NotarySigner) ListAllKeys() map[string]data.RoleName {
+	return map[string]data.RoleName{}
 }

@@ -16,12 +16,12 @@ import (
 // GetOrCreateSnapshotKey either creates a new snapshot key, or returns
 // the existing one. Only the PublicKey is returned. The private part
 // is held by the CryptoService.
-func GetOrCreateSnapshotKey(gun string, store storage.MetaStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
+func GetOrCreateSnapshotKey(gun data.GUN, store storage.MetaStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
 	_, rootJSON, err := store.GetCurrent(gun, data.CanonicalRootRole)
 	if err != nil {
 		// If the error indicates we couldn't find the root, create a new key
 		if _, ok := err.(storage.ErrNotFound); !ok {
-			logrus.Errorf("Error when retrieving root role for GUN %s: %v", gun, err)
+			logrus.Errorf("Error when retrieving root role for GUN %s: %v", gun.String(), err)
 			return nil, err
 		}
 		return crypto.Create(data.CanonicalSnapshotRole, gun, createAlgorithm)
@@ -51,7 +51,7 @@ func GetOrCreateSnapshotKey(gun string, store storage.MetaStore, crypto signed.C
 }
 
 // RotateSnapshotKey attempts to rotate a snapshot key in the signer, but might be rate-limited by the signer
-func RotateSnapshotKey(gun string, store storage.MetaStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
+func RotateSnapshotKey(gun data.GUN, store storage.MetaStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
 	// Always attempt to create a new key, but this might be rate-limited
 	key, err := crypto.Create(data.CanonicalSnapshotRole, gun, createAlgorithm)
 	if err != nil {
@@ -66,7 +66,7 @@ func RotateSnapshotKey(gun string, store storage.MetaStore, crypto signed.Crypto
 // the expiry time and version.  Note that this function does not write generated
 // snapshots to the underlying data store, and will either return the latest snapshot time
 // or nil as the time modified
-func GetOrCreateSnapshot(gun, checksum string, store storage.MetaStore, cryptoService signed.CryptoService) (
+func GetOrCreateSnapshot(gun data.GUN, checksum string, store storage.MetaStore, cryptoService signed.CryptoService) (
 	*time.Time, []byte, error) {
 
 	lastModified, currentJSON, err := store.GetChecksum(gun, data.CanonicalSnapshotRole, checksum)

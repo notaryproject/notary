@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testGUN = "gun"
+var testGUN data.GUN = "gun"
 
 func initRepo(t *testing.T, cryptoService signed.CryptoService) *Repo {
 	rootKey, err := cryptoService.Create("root", testGUN, data.ED25519Key)
@@ -72,7 +72,7 @@ func TestInitSnapshotNoTargets(t *testing.T) {
 	cs := signed.NewEd25519()
 	repo := initRepo(t, cs)
 
-	repo.Targets = make(map[string]*data.SignedTargets)
+	repo.Targets = make(map[data.RoleName]*data.SignedTargets)
 
 	err := repo.InitSnapshot()
 	require.Error(t, err)
@@ -91,7 +91,7 @@ func writeRepo(t *testing.T, dir string, repo *Repo) {
 		signedTargets, err := repo.SignTargets(r, data.DefaultExpires("targets"))
 		require.NoError(t, err)
 		targetsJSON, _ := json.Marshal(signedTargets)
-		p := path.Join(dir, r+".json")
+		p := path.Join(dir, r.String()+".json")
 		parentDir := filepath.Dir(p)
 		os.MkdirAll(parentDir, 0755)
 		ioutil.WriteFile(p, targetsJSON, 0755)
@@ -174,11 +174,11 @@ func TestPurgeDelegationsKeyFromTop(t *testing.T) {
 	ed25519 := signed.NewEd25519()
 	repo := initRepo(t, ed25519)
 
-	vetinari := path.Join(data.CanonicalTargetsRole, "vetinari")
-	sybil := path.Join(data.CanonicalTargetsRole, "sybil")
-	vimes := path.Join(data.CanonicalTargetsRole, "vimes")
-	carrot := path.Join(vimes, "carrot")
-	targetsWild := path.Join(data.CanonicalTargetsRole, "*")
+	vetinari := data.RoleName(path.Join(data.CanonicalTargetsRole.String(), "vetinari"))
+	sybil := data.RoleName(path.Join(data.CanonicalTargetsRole.String(), "sybil"))
+	vimes := data.RoleName(path.Join(data.CanonicalTargetsRole.String(), "vimes"))
+	carrot := data.RoleName(path.Join(vimes.String(), "carrot"))
+	targetsWild := data.RoleName(path.Join(data.CanonicalTargetsRole.String(), "*"))
 
 	// create 2 keys, we'll purge one of them
 	testKey1, err := ed25519.Create(vetinari, testGUN, data.ED25519Key)
@@ -241,11 +241,11 @@ func TestPurgeDelegationsKeyFromDeep(t *testing.T) {
 	ed25519 := signed.NewEd25519()
 	repo := initRepo(t, ed25519)
 
-	vetinari := path.Join(data.CanonicalTargetsRole, "vetinari")
-	sybil := path.Join(data.CanonicalTargetsRole, "sybil")
-	vimes := path.Join(data.CanonicalTargetsRole, "vimes")
-	carrot := path.Join(vimes, "carrot")
-	vimesWild := path.Join(vimes, "*")
+	vetinari := data.RoleName(path.Join(data.CanonicalTargetsRole.String(), "vetinari"))
+	sybil := data.RoleName(path.Join(data.CanonicalTargetsRole.String(), "sybil"))
+	vimes := data.RoleName(path.Join(data.CanonicalTargetsRole.String(), "vimes"))
+	carrot := data.RoleName(path.Join(vimes.String(), "carrot"))
+	vimesWild := data.RoleName(path.Join(vimes.String(), "*"))
 
 	// create 2 keys, we'll purge one of them
 	testKey1, err := ed25519.Create(vetinari, testGUN, data.ED25519Key)
@@ -359,7 +359,7 @@ func TestUpdateDelegationsInvalidRole(t *testing.T) {
 	roleKey, err := ed25519.Create("Invalid Role", testGUN, data.ED25519Key)
 	require.NoError(t, err)
 
-	err = repo.UpdateDelegationKeys("root", []data.PublicKey{roleKey}, []string{}, 1)
+	err = repo.UpdateDelegationKeys(data.CanonicalRootRole, []data.PublicKey{roleKey}, []string{}, 1)
 	require.Error(t, err)
 	require.IsType(t, data.ErrInvalidRole{}, err)
 
@@ -672,7 +672,7 @@ func TestGetDelegationRoleAndMetadataExistDelegationExists(t *testing.T) {
 
 	gottenRole, err := repo.GetDelegationRole("targets/level1/level2")
 	require.NoError(t, err)
-	require.Equal(t, "targets/level1/level2", gottenRole.Name)
+	require.EqualValues(t, "targets/level1/level2", gottenRole.Name)
 	require.Equal(t, 1, gottenRole.Threshold)
 	require.Equal(t, []string{""}, gottenRole.Paths)
 	_, ok := gottenRole.Keys[testKey.ID()]
@@ -1086,7 +1086,7 @@ func TestGetDelegationValidRoles(t *testing.T) {
 
 	delgRole, err := repo.GetDelegationRole("targets/test")
 	require.NoError(t, err)
-	require.Equal(t, "targets/test", delgRole.Name)
+	require.EqualValues(t, "targets/test", delgRole.Name)
 	require.Equal(t, 1, delgRole.Threshold)
 	require.Equal(t, []string{testKey1.ID()}, delgRole.ListKeyIDs())
 	require.Equal(t, []string{"path", "anotherpath"}, delgRole.Paths)
@@ -1101,7 +1101,7 @@ func TestGetDelegationValidRoles(t *testing.T) {
 
 	delgRole, err = repo.GetDelegationRole("targets/a")
 	require.NoError(t, err)
-	require.Equal(t, "targets/a", delgRole.Name)
+	require.EqualValues(t, "targets/a", delgRole.Name)
 	require.Equal(t, 1, delgRole.Threshold)
 	require.Equal(t, []string{testKey2.ID()}, delgRole.ListKeyIDs())
 	require.Equal(t, []string{""}, delgRole.Paths)
@@ -1116,7 +1116,7 @@ func TestGetDelegationValidRoles(t *testing.T) {
 
 	delgRole, err = repo.GetDelegationRole("targets/test/b")
 	require.NoError(t, err)
-	require.Equal(t, "targets/test/b", delgRole.Name)
+	require.EqualValues(t, "targets/test/b", delgRole.Name)
 	require.Equal(t, 1, delgRole.Threshold)
 	require.Equal(t, []string{testKey3.ID()}, delgRole.ListKeyIDs())
 	require.Equal(t, []string{"path/subpath", "anotherpath"}, delgRole.Paths)
@@ -1303,7 +1303,7 @@ func verifyRootSignatureAgainstKey(t *testing.T, signedRoot *data.Signed, key da
 }
 
 func TestSignRootOldKeyCertExists(t *testing.T) {
-	gun := "docker/test-sign-root"
+	var gun data.GUN = "docker/test-sign-root"
 	referenceTime := time.Now()
 
 	cs := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(
@@ -1356,7 +1356,7 @@ func TestSignRootOldKeyCertExists(t *testing.T) {
 }
 
 func TestSignRootOldKeyCertMissing(t *testing.T) {
-	gun := "docker/test-sign-root"
+	var gun data.GUN = "docker/test-sign-root"
 	referenceTime := time.Now()
 
 	cs := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(
@@ -1417,7 +1417,7 @@ func TestSignRootOldKeyCertMissing(t *testing.T) {
 // rotation. After signing with the previous keys, they can be discarded from
 // the root role.
 func TestRootKeyRotation(t *testing.T) {
-	gun := "docker/test-sign-root"
+	var gun data.GUN = "docker/test-sign-root"
 	referenceTime := time.Now()
 
 	cs := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(

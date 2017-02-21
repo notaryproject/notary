@@ -71,7 +71,7 @@ func (s *SQLKeyDBStore) Name() string {
 
 // AddKey stores the contents of a private key. Both role and gun are ignored,
 // we always use Key IDs as name, and don't support aliases
-func (s *SQLKeyDBStore) AddKey(role, gun string, privKey data.PrivateKey) error {
+func (s *SQLKeyDBStore) AddKey(role data.RoleName, gun data.GUN, privKey data.PrivateKey) error {
 	passphrase, _, err := s.retriever(privKey.ID(), s.defaultPassAlias, false, 1)
 	if err != nil {
 		return err
@@ -88,8 +88,8 @@ func (s *SQLKeyDBStore) AddKey(role, gun string, privKey data.PrivateKey) error 
 		KeywrapAlg:      KeywrapAlg,
 		PassphraseAlias: s.defaultPassAlias,
 		Algorithm:       privKey.Algorithm(),
-		Gun:             gun,
-		Role:            role,
+		Gun:             gun.String(),
+		Role:            role.String(),
 		Public:          string(privKey.Public()),
 		Private:         encryptedKey,
 	}
@@ -128,7 +128,7 @@ func (s *SQLKeyDBStore) getKey(keyID string, markActive bool) (*GormPrivateKey, 
 }
 
 // GetPrivateKey returns the PrivateKey given a KeyID
-func (s *SQLKeyDBStore) GetPrivateKey(keyID string) (data.PrivateKey, string, error) {
+func (s *SQLKeyDBStore) GetPrivateKey(keyID string) (data.PrivateKey, data.RoleName, error) {
 	// Retrieve the GORM private key from the database
 	dbPrivateKey, decryptedPrivKey, err := s.getKey(keyID, true)
 	if err != nil {
@@ -142,16 +142,16 @@ func (s *SQLKeyDBStore) GetPrivateKey(keyID string) (data.PrivateKey, string, er
 		return nil, "", err
 	}
 
-	return activatingPrivateKey{PrivateKey: privKey, activationFunc: s.markActive}, dbPrivateKey.Role, nil
+	return activatingPrivateKey{PrivateKey: privKey, activationFunc: s.markActive}, data.RoleName(dbPrivateKey.Role), nil
 }
 
 // ListKeys always returns nil. This method is here to satisfy the CryptoService interface
-func (s *SQLKeyDBStore) ListKeys(role string) []string {
+func (s *SQLKeyDBStore) ListKeys(role data.RoleName) []string {
 	return nil
 }
 
 // ListAllKeys always returns nil. This method is here to satisfy the CryptoService interface
-func (s *SQLKeyDBStore) ListAllKeys() map[string]string {
+func (s *SQLKeyDBStore) ListAllKeys() map[string]data.RoleName {
 	return nil
 }
 
@@ -199,10 +199,10 @@ func (s *SQLKeyDBStore) markActive(keyID string) error {
 
 // Create will attempt to first re-use an inactive key for the same role, gun, and algorithm.
 // If one isn't found, it will create a private key and add it to the DB as an inactive key
-func (s *SQLKeyDBStore) Create(role, gun, algorithm string) (data.PublicKey, error) {
+func (s *SQLKeyDBStore) Create(role data.RoleName, gun data.GUN, algorithm string) (data.PublicKey, error) {
 	// If an unused key exists, simply return it.  Else, error because SQL can't make keys
 	dbPrivateKey := GormPrivateKey{}
-	if !s.db.Model(GormPrivateKey{}).Where("role = ? AND gun = ? AND algorithm = ? AND last_used IS NULL", role, gun, algorithm).Order("key_id").First(&dbPrivateKey).RecordNotFound() {
+	if !s.db.Model(GormPrivateKey{}).Where("role = ? AND gun = ? AND algorithm = ? AND last_used IS NULL", role.String(), gun.String(), algorithm).Order("key_id").First(&dbPrivateKey).RecordNotFound() {
 		// Just return the public key component if we found one
 		return data.NewPublicKey(dbPrivateKey.Algorithm, []byte(dbPrivateKey.Public)), nil
 	}

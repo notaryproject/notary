@@ -68,7 +68,7 @@ func TestCheckHashes(t *testing.T) {
 	require.Error(t, err)
 	missingMeta, ok := err.(ErrMissingMeta)
 	require.True(t, ok)
-	require.Equal(t, "metaName1", missingMeta.Role)
+	require.EqualValues(t, "metaName1", missingMeta.Role)
 
 	// Expected to fail since there is no checksum at all.
 	hashes := make(Hashes)
@@ -76,7 +76,7 @@ func TestCheckHashes(t *testing.T) {
 	require.Error(t, err)
 	missingMeta, ok = err.(ErrMissingMeta)
 	require.True(t, ok)
-	require.Equal(t, "metaName2", missingMeta.Role)
+	require.EqualValues(t, "metaName2", missingMeta.Role)
 
 	// The most standard one.
 	hashes[notary.SHA256], err = hex.DecodeString("d13e2b60d74c2e6f4f449b5e536814edf9a4827f5a9f4f957fc92e77609b9c92")
@@ -111,7 +111,7 @@ func TestCheckHashes(t *testing.T) {
 	require.Error(t, err)
 	badChecksum, ok := err.(ErrMismatchedChecksum)
 	require.True(t, ok)
-	require.Equal(t, ErrMismatchedChecksum{alg: notary.SHA256, name: "metaName3",
+	require.EqualValues(t, ErrMismatchedChecksum{alg: notary.SHA256, name: "metaName3",
 		expected: hex.EncodeToString([]byte("malicious data"))}, badChecksum)
 
 	// Expected to fail due to the failure of sha512
@@ -121,7 +121,7 @@ func TestCheckHashes(t *testing.T) {
 	require.Error(t, err)
 	badChecksum, ok = err.(ErrMismatchedChecksum)
 	require.True(t, ok)
-	require.Equal(t, ErrMismatchedChecksum{alg: notary.SHA512, name: "metaName4",
+	require.EqualValues(t, ErrMismatchedChecksum{alg: notary.SHA512, name: "metaName4",
 		expected: hex.EncodeToString([]byte("malicious data"))}, badChecksum)
 
 	// Expected to fail because of the failure of sha512
@@ -137,7 +137,7 @@ func TestCheckHashes(t *testing.T) {
 	require.Error(t, err)
 	badChecksum, ok = err.(ErrMismatchedChecksum)
 	require.True(t, ok)
-	require.Equal(t, ErrMismatchedChecksum{alg: notary.SHA512, name: "metaName5",
+	require.EqualValues(t, ErrMismatchedChecksum{alg: notary.SHA512, name: "metaName5",
 		expected: "d13e2b60d74c2e6f4f449b5e536814edf9a4827f5a9f4f957fc92e77609b9c92"}, badChecksum)
 }
 

@@ -59,7 +59,7 @@ func TestRunReservedPort(t *testing.T) {
 }
 
 func TestRepoPrefixMatches(t *testing.T) {
-	gun := "docker.io/notary"
+	var gun data.GUN = "docker.io/notary"
 	meta, cs, err := testutils.NewRepoMetadata(gun)
 	require.NoError(t, err)
 
@@ -77,13 +77,13 @@ func TestRepoPrefixMatches(t *testing.T) {
 	require.NoError(t, err)
 
 	// uploading is cool
-	require.NoError(t, uploader.SetMulti(meta))
+	require.NoError(t, uploader.SetMulti(data.MetadataRoleMapToStringMap(meta)))
 	// getting is cool
-	_, err = uploader.GetSized(data.CanonicalSnapshotRole, notary.MaxDownloadSize)
+	_, err = uploader.GetSized(data.CanonicalSnapshotRole.String(), notary.MaxDownloadSize)
 	require.NoError(t, err)
 
 	_, err = uploader.GetSized(
-		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]), notary.MaxDownloadSize)
+		tufutils.ConsistentName(data.CanonicalSnapshotRole.String(), snChecksumBytes[:]), notary.MaxDownloadSize)
 	require.NoError(t, err)
 
 	_, err = uploader.GetKey(data.CanonicalTimestampRole)
@@ -99,7 +99,7 @@ func TestRepoPrefixMatches(t *testing.T) {
 }
 
 func TestRepoPrefixDoesNotMatch(t *testing.T) {
-	gun := "docker.io/notary"
+	var gun data.GUN = "docker.io/notary"
 	meta, cs, err := testutils.NewRepoMetadata(gun)
 	require.NoError(t, err)
 	s := storage.NewMemStorage()
@@ -117,7 +117,7 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 	uploader, err := store.NewHTTPStore(url, "", "json", "key", http.DefaultTransport)
 	require.NoError(t, err)
 
-	require.Error(t, uploader.SetMulti(meta))
+	require.Error(t, uploader.SetMulti(data.MetadataRoleMapToStringMap(meta)))
 
 	// update the storage so we don't fail just because the metadata is missing
 	for _, roleName := range data.BaseRoles {
@@ -128,11 +128,11 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 		}))
 	}
 
-	_, err = uploader.GetSized(data.CanonicalSnapshotRole, notary.MaxDownloadSize)
+	_, err = uploader.GetSized(data.CanonicalSnapshotRole.String(), notary.MaxDownloadSize)
 	require.Error(t, err)
 
 	_, err = uploader.GetSized(
-		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]), notary.MaxDownloadSize)
+		tufutils.ConsistentName(data.CanonicalSnapshotRole.String(), snChecksumBytes[:]), notary.MaxDownloadSize)
 	require.Error(t, err)
 
 	_, err = uploader.GetKey(data.CanonicalTimestampRole)
@@ -168,7 +168,7 @@ func TestGetKeysEndpoint(t *testing.T) {
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
-	rolesToStatus := map[string]int{
+	rolesToStatus := map[data.RoleName]int{
 		data.CanonicalTimestampRole: http.StatusOK,
 		data.CanonicalSnapshotRole:  http.StatusOK,
 		data.CanonicalTargetsRole:   http.StatusNotFound,
@@ -382,7 +382,7 @@ func TestRotateKeyEndpoint(t *testing.T) {
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
-	rolesToStatus := map[string]int{
+	rolesToStatus := map[data.RoleName]int{
 		data.CanonicalTimestampRole: http.StatusOK,
 		data.CanonicalSnapshotRole:  http.StatusOK,
 		data.CanonicalTargetsRole:   http.StatusNotFound,

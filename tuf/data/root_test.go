@@ -40,7 +40,7 @@ func validRootTemplate() *SignedRoot {
 				"tgKey": NewPublicKey(RSAKey, []byte("tgKey")),
 				"tsKey": NewPublicKey(RSAKey, []byte("tsKey")),
 			},
-			Roles: map[string]*RootRole{
+			Roles: map[RoleName]*RootRole{
 				CanonicalRootRole:      {KeyIDs: []string{"key1"}, Threshold: 1},
 				CanonicalSnapshotRole:  {KeyIDs: []string{"snKey"}, Threshold: 1},
 				CanonicalTimestampRole: {KeyIDs: []string{"tsKey"}, Threshold: 1},
@@ -207,7 +207,7 @@ func TestRootFromSignedValidatesRoleData(t *testing.T) {
 func TestRootFromSignedValidatesRoleType(t *testing.T) {
 	root := validRootTemplate()
 
-	for _, invalid := range []string{"Root ", CanonicalSnapshotRole, "rootroot", "RoOt", "root"} {
+	for _, invalid := range []string{"Root ", CanonicalSnapshotRole.String(), "rootroot", "RoOt", "root"} {
 		root.Signed.Type = invalid
 		_, err := rootToSignedAndBack(t, root)
 		require.IsType(t, ErrInvalidMetadata{}, err)

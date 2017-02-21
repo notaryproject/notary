@@ -27,13 +27,13 @@ type RethinkDBKeyStore struct {
 // RDBPrivateKey represents a PrivateKey in the rethink database
 type RDBPrivateKey struct {
 	rethinkdb.Timing
-	KeyID           string `gorethink:"key_id"`
-	EncryptionAlg   string `gorethink:"encryption_alg"`
-	KeywrapAlg      string `gorethink:"keywrap_alg"`
-	Algorithm       string `gorethink:"algorithm"`
-	PassphraseAlias string `gorethink:"passphrase_alias"`
-	Gun             string `gorethink:"gun"`
-	Role            string `gorethink:"role"`
+	KeyID           string        `gorethink:"key_id"`
+	EncryptionAlg   string        `gorethink:"encryption_alg"`
+	KeywrapAlg      string        `gorethink:"keywrap_alg"`
+	Algorithm       string        `gorethink:"algorithm"`
+	PassphraseAlias string        `gorethink:"passphrase_alias"`
+	Gun             data.GUN      `gorethink:"gun"`
+	Role            data.RoleName `gorethink:"role"`
 
 	// gorethink specifically supports binary types, and says to pass it in as
 	// a byteslice.  Currently our encryption method for the private key bytes
@@ -49,23 +49,23 @@ type RDBPrivateKey struct {
 
 // gorethink can't handle an UnmarshalJSON function (see https://github.com/gorethink/gorethink/issues/201),
 // so do this here in an anonymous struct
-func rdbPrivateKeyFromJSON(data []byte) (interface{}, error) {
+func rdbPrivateKeyFromJSON(jsonData []byte) (interface{}, error) {
 	a := struct {
-		CreatedAt       time.Time `json:"created_at"`
-		UpdatedAt       time.Time `json:"updated_at"`
-		DeletedAt       time.Time `json:"deleted_at"`
-		KeyID           string    `json:"key_id"`
-		EncryptionAlg   string    `json:"encryption_alg"`
-		KeywrapAlg      string    `json:"keywrap_alg"`
-		Algorithm       string    `json:"algorithm"`
-		PassphraseAlias string    `json:"passphrase_alias"`
-		Gun             string    `json:"gun"`
-		Role            string    `json:"role"`
-		Public          []byte    `json:"public"`
-		Private         []byte    `json:"private"`
-		LastUsed        time.Time `json:"last_used"`
+		CreatedAt       time.Time     `json:"created_at"`
+		UpdatedAt       time.Time     `json:"updated_at"`
+		DeletedAt       time.Time     `json:"deleted_at"`
+		KeyID           string        `json:"key_id"`
+		EncryptionAlg   string        `json:"encryption_alg"`
+		KeywrapAlg      string        `json:"keywrap_alg"`
+		Algorithm       string        `json:"algorithm"`
+		PassphraseAlias string        `json:"passphrase_alias"`
+		Gun             data.GUN      `json:"gun"`
+		Role            data.RoleName `json:"role"`
+		Public          []byte        `json:"public"`
+		Private         []byte        `json:"private"`
+		LastUsed        time.Time     `json:"last_used"`
 	}{}
-	if err := json.Unmarshal(data, &a); err != nil {
+	if err := json.Unmarshal(jsonData, &a); err != nil {
 		return RDBPrivateKey{}, err
 	}
 	return RDBPrivateKey{
@@ -120,7 +120,7 @@ func (rdb *RethinkDBKeyStore) Name() string {
 
 // AddKey stores the contents of a private key. Both role and gun are ignored,
 // we always use Key IDs as name, and don't support aliases
-func (rdb *RethinkDBKeyStore) AddKey(role, gun string, privKey data.PrivateKey) error {
+func (rdb *RethinkDBKeyStore) AddKey(role data.RoleName, gun data.GUN, privKey data.PrivateKey) error {
 	passphrase, _, err := rdb.retriever(privKey.ID(), rdb.defaultPassAlias, false, 1)
 	if err != nil {
 		return err
@@ -188,7 +188,7 @@ func (rdb *RethinkDBKeyStore) getKey(keyID string) (*RDBPrivateKey, string, erro
 }
 
 // GetPrivateKey returns the PrivateKey given a KeyID
-func (rdb *RethinkDBKeyStore) GetPrivateKey(keyID string) (data.PrivateKey, string, error) {
+func (rdb *RethinkDBKeyStore) GetPrivateKey(keyID string) (data.PrivateKey, data.RoleName, error) {
 	dbPrivateKey, decryptedPrivKey, err := rdb.getKey(keyID)
 	if err != nil {
 		return nil, "", err
@@ -216,12 +216,12 @@ func (rdb *RethinkDBKeyStore) GetKey(keyID string) data.PublicKey {
 }
 
 // ListKeys always returns nil. This method is here to satisfy the CryptoService interface
-func (rdb RethinkDBKeyStore) ListKeys(role string) []string {
+func (rdb RethinkDBKeyStore) ListKeys(role data.RoleName) []string {
 	return nil
 }
 
 // ListAllKeys always returns nil. This method is here to satisfy the CryptoService interface
-func (rdb RethinkDBKeyStore) ListAllKeys() map[string]string {
+func (rdb RethinkDBKeyStore) ListAllKeys() map[string]data.RoleName {
 	return nil
 }
 
@@ -276,11 +276,11 @@ func (rdb RethinkDBKeyStore) markActive(keyID string) error {
 
 // Create will attempt to first re-use an inactive key for the same role, gun, and algorithm.
 // If one isn't found, it will create a private key and add it to the DB as an inactive key
-func (rdb RethinkDBKeyStore) Create(role, gun, algorithm string) (data.PublicKey, error) {
+func (rdb RethinkDBKeyStore) Create(role data.RoleName, gun data.GUN, algorithm string) (data.PublicKey, error) {
 	dbPrivateKey := RDBPrivateKey{}
 	res, err := gorethink.DB(rdb.dbName).Table(dbPrivateKey.TableName()).
-		Filter(gorethink.Row.Field("gun").Eq(gun)).
-		Filter(gorethink.Row.Field("role").Eq(role)).
+		Filter(gorethink.Row.Field("gun").Eq(gun.String())).
+		Filter(gorethink.Row.Field("role").Eq(role.String())).
 		Filter(gorethink.Row.Field("algorithm").Eq(algorithm)).
 		Filter(gorethink.Row.Field("last_used").Eq(time.Time{})).
 		OrderBy(gorethink.Row.Field("key_id")).

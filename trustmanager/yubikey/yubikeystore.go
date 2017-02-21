@@ -126,7 +126,7 @@ func (err errHSMNotPresent) Error() string {
 }
 
 type yubiSlot struct {
-	role   string
+	role   data.RoleName
 	slotID []byte
 }
 
@@ -230,7 +230,7 @@ func addECDSAKey(
 	privKey data.PrivateKey,
 	pkcs11KeyID []byte,
 	passRetriever notary.PassRetriever,
-	role string,
+	role data.RoleName,
 ) error {
 	logrus.Debugf("Attempting to add key to yubikey with ID: %s", privKey.ID())
 
@@ -250,7 +250,7 @@ func addECDSAKey(
 
 	// Hard-coded policy: the generated certificate expires in 10 years.
 	startTime := time.Now()
-	template, err := utils.NewCertificate(role, startTime, startTime.AddDate(10, 0, 0))
+	template, err := utils.NewCertificate(role.String(), startTime, startTime.AddDate(10, 0, 0))
 	if err != nil {
 		return fmt.Errorf("failed to create the certificate template: %v", err)
 	}
@@ -288,7 +288,7 @@ func addECDSAKey(
 	return nil
 }
 
-func getECDSAKey(ctx IPKCS11Ctx, session pkcs11.SessionHandle, pkcs11KeyID []byte) (*data.ECDSAPublicKey, string, error) {
+func getECDSAKey(ctx IPKCS11Ctx, session pkcs11.SessionHandle, pkcs11KeyID []byte) (*data.ECDSAPublicKey, data.RoleName, error) {
 	findTemplate := []*pkcs11.Attribute{
 		pkcs11.NewAttribute(pkcs11.CKA_TOKEN, true),
 		pkcs11.NewAttribute(pkcs11.CKA_ID, pkcs11KeyID),
@@ -485,7 +485,7 @@ func yubiListKeys(ctx IPKCS11Ctx, session pkcs11.SessionHandle) (keys map[string
 				if err != nil {
 					continue
 				}
-				if !data.ValidRole(cert.Subject.CommonName) {
+				if !data.ValidRole(data.RoleName(cert.Subject.CommonName)) {
 					continue
 				}
 			}
@@ -512,7 +512,7 @@ func yubiListKeys(ctx IPKCS11Ctx, session pkcs11.SessionHandle) (keys map[string
 		}
 
 		keys[data.NewECDSAPublicKey(pubBytes).ID()] = yubiSlot{
-			role:   cert.Subject.CommonName,
+			role:   data.RoleName(cert.Subject.CommonName),
 			slotID: slot,
 		}
 	}
@@ -697,7 +697,7 @@ func (s *YubiStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.PrivateKey
 
 // Only add if we haven't seen the key already.  Return whether the key was
 // added.
-func (s *YubiStore) addKey(keyID, role string, privKey data.PrivateKey) (
+func (s *YubiStore) addKey(keyID string, role data.RoleName, privKey data.PrivateKey) (
 	bool, error) {
 
 	// We only allow adding root keys for now
@@ -743,7 +743,7 @@ func (s *YubiStore) addKey(keyID, role string, privKey data.PrivateKey) (
 
 // GetKey retrieves a key from the Yubikey only (it does not look inside the
 // backup store)
-func (s *YubiStore) GetKey(keyID string) (data.PrivateKey, string, error) {
+func (s *YubiStore) GetKey(keyID string) (data.PrivateKey, data.RoleName, error) {
 	ctx, session, err := SetupHSMEnv(pkcs11Lib, s.libLoader)
 	if err != nil {
 		logrus.Debugf("No yubikey found, using alternative key storage: %s", err.Error())

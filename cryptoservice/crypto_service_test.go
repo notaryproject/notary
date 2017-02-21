@@ -27,9 +27,9 @@ var algoToSigType = map[string]data.SigAlgorithm{
 var passphraseRetriever = func(string, string, bool, int) (string, bool, error) { return "", false, nil }
 
 type CryptoServiceTester struct {
-	role    string
+	role    data.RoleName
 	keyAlgo string
-	gun     string
+	gun     data.GUN
 }
 
 func (c CryptoServiceTester) cryptoServiceFactory() *CryptoService {
@@ -294,7 +294,7 @@ func (c CryptoServiceTester) TestListFromMultipleKeystores(t *testing.T) {
 	for k, role := range keyMap {
 		_, ok := expectedKeysIDs[k]
 		require.True(t, ok)
-		require.Equal(t, "root", role)
+		require.Equal(t, data.RoleName("root"), role)
 	}
 }
 
@@ -360,8 +360,8 @@ func (c CryptoServiceTester) errorMsg(message string, args ...interface{}) strin
 		c.keyAlgo, fmt.Sprintf(message, args...))
 }
 
-func testCryptoService(t *testing.T, gun string) {
-	roles := []string{
+func testCryptoService(t *testing.T, gun data.GUN) {
+	roles := []data.RoleName{
 		data.CanonicalRootRole,
 		data.CanonicalTargetsRole,
 		data.CanonicalSnapshotRole,

@@ -236,7 +236,7 @@ func getPassphraseRetriever() notary.PassRetriever {
 		// Note that we don't check if the role name is for a delegation to allow for names like "user"
 		// since delegation keys can be shared across repositories
 		// This cannot be a base role or imported key, though.
-		if v := env["delegation"]; !data.IsBaseRole(alias) && v != "" {
+		if v := env["delegation"]; !data.IsBaseRole(data.RoleName(alias)) && v != "" {
 			return v, numAttempts > 1, nil
 		}
 		return baseRetriever(keyName, alias, createNew, numAttempts)

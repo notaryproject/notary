@@ -40,27 +40,27 @@ func (fpk FailingPrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.Signer
 type FailingCryptoService struct {
 }
 
-func (mts *FailingCryptoService) Create(_, _, _ string) (data.PublicKey, error) {
+func (mts *FailingCryptoService) Create(_ data.RoleName, _ data.GUN, _ string) (data.PublicKey, error) {
 	return nil, nil
 }
 
-func (mts *FailingCryptoService) ListKeys(role string) []string {
+func (mts *FailingCryptoService) ListKeys(role data.RoleName) []string {
 	return []string{}
 }
 
-func (mts *FailingCryptoService) AddKey(role, gun string, key data.PrivateKey) error {
+func (mts *FailingCryptoService) AddKey(role data.RoleName, gun data.GUN, key data.PrivateKey) error {
 	return nil
 }
 
-func (mts *FailingCryptoService) ListAllKeys() map[string]string {
-	return map[string]string{}
+func (mts *FailingCryptoService) ListAllKeys() map[string]data.RoleName {
+	return map[string]data.RoleName{}
 }
 
 func (mts *FailingCryptoService) GetKey(keyID string) data.PublicKey {
 	return nil
 }
 
-func (mts *FailingCryptoService) GetPrivateKey(keyID string) (data.PrivateKey, string, error) {
+func (mts *FailingCryptoService) GetPrivateKey(keyID string) (data.PrivateKey, data.RoleName, error) {
 	return nil, "", trustmanager.ErrKeyNotFound{KeyID: keyID}
 }
 
@@ -73,11 +73,11 @@ type MockCryptoService struct {
 	testKey data.PrivateKey
 }
 
-func (mts *MockCryptoService) Create(_, _, _ string) (data.PublicKey, error) {
+func (mts *MockCryptoService) Create(_ data.RoleName, _ data.GUN, _ string) (data.PublicKey, error) {
 	return mts.testKey, nil
 }
 
-func (mts *MockCryptoService) AddKey(role, gun string, key data.PrivateKey) error {
+func (mts *MockCryptoService) AddKey(role data.RoleName, gun data.GUN, key data.PrivateKey) error {
 	return nil
 }
 
@@ -88,12 +88,12 @@ func (mts *MockCryptoService) GetKey(keyID string) data.PublicKey {
 	return nil
 }
 
-func (mts *MockCryptoService) ListKeys(role string) []string {
+func (mts *MockCryptoService) ListKeys(role data.RoleName) []string {
 	return []string{mts.testKey.ID()}
 }
 
-func (mts *MockCryptoService) ListAllKeys() map[string]string {
-	return map[string]string{
+func (mts *MockCryptoService) ListAllKeys() map[string]data.RoleName {
+	return map[string]data.RoleName{
 		mts.testKey.ID(): data.CanonicalRootRole,
 		mts.testKey.ID(): data.CanonicalTargetsRole,
 		mts.testKey.ID(): data.CanonicalSnapshotRole,
@@ -101,7 +101,7 @@ func (mts *MockCryptoService) ListAllKeys() map[string]string {
 	}
 }
 
-func (mts *MockCryptoService) GetPrivateKey(keyID string) (data.PrivateKey, string, error) {
+func (mts *MockCryptoService) GetPrivateKey(keyID string) (data.PrivateKey, data.RoleName, error) {
 	if keyID == mts.testKey.ID() {
 		return mts.testKey, "testRole", nil
 	}

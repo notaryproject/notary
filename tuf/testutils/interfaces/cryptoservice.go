@@ -32,7 +32,7 @@ func EmptyCryptoServiceInterfaceBehaviorTests(t *testing.T, empty signed.CryptoS
 	k, role, err := empty.GetPrivateKey("nonexistent")
 	require.Error(t, err)
 	require.Nil(t, k)
-	require.Equal(t, "", role)
+	require.EqualValues(t, "", role)
 }
 
 // CreateGetKeyCryptoServiceInterfaceBehaviorTests tests expected behavior for
@@ -49,7 +49,7 @@ func CreateGetKeyCryptoServiceInterfaceBehaviorTests(t *testing.T, cs signed.Cry
 		createdPubKey, err := cs.Create(role, "docker.io/notary", algo)
 		require.NoError(t, err)
 		require.NotNil(t, createdPubKey)
-		expectedRolesToKeys[role] = createdPubKey.ID()
+		expectedRolesToKeys[role.String()] = createdPubKey.ID()
 	}
 
 	testGetKey(t, cs, expectedRolesToKeys, algo)
@@ -67,7 +67,7 @@ func CreateListKeyCryptoServiceInterfaceBehaviorTests(t *testing.T, cs signed.Cr
 		createdPubKey, err := cs.Create(role, "docker.io/notary", algo)
 		require.NoError(t, err)
 		require.NotNil(t, createdPubKey)
-		expectedRolesToKeys[role] = createdPubKey.ID()
+		expectedRolesToKeys[role.String()] = createdPubKey.ID()
 	}
 
 	testListKeys(t, cs, expectedRolesToKeys)
@@ -100,7 +100,7 @@ func AddGetKeyCryptoServiceInterfaceBehaviorTests(t *testing.T, cs signed.Crypto
 		require.NoError(t, err)
 		require.NotNil(t, addedPrivKey)
 		require.NoError(t, cs.AddKey(role, "docker.io/notary", addedPrivKey))
-		expectedRolesToKeys[role] = addedPrivKey.ID()
+		expectedRolesToKeys[role.String()] = addedPrivKey.ID()
 	}
 
 	testGetKey(t, cs, expectedRolesToKeys, algo)
@@ -132,7 +132,7 @@ func AddListKeyCryptoServiceInterfaceBehaviorTests(t *testing.T, cs signed.Crypt
 		require.NoError(t, err)
 		require.NotNil(t, addedPrivKey)
 		require.NoError(t, cs.AddKey(role, "docker.io/notary", addedPrivKey))
-		expectedRolesToKeys[role] = addedPrivKey.ID()
+		expectedRolesToKeys[role.String()] = addedPrivKey.ID()
 	}
 
 	testListKeys(t, cs, expectedRolesToKeys)
@@ -150,7 +150,7 @@ func testGetKey(t *testing.T, cs signed.CryptoService, expectedRolesToKeys map[s
 		require.NotNil(t, privKey)
 		require.Equal(t, keyID, privKey.ID())
 		require.Equal(t, algo, privKey.Algorithm())
-		require.Equal(t, role, gotRole)
+		require.EqualValues(t, role, gotRole)
 
 		require.NoError(t, cs.RemoveKey(keyID))
 		require.Nil(t, cs.GetKey(keyID))
@@ -161,7 +161,7 @@ func testListKeys(t *testing.T, cs signed.CryptoService, expectedRolesToKeys map
 	for _, role := range append(data.BaseRoles, "targets/delegation", "invalid") {
 		keys := cs.ListKeys(role)
 
-		if keyID, ok := expectedRolesToKeys[role]; ok {
+		if keyID, ok := expectedRolesToKeys[role.String()]; ok {
 			require.Len(t, keys, 1)
 			require.Equal(t, keyID, keys[0])
 		} else {
@@ -172,6 +172,6 @@ func testListKeys(t *testing.T, cs signed.CryptoService, expectedRolesToKeys map
 	keys := cs.ListAllKeys()
 	require.Len(t, keys, len(expectedRolesToKeys))
 	for role, keyID := range expectedRolesToKeys {
-		require.Equal(t, role, keys[keyID])
+		require.Equal(t, data.RoleName(role), keys[keyID])
 	}
 }

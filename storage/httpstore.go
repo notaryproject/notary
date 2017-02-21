@@ -24,6 +24,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
+	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/validation"
 )
 
@@ -284,8 +285,8 @@ func (s HTTPStore) buildMetaURL(name string) (*url.URL, error) {
 	return s.buildURL(uri)
 }
 
-func (s HTTPStore) buildKeyURL(name string) (*url.URL, error) {
-	filename := fmt.Sprintf("%s.%s", name, s.keyExtension)
+func (s HTTPStore) buildKeyURL(name data.RoleName) (*url.URL, error) {
+	filename := fmt.Sprintf("%s.%s", name.String(), s.keyExtension)
 	uri := path.Join(s.metaPrefix, filename)
 	return s.buildURL(uri)
 }
@@ -299,7 +300,7 @@ func (s HTTPStore) buildURL(uri string) (*url.URL, error) {
 }
 
 // GetKey retrieves a public key from the remote server
-func (s HTTPStore) GetKey(role string) ([]byte, error) {
+func (s HTTPStore) GetKey(role data.RoleName) ([]byte, error) {
 	url, err := s.buildKeyURL(role)
 	if err != nil {
 		return nil, err
@@ -313,7 +314,7 @@ func (s HTTPStore) GetKey(role string) ([]byte, error) {
 		return nil, NetworkError{Wrapped: err}
 	}
 	defer resp.Body.Close()
-	if err := translateStatusToError(resp, role+" key"); err != nil {
+	if err := translateStatusToError(resp, role.String()+" key"); err != nil {
 		return nil, err
 	}
 	body, err := ioutil.ReadAll(resp.Body)
@@ -324,7 +325,7 @@ func (s HTTPStore) GetKey(role string) ([]byte, error) {
 }
 
 // RotateKey rotates a private key and returns the public component from the remote server
-func (s HTTPStore) RotateKey(role string) ([]byte, error) {
+func (s HTTPStore) RotateKey(role data.RoleName) ([]byte, error) {
 	url, err := s.buildKeyURL(role)
 	if err != nil {
 		return nil, err
@@ -338,7 +339,7 @@ func (s HTTPStore) RotateKey(role string) ([]byte, error) {
 		return nil, NetworkError{Wrapped: err}
 	}
 	defer resp.Body.Close()
-	if err := translateStatusToError(resp, role+" key"); err != nil {
+	if err := translateStatusToError(resp, role.String()+" key"); err != nil {
 		return nil, err
 	}
 	body, err := ioutil.ReadAll(resp.Body)

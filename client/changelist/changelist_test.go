@@ -85,5 +85,5 @@ func TestMemChangelistRemove(t *testing.T) {
 
 	chs := cl.List()
 	require.Len(t, chs, 1)
-	require.Equal(t, "t3", chs[0].Scope())
+	require.EqualValues(t, "t3", chs[0].Scope())
 }

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"path"
 	"sort"
 
 	"github.com/Sirupsen/logrus"
@@ -23,14 +22,14 @@ import (
 // validation was successful. This allows the snapshot to be
 // created and added if snapshotting has been delegated to the
 // server
-func validateUpdate(cs signed.CryptoService, gun string, updates []storage.MetaUpdate, store storage.MetaStore) ([]storage.MetaUpdate, error) {
+func validateUpdate(cs signed.CryptoService, gun data.GUN, updates []storage.MetaUpdate, store storage.MetaStore) ([]storage.MetaUpdate, error) {
 
 	// some delegated targets role may be invalid based on other updates
 	// that have been made by other clients. We'll rebuild the slice of
 	// updates with only the things we should actually update
 	updatesToApply := make([]storage.MetaUpdate, 0, len(updates))
 
-	roles := make(map[string]storage.MetaUpdate)
+	roles := make(map[data.RoleName]storage.MetaUpdate)
 	for _, v := range updates {
 		roles[v.Role] = v
 	}
@@ -99,11 +98,11 @@ func validateUpdate(cs signed.CryptoService, gun string, updates []storage.MetaU
 	return append(updatesToApply, *update), nil
 }
 
-func loadAndValidateTargets(gun string, builder tuf.RepoBuilder, roles map[string]storage.MetaUpdate, store storage.MetaStore) ([]storage.MetaUpdate, error) {
+func loadAndValidateTargets(gun data.GUN, builder tuf.RepoBuilder, roles map[data.RoleName]storage.MetaUpdate, store storage.MetaStore) ([]storage.MetaUpdate, error) {
 	targetsRoles := make(utils.RoleList, 0)
 	for role := range roles {
 		if role == data.CanonicalTargetsRole || data.IsDelegation(role) {
-			targetsRoles = append(targetsRoles, role)
+			targetsRoles = append(targetsRoles, role.String())
 		}
 	}
 
@@ -114,14 +113,15 @@ func loadAndValidateTargets(gun string, builder tuf.RepoBuilder, roles map[strin
 	sort.Sort(targetsRoles)
 
 	updatesToApply := make([]storage.MetaUpdate, 0, len(targetsRoles))
-	for _, roleName := range targetsRoles {
+	for _, role := range targetsRoles {
 		// don't load parent if current role is "targets",
 		// we must load all ancestor roles, starting from `targets` and working down,
 		// for delegations to validate the full parent chain
-		var parentsToLoad []string
+		var parentsToLoad []data.RoleName
+		roleName := data.RoleName(role)
 		ancestorRole := roleName
 		for ancestorRole != data.CanonicalTargetsRole {
-			ancestorRole = path.Dir(ancestorRole)
+			ancestorRole = ancestorRole.Parent()
 			if !builder.IsLoaded(ancestorRole) {
 				parentsToLoad = append(parentsToLoad, ancestorRole)
 			}
@@ -149,7 +149,7 @@ func loadAndValidateTargets(gun string, builder tuf.RepoBuilder, roles map[strin
 // generateSnapshot generates a new snapshot from the previous one in the store - this assumes all
 // the other roles except timestamp have already been set on the repo, and will set the generated
 // snapshot on the repo as well
-func generateSnapshot(gun string, builder tuf.RepoBuilder, store storage.MetaStore) (*storage.MetaUpdate, error) {
+func generateSnapshot(gun data.GUN, builder tuf.RepoBuilder, store storage.MetaStore) (*storage.MetaUpdate, error) {
 	var prev *data.SignedSnapshot
 	_, currentJSON, err := store.GetCurrent(gun, data.CanonicalSnapshotRole)
 	if err == nil {
@@ -177,7 +177,7 @@ func generateSnapshot(gun string, builder tuf.RepoBuilder, store storage.MetaSto
 		// If we cannot sign the snapshot, then we don't have keys for the snapshot,
 		// and the client should have submitted a snapshot
 		return nil, validation.ErrBadHierarchy{
-			Missing: data.CanonicalSnapshotRole,
+			Missing: data.CanonicalSnapshotRole.String(),
 			Msg:     "no snapshot was included in update and server does not hold current snapshot key for repository"}
 	default:
 		return nil, validation.ErrValidation{Msg: err.Error()}
@@ -186,7 +186,7 @@ func generateSnapshot(gun string, builder tuf.RepoBuilder, store storage.MetaSto
 
 // generateTimestamp generates a new timestamp from the previous one in the store - this assumes all
 // the other roles have already been set on the repo, and will set the generated timestamp on the repo as well
-func generateTimestamp(gun string, builder tuf.RepoBuilder, store storage.MetaStore) (*storage.MetaUpdate, error) {
+func generateTimestamp(gun data.GUN, builder tuf.RepoBuilder, store storage.MetaStore) (*storage.MetaUpdate, error) {
 	var prev *data.SignedTimestamp
 	_, currentJSON, err := store.GetCurrent(gun, data.CanonicalTimestampRole)
 
@@ -223,7 +223,7 @@ func generateTimestamp(gun string, builder tuf.RepoBuilder, store storage.MetaSt
 	}
 }
 
-func loadFromStore(gun, roleName string, builder tuf.RepoBuilder, store storage.MetaStore) error {
+func loadFromStore(gun data.GUN, roleName data.RoleName, builder tuf.RepoBuilder, store storage.MetaStore) error {
 	_, metaJSON, err := store.GetCurrent(gun, roleName)
 	if err != nil {
 		return err

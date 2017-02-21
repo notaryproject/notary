@@ -9,7 +9,7 @@ import (
 )
 
 // Produce a series of tufMeta objects and updates given a TUF repo
-func metaFromRepo(t *testing.T, gun string, version int) map[string]StoredTUFMeta {
+func metaFromRepo(t *testing.T, gun data.GUN, version int) map[string]StoredTUFMeta {
 	tufRepo, _, err := testutils.EmptyRepo(gun, "targets/a", "targets/a/b")
 	require.NoError(t, err)
 
@@ -25,7 +25,7 @@ func metaFromRepo(t *testing.T, gun string, version int) map[string]StoredTUFMet
 
 	tufMeta := make(map[string]StoredTUFMeta)
 	for role, tufdata := range metaBytes {
-		tufMeta[role] = SampleCustomTUFObj(gun, role, version, tufdata)
+		tufMeta[role.String()] = SampleCustomTUFObj(gun, role, version, tufdata)
 	}
 
 	return tufMeta
@@ -35,7 +35,7 @@ func metaFromRepo(t *testing.T, gun string, version int) map[string]StoredTUFMet
 // to the snapshot specified in the checksum, to potentially other role metadata by checksum
 func testTUFMetaStoreGetCurrent(t *testing.T, s MetaStore) {
 	tufDBStore := NewTUFMetaStorage(s)
-	gun := "testGUN"
+	var gun data.GUN = "testGUN"
 
 	initialRootTUF := SampleCustomTUFObj(gun, data.CanonicalRootRole, 1, nil)
 	ConsistentEmptyGetCurrentTest(t, tufDBStore, initialRootTUF)
@@ -67,7 +67,7 @@ func testTUFMetaStoreGetCurrent(t *testing.T, s MetaStore) {
 	require.NoError(t, s.Delete(gun), "unable to delete metadata")
 	updates = make([]MetaUpdate, 0, len(updates)-1)
 	for role, tufObj := range tufMetaByRole {
-		if role != data.CanonicalSnapshotRole {
+		if role != data.CanonicalSnapshotRole.String() {
 			updates = append(updates, MakeUpdate(tufObj))
 		}
 	}
@@ -87,7 +87,7 @@ func testTUFMetaStoreGetCurrent(t *testing.T, s MetaStore) {
 	require.NoError(t, s.UpdateCurrent(gun, MakeUpdate(orphanedRootTUF)), "unable to create orphaned root in store")
 
 	// a GetCurrent for this gun and root gets us the previous root, which is linked in timestamp and snapshot
-	ConsistentGetCurrentFoundTest(t, tufDBStore, tufMetaByRole[data.CanonicalRootRole])
+	ConsistentGetCurrentFoundTest(t, tufDBStore, tufMetaByRole[data.CanonicalRootRole.String()])
 	// the orphaned root fails on a GetCurrent even though it's in the underlying store
 	ConsistentTSAndSnapGetDifferentCurrentTest(t, tufDBStore, orphanedRootTUF)
 }

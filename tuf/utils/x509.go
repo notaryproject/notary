@@ -428,7 +428,7 @@ func blockType(k data.PrivateKey) (string, error) {
 }
 
 // KeyToPEM returns a PEM encoded key from a Private Key
-func KeyToPEM(privKey data.PrivateKey, role, gun string) ([]byte, error) {
+func KeyToPEM(privKey data.PrivateKey, role data.RoleName, gun data.GUN) ([]byte, error) {
 	bt, err := blockType(privKey)
 	if err != nil {
 		return nil, err
@@ -436,10 +436,10 @@ func KeyToPEM(privKey data.PrivateKey, role, gun string) ([]byte, error) {
 
 	headers := map[string]string{}
 	if role != "" {
-		headers["role"] = role
+		headers["role"] = role.String()
 	}
 	if gun != "" {
-		headers["gun"] = gun
+		headers["gun"] = gun.String()
 	}
 
 	block := &pem.Block{
@@ -453,7 +453,7 @@ func KeyToPEM(privKey data.PrivateKey, role, gun string) ([]byte, error) {
 
 // EncryptPrivateKey returns an encrypted PEM key given a Privatekey
 // and a passphrase
-func EncryptPrivateKey(key data.PrivateKey, role, gun, passphrase string) ([]byte, error) {
+func EncryptPrivateKey(key data.PrivateKey, role data.RoleName, gun data.GUN, passphrase string) ([]byte, error) {
 	bt, err := blockType(key)
 	if err != nil {
 		return nil, err
@@ -476,10 +476,10 @@ func EncryptPrivateKey(key data.PrivateKey, role, gun, passphrase string) ([]byt
 	}
 
 	if role != "" {
-		encryptedPEMBlock.Headers["role"] = role
+		encryptedPEMBlock.Headers["role"] = role.String()
 	}
 	if gun != "" {
-		encryptedPEMBlock.Headers["gun"] = gun
+		encryptedPEMBlock.Headers["gun"] = gun.String()
 	}
 
 	return pem.EncodeToMemory(encryptedPEMBlock), nil

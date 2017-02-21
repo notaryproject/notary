@@ -84,7 +84,7 @@ We shall call this: TOFUS.
 
 Validation failure at any step will result in an ErrValidationFailed error.
 */
-func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trustPinning TrustPinConfig) (*data.SignedRoot, error) {
+func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun data.GUN, trustPinning TrustPinConfig) (*data.SignedRoot, error) {
 	logrus.Debugf("entered ValidateRoot with dns: %s", gun)
 	signedRoot, err := data.RootFromSigned(root)
 	if err != nil {
@@ -179,19 +179,19 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 
 // MatchCNToGun checks that the common name in a cert is valid for the given gun.
 // This allows wildcards as suffixes, e.g. `namespace/*`
-func MatchCNToGun(commonName, gun string) bool {
+func MatchCNToGun(commonName string, gun data.GUN) bool {
 	if strings.HasSuffix(commonName, wildcard) {
 		prefix := strings.TrimRight(commonName, wildcard)
 		logrus.Debugf("checking gun %s against wildcard prefix %s", gun, prefix)
-		return strings.HasPrefix(gun, prefix)
+		return strings.HasPrefix(gun.String(), prefix)
 	}
-	return commonName == gun
+	return commonName == gun.String()
 }
 
 // validRootLeafCerts returns a list of possibly (if checkExpiry is true) non-expired, non-sha1 certificates
 // found in root whose Common-Names match the provided GUN. Note that this
 // "validity" alone does not imply any measure of trust.
-func validRootLeafCerts(allLeafCerts map[string]*x509.Certificate, gun string, checkExpiry bool) (map[string]*x509.Certificate, error) {
+func validRootLeafCerts(allLeafCerts map[string]*x509.Certificate, gun data.GUN, checkExpiry bool) (map[string]*x509.Certificate, error) {
 	validLeafCerts := make(map[string]*x509.Certificate)
 
 	// Go through every leaf certificate and check that the CN matches the gun

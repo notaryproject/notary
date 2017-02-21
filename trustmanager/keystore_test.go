@@ -33,8 +33,8 @@ func TestAddKey(t *testing.T) {
 	testAddKeyWithRole(t, "invalidRole")
 }
 
-func testAddKeyWithRole(t *testing.T, role string) {
-	gun := "docker.com/notary"
+func testAddKeyWithRole(t *testing.T, role data.RoleName) {
+	var gun data.GUN = "docker.com/notary"
 	testExt := "key"
 
 	// Temporary directory where test files will be created
@@ -65,9 +65,9 @@ func testAddKeyWithRole(t *testing.T, role string) {
 	require.True(t, ok)
 	require.Equal(t, role, keyInfo.Role)
 	if role == data.CanonicalRootRole || data.IsDelegation(role) || !data.ValidRole(role) {
-		require.Empty(t, keyInfo.Gun)
+		require.Empty(t, keyInfo.Gun.String())
 	} else {
-		require.Equal(t, gun, keyInfo.Gun)
+		require.EqualValues(t, gun, keyInfo.Gun.String())
 	}
 }
 
@@ -77,10 +77,10 @@ func TestKeyStoreInternalState(t *testing.T) {
 	require.NoError(t, err, "failed to create a temporary directory")
 	defer os.RemoveAll(tempBaseDir)
 
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 
 	// Mimic a notary repo setup, and test that bringing up a keyfilestore creates the correct keyInfoMap
-	roles := []string{data.CanonicalRootRole, data.CanonicalTargetsRole, data.CanonicalSnapshotRole, "targets/delegation"}
+	roles := []data.RoleName{data.CanonicalRootRole, data.CanonicalTargetsRole, data.CanonicalSnapshotRole, data.RoleName("targets/delegation")}
 	// Keep track of the key IDs for each role, so we can validate later against the keystore state
 	roleToID := make(map[string]string)
 	for _, role := range roles {
@@ -104,32 +104,32 @@ func TestKeyStoreInternalState(t *testing.T) {
 		require.NoError(t, os.MkdirAll(filepath.Dir(keyPath), 0755))
 		require.NoError(t, ioutil.WriteFile(keyPath+".key", privKeyPEM, 0755))
 
-		roleToID[role] = privKey.ID()
+		roleToID[role.String()] = privKey.ID()
 	}
 
 	store, err := NewKeyFileStore(tempBaseDir, passphraseRetriever)
 	require.NoError(t, err)
 	require.Len(t, store.keyInfoMap, 4)
 	for _, role := range roles {
-		keyID, _ := roleToID[role]
+		keyID, _ := roleToID[role.String()]
 		// make sure this keyID is the right length
 		require.Len(t, keyID, notary.SHA256HexSize)
 		require.Equal(t, role, store.keyInfoMap[keyID].Role)
 		// targets and snapshot keys should have a gun set, root and delegation keys should not
 		if role == data.CanonicalTargetsRole || role == data.CanonicalSnapshotRole {
-			require.Equal(t, gun, store.keyInfoMap[keyID].Gun)
+			require.EqualValues(t, gun, store.keyInfoMap[keyID].Gun.String())
 		} else {
-			require.Empty(t, store.keyInfoMap[keyID].Gun)
+			require.Empty(t, store.keyInfoMap[keyID].Gun.String())
 		}
 	}
 
 	// Try removing the targets key only by ID (no gun provided)
-	require.NoError(t, store.RemoveKey(roleToID[data.CanonicalTargetsRole]))
+	require.NoError(t, store.RemoveKey(roleToID[data.CanonicalTargetsRole.String()]))
 	// The key file itself should have been removed
-	_, err = os.Stat(filepath.Join(tempBaseDir, notary.PrivDir, roleToID[data.CanonicalTargetsRole]+".key"))
+	_, err = os.Stat(filepath.Join(tempBaseDir, notary.PrivDir, roleToID[data.CanonicalTargetsRole.String()]+".key"))
 	require.Error(t, err)
 	// The keyInfoMap should have also updated by deleting the key
-	_, ok := store.keyInfoMap[roleToID[data.CanonicalTargetsRole]]
+	_, ok := store.keyInfoMap[roleToID[data.CanonicalTargetsRole.String()]]
 	require.False(t, ok)
 
 	// Try removing the delegation key only by ID (no gun provided)
@@ -142,12 +142,12 @@ func TestKeyStoreInternalState(t *testing.T) {
 	require.False(t, ok)
 
 	// Try removing the root key only by ID (no gun provided)
-	require.NoError(t, store.RemoveKey(roleToID[data.CanonicalRootRole]))
+	require.NoError(t, store.RemoveKey(roleToID[data.CanonicalRootRole.String()]))
 	// The key file itself should have been removed
-	_, err = os.Stat(filepath.Join(tempBaseDir, notary.PrivDir, roleToID[data.CanonicalRootRole]+".key"))
+	_, err = os.Stat(filepath.Join(tempBaseDir, notary.PrivDir, roleToID[data.CanonicalRootRole.String()]+".key"))
 	require.Error(t, err)
 	// The keyInfoMap should have also updated_
-	_, ok = store.keyInfoMap[roleToID[data.CanonicalRootRole]]
+	_, ok = store.keyInfoMap[roleToID[data.CanonicalRootRole.String()]]
 	require.False(t, ok)
 
 	// Generate a new targets key and add it with its gun, check that the map gets updated back
@@ -159,23 +159,23 @@ func TestKeyStoreInternalState(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	nonRootRolesToTest := []string{
+	nonRootRolesToTest := []data.RoleName{
 		data.CanonicalTargetsRole,
 		data.CanonicalSnapshotRole,
 		"targets/a/b/c",
 		"invalidRole",
 	}
 
-	gun := "docker.io/notary"
+	var gun data.GUN = "docker.io/notary"
 
 	testGetKeyWithRole(t, "", data.CanonicalRootRole)
 	for _, role := range nonRootRolesToTest {
-		testGetKeyWithRole(t, "", role)
+		testGetKeyWithRole(t, data.GUN(""), role)
 		testGetKeyWithRole(t, gun, role)
 	}
 }
 
-func testGetKeyWithRole(t *testing.T, gun, role string) {
+func testGetKeyWithRole(t *testing.T, gun data.GUN, role data.RoleName) {
 	var testData []byte
 	if gun == "" {
 		testData = []byte(fmt.Sprintf(`-----BEGIN RSA PRIVATE KEY-----
@@ -328,7 +328,7 @@ EMl3eFOJXjIch/wIesRSN+2dGOsl7neercjMh1i9RvpCwHDx/E0=
 	// Call the GetKey function
 	_, role, err := store.GetKey(testAlias)
 	require.NoError(t, err, "failed to get key from store")
-	require.Equal(t, testAlias, role)
+	require.EqualValues(t, testAlias, role)
 }
 
 func TestListKeys(t *testing.T) {
@@ -352,7 +352,7 @@ func TestListKeys(t *testing.T) {
 		require.NoError(t, err, "could not generate private key")
 
 		// Call the AddKey function
-		gun := filepath.Dir(testName)
+		gun := data.GUN(filepath.Dir(testName))
 		err = store.AddKey(KeyInfo{Role: role, Gun: gun}, privKey)
 		require.NoError(t, err, "failed to add key to store")
 
@@ -408,7 +408,7 @@ func TestAddGetKeyMemStore(t *testing.T) {
 }
 
 func TestAddGetKeyInfoMemStore(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 
 	// Create our store
 	store := NewKeyMemoryStore(passphraseRetriever)
@@ -424,7 +424,7 @@ func TestAddGetKeyInfoMemStore(t *testing.T) {
 	rootInfo, err := store.GetKeyInfo(rootKey.ID())
 	require.NoError(t, err)
 	require.Equal(t, data.CanonicalRootRole, rootInfo.Role)
-	require.Equal(t, "", rootInfo.Gun)
+	require.EqualValues(t, "", rootInfo.Gun)
 
 	targetsKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err, "could not generate private key")
@@ -449,8 +449,8 @@ func TestAddGetKeyInfoMemStore(t *testing.T) {
 	// Get and validate key info
 	delgInfo, err := store.GetKeyInfo(delgKey.ID())
 	require.NoError(t, err)
-	require.Equal(t, "targets/delegation", delgInfo.Role)
-	require.Equal(t, "", delgInfo.Gun)
+	require.EqualValues(t, "targets/delegation", delgInfo.Role)
+	require.EqualValues(t, "", delgInfo.Gun)
 }
 
 func TestGetDecryptedWithTamperedCipherText(t *testing.T) {
@@ -562,7 +562,7 @@ func testGetDecryptedWithInvalidPassphrase(t *testing.T, store KeyStore, newStor
 	require.NoError(t, err, "could not generate private key")
 
 	// Call the AddKey function
-	err = store.AddKey(KeyInfo{Role: testAlias, Gun: ""}, privKey)
+	err = store.AddKey(KeyInfo{Role: testAlias, Gun: data.GUN("")}, privKey)
 	require.NoError(t, err, "failed to add key to store")
 
 	// Try to decrypt the file with an invalid passphrase
@@ -579,8 +579,8 @@ func TestRemoveKey(t *testing.T) {
 	testRemoveKeyWithRole(t, "invalidRole")
 }
 
-func testRemoveKeyWithRole(t *testing.T, role string) {
-	gun := "docker.com/notary"
+func testRemoveKeyWithRole(t *testing.T, role data.RoleName) {
+	var gun data.GUN = "docker.com/notary"
 	testExt := "key"
 
 	// Temporary directory where test files will be created
@@ -615,8 +615,10 @@ func testRemoveKeyWithRole(t *testing.T, role string) {
 }
 
 func TestKeysAreCached(t *testing.T) {
-	gun := "docker.com/notary"
-	testAlias := "alias"
+	var (
+		gun       data.GUN      = "docker.com/notary"
+		testAlias data.RoleName = "alias"
+	)
 
 	// Temporary directory where test files will be created
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")

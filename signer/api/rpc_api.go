@@ -40,7 +40,7 @@ func (s *KeyManagementServer) CreateKey(ctx context.Context, req *pb.CreateKeyRe
 	var tufKey data.PublicKey
 	var err error
 
-	tufKey, err = service.Create(req.Role, req.Gun, req.Algorithm)
+	tufKey, err = service.Create(data.RoleName(req.Role), data.GUN(req.Gun), req.Algorithm)
 	if err != nil {
 		logger.Error("CreateKey: failed to create key: ", err)
 		return nil, grpc.Errorf(codes.Internal, "Key creation failed")
@@ -88,7 +88,7 @@ func (s *KeyManagementServer) GetKeyInfo(ctx context.Context, keyID *pb.KeyID) (
 			Algorithm: &pb.Algorithm{Algorithm: privKey.Algorithm()},
 		},
 		PublicKey: privKey.Public(),
-		Role:      role,
+		Role:      role.String(),
 	}, nil
 }
 

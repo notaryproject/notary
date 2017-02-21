@@ -9,6 +9,7 @@ import (
 	"hash"
 	"io"
 	"io/ioutil"
+	"path"
 	"strings"
 	"time"
 
@@ -16,6 +17,52 @@ import (
 	"github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
 )
+
+// GUN type for specifying gun
+type GUN string
+
+func (g GUN) String() string {
+	return string(g)
+}
+
+// RoleName type for specifying role
+type RoleName string
+
+func (r RoleName) String() string {
+	return string(r)
+}
+
+// Parent provides the parent path role from the provided child role
+func (r RoleName) Parent() RoleName {
+	return RoleName(path.Dir(r.String()))
+}
+
+// MetadataRoleMapToStringMap generates a map string of bytes from a map RoleName of bytes
+func MetadataRoleMapToStringMap(roles map[RoleName][]byte) map[string][]byte {
+	metadata := make(map[string][]byte)
+	for k, v := range roles {
+		metadata[k.String()] = v
+	}
+	return metadata
+}
+
+// NewRoleList generates an array of RoleName objects from a slice of strings
+func NewRoleList(roles []string) []RoleName {
+	var roleNames []RoleName
+	for _, role := range roles {
+		roleNames = append(roleNames, RoleName(role))
+	}
+	return roleNames
+}
+
+// RolesListToStringList generates an array of string objects from a slice of roles
+func RolesListToStringList(roles []RoleName) []string {
+	var roleNames []string
+	for _, role := range roles {
+		roleNames = append(roleNames, role.String())
+	}
+	return roleNames
+}
 
 // SigAlgorithm for types of signatures
 type SigAlgorithm string
@@ -25,6 +72,15 @@ func (k SigAlgorithm) String() string {
 }
 
 const defaultHashAlgorithm = "sha256"
+
+// NotaryDefaultExpiries is the construct used to configure the default expiry times of
+// the various role files.
+var NotaryDefaultExpiries = map[RoleName]time.Duration{
+	CanonicalRootRole:      notary.NotaryRootExpiry,
+	CanonicalTargetsRole:   notary.NotaryTargetsExpiry,
+	CanonicalSnapshotRole:  notary.NotarySnapshotExpiry,
+	CanonicalTimestampRole: notary.NotaryTimestampExpiry,
+}
 
 // Signature types
 const (
@@ -45,7 +101,7 @@ const (
 )
 
 // TUFTypes is the set of metadata types
-var TUFTypes = map[string]string{
+var TUFTypes = map[RoleName]string{
 	CanonicalRootRole:      "Root",
 	CanonicalTargetsRole:   "Targets",
 	CanonicalSnapshotRole:  "Snapshot",
@@ -53,7 +109,7 @@ var TUFTypes = map[string]string{
 }
 
 // ValidTUFType checks if the given type is valid for the role
-func ValidTUFType(typ, role string) bool {
+func ValidTUFType(typ string, role RoleName) bool {
 	if ValidRole(role) {
 		// All targets delegation roles must have
 		// the valid type is for targets.
@@ -62,7 +118,7 @@ func ValidTUFType(typ, role string) bool {
 			// a type
 			return false
 		}
-		if strings.HasPrefix(role, CanonicalTargetsRole+"/") {
+		if strings.HasPrefix(role.String(), CanonicalTargetsRole.String()+"/") {
 			role = CanonicalTargetsRole
 		}
 	}
@@ -261,7 +317,7 @@ func NewDelegations() *Delegations {
 }
 
 // These values are recommended TUF expiry times.
-var defaultExpiryTimes = map[string]time.Duration{
+var defaultExpiryTimes = map[RoleName]time.Duration{
 	CanonicalRootRole:      notary.Year,
 	CanonicalTargetsRole:   90 * notary.Day,
 	CanonicalSnapshotRole:  7 * notary.Day,
@@ -269,10 +325,10 @@ var defaultExpiryTimes = map[string]time.Duration{
 }
 
 // SetDefaultExpiryTimes allows one to change the default expiries.
-func SetDefaultExpiryTimes(times map[string]time.Duration) {
+func SetDefaultExpiryTimes(times map[RoleName]time.Duration) {
 	for key, value := range times {
 		if _, ok := defaultExpiryTimes[key]; !ok {
-			logrus.Errorf("Attempted to set default expiry for an unknown role: %s", key)
+			logrus.Errorf("Attempted to set default expiry for an unknown role: %s", key.String())
 			continue
 		}
 		defaultExpiryTimes[key] = value
@@ -280,7 +336,7 @@ func SetDefaultExpiryTimes(times map[string]time.Duration) {
 }
 
 // DefaultExpires gets the default expiry time for the given role
-func DefaultExpires(role string) time.Time {
+func DefaultExpires(role RoleName) time.Time {
 	if d, ok := defaultExpiryTimes[role]; ok {
 		return time.Now().Add(d)
 	}

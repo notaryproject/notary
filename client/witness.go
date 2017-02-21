@@ -10,14 +10,14 @@ import (
 
 // Witness creates change objects to witness (i.e. re-sign) the given
 // roles on the next publish. One change is created per role
-func (r *NotaryRepository) Witness(roles ...string) ([]string, error) {
+func (r *NotaryRepository) Witness(roles ...data.RoleName) ([]data.RoleName, error) {
 	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
 	if err != nil {
 		return nil, err
 	}
 	defer cl.Close()
 
-	successful := make([]string, 0, len(roles))
+	successful := make([]data.RoleName, 0, len(roles))
 	for _, role := range roles {
 		// scope is role
 		c := changelist.NewTUFChange(
@@ -36,7 +36,7 @@ func (r *NotaryRepository) Witness(roles ...string) ([]string, error) {
 	return successful, err
 }
 
-func witnessTargets(repo *tuf.Repo, invalid *tuf.Repo, role string) error {
+func witnessTargets(repo *tuf.Repo, invalid *tuf.Repo, role data.RoleName) error {
 	if r, ok := repo.Targets[role]; ok {
 		// role is already valid, mark for re-signing/updating
 		r.Dirty = true

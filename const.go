@@ -84,15 +84,6 @@ const (
 	CtxKeyRepo
 )
 
-// NotaryDefaultExpiries is the construct used to configure the default expiry times of
-// the various role files.
-var NotaryDefaultExpiries = map[string]time.Duration{
-	"root":      NotaryRootExpiry,
-	"targets":   NotaryTargetsExpiry,
-	"snapshot":  NotarySnapshotExpiry,
-	"timestamp": NotaryTimestampExpiry,
-}
-
 // NotarySupportedBackends contains the backends we would like to support at present
 var NotarySupportedBackends = []string{
 	MemoryBackend,

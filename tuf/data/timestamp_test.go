@@ -19,7 +19,7 @@ func validTimestampTemplate() *SignedTimestamp {
 		Signed: Timestamp{
 			SignedCommon: SignedCommon{Type: TUFTypes[CanonicalTimestampRole], Version: 1, Expires: time.Now()},
 			Meta: Files{
-				CanonicalSnapshotRole: FileMeta{Hashes: Hashes{"sha256": bytes.Repeat([]byte("a"), sha256.Size)}},
+				CanonicalSnapshotRole.String(): FileMeta{Hashes: Hashes{"sha256": bytes.Repeat([]byte("a"), sha256.Size)}},
 			}},
 		Signatures: []Signature{
 			{KeyID: "key1", Method: "method1", Signature: []byte("hello")},
@@ -148,28 +148,28 @@ func TestTimestampFromSignedValidatesMeta(t *testing.T) {
 	ts := validTimestampTemplate()
 
 	// invalid checksum length
-	ts.Signed.Meta[CanonicalSnapshotRole].Hashes["sha256"] = []byte("too short")
+	ts.Signed.Meta[CanonicalSnapshotRole.String()].Hashes["sha256"] = []byte("too short")
 	_, err = timestampToSignedAndBack(t, ts)
 	require.IsType(t, ErrInvalidMetadata{}, err)
 
 	// missing sha256 checksum
-	delete(ts.Signed.Meta[CanonicalSnapshotRole].Hashes, "sha256")
+	delete(ts.Signed.Meta[CanonicalSnapshotRole.String()].Hashes, "sha256")
 	_, err = timestampToSignedAndBack(t, ts)
 	require.IsType(t, ErrInvalidMetadata{}, err)
 
 	// add a different checksum to make sure it's not failing because of the hash length
-	ts.Signed.Meta[CanonicalSnapshotRole].Hashes["sha512"] = bytes.Repeat([]byte("a"), sha512.Size)
+	ts.Signed.Meta[CanonicalSnapshotRole.String()].Hashes["sha512"] = bytes.Repeat([]byte("a"), sha512.Size)
 	_, err = timestampToSignedAndBack(t, ts)
 	require.IsType(t, ErrInvalidMetadata{}, err)
 
 	// delete the ckechsum metadata entirely for the role
-	delete(ts.Signed.Meta, CanonicalSnapshotRole)
+	delete(ts.Signed.Meta, CanonicalSnapshotRole.String())
 	_, err = timestampToSignedAndBack(t, ts)
 	require.IsType(t, ErrInvalidMetadata{}, err)
 
 	// add some extra metadata to make sure it's not failing because the metadata
 	// is empty
-	ts.Signed.Meta[CanonicalSnapshotRole] = FileMeta{}
+	ts.Signed.Meta[CanonicalSnapshotRole.String()] = FileMeta{}
 	_, err = timestampToSignedAndBack(t, ts)
 	require.IsType(t, ErrInvalidMetadata{}, err)
 }
@@ -179,7 +179,7 @@ func TestTimestampFromSignedValidatesRoleType(t *testing.T) {
 	ts := validTimestampTemplate()
 	tsType := TUFTypes[CanonicalTimestampRole]
 
-	for _, invalid := range []string{" " + tsType, CanonicalSnapshotRole, strings.ToUpper(tsType)} {
+	for _, invalid := range []string{" " + tsType, CanonicalSnapshotRole.String(), strings.ToUpper(tsType)} {
 		ts.Signed.Type = invalid
 		s, err := ts.ToSigned()
 		require.NoError(t, err)
@@ -218,7 +218,7 @@ func TestTimestampGetSnapshot(t *testing.T) {
 	require.IsType(t, &FileMeta{}, f)
 
 	// no timestamp meta
-	delete(ts.Signed.Meta, CanonicalSnapshotRole)
+	delete(ts.Signed.Meta, CanonicalSnapshotRole.String())
 	f, err = ts.GetSnapshot()
 	require.Error(t, err)
 	require.IsType(t, ErrMissingMeta{}, err)

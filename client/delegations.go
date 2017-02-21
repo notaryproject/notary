@@ -15,7 +15,7 @@ import (
 
 // AddDelegation creates changelist entries to add provided delegation public keys and paths.
 // This method composes AddDelegationRoleAndKeys and AddDelegationPaths (each creates one changelist if called).
-func (r *NotaryRepository) AddDelegation(name string, delegationKeys []data.PublicKey, paths []string) error {
+func (r *NotaryRepository) AddDelegation(name data.RoleName, delegationKeys []data.PublicKey, paths []string) error {
 	if len(delegationKeys) > 0 {
 		err := r.AddDelegationRoleAndKeys(name, delegationKeys)
 		if err != nil {
@@ -34,7 +34,7 @@ func (r *NotaryRepository) AddDelegation(name string, delegationKeys []data.Publ
 // AddDelegationRoleAndKeys creates a changelist entry to add provided delegation public keys.
 // This method is the simplest way to create a new delegation, because the delegation must have at least
 // one key upon creation to be valid since we will reject the changelist while validating the threshold.
-func (r *NotaryRepository) AddDelegationRoleAndKeys(name string, delegationKeys []data.PublicKey) error {
+func (r *NotaryRepository) AddDelegationRoleAndKeys(name data.RoleName, delegationKeys []data.PublicKey) error {
 
 	if !data.IsDelegation(name) {
 		return data.ErrInvalidRole{Role: name, Reason: "invalid delegation role name"}
@@ -64,7 +64,7 @@ func (r *NotaryRepository) AddDelegationRoleAndKeys(name string, delegationKeys 
 
 // AddDelegationPaths creates a changelist entry to add provided paths to an existing delegation.
 // This method cannot create a new delegation itself because the role must meet the key threshold upon creation.
-func (r *NotaryRepository) AddDelegationPaths(name string, paths []string) error {
+func (r *NotaryRepository) AddDelegationPaths(name data.RoleName, paths []string) error {
 
 	if !data.IsDelegation(name) {
 		return data.ErrInvalidRole{Role: name, Reason: "invalid delegation role name"}
@@ -91,7 +91,7 @@ func (r *NotaryRepository) AddDelegationPaths(name string, paths []string) error
 
 // RemoveDelegationKeysAndPaths creates changelist entries to remove provided delegation key IDs and paths.
 // This method composes RemoveDelegationPaths and RemoveDelegationKeys (each creates one changelist if called).
-func (r *NotaryRepository) RemoveDelegationKeysAndPaths(name string, keyIDs, paths []string) error {
+func (r *NotaryRepository) RemoveDelegationKeysAndPaths(name data.RoleName, keyIDs, paths []string) error {
 	if len(paths) > 0 {
 		err := r.RemoveDelegationPaths(name, paths)
 		if err != nil {
@@ -108,7 +108,7 @@ func (r *NotaryRepository) RemoveDelegationKeysAndPaths(name string, keyIDs, pat
 }
 
 // RemoveDelegationRole creates a changelist to remove all paths and keys from a role, and delete the role in its entirety.
-func (r *NotaryRepository) RemoveDelegationRole(name string) error {
+func (r *NotaryRepository) RemoveDelegationRole(name data.RoleName) error {
 
 	if !data.IsDelegation(name) {
 		return data.ErrInvalidRole{Role: name, Reason: "invalid delegation role name"}
@@ -127,7 +127,7 @@ func (r *NotaryRepository) RemoveDelegationRole(name string) error {
 }
 
 // RemoveDelegationPaths creates a changelist entry to remove provided paths from an existing delegation.
-func (r *NotaryRepository) RemoveDelegationPaths(name string, paths []string) error {
+func (r *NotaryRepository) RemoveDelegationPaths(name data.RoleName, paths []string) error {
 
 	if !data.IsDelegation(name) {
 		return data.ErrInvalidRole{Role: name, Reason: "invalid delegation role name"}
@@ -157,7 +157,7 @@ func (r *NotaryRepository) RemoveDelegationPaths(name string, paths []string) er
 // the role itself will be deleted in its entirety.
 // It can also delete a key from all delegations under a parent using a name
 // with a wildcard at the end.
-func (r *NotaryRepository) RemoveDelegationKeys(name string, keyIDs []string) error {
+func (r *NotaryRepository) RemoveDelegationKeys(name data.RoleName, keyIDs []string) error {
 
 	if !data.IsDelegation(name) && !data.IsWildDelegation(name) {
 		return data.ErrInvalidRole{Role: name, Reason: "invalid delegation role name"}
@@ -183,7 +183,7 @@ func (r *NotaryRepository) RemoveDelegationKeys(name string, keyIDs []string) er
 }
 
 // ClearDelegationPaths creates a changelist entry to remove all paths from an existing delegation.
-func (r *NotaryRepository) ClearDelegationPaths(name string) error {
+func (r *NotaryRepository) ClearDelegationPaths(name data.RoleName) error {
 
 	if !data.IsDelegation(name) {
 		return data.ErrInvalidRole{Role: name, Reason: "invalid delegation role name"}
@@ -208,7 +208,7 @@ func (r *NotaryRepository) ClearDelegationPaths(name string) error {
 	return addChange(cl, template, name)
 }
 
-func newUpdateDelegationChange(name string, content []byte) *changelist.TUFChange {
+func newUpdateDelegationChange(name data.RoleName, content []byte) *changelist.TUFChange {
 	return changelist.NewTUFChange(
 		changelist.ActionUpdate,
 		name,
@@ -218,7 +218,7 @@ func newUpdateDelegationChange(name string, content []byte) *changelist.TUFChang
 	)
 }
 
-func newCreateDelegationChange(name string, content []byte) *changelist.TUFChange {
+func newCreateDelegationChange(name data.RoleName, content []byte) *changelist.TUFChange {
 	return changelist.NewTUFChange(
 		changelist.ActionCreate,
 		name,
@@ -228,7 +228,7 @@ func newCreateDelegationChange(name string, content []byte) *changelist.TUFChang
 	)
 }
 
-func newDeleteDelegationChange(name string, content []byte) *changelist.TUFChange {
+func newDeleteDelegationChange(name data.RoleName, content []byte) *changelist.TUFChange {
 	return changelist.NewTUFChange(
 		changelist.ActionDelete,
 		name,
@@ -249,7 +249,7 @@ func (r *NotaryRepository) GetDelegationRoles() ([]data.Role, error) {
 	// All top level delegations (ex: targets/level1) are stored exclusively in targets.json
 	_, ok := r.tufRepo.Targets[data.CanonicalTargetsRole]
 	if !ok {
-		return nil, store.ErrMetaNotFound{Resource: data.CanonicalTargetsRole}
+		return nil, store.ErrMetaNotFound{Resource: data.CanonicalTargetsRole.String()}
 	}
 
 	// make a copy for traversing nested delegations

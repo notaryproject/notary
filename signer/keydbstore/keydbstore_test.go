@@ -46,7 +46,7 @@ func testKeyCanOnlyBeAddedOnce(t *testing.T, dbStore signed.CryptoService) []dat
 	// Test writing new key in database alone, not cache
 	err := dbStore.AddKey(data.CanonicalTimestampRole, "gun", expectedKeys[0])
 	require.NoError(t, err)
-	requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole, expectedKeys[0])
+	requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole.String(), expectedKeys[0])
 
 	// Test writing the same key in the database. Should fail.
 	err = dbStore.AddKey(data.CanonicalTimestampRole, "gun", expectedKeys[0])
@@ -70,13 +70,13 @@ func testCreateDelete(t *testing.T, dbStore signed.CryptoService) []data.Private
 		// Add them to the DB
 		err = dbStore.AddKey(data.CanonicalTimestampRole, "gun", testKey)
 		require.NoError(t, err)
-		requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole, testKey)
+		requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole.String(), testKey)
 	}
 
 	// Deleting the key should succeed and only remove the key that was deleted
 	require.NoError(t, dbStore.RemoveKey(testKeys[0].ID()))
 	requireGetKeyFailure(t, dbStore, testKeys[0].ID())
-	requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole, testKeys[1])
+	requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole.String(), testKeys[1])
 
 	// Deleting the key again should succeed even though it's not in the DB
 	require.NoError(t, dbStore.RemoveKey(testKeys[0].ID()))
@@ -128,7 +128,7 @@ func testSigningWithKeyMarksAsActive(t *testing.T, dbStore signed.CryptoService)
 		// Add them to the DB
 		err = dbStore.AddKey(data.CanonicalTimestampRole, "gun", testKey)
 		require.NoError(t, err)
-		requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole, testKey)
+		requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole.String(), testKey)
 
 		// store the gotten key, because that key is special
 		gottenKey, _, err := dbStore.GetPrivateKey(testKey.ID())
@@ -166,7 +166,7 @@ func testSigningWithKeyMarksAsActive(t *testing.T, dbStore signed.CryptoService)
 func testCreateKey(t *testing.T, dbStore signed.CryptoService) (data.PrivateKey, data.PrivateKey, data.PrivateKey) {
 	// Create a test key, and check that it is successfully added to the database
 	role := data.CanonicalSnapshotRole
-	gun := "gun"
+	var gun data.GUN = "gun"
 
 	// First create an ECDSA key
 	createdECDSAKey, err := dbStore.Create(role, gun, data.ECDSAKey)
@@ -175,7 +175,7 @@ func testCreateKey(t *testing.T, dbStore signed.CryptoService) (data.PrivateKey,
 	require.Equal(t, data.ECDSAKey, createdECDSAKey.Algorithm())
 
 	// Retrieve the key from the database by ID, and check that it is correct
-	requireGetPubKeySuccess(t, dbStore, role, createdECDSAKey)
+	requireGetPubKeySuccess(t, dbStore, role.String(), createdECDSAKey)
 
 	// Calling Create with the same parameters will return the same key because it is inactive
 	createdSameECDSAKey, err := dbStore.Create(role, gun, data.ECDSAKey)
@@ -192,7 +192,7 @@ func testCreateKey(t *testing.T, dbStore signed.CryptoService) (data.PrivateKey,
 	require.NotEqual(t, createdECDSAKey.ID(), createdED25519Key.ID())
 
 	// Retrieve the key from the database by ID, and check that it is correct
-	requireGetPubKeySuccess(t, dbStore, role, createdED25519Key)
+	requireGetPubKeySuccess(t, dbStore, role.String(), createdED25519Key)
 
 	// Sign with the ED25519 key from the DB to mark it as active
 	activeED25519Key, _, err := dbStore.GetPrivateKey(createdED25519Key.ID())
@@ -228,7 +228,7 @@ func testUnimplementedInterfaceMethods(t *testing.T, dbStore signed.CryptoServic
 	require.NoError(t, err)
 	err = dbStore.AddKey(data.CanonicalTimestampRole, "gun", testKey)
 	require.NoError(t, err)
-	requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole, testKey)
+	requireGetKeySuccess(t, dbStore, data.CanonicalTimestampRole.String(), testKey)
 
 	// these are unimplemented/unused, and return nil
 	require.Nil(t, dbStore.ListAllKeys())

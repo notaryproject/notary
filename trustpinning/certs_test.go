@@ -311,7 +311,7 @@ func TestValidateRootWithPinnedCertAndIntermediates(t *testing.T) {
 				ecdsax509Key.ID(): ecdsax509Key,
 				otherKey.ID():     otherKey,
 			},
-			Roles: map[string]*data.RootRole{
+			Roles: map[data.RoleName]*data.RootRole{
 				"root": {
 					KeyIDs:    []string{ecdsax509Key.ID()},
 					Threshold: 1,
@@ -464,7 +464,7 @@ func TestValidateRootWithPinnedCA(t *testing.T) {
 
 	testRoot, err := data.NewRoot(
 		map[string]data.PublicKey{newRootKey.ID(): newRootKey},
-		map[string]*data.RootRole{
+		map[data.RoleName]*data.RootRole{
 			data.CanonicalRootRole:      &rootRole.RootRole,
 			data.CanonicalTimestampRole: &rootRole.RootRole,
 			data.CanonicalTargetsRole:   &rootRole.RootRole,
@@ -568,7 +568,7 @@ func TestValidateSuccessfulRootRotation(t *testing.T) {
 
 func testValidateSuccessfulRootRotation(t *testing.T, keyAlg, rootKeyType string) {
 	// The gun to test
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 
 	memKeyStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memKeyStore)
@@ -582,7 +582,7 @@ func testValidateSuccessfulRootRotation(t *testing.T, keyAlg, rootKeyType string
 
 	origTestRoot, err := data.NewRoot(
 		map[string]data.PublicKey{origRootKey.ID(): origRootKey},
-		map[string]*data.RootRole{
+		map[data.RoleName]*data.RootRole{
 			data.CanonicalRootRole:      &origRootRole.RootRole,
 			data.CanonicalTargetsRole:   &origRootRole.RootRole,
 			data.CanonicalSnapshotRole:  &origRootRole.RootRole,
@@ -610,7 +610,7 @@ func testValidateSuccessfulRootRotation(t *testing.T, keyAlg, rootKeyType string
 
 	testRoot, err := data.NewRoot(
 		map[string]data.PublicKey{replRootKey.ID(): replRootKey},
-		map[string]*data.RootRole{
+		map[data.RoleName]*data.RootRole{
 			data.CanonicalRootRole:      &rootRole.RootRole,
 			data.CanonicalTimestampRole: &rootRole.RootRole,
 			data.CanonicalTargetsRole:   &rootRole.RootRole,
@@ -652,7 +652,7 @@ func TestValidateRootRotationMissingOrigSig(t *testing.T) {
 }
 
 func testValidateRootRotationMissingOrigSig(t *testing.T, keyAlg, rootKeyType string) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 
 	memKeyStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memKeyStore)
@@ -666,7 +666,7 @@ func testValidateRootRotationMissingOrigSig(t *testing.T, keyAlg, rootKeyType st
 
 	origTestRoot, err := data.NewRoot(
 		map[string]data.PublicKey{origRootKey.ID(): origRootKey},
-		map[string]*data.RootRole{
+		map[data.RoleName]*data.RootRole{
 			data.CanonicalRootRole:      &origRootRole.RootRole,
 			data.CanonicalTargetsRole:   &origRootRole.RootRole,
 			data.CanonicalSnapshotRole:  &origRootRole.RootRole,
@@ -694,7 +694,7 @@ func testValidateRootRotationMissingOrigSig(t *testing.T, keyAlg, rootKeyType st
 
 	testRoot, err := data.NewRoot(
 		map[string]data.PublicKey{replRootKey.ID(): replRootKey},
-		map[string]*data.RootRole{
+		map[data.RoleName]*data.RootRole{
 			data.CanonicalRootRole:      &rootRole.RootRole,
 			data.CanonicalTargetsRole:   &rootRole.RootRole,
 			data.CanonicalSnapshotRole:  &rootRole.RootRole,
@@ -733,7 +733,7 @@ func TestValidateRootRotationMissingNewSig(t *testing.T) {
 }
 
 func testValidateRootRotationMissingNewSig(t *testing.T, keyAlg, rootKeyType string) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 
 	memKeyStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memKeyStore)
@@ -747,7 +747,7 @@ func testValidateRootRotationMissingNewSig(t *testing.T, keyAlg, rootKeyType str
 
 	origTestRoot, err := data.NewRoot(
 		map[string]data.PublicKey{origRootKey.ID(): origRootKey},
-		map[string]*data.RootRole{
+		map[data.RoleName]*data.RootRole{
 			data.CanonicalRootRole:      &origRootRole.RootRole,
 			data.CanonicalTargetsRole:   &origRootRole.RootRole,
 			data.CanonicalSnapshotRole:  &origRootRole.RootRole,
@@ -775,7 +775,7 @@ func testValidateRootRotationMissingNewSig(t *testing.T, keyAlg, rootKeyType str
 
 	testRoot, err := data.NewRoot(
 		map[string]data.PublicKey{replRootKey.ID(): replRootKey},
-		map[string]*data.RootRole{
+		map[data.RoleName]*data.RootRole{
 			data.CanonicalRootRole:      &rootRole.RootRole,
 			data.CanonicalTargetsRole:   &rootRole.RootRole,
 			data.CanonicalSnapshotRole:  &rootRole.RootRole,
@@ -802,7 +802,7 @@ func testValidateRootRotationMissingNewSig(t *testing.T, keyAlg, rootKeyType str
 // the specified trust pinning is respected with the new root for the Certs and TOFUs settings
 func TestValidateRootRotationTrustPinning(t *testing.T) {
 	// The gun to test
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 
 	memKeyStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memKeyStore)
@@ -816,7 +816,7 @@ func TestValidateRootRotationTrustPinning(t *testing.T) {
 
 	origTestRoot, err := data.NewRoot(
 		map[string]data.PublicKey{origRootKey.ID(): origRootKey},
-		map[string]*data.RootRole{
+		map[data.RoleName]*data.RootRole{
 			data.CanonicalRootRole:      &origRootRole.RootRole,
 			data.CanonicalTargetsRole:   &origRootRole.RootRole,
 			data.CanonicalSnapshotRole:  &origRootRole.RootRole,
@@ -844,7 +844,7 @@ func TestValidateRootRotationTrustPinning(t *testing.T) {
 
 	testRoot, err := data.NewRoot(
 		map[string]data.PublicKey{replRootKey.ID(): replRootKey},
-		map[string]*data.RootRole{
+		map[data.RoleName]*data.RootRole{
 			data.CanonicalRootRole:      &rootRole.RootRole,
 			data.CanonicalTimestampRole: &rootRole.RootRole,
 			data.CanonicalTargetsRole:   &rootRole.RootRole,
@@ -866,7 +866,7 @@ func TestValidateRootRotationTrustPinning(t *testing.T) {
 	// This call to trustpinning.ValidateRoot will fail due to the trust pinning mismatch in certs
 	invalidCertConfig := trustpinning.TrustPinConfig{
 		Certs: map[string][]string{
-			gun: {origRootKey.ID()},
+			gun.String(): {origRootKey.ID()},
 		},
 		DisableTOFU: true,
 	}
@@ -876,7 +876,7 @@ func TestValidateRootRotationTrustPinning(t *testing.T) {
 	// This call will succeed since we include the new root cert ID (and the old one)
 	validCertConfig := trustpinning.TrustPinConfig{
 		Certs: map[string][]string{
-			gun: {origRootKey.ID(), replRootKey.ID()},
+			gun.String(): {origRootKey.ID(), replRootKey.ID()},
 		},
 		DisableTOFU: true,
 	}
@@ -893,7 +893,7 @@ func TestValidateRootRotationTrustPinning(t *testing.T) {
 	// This call will also succeed since we only need the new replacement root ID to be pinned
 	validCertConfig = trustpinning.TrustPinConfig{
 		Certs: map[string][]string{
-			gun: {replRootKey.ID()},
+			gun.String(): {replRootKey.ID()},
 		},
 		DisableTOFU: true,
 	}
@@ -910,7 +910,7 @@ func TestValidateRootRotationTrustPinning(t *testing.T) {
 // TestValidateRootRotationTrustPinningInvalidCA runs a full root certificate rotation but ensures that
 // the specified trust pinning rejects the new root for not being signed by the specified CA
 func TestValidateRootRotationTrustPinningInvalidCA(t *testing.T) {
-	gun := "notary-signer"
+	var gun data.GUN = "notary-signer"
 	keyAlg := data.RSAKey
 	// Temporary directory where test files will be created
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
@@ -933,7 +933,7 @@ func TestValidateRootRotationTrustPinningInvalidCA(t *testing.T) {
 
 	testRoot, err := data.NewRoot(
 		map[string]data.PublicKey{origRootKey.ID(): origRootKey},
-		map[string]*data.RootRole{
+		map[data.RoleName]*data.RootRole{
 			data.CanonicalRootRole:      &rootRole.RootRole,
 			data.CanonicalTimestampRole: &rootRole.RootRole,
 			data.CanonicalTargetsRole:   &rootRole.RootRole,
@@ -971,7 +971,7 @@ func TestValidateRootRotationTrustPinningInvalidCA(t *testing.T) {
 	require.NoError(t, err)
 	newRoot, err := data.NewRoot(
 		map[string]data.PublicKey{replRootKey.ID(): replRootKey},
-		map[string]*data.RootRole{
+		map[data.RoleName]*data.RootRole{
 			data.CanonicalRootRole:      &rootRole.RootRole,
 			data.CanonicalTimestampRole: &rootRole.RootRole,
 			data.CanonicalTargetsRole:   &rootRole.RootRole,
@@ -989,22 +989,22 @@ func TestValidateRootRotationTrustPinningInvalidCA(t *testing.T) {
 
 	// Check that we respect the trust pinning on rotation
 	validCAFilepath := "../fixtures/root-ca.crt"
-	_, err = trustpinning.ValidateRoot(prevRoot, newSignedTestRoot, gun, trustpinning.TrustPinConfig{CA: map[string]string{gun: validCAFilepath}, DisableTOFU: true})
+	_, err = trustpinning.ValidateRoot(prevRoot, newSignedTestRoot, gun, trustpinning.TrustPinConfig{CA: map[string]string{gun.String(): validCAFilepath}, DisableTOFU: true})
 	require.Error(t, err)
 }
 
-func generateTestingCertificate(rootKey data.PrivateKey, gun string, timeToExpire time.Duration) (*x509.Certificate, error) {
+func generateTestingCertificate(rootKey data.PrivateKey, gun data.GUN, timeToExpire time.Duration) (*x509.Certificate, error) {
 	startTime := time.Now()
 	return cryptoservice.GenerateCertificate(rootKey, gun, startTime, startTime.Add(timeToExpire))
 }
 
-func generateExpiredTestingCertificate(rootKey data.PrivateKey, gun string) (*x509.Certificate, error) {
+func generateExpiredTestingCertificate(rootKey data.PrivateKey, gun data.GUN) (*x509.Certificate, error) {
 	startTime := time.Now().AddDate(-10, 0, 0)
 	return cryptoservice.GenerateCertificate(rootKey, gun, startTime, startTime.AddDate(1, 0, 0))
 }
 
 func TestParsePEMPublicKey(t *testing.T) {
-	gun := "notary"
+	var gun data.GUN = "notary"
 	memStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memStore)
 
@@ -1065,7 +1065,7 @@ func TestParsePEMPublicKey(t *testing.T) {
 }
 
 func TestCheckingCertExpiry(t *testing.T) {
-	gun := "notary"
+	var gun data.GUN = "notary"
 	memStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memStore)
 	testPubKey, err := cs.Create(data.CanonicalRootRole, gun, data.ECDSAKey)
@@ -1089,7 +1089,7 @@ func TestCheckingCertExpiry(t *testing.T) {
 	require.NoError(t, err)
 	testRoot, err := data.NewRoot(
 		map[string]data.PublicKey{almostExpiredPubKey.ID(): almostExpiredPubKey},
-		map[string]*data.RootRole{
+		map[data.RoleName]*data.RootRole{
 			data.CanonicalRootRole:      &rootRole.RootRole,
 			data.CanonicalTimestampRole: &rootRole.RootRole,
 			data.CanonicalTargetsRole:   &rootRole.RootRole,
@@ -1118,7 +1118,7 @@ func TestCheckingCertExpiry(t *testing.T) {
 	require.NoError(t, err)
 	testRoot, err = data.NewRoot(
 		map[string]data.PublicKey{expiredPubKey.ID(): expiredPubKey},
-		map[string]*data.RootRole{
+		map[data.RoleName]*data.RootRole{
 			data.CanonicalRootRole:      &rootRole.RootRole,
 			data.CanonicalTimestampRole: &rootRole.RootRole,
 			data.CanonicalTargetsRole:   &rootRole.RootRole,
@@ -1260,7 +1260,7 @@ func TestValidateRootWithExpiredIntermediate(t *testing.T) {
 				ecdsax509Key.ID(): ecdsax509Key,
 				otherKey.ID():     otherKey,
 			},
-			Roles: map[string]*data.RootRole{
+			Roles: map[data.RoleName]*data.RootRole{
 				"root": {
 					KeyIDs:    []string{ecdsax509Key.ID()},
 					Threshold: 1,
@@ -1317,7 +1317,7 @@ func TestCheckingWildcardCert(t *testing.T) {
 	require.NoError(t, err)
 	testRoot, err := data.NewRoot(
 		map[string]data.PublicKey{testCertPubKey.ID(): testCertPubKey},
-		map[string]*data.RootRole{
+		map[data.RoleName]*data.RootRole{
 			data.CanonicalRootRole:      &rootRole.RootRole,
 			data.CanonicalTimestampRole: &rootRole.RootRole,
 			data.CanonicalTargetsRole:   &rootRole.RootRole,
@@ -1372,6 +1372,6 @@ func TestWildcardMatching(t *testing.T) {
 		{"test/*/wild*", "test/test/wild", false},
 	}
 	for _, tt := range wildcardTests {
-		require.Equal(t, trustpinning.MatchCNToGun(tt.CN, tt.gun), tt.out)
+		require.Equal(t, trustpinning.MatchCNToGun(tt.CN, data.GUN(tt.gun)), tt.out)
 	}
 }

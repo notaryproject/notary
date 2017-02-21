@@ -63,21 +63,22 @@ func TestGetTimestampNoPreviousTimestamp(t *testing.T) {
 	for _, timestampJSON := range [][]byte{nil, []byte("invalid JSON")} {
 		store := storage.NewMemStorage()
 
+		var gun data.GUN = "gun"
 		// so we know it's not a failure in getting root or snapshot
 		require.NoError(t,
-			store.UpdateCurrent("gun", storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0,
+			store.UpdateCurrent(gun, storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0,
 				Data: meta[data.CanonicalRootRole]}))
 		require.NoError(t,
-			store.UpdateCurrent("gun", storage.MetaUpdate{Role: data.CanonicalSnapshotRole, Version: 0,
+			store.UpdateCurrent(gun, storage.MetaUpdate{Role: data.CanonicalSnapshotRole, Version: 0,
 				Data: meta[data.CanonicalSnapshotRole]}))
 
 		if timestampJSON != nil {
 			require.NoError(t,
-				store.UpdateCurrent("gun",
+				store.UpdateCurrent(gun,
 					storage.MetaUpdate{Role: data.CanonicalTimestampRole, Version: 0, Data: timestampJSON}))
 		}
 
-		_, _, err = GetOrCreateTimestamp("gun", store, crypto)
+		_, _, err = GetOrCreateTimestamp(gun, store, crypto)
 		require.Error(t, err, "GetTimestamp should have failed")
 		if timestampJSON == nil {
 			require.IsType(t, storage.ErrNotFound{}, err)
@@ -165,19 +166,19 @@ func TestCannotMakeNewTimestampIfNoRootOrSnapshot(t *testing.T) {
 		err  error
 	}{
 		{
-			test: map[string][]byte{data.CanonicalRootRole: rootJSON, data.CanonicalSnapshotRole: []byte("invalid JSON")},
+			test: map[string][]byte{data.CanonicalRootRole.String(): rootJSON, data.CanonicalSnapshotRole.String(): []byte("invalid JSON")},
 			err:  storage.ErrNotFound{},
 		},
 		{
-			test: map[string][]byte{data.CanonicalRootRole: []byte("invalid JSON"), data.CanonicalSnapshotRole: snapJSON},
+			test: map[string][]byte{data.CanonicalRootRole.String(): []byte("invalid JSON"), data.CanonicalSnapshotRole.String(): snapJSON},
 			err:  &json.SyntaxError{},
 		},
 		{
-			test: map[string][]byte{data.CanonicalRootRole: rootJSON},
+			test: map[string][]byte{data.CanonicalRootRole.String(): rootJSON},
 			err:  storage.ErrNotFound{},
 		},
 		{
-			test: map[string][]byte{data.CanonicalSnapshotRole: snapJSON},
+			test: map[string][]byte{data.CanonicalSnapshotRole.String(): snapJSON},
 			err:  storage.ErrNotFound{},
 		},
 	}
@@ -187,7 +188,7 @@ func TestCannotMakeNewTimestampIfNoRootOrSnapshot(t *testing.T) {
 		store := storage.NewMemStorage()
 		for roleName, jsonBytes := range dataToSet {
 			require.NoError(t, store.UpdateCurrent("gun",
-				storage.MetaUpdate{Role: roleName, Version: 0, Data: jsonBytes}))
+				storage.MetaUpdate{Role: data.RoleName(roleName), Version: 0, Data: jsonBytes}))
 		}
 		require.NoError(t, store.UpdateCurrent("gun",
 			storage.MetaUpdate{Role: data.CanonicalTimestampRole, Version: 1, Data: timestampJSON}))
@@ -231,7 +232,7 @@ type FailingStore struct {
 	*storage.MemStorage
 }
 
-func (f FailingStore) GetCurrent(role, gun string) (*time.Time, []byte, error) {
+func (f FailingStore) GetCurrent(gun data.GUN, role data.RoleName) (*time.Time, []byte, error) {
 	return nil, nil, fmt.Errorf("failing store failed")
 }
 
@@ -247,7 +248,7 @@ type CorruptedStore struct {
 	*storage.MemStorage
 }
 
-func (c CorruptedStore) GetCurrent(role, gun string) (*time.Time, []byte, error) {
+func (c CorruptedStore) GetCurrent(gun data.GUN, role data.RoleName) (*time.Time, []byte, error) {
 	return &time.Time{}, []byte("junk"), nil
 }
 

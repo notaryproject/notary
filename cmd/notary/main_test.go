@@ -260,15 +260,15 @@ type recordingMetaStore struct {
 
 // GetCurrent gets the metadata from the underlying MetaStore, but also records
 // that the metadata was requested
-func (r *recordingMetaStore) GetCurrent(gun, role string) (*time.Time, []byte, error) {
-	r.gotten = append(r.gotten, fmt.Sprintf("%s.%s", gun, role))
+func (r *recordingMetaStore) GetCurrent(gun data.GUN, role data.RoleName) (*time.Time, []byte, error) {
+	r.gotten = append(r.gotten, fmt.Sprintf("%s.%s", gun.String(), role.String()))
 	return r.MemStorage.GetCurrent(gun, role)
 }
 
 // GetChecksum gets the metadata from the underlying MetaStore, but also records
 // that the metadata was requested
-func (r *recordingMetaStore) GetChecksum(gun, role, checksum string) (*time.Time, []byte, error) {
-	r.gotten = append(r.gotten, fmt.Sprintf("%s.%s", gun, role))
+func (r *recordingMetaStore) GetChecksum(gun data.GUN, role data.RoleName, checksum string) (*time.Time, []byte, error) {
+	r.gotten = append(r.gotten, fmt.Sprintf("%s.%s", gun.String(), role.String()))
 	return r.MemStorage.GetChecksum(gun, role, checksum)
 }
 
@@ -557,16 +557,16 @@ func TestPassphraseRetrieverCaching(t *testing.T) {
 
 	// Check that root is cached
 	retriever := getPassphraseRetriever()
-	passphrase, giveup, err := retriever("key", data.CanonicalRootRole, false, 0)
+	passphrase, giveup, err := retriever("key", data.CanonicalRootRole.String(), false, 0)
 	require.NoError(t, err)
 	require.False(t, giveup)
 	require.Equal(t, passphrase, "root_passphrase")
 
 	_, _, err = retriever("key", "user", false, 0)
 	require.Error(t, err)
-	_, _, err = retriever("key", data.CanonicalTargetsRole, false, 0)
+	_, _, err = retriever("key", data.CanonicalTargetsRole.String(), false, 0)
 	require.Error(t, err)
-	_, _, err = retriever("key", data.CanonicalSnapshotRole, false, 0)
+	_, _, err = retriever("key", data.CanonicalSnapshotRole.String(), false, 0)
 	require.Error(t, err)
 	_, _, err = retriever("key", "targets/delegation", false, 0)
 	require.Error(t, err)
@@ -578,17 +578,17 @@ func TestPassphraseRetrieverCaching(t *testing.T) {
 
 	// Get a new retriever and check the caching
 	retriever = getPassphraseRetriever()
-	passphrase, giveup, err = retriever("key", data.CanonicalRootRole, false, 0)
+	passphrase, giveup, err = retriever("key", data.CanonicalRootRole.String(), false, 0)
 	require.NoError(t, err)
 	require.False(t, giveup)
 	require.Equal(t, passphrase, "root_passphrase")
 
-	passphrase, giveup, err = retriever("key", data.CanonicalTargetsRole, false, 0)
+	passphrase, giveup, err = retriever("key", data.CanonicalTargetsRole.String(), false, 0)
 	require.NoError(t, err)
 	require.False(t, giveup)
 	require.Equal(t, passphrase, "targets_passphrase")
 
-	passphrase, giveup, err = retriever("key", data.CanonicalSnapshotRole, false, 0)
+	passphrase, giveup, err = retriever("key", data.CanonicalSnapshotRole.String(), false, 0)
 	require.NoError(t, err)
 	require.False(t, giveup)
 	require.Equal(t, passphrase, "snapshot_passphrase")
@@ -633,10 +633,10 @@ func TestPassphraseRetrieverDelegationRoleCaching(t *testing.T) {
 	require.Equal(t, passphrase, "delegation_passphrase")
 
 	// Make sure base roles fail
-	_, _, err = retriever("key", data.CanonicalRootRole, false, 0)
+	_, _, err = retriever("key", data.CanonicalRootRole.String(), false, 0)
 	require.Error(t, err)
-	_, _, err = retriever("key", data.CanonicalTargetsRole, false, 0)
+	_, _, err = retriever("key", data.CanonicalTargetsRole.String(), false, 0)
 	require.Error(t, err)
-	_, _, err = retriever("key", data.CanonicalSnapshotRole, false, 0)
+	_, _, err = retriever("key", data.CanonicalSnapshotRole.String(), false, 0)
 	require.Error(t, err)
 }

@@ -215,8 +215,8 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	gun := args[0]
-	rotateKeyRole := args[1]
+	gun := data.GUN(args[0])
+	rotateKeyRole := data.RoleName(args[1])
 
 	rt, err := getTransport(config, gun, admin)
 	if err != nil {
@@ -277,7 +277,7 @@ func removeKeyInteractively(keyStores []trustmanager.KeyStore, keyID string,
 		for keypath, keyInfo := range store.ListKeys() {
 			if filepath.Base(keypath) == keyID {
 				foundKeys = append(foundKeys,
-					[]string{keypath, keyInfo.Role, store.Name()})
+					[]string{keypath, keyInfo.Role.String(), store.Name()})
 				storesByIndex = append(storesByIndex, store)
 			}
 		}

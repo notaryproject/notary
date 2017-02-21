@@ -18,9 +18,9 @@ func validSnapshotTemplate() *SignedSnapshot {
 		Signed: Snapshot{
 			SignedCommon: SignedCommon{Type: TUFTypes[CanonicalSnapshotRole], Version: 1, Expires: time.Now()},
 			Meta: Files{
-				CanonicalRootRole:    FileMeta{Hashes: Hashes{"sha256": bytes.Repeat([]byte("a"), sha256.Size)}},
-				CanonicalTargetsRole: FileMeta{Hashes: Hashes{"sha256": bytes.Repeat([]byte("a"), sha256.Size)}},
-				"targets/a":          FileMeta{},
+				CanonicalRootRole.String():    FileMeta{Hashes: Hashes{"sha256": bytes.Repeat([]byte("a"), sha256.Size)}},
+				CanonicalTargetsRole.String(): FileMeta{Hashes: Hashes{"sha256": bytes.Repeat([]byte("a"), sha256.Size)}},
+				"targets/a":                   FileMeta{},
 			}},
 		Signatures: []Signature{
 			{KeyID: "key1", Method: "method1", Signature: []byte("hello")},
@@ -146,32 +146,32 @@ func snapshotToSignedAndBack(t *testing.T, snapshot *SignedSnapshot) (*SignedSna
 // and thus fails to convert into a SignedSnapshot
 func TestSnapshotFromSignedValidatesMeta(t *testing.T) {
 	var err error
-	for _, roleName := range []string{CanonicalRootRole, CanonicalTargetsRole} {
+	for _, roleName := range []RoleName{CanonicalRootRole, CanonicalTargetsRole} {
 		sn := validSnapshotTemplate()
 
 		// invalid checksum length
-		sn.Signed.Meta[roleName].Hashes["sha256"] = []byte("too short")
+		sn.Signed.Meta[roleName.String()].Hashes["sha256"] = []byte("too short")
 		_, err = snapshotToSignedAndBack(t, sn)
 		require.IsType(t, ErrInvalidMetadata{}, err)
 
 		// missing sha256 checksum
-		delete(sn.Signed.Meta[roleName].Hashes, "sha256")
+		delete(sn.Signed.Meta[roleName.String()].Hashes, "sha256")
 		_, err = snapshotToSignedAndBack(t, sn)
 		require.IsType(t, ErrInvalidMetadata{}, err)
 
 		// add a different checksum to make sure it's not failing because of the hash length
-		sn.Signed.Meta[roleName].Hashes["sha512"] = bytes.Repeat([]byte("a"), sha512.Size)
+		sn.Signed.Meta[roleName.String()].Hashes["sha512"] = bytes.Repeat([]byte("a"), sha512.Size)
 		_, err = snapshotToSignedAndBack(t, sn)
 		require.IsType(t, ErrInvalidMetadata{}, err)
 
 		// delete the ckechsum metadata entirely for the role
-		delete(sn.Signed.Meta, roleName)
+		delete(sn.Signed.Meta, roleName.String())
 		_, err = snapshotToSignedAndBack(t, sn)
 		require.IsType(t, ErrInvalidMetadata{}, err)
 
 		// add some extra metadata to make sure it's not failing because the metadata
 		// is empty
-		sn.Signed.Meta[CanonicalSnapshotRole] = FileMeta{}
+		sn.Signed.Meta[CanonicalSnapshotRole.String()] = FileMeta{}
 		_, err = snapshotToSignedAndBack(t, sn)
 		require.IsType(t, ErrInvalidMetadata{}, err)
 	}
@@ -181,7 +181,7 @@ func TestSnapshotFromSignedValidatesMeta(t *testing.T) {
 func TestSnapshotFromSignedValidatesRoleType(t *testing.T) {
 	sn := validSnapshotTemplate()
 
-	for _, invalid := range []string{" Snapshot", CanonicalSnapshotRole, "TIMESTAMP"} {
+	for _, invalid := range []string{" Snapshot", CanonicalSnapshotRole.String(), "TIMESTAMP"} {
 		sn.Signed.Type = invalid
 		_, err := snapshotToSignedAndBack(t, sn)
 		require.IsType(t, ErrInvalidMetadata{}, err)

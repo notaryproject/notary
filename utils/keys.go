@@ -132,7 +132,7 @@ func ImportKeys(from io.Reader, to []Importer, fallbackRole string, fallbackGUN 
 					return errors.New("maximum number of passphrase attempts exceeded")
 				}
 			}
-			blockBytes, err = utils.EncryptPrivateKey(privKey, block.Headers["role"], block.Headers["gun"], chosenPassphrase)
+			blockBytes, err = utils.EncryptPrivateKey(privKey, tufdata.RoleName(block.Headers["role"]), tufdata.GUN(block.Headers["gun"]), chosenPassphrase)
 			if err != nil {
 				return errors.New("failed to encrypt key with given passphrase")
 			}
@@ -200,7 +200,7 @@ func checkValidity(block *pem.Block) (string, error) {
 	// A root key or a delegations key should not have a gun
 	// Note that a key that is not any of the canonical roles (except root) is a delegations key and should not have a gun
 	switch block.Headers["role"] {
-	case tufdata.CanonicalSnapshotRole, tufdata.CanonicalTargetsRole, tufdata.CanonicalTimestampRole:
+	case tufdata.CanonicalSnapshotRole.String(), tufdata.CanonicalTargetsRole.String(), tufdata.CanonicalTimestampRole.String():
 		// check if the key is missing a gun header or has an empty gun and error out since we don't know what gun it belongs to
 		if block.Headers["gun"] == "" {
 			logrus.Infof("failed to import key (%s) to store: Cannot have canonical role key without a gun, don't know what gun it belongs to", block.Headers["path"])

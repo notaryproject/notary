@@ -12,12 +12,14 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
+
+	"github.com/docker/notary/tuf/data"
 )
 
 func TestTokenAuth(t *testing.T) {
 	var (
-		baseTransport = &http.Transport{}
-		gun           = "test"
+		baseTransport          = &http.Transport{}
+		gun           data.GUN = "test"
 	)
 	auth, err := tokenAuth("https://localhost:9999", baseTransport, gun, readOnly)
 	require.NoError(t, err)
@@ -26,8 +28,8 @@ func TestTokenAuth(t *testing.T) {
 
 func TestAdminTokenAuth(t *testing.T) {
 	var (
-		baseTransport = &http.Transport{}
-		gun           = "test"
+		baseTransport          = &http.Transport{}
+		gun           data.GUN = "test"
 	)
 	auth, err := tokenAuth("https://localhost:9999", baseTransport, gun, admin)
 	require.NoError(t, err)
@@ -36,8 +38,8 @@ func TestAdminTokenAuth(t *testing.T) {
 
 func TestTokenAuth200Status(t *testing.T) {
 	var (
-		baseTransport = &http.Transport{}
-		gun           = "test"
+		baseTransport          = &http.Transport{}
+		gun           data.GUN = "test"
 	)
 	s := httptest.NewServer(http.HandlerFunc(NotAuthorizedTestHandler))
 	defer s.Close()
@@ -49,8 +51,8 @@ func TestTokenAuth200Status(t *testing.T) {
 
 func TestAdminTokenAuth200Status(t *testing.T) {
 	var (
-		baseTransport = &http.Transport{}
-		gun           = "test"
+		baseTransport          = &http.Transport{}
+		gun           data.GUN = "test"
 	)
 	s := httptest.NewServer(http.HandlerFunc(NotAuthorizedTestHandler))
 	defer s.Close()
@@ -66,8 +68,8 @@ func NotAuthorizedTestHandler(w http.ResponseWriter, r *http.Request) {
 
 func TestTokenAuth401Status(t *testing.T) {
 	var (
-		baseTransport = &http.Transport{}
-		gun           = "test"
+		baseTransport          = &http.Transport{}
+		gun           data.GUN = "test"
 	)
 	s := httptest.NewServer(http.HandlerFunc(NotAuthorizedTestHandler))
 	defer s.Close()
@@ -79,8 +81,8 @@ func TestTokenAuth401Status(t *testing.T) {
 
 func TestAdminTokenAuth401Status(t *testing.T) {
 	var (
-		baseTransport = &http.Transport{}
-		gun           = "test"
+		baseTransport          = &http.Transport{}
+		gun           data.GUN = "test"
 	)
 	s := httptest.NewServer(http.HandlerFunc(NotAuthorizedTestHandler))
 	defer s.Close()
@@ -96,8 +98,8 @@ func NotFoundTestHandler(w http.ResponseWriter, r *http.Request) {
 
 func TestTokenAuthNon200Non401Status(t *testing.T) {
 	var (
-		baseTransport = &http.Transport{}
-		gun           = "test"
+		baseTransport          = &http.Transport{}
+		gun           data.GUN = "test"
 	)
 	s := httptest.NewServer(http.HandlerFunc(NotFoundTestHandler))
 	defer s.Close()
@@ -109,8 +111,8 @@ func TestTokenAuthNon200Non401Status(t *testing.T) {
 
 func TestAdminTokenAuthNon200Non401Status(t *testing.T) {
 	var (
-		baseTransport = &http.Transport{}
-		gun           = "test"
+		baseTransport          = &http.Transport{}
+		gun           data.GUN = "test"
 	)
 	s := httptest.NewServer(http.HandlerFunc(NotFoundTestHandler))
 	defer s.Close()

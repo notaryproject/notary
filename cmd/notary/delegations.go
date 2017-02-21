@@ -91,7 +91,7 @@ func (d *delegationCommander) delegationPurgeKeys(cmd *cobra.Command, args []str
 		return fmt.Errorf("Please provide at least one key ID to be removed using the --key flag")
 	}
 
-	gun := args[0]
+	gun := data.GUN(args[0])
 
 	config, err := d.configGetter()
 	if err != nil {
@@ -140,7 +140,7 @@ func (d *delegationCommander) delegationsList(cmd *cobra.Command, args []string)
 		return err
 	}
 
-	gun := args[0]
+	gun := data.GUN(args[0])
 
 	rt, err := getTransport(config, gun, readOnly)
 	if err != nil {
@@ -226,7 +226,7 @@ func (d *delegationCommander) delegationRemove(cmd *cobra.Command, args []string
 }
 
 func delegationAddInput(d *delegationCommander, cmd *cobra.Command, args []string) (
-	config *viper.Viper, gun string, role string, keyIDs []string, error error) {
+	config *viper.Viper, gun data.GUN, role data.RoleName, keyIDs []string, error error) {
 	if len(args) < 2 {
 		cmd.Usage()
 		return nil, "", "", nil, fmt.Errorf("must specify the Global Unique Name and the role of the delegation along with optional keyIDs and/or a list of paths to remove")
@@ -237,8 +237,8 @@ func delegationAddInput(d *delegationCommander, cmd *cobra.Command, args []strin
 		return nil, "", "", nil, err
 	}
 
-	gun = args[0]
-	role = args[1]
+	gun = data.GUN(args[0])
+	role = data.RoleName(args[1])
 	// Check if role is valid delegation name before requiring any user input
 	if !data.IsDelegation(role) {
 		return nil, "", "", nil, fmt.Errorf("invalid delegation name %s", role)
@@ -261,10 +261,10 @@ func delegationAddInput(d *delegationCommander, cmd *cobra.Command, args []strin
 	return config, gun, role, keyIDs, nil
 }
 
-func delegationRemoveOutput(cmd *cobra.Command, d *delegationCommander, gun, role string, keyIDs []string) {
+func delegationRemoveOutput(cmd *cobra.Command, d *delegationCommander, gun data.GUN, role data.RoleName, keyIDs []string) {
 	cmd.Println("")
 	if d.removeAll {
-		cmd.Printf("Forced removal (including all keys and paths) of delegation role %s to repository \"%s\" staged for next publish.\n", role, gun)
+		cmd.Printf("Forced removal (including all keys and paths) of delegation role %s to repository \"%s\" staged for next publish.\n", role.String(), gun.String())
 	} else {
 		removingItems := ""
 		if len(keyIDs) > 0 {
@@ -279,7 +279,7 @@ func delegationRemoveOutput(cmd *cobra.Command, d *delegationCommander, gun, rol
 				strings.Join(prettyPaths(d.paths), "\n"),
 			)
 		}
-		cmd.Printf("Removal of delegation role %s %sto repository \"%s\" staged for next publish.\n", role, removingItems, gun)
+		cmd.Printf("Removal of delegation role %s %sto repository \"%s\" staged for next publish.\n", role.String(), removingItems, gun.String())
 	}
 	cmd.Println("")
 }
@@ -297,8 +297,8 @@ func (d *delegationCommander) delegationAdd(cmd *cobra.Command, args []string) e
 		return err
 	}
 
-	gun := args[0]
-	role := args[1]
+	gun := data.GUN(args[0])
+	role := data.RoleName(args[1])
 
 	pubKeys, err := ingestPublicKeys(args)
 	if err != nil {
