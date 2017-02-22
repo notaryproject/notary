@@ -7,8 +7,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
+	"crypto/tls"
+	"crypto/x509"
 	"github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
+	"google.golang.org/grpc/credentials"
+	"io/ioutil"
+	"path/filepath"
+	"runtime"
 )
 
 type TestError struct{}
@@ -39,8 +45,47 @@ func (s ErroringStorage) Location() string {
 	return "erroringstorage"
 }
 
+func getCertsDir(t *testing.T) string {
+	_, file, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	dir := filepath.Dir(file)
+	certsDir := filepath.Join(dir, "../../fixtures/")
+	return certsDir
+}
+
+func getServerTLS(t *testing.T) *tls.Config {
+	certDir := getCertsDir(t)
+	cert, err := tls.LoadX509KeyPair(
+		filepath.Join(certDir, "notary-escrow.crt"),
+		filepath.Join(certDir, "notary-escrow.key"),
+	)
+	require.NoError(t, err)
+	return &tls.Config{
+		Certificates: []tls.Certificate{cert},
+	}
+}
+
+func getClientTLS(t *testing.T) *tls.Config {
+	certDir := getCertsDir(t)
+	pool := x509.NewCertPool()
+	cert, err := ioutil.ReadFile(filepath.Join(certDir, "root-ca.crt"))
+	require.NoError(t, err)
+	pool.AppendCertsFromPEM(
+		cert,
+	)
+	return &tls.Config{
+		RootCAs: pool,
+	}
+}
+
 func setupTestServer(t *testing.T, addr string, store trustmanager.Storage) func() {
-	s := grpc.NewServer()
+	s := grpc.NewServer(
+		grpc.Creds(
+			credentials.NewTLS(
+				getServerTLS(t),
+			),
+		),
+	)
 	st := NewGRPCStorage(store)
 	l, err := net.Listen(
 		"tcp",
@@ -66,20 +111,8 @@ func TestRemoteStore(t *testing.T) {
 	closer := setupTestServer(t, addr, storage.NewMemoryStore(nil))
 	defer closer()
 
-	// can't just use NewRemoteStore because it correctly sets up tls
-	// config and for testing purposes it's easier for the client to just
-	// be insecure
-	cc, err := grpc.Dial(
-		addr,
-		grpc.WithInsecure(),
-		grpc.WithBlock(),
-	)
+	c, err := NewRemoteStore(addr, getClientTLS(t), 0)
 	require.NoError(t, err)
-	c := &RemoteStore{
-		client:   NewStoreClient(cc),
-		location: addr,
-		timeout:  DefaultTimeout,
-	}
 
 	loc := c.Location()
 	require.Equal(t, "Remote Key Store @ "+addr, loc)
@@ -114,20 +147,8 @@ func TestErrors(t *testing.T) {
 	closer := setupTestServer(t, addr, ErroringStorage{})
 	defer closer()
 
-	// can't just use NewRemoteStore because it correctly sets up tls
-	// config and for testing purposes it's easier for the client to just
-	// be insecure
-	cc, err := grpc.Dial(
-		addr,
-		grpc.WithInsecure(),
-		grpc.WithBlock(),
-	)
+	c, err := NewRemoteStore(addr, getClientTLS(t), 0)
 	require.NoError(t, err)
-	c := &RemoteStore{
-		client:   NewStoreClient(cc),
-		location: addr,
-		timeout:  DefaultTimeout,
-	}
 
 	err = c.Set(name, bytes)
 	require.Error(t, err)
