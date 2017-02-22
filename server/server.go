@@ -116,19 +116,7 @@ func filterImagePrefixes(requiredPrefixes []string, err error, handler http.Hand
 	})
 }
 
-// EndpointConfig stores settings used to create a ServerHandler
-type EndpointConfig struct {
-	OperationName       string
-	ServerHandler       utils.ContextHandler
-	ErrorIfGUNInvalid   error
-	IncludeCacheHeaders bool
-	CacheControlConfig  utils.CacheControlConfig
-	PermissionsRequired []string
-	AuthWrapper         utils.AuthWrapper
-	RepoPrefixes        []string
-}
-
-// CreateHandler creates a server handler from an EndpointConfig
+// CreateHandler creates a server handler, wrapping with auth, caching, and monitoring
 func CreateHandler(operationName string, serverHandler utils.ContextHandler, errorIfGUNInvalid error, includeCacheHeaders bool, cacheControlConfig utils.CacheControlConfig, permissionsRequired []string, authWrapper utils.AuthWrapper, repoPrefixes []string) http.Handler {
 	var wrapped http.Handler
 	wrapped = authWrapper(serverHandler, permissionsRequired...)
