@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package api;
+
+// Notary Interface
+service Notary {
+    // AddTarget adds a target to the TUF repository and re-signs.
+    rpc AddTarget(TargetAction) returns (BasicResponse) {}
+
+    // RemoveTarget deletes a target from the TUF repository and re-signs. It only
+    // uses the `name` field from the Target object, ignoring all other fields
+    rpc RemoveTarget(TargetAction) returns (BasicResponse) {}
+}
+
+// Target message describes a TUF target.
+message TargetAction {
+    string gun = 1;
+    string name = 2;
+    int64 length = 3;
+    map<string, bytes> hashes = 4;
+    bytes custom = 5;
+}
+
+// BasicResponse describes a response with a true/false success indicator,
+// and if false, an error type and message. See the errors.go file in this
+// package for the possible errors and a translation function between the
+// BasicResponse object and a concrete error type.
+message BasicResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+
