@@ -26,7 +26,7 @@ func Changefeed(ctx context.Context, w http.ResponseWriter, r *http.Request) err
 		vars                = mux.Vars(r)
 		logger              = ctxu.GetLogger(ctx)
 		qs                  = r.URL.Query()
-		imageName           = vars["imageName"]
+		gun                 = vars["gun"]
 		changeID            = qs.Get("change_id")
 		store, records, err = checkChangefeedInputs(logger, ctx.Value(notary.CtxKeyMetaStore), qs.Get("records"))
 	)
@@ -34,15 +34,15 @@ func Changefeed(ctx context.Context, w http.ResponseWriter, r *http.Request) err
 		// err already logged and in correct format.
 		return err
 	}
-	out, err := changefeed(logger, store, imageName, changeID, records)
+	out, err := changefeed(logger, store, gun, changeID, records)
 	if err == nil {
 		w.Write(out)
 	}
 	return err
 }
 
-func changefeed(logger ctxu.Logger, store storage.MetaStore, imageName, changeID string, records int64) ([]byte, error) {
-	changes, err := store.GetChanges(changeID, int(records), imageName)
+func changefeed(logger ctxu.Logger, store storage.MetaStore, gun, changeID string, records int64) ([]byte, error) {
+	changes, err := store.GetChanges(changeID, int(records), gun)
 	if err != nil {
 		logger.Errorf("%d GET could not retrieve records: %s", http.StatusInternalServerError, err.Error())
 		return nil, errors.ErrUnknown.WithDetail(err)

@@ -65,8 +65,8 @@ func (root *rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if root.auth != nil {
-		ctx = context.WithValue(ctx, notary.CtxKeyRepo, vars["imageName"])
-		if ctx, err = root.doAuth(ctx, vars["imageName"], w); err != nil {
+		ctx = context.WithValue(ctx, notary.CtxKeyRepo, vars["gun"])
+		if ctx, err = root.doAuth(ctx, vars["gun"], w); err != nil {
 			// errors have already been logged/output to w inside doAuth
 			// just return
 			return
@@ -95,12 +95,12 @@ func serveError(log ctxu.Logger, w http.ResponseWriter, err error) {
 	return
 }
 
-func (root *rootHandler) doAuth(ctx context.Context, imageName string, w http.ResponseWriter) (context.Context, error) {
+func (root *rootHandler) doAuth(ctx context.Context, gun string, w http.ResponseWriter) (context.Context, error) {
 	var access []auth.Access
-	if imageName == "" {
+	if gun == "" {
 		access = buildCatalogRecord(root.actions...)
 	} else {
-		access = buildAccessRecords(imageName, root.actions...)
+		access = buildAccessRecords(gun, root.actions...)
 	}
 
 	log := ctxu.GetRequestLogger(ctx)

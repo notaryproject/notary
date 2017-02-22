@@ -98,15 +98,15 @@ func filterImagePrefixes(requiredPrefixes []string, err error, handler http.Hand
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		imageName := mux.Vars(r)["imageName"]
+		gun := mux.Vars(r)["gun"]
 
-		if imageName == "" {
+		if gun == "" {
 			handler.ServeHTTP(w, r)
 			return
 		}
 
 		for _, prefix := range requiredPrefixes {
-			if strings.HasPrefix(imageName, prefix) {
+			if strings.HasPrefix(gun, prefix) {
 				handler.ServeHTTP(w, r)
 				return
 			}
@@ -116,7 +116,7 @@ func filterImagePrefixes(requiredPrefixes []string, err error, handler http.Hand
 	})
 }
 
-// EndpointConfig stores settings used to create a Notary handler
+// EndpointConfig stores settings used to create a ServerHandler
 type EndpointConfig struct {
 	OperationName       string
 	ServerHandler       utils.ContextHandler
@@ -151,7 +151,7 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 
 	r := mux.NewRouter()
 	r.Methods("GET").Path("/v2/").Handler(authWrapper(handlers.MainHandler))
-	r.Methods("POST").Path("/v2/{imageName:[^*]+}/_trust/tuf/").Handler(CreateHandler(EndpointConfig{
+	r.Methods("POST").Path("/v2/{gun:[^*]+}/_trust/tuf/").Handler(CreateHandler(EndpointConfig{
 		OperationName:       "UpdateTUF",
 		ErrorIfGUNInvalid:   invalidGUNErr,
 		ServerHandler:       handlers.AtomicUpdateHandler,
@@ -159,7 +159,7 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 		AuthWrapper:         authWrapper,
 		RepoPrefixes:        repoPrefixes,
 	}))
-	r.Methods("GET").Path("/v2/{imageName:[^*]+}/_trust/tuf/{tufRole:root|targets(?:/[^/\\s]+)*|snapshot|timestamp}.{checksum:[a-fA-F0-9]{64}|[a-fA-F0-9]{96}|[a-fA-F0-9]{128}}.json").Handler(CreateHandler(EndpointConfig{
+	r.Methods("GET").Path("/v2/{gun:[^*]+}/_trust/tuf/{tufRole:root|targets(?:/[^/\\s]+)*|snapshot|timestamp}.{checksum:[a-fA-F0-9]{64}|[a-fA-F0-9]{96}|[a-fA-F0-9]{128}}.json").Handler(CreateHandler(EndpointConfig{
 		OperationName:       "GetRoleByHash",
 		ErrorIfGUNInvalid:   notFoundError,
 		IncludeCacheHeaders: true,
@@ -169,7 +169,7 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 		AuthWrapper:         authWrapper,
 		RepoPrefixes:        repoPrefixes,
 	}))
-	r.Methods("GET").Path("/v2/{imageName:[^*]+}/_trust/tuf/{version:[1-9]*[0-9]+}.{tufRole:root|targets(?:/[^/\\s]+)*|snapshot|timestamp}.json").Handler(CreateHandler(EndpointConfig{
+	r.Methods("GET").Path("/v2/{gun:[^*]+}/_trust/tuf/{version:[1-9]*[0-9]+}.{tufRole:root|targets(?:/[^/\\s]+)*|snapshot|timestamp}.json").Handler(CreateHandler(EndpointConfig{
 		OperationName:       "GetRoleByVersion",
 		ErrorIfGUNInvalid:   notFoundError,
 		IncludeCacheHeaders: true,
@@ -179,7 +179,7 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 		AuthWrapper:         authWrapper,
 		RepoPrefixes:        repoPrefixes,
 	}))
-	r.Methods("GET").Path("/v2/{imageName:[^*]+}/_trust/tuf/{tufRole:root|targets(?:/[^/\\s]+)*|snapshot|timestamp}.json").Handler(CreateHandler(EndpointConfig{
+	r.Methods("GET").Path("/v2/{gun:[^*]+}/_trust/tuf/{tufRole:root|targets(?:/[^/\\s]+)*|snapshot|timestamp}.json").Handler(CreateHandler(EndpointConfig{
 		OperationName:       "GetRole",
 		ErrorIfGUNInvalid:   notFoundError,
 		IncludeCacheHeaders: true,
@@ -190,7 +190,7 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 		RepoPrefixes:        repoPrefixes,
 	}))
 	r.Methods("GET").Path(
-		"/v2/{imageName:[^*]+}/_trust/tuf/{tufRole:snapshot|timestamp}.key").Handler(CreateHandler(EndpointConfig{
+		"/v2/{gun:[^*]+}/_trust/tuf/{tufRole:snapshot|timestamp}.key").Handler(CreateHandler(EndpointConfig{
 		OperationName:       "GetKey",
 		ErrorIfGUNInvalid:   notFoundError,
 		ServerHandler:       handlers.GetKeyHandler,
@@ -199,7 +199,7 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 		RepoPrefixes:        repoPrefixes,
 	}))
 	r.Methods("POST").Path(
-		"/v2/{imageName:[^*]+}/_trust/tuf/{tufRole:snapshot|timestamp}.key").Handler(CreateHandler(EndpointConfig{
+		"/v2/{gun:[^*]+}/_trust/tuf/{tufRole:snapshot|timestamp}.key").Handler(CreateHandler(EndpointConfig{
 		OperationName:       "RotateKey",
 		ErrorIfGUNInvalid:   notFoundError,
 		ServerHandler:       handlers.RotateKeyHandler,
@@ -207,7 +207,7 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 		AuthWrapper:         authWrapper,
 		RepoPrefixes:        repoPrefixes,
 	}))
-	r.Methods("DELETE").Path("/v2/{imageName:[^*]+}/_trust/tuf/").Handler(CreateHandler(EndpointConfig{
+	r.Methods("DELETE").Path("/v2/{gun:[^*]+}/_trust/tuf/").Handler(CreateHandler(EndpointConfig{
 		OperationName:       "DeleteTUF",
 		ErrorIfGUNInvalid:   notFoundError,
 		ServerHandler:       handlers.DeleteHandler,
@@ -215,7 +215,7 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 		AuthWrapper:         authWrapper,
 		RepoPrefixes:        repoPrefixes,
 	}))
-	r.Methods("GET").Path("/v2/{imageName:[^*]+}/_trust/changefeed").Handler(CreateHandler(EndpointConfig{
+	r.Methods("GET").Path("/v2/{gun:[^*]+}/_trust/changefeed").Handler(CreateHandler(EndpointConfig{
 		OperationName:       "Changefeed",
 		ErrorIfGUNInvalid:   notFoundError,
 		ServerHandler:       handlers.Changefeed,
