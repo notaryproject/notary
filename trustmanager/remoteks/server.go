@@ -1,8 +1,6 @@
 package remoteks
 
 import (
-	"strings"
-
 	"github.com/Sirupsen/logrus"
 	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
@@ -52,7 +50,7 @@ func (s *GRPCStorage) Get(ctx context.Context, fn *FileNameMsg) (*ByteMsg, error
 // ListFiles returns all known identifiers in the storage backend.
 func (s *GRPCStorage) ListFiles(ctx context.Context, _ *google_protobuf.Empty) (*StringListMsg, error) {
 	lst := s.backend.ListFiles()
-	logrus.Debugf("found keys: %s", strings.Join(lst, ","))
+	logrus.Debugf("found %d keys", len(lst))
 	return &StringListMsg{
 		FileNames: lst,
 	}, nil

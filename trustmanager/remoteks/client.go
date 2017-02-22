@@ -3,6 +3,7 @@ package remoteks
 import (
 	"crypto/tls"
 	"fmt"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	google_protobuf "github.com/golang/protobuf/ptypes/empty"
@@ -13,17 +14,22 @@ import (
 	"github.com/docker/notary/trustmanager"
 )
 
+// DefaultTimeout is the time a request will block waiting for a response
+// from the server if no other timeout is configured.
+const DefaultTimeout = time.Second * 30
+
 // RemoteStore is a wrapper around the GRPC storage client, translating between
 // the Go and GRPC APIs.
 type RemoteStore struct {
 	client   StoreClient
 	location string
+	timeout  time.Duration
 }
 
 var _ trustmanager.Storage = &RemoteStore{}
 
 // NewRemoteStore instantiates a RemoteStore.
-func NewRemoteStore(server string, tlsConfig *tls.Config) (*RemoteStore, error) {
+func NewRemoteStore(server string, tlsConfig *tls.Config, timeout time.Duration) (*RemoteStore, error) {
 	cc, err := grpc.Dial(
 		server,
 		grpc.WithTransportCredentials(
@@ -34,10 +40,22 @@ func NewRemoteStore(server string, tlsConfig *tls.Config) (*RemoteStore, error) 
 	if err != nil {
 		return nil, err
 	}
+	if timeout == 0 {
+		timeout = DefaultTimeout
+	}
 	return &RemoteStore{
 		client:   NewStoreClient(cc),
 		location: server,
+		timeout:  timeout,
 	}, nil
+}
+
+// getContext returns a context with the timeout configured at initialization
+// time of the RemoteStore. We currently throw away the cancel function as we
+// have no current use cases to cancel sooner than the timeout.
+func (s *RemoteStore) getContext() context.Context {
+	ctx, _ := context.WithTimeout(context.Background(), s.timeout)
+	return ctx
 }
 
 // Set stores the data using the provided fileName
@@ -46,7 +64,7 @@ func (s *RemoteStore) Set(fileName string, data []byte) error {
 		FileName: fileName,
 		Data:     data,
 	}
-	_, err := s.client.Set(context.Background(), sm)
+	_, err := s.client.Set(s.getContext(), sm)
 	return err
 }
 
@@ -56,7 +74,7 @@ func (s *RemoteStore) Remove(fileName string) error {
 	fm := &FileNameMsg{
 		FileName: fileName,
 	}
-	_, err := s.client.Remove(context.Background(), fm)
+	_, err := s.client.Remove(s.getContext(), fm)
 	return err
 }
 
@@ -66,7 +84,7 @@ func (s *RemoteStore) Get(fileName string) ([]byte, error) {
 	fm := &FileNameMsg{
 		FileName: fileName,
 	}
-	bm, err := s.client.Get(context.Background(), fm)
+	bm, err := s.client.Get(s.getContext(), fm)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +96,7 @@ func (s *RemoteStore) Get(fileName string) ([]byte, error) {
 // Storage.Get method.
 func (s *RemoteStore) ListFiles() []string {
 	logrus.Infof("listing files from %s", s.location)
-	fl, err := s.client.ListFiles(context.Background(), &google_protobuf.Empty{})
+	fl, err := s.client.ListFiles(s.getContext(), &google_protobuf.Empty{})
 	if err != nil {
 		logrus.Errorf("error listing files from %s: %s", s.location, err.Error())
 		return nil

@@ -1,7 +1,6 @@
 package remoteks
 
 import (
-	"crypto/tls"
 	"net"
 	"testing"
 
@@ -11,10 +10,6 @@ import (
 	"github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
 )
-
-var insecureTLS = tls.Config{
-	InsecureSkipVerify: true,
-}
 
 type TestError struct{}
 
@@ -44,7 +39,7 @@ func (s ErroringStorage) Location() string {
 	return "erroringstorage"
 }
 
-func setupTestServer(t *testing.T, addr string, store trustmanager.Storage) *grpc.Server {
+func setupTestServer(t *testing.T, addr string, store trustmanager.Storage) func() {
 	s := grpc.NewServer()
 	st := NewGRPCStorage(store)
 	l, err := net.Listen(
@@ -57,16 +52,19 @@ func setupTestServer(t *testing.T, addr string, store trustmanager.Storage) *grp
 		err := s.Serve(l)
 		t.Logf("server errored %s", err)
 	}()
-	return s
+	return func() {
+		s.Stop()
+		l.Close()
+	}
 }
 
 func TestRemoteStore(t *testing.T) {
 	name := "testfile"
 	bytes := []byte{'1'}
-	addr := "127.0.0.1:9876"
+	addr := "localhost:9888"
 
-	s := setupTestServer(t, addr, storage.NewMemoryStore(nil))
-	defer s.Stop()
+	closer := setupTestServer(t, addr, storage.NewMemoryStore(nil))
+	defer closer()
 
 	// can't just use NewRemoteStore because it correctly sets up tls
 	// config and for testing purposes it's easier for the client to just
@@ -80,6 +78,7 @@ func TestRemoteStore(t *testing.T) {
 	c := &RemoteStore{
 		client:   NewStoreClient(cc),
 		location: addr,
+		timeout:  DefaultTimeout,
 	}
 
 	loc := c.Location()
@@ -110,10 +109,10 @@ func TestRemoteStore(t *testing.T) {
 func TestErrors(t *testing.T) {
 	name := "testfile"
 	bytes := []byte{'1'}
-	addr := "127.0.0.1:9877"
+	addr := "localhost:9887"
 
-	s := setupTestServer(t, addr, ErroringStorage{})
-	defer s.Stop()
+	closer := setupTestServer(t, addr, ErroringStorage{})
+	defer closer()
 
 	// can't just use NewRemoteStore because it correctly sets up tls
 	// config and for testing purposes it's easier for the client to just
@@ -127,6 +126,7 @@ func TestErrors(t *testing.T) {
 	c := &RemoteStore{
 		client:   NewStoreClient(cc),
 		location: addr,
+		timeout:  DefaultTimeout,
 	}
 
 	err = c.Set(name, bytes)
