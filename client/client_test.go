@@ -2631,8 +2631,10 @@ func TestRemoteRotationNoRootKey(t *testing.T) {
 	require.IsType(t, signed.ErrInsufficientSignatures{}, err)
 }
 
-// The repo hasn't been initialized, so we can't rotate
-func TestRemoteRotationNonexistentRepo(t *testing.T) {
+// The repo is initialized at publish time after
+// rotating the key. We should be denied the access
+// to metadata by the server when trying to retrieve it.
+func TestRemoteRotationNoInit(t *testing.T) {
 	ts, _, _ := simpleTestServer(t)
 	defer ts.Close()
 
@@ -2641,7 +2643,7 @@ func TestRemoteRotationNonexistentRepo(t *testing.T) {
 
 	err := repo.RotateKey(data.CanonicalTimestampRole, true, nil)
 	require.Error(t, err)
-	require.IsType(t, ErrRepoNotInitialized{}, err)
+	require.IsType(t, store.ErrMetaNotFound{}, err)
 }
 
 // Rotates the keys.  After the rotation, downloading the latest metadata
