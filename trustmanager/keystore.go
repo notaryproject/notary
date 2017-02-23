@@ -16,11 +16,9 @@ import (
 
 type keyInfoMap map[string]KeyInfo
 
-// KeyInfo stores the role, path, and gun for a corresponding private key ID
-// It is assumed that each private key ID is unique
-type KeyInfo struct {
-	Gun  data.GUN
-	Role data.RoleName
+type cachedKey struct {
+	role data.RoleName
+	key  data.PrivateKey
 }
 
 // GenericKeyStore is a wrapper for Storage instances that provides

@@ -57,6 +57,7 @@ const (
 	PostgresBackend  = "postgres"
 	SQLiteBackend    = "sqlite3"
 	RethinkDBBackend = "rethinkdb"
+	FileBackend      = "file"
 
 	DefaultImportRole = "delegation"
 

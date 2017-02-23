@@ -66,6 +66,10 @@ ${PREFIX}/bin/notary-signer: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
 	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS} ./cmd/notary-signer
 
+${PREFIX}/bin/escrow: NOTARY_VERSION $(shell find . -type f -name '*.go')
+	@echo "+ $@"
+	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS} ./cmd/escrow
+
 ifeq ($(shell uname -s),Darwin)
 ${PREFIX}/bin/static/notary-server:
 	@echo "notary-server: static builds not supported on OS X"
@@ -174,6 +178,9 @@ client: ${PREFIX}/bin/notary
 	@echo "+ $@"
 
 binaries: ${PREFIX}/bin/notary-server ${PREFIX}/bin/notary ${PREFIX}/bin/notary-signer
+	@echo "+ $@"
+
+escrow: ${PREFIX}/bin/escrow
 	@echo "+ $@"
 
 static: ${PREFIX}/bin/static/notary-server ${PREFIX}/bin/static/notary-signer ${PREFIX}/bin/static/notary
