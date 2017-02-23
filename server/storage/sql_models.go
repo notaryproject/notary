@@ -12,10 +12,10 @@ const (
 )
 
 // TUFFileTableName returns the name used for the tuf file table
-var TUFFileTableName = "tuf_files"
+const TUFFileTableName = "tuf_files"
 
 // ChangefeedTableName returns the name used for the changefeed table
-var ChangefeedTableName = "changefeed"
+const ChangefeedTableName = "changefeed"
 
 // TUFFile represents a TUF file in the database
 type TUFFile struct {
