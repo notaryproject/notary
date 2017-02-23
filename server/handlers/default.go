@@ -44,7 +44,7 @@ func AtomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 }
 
 func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	gun := data.GUN(vars["imageName"])
+	gun := data.GUN(vars["gun"])
 	s := ctx.Value(notary.CtxKeyMetaStore)
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	store, ok := s.(storage.MetaStore)
@@ -125,7 +125,7 @@ func GetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) err
 }
 
 func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	gun := data.GUN(vars["imageName"])
+	gun := data.GUN(vars["gun"])
 	checksum := vars["checksum"]
 	version := vars["version"]
 	tufRole := vars["tufRole"]
@@ -161,7 +161,7 @@ func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, var
 // DeleteHandler deletes all data for a GUN. A 200 responses indicates success.
 func DeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	vars := mux.Vars(r)
-	gun := data.GUN(vars["imageName"])
+	gun := data.GUN(vars["gun"])
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	s := ctx.Value(notary.CtxKeyMetaStore)
 	store, ok := s.(storage.MetaStore)
@@ -256,7 +256,7 @@ func rotateKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Reques
 
 // To be called before getKeyHandler or rotateKeyHandler
 func setupKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string, actionVerb string) (data.RoleName, data.GUN, string, storage.MetaStore, signed.CryptoService, error) {
-	gun := data.GUN(vars["imageName"])
+	gun := data.GUN(vars["gun"])
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	if gun == "" {
 		logger.Infof("400 %s no gun in request", actionVerb)

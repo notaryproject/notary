@@ -106,8 +106,8 @@ func TestKeyHandlersInvalidConfiguration(t *testing.T) {
 	}
 
 	vars := map[string]string{
-		"imageName": "gun",
-		"tufRole":   data.CanonicalTimestampRole.String(),
+		"gun":     "gun",
+		"tufRole": data.CanonicalTimestampRole.String(),
 	}
 	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
@@ -121,16 +121,16 @@ func TestKeyHandlersInvalidConfiguration(t *testing.T) {
 	}
 }
 
-// GetKeyHandler and RotateKeyHandler need to be set up such that an imageName and tufRole are both
+// GetKeyHandler and RotateKeyHandler need to be set up such that an gun and tufRole are both
 // provided and non-empty.
 func TestKeyHandlersNoRoleOrRepo(t *testing.T) {
 	state := defaultState()
 	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
-		for _, key := range []string{"imageName", "tufRole"} {
+		for _, key := range []string{"gun", "tufRole"} {
 			vars := map[string]string{
-				"imageName": "gun",
-				"tufRole":   data.CanonicalTimestampRole.String(),
+				"gun":     "gun",
+				"tufRole": data.CanonicalTimestampRole.String(),
 			}
 
 			// not provided
@@ -154,8 +154,8 @@ func TestKeyHandlersInvalidRole(t *testing.T) {
 	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
 		for _, role := range []string{data.CanonicalRootRole.String(), data.CanonicalTargetsRole.String(), "targets/a", "invalidrole"} {
 			vars := map[string]string{
-				"imageName": "gun",
-				"tufRole":   role,
+				"gun":     "gun",
+				"tufRole": role,
 			}
 			req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 
@@ -173,7 +173,7 @@ func TestGetKeyHandlerCreatesOnce(t *testing.T) {
 	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 
 	for _, role := range roles {
-		vars := map[string]string{"imageName": "gun", "tufRole": role}
+		vars := map[string]string{"gun": "gun", "tufRole": role}
 		recorder := httptest.NewRecorder()
 		err := getKeyHandler(getContext(state), recorder, req, vars)
 		require.NoError(t, err)
@@ -187,7 +187,7 @@ func TestKeyHandlersInvalidKeyAlgo(t *testing.T) {
 	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 	for _, keyHandler := range []simplerHandler{getKeyHandler, rotateKeyHandler} {
 		for _, role := range roles {
-			vars := map[string]string{"imageName": "gun", "tufRole": role}
+			vars := map[string]string{"gun": "gun", "tufRole": role}
 			recorder := httptest.NewRecorder()
 			invalidKeyAlgoState := defaultState()
 			invalidKeyAlgoState.keyAlgo = "notactuallyakeyalgorithm"
@@ -204,7 +204,7 @@ func TestRotateKeyHandlerSuccessfulRotation(t *testing.T) {
 	req := &http.Request{Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 
 	for _, role := range roles {
-		vars := map[string]string{"imageName": "gun", "tufRole": role}
+		vars := map[string]string{"gun": "gun", "tufRole": role}
 		recorder := httptest.NewRecorder()
 		err := rotateKeyHandler(getContext(state), recorder, req, vars)
 		require.NoError(t, err)
@@ -231,8 +231,8 @@ func TestGetHandlerRoot(t *testing.T) {
 	}
 
 	vars := map[string]string{
-		"imageName": "gun",
-		"tufRole":   "root",
+		"gun":     "gun",
+		"tufRole": "root",
 	}
 
 	rw := httptest.NewRecorder()
@@ -275,8 +275,8 @@ func TestGetHandlerTimestamp(t *testing.T) {
 	}
 
 	vars := map[string]string{
-		"imageName": "gun",
-		"tufRole":   "timestamp",
+		"gun":     "gun",
+		"tufRole": "timestamp",
 	}
 
 	rw := httptest.NewRecorder()
@@ -312,8 +312,8 @@ func TestGetHandlerSnapshot(t *testing.T) {
 	}
 
 	vars := map[string]string{
-		"imageName": "gun",
-		"tufRole":   "snapshot",
+		"gun":     "gun",
+		"tufRole": "snapshot",
 	}
 
 	rw := httptest.NewRecorder()
@@ -333,8 +333,8 @@ func TestGetHandler404(t *testing.T) {
 	}
 
 	vars := map[string]string{
-		"imageName": "gun",
-		"tufRole":   "root",
+		"gun":     "gun",
+		"tufRole": "root",
 	}
 
 	rw := httptest.NewRecorder()
@@ -355,8 +355,8 @@ func TestGetHandlerNilData(t *testing.T) {
 	}
 
 	vars := map[string]string{
-		"imageName": "gun",
-		"tufRole":   "root",
+		"gun":     "gun",
+		"tufRole": "root",
 	}
 
 	rw := httptest.NewRecorder()
@@ -382,7 +382,7 @@ func TestGetHandlerNoStorage(t *testing.T) {
 func TestAtomicUpdateValidationFailurePropagated(t *testing.T) {
 	metaStore := storage.NewMemStorage()
 	var gun data.GUN = "testGUN"
-	vars := map[string]string{"imageName": gun.String()}
+	vars := map[string]string{"gun": gun.String()}
 
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
@@ -425,7 +425,7 @@ func (s *failStore) GetCurrent(_ data.GUN, _ data.RoleName) (*time.Time, []byte,
 func TestAtomicUpdateNonValidationFailureNotPropagated(t *testing.T) {
 	metaStore := storage.NewMemStorage()
 	var gun data.GUN = "testGUN"
-	vars := map[string]string{"imageName": gun.String()}
+	vars := map[string]string{"gun": gun.String()}
 
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
@@ -467,7 +467,7 @@ func (s *invalidVersionStore) UpdateMany(_ data.GUN, _ []storage.MetaUpdate) err
 func TestAtomicUpdateVersionErrorPropagated(t *testing.T) {
 	metaStore := storage.NewMemStorage()
 	var gun data.GUN = "testGUN"
-	vars := map[string]string{"imageName": gun.String()}
+	vars := map[string]string{"gun": gun.String()}
 
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)

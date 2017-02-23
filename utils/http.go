@@ -29,6 +29,9 @@ type rootHandler struct {
 	trust   signed.CryptoService
 }
 
+// AuthWrapper wraps a Handler with and Auth requirement
+type AuthWrapper func(ContextHandler, ...string) *rootHandler
+
 // RootHandlerFactory creates a new rootHandler factory  using the given
 // Context creator and authorizer.  The returned factory allows creating
 // new rootHandlers from the alternate http handler contextHandler and
@@ -62,8 +65,8 @@ func (root *rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if root.auth != nil {
-		ctx = context.WithValue(ctx, notary.CtxKeyRepo, vars["imageName"])
-		if ctx, err = root.doAuth(ctx, vars["imageName"], w); err != nil {
+		ctx = context.WithValue(ctx, notary.CtxKeyRepo, vars["gun"])
+		if ctx, err = root.doAuth(ctx, vars["gun"], w); err != nil {
 			// errors have already been logged/output to w inside doAuth
 			// just return
 			return
@@ -92,12 +95,12 @@ func serveError(log ctxu.Logger, w http.ResponseWriter, err error) {
 	return
 }
 
-func (root *rootHandler) doAuth(ctx context.Context, imageName string, w http.ResponseWriter) (context.Context, error) {
+func (root *rootHandler) doAuth(ctx context.Context, gun string, w http.ResponseWriter) (context.Context, error) {
 	var access []auth.Access
-	if imageName == "" {
+	if gun == "" {
 		access = buildCatalogRecord(root.actions...)
 	} else {
-		access = buildAccessRecords(imageName, root.actions...)
+		access = buildAccessRecords(gun, root.actions...)
 	}
 
 	log := ctxu.GetRequestLogger(ctx)
