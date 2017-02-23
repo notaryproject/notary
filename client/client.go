@@ -633,6 +633,23 @@ func (r *NotaryRepository) Publish() error {
 	return nil
 }
 
+func (r *NotaryRepository) isMetaCached() (bool, error) {
+	for _, role := range data.BaseRoles {
+		_, err := r.cache.GetSized(role, store.NoSizeLimit)
+		if err != nil {
+			if _, ok := err.(store.ErrMetaNotFound); ok {
+				continue
+			}
+
+			return false, err
+		}
+
+		return true, nil
+	}
+
+	return false, nil
+}
+
 // publish pushes the changes in the given changelist to the remote notary-server
 // Conceptually it performs an operation similar to a `git rebase`
 func (r *NotaryRepository) publish(cl changelist.Changelist) error {
@@ -642,7 +659,17 @@ func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 		// If the remote is not aware of the repo, then this is being published
 		// for the first time.  Try to initialize the repository before publishing.
 		if _, ok := err.(ErrRepositoryNotExist); ok {
-			err := r.Initialize(nil)
+			metaCached, err := r.isMetaCached()
+			if err != nil {
+				logrus.Debugf("Unable to verify on-disk cache: %s", err.Error())
+				return err
+			}
+
+			if metaCached {
+				err = r.bootstrapRepo()
+			} else {
+				err = r.Initialize(nil)
+			}
 			if err != nil {
 				logrus.Debugf("Unable to initialize repository at publish-time: %s",
 					err.Error())
