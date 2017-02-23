@@ -1,5 +1,9 @@
 package api
 
+import "errors"
+
+var ErrNotImplemented = errors.New("not implemented")
+
 type ErrUnknown struct {
 	msg string
 }
@@ -13,7 +17,7 @@ func (err ErrUnknown) Error() string {
 }
 
 func translateAPIError(t string, msg string) error {
-	switch t{
+	switch t {
 	default:
 		return NewErrorUnknown(msg)
 	}
