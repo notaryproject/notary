@@ -1650,14 +1650,13 @@ func testPublishNoData(t *testing.T, rootType string, clearCache, serverManagesS
 	}
 }
 
-// Publishing an uninitialized repo will fail, but initializing and republishing
-// after should succeed
+// Publishing an uninitialized repo should not fail
 func TestPublishUninitializedRepo(t *testing.T) {
 	var gun data.GUN = "docker.com/notary"
 	ts := fullTestServer(t)
 	defer ts.Close()
 
-	// uninitialized repo should fail to publish
+	// uninitialized repo should not fail to publish
 	tempBaseDir, err := ioutil.TempDir("", "notary-tests")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
@@ -1666,14 +1665,31 @@ func TestPublishUninitializedRepo(t *testing.T) {
 		http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repository: %s", err)
 	err = repo.Publish()
-	require.Error(t, err)
+	require.NoError(t, err)
 
-	// no metadata created
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalRootRole, false)
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, false)
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, false)
+	// metadata is created
+	requireRepoHasExpectedMetadata(t, repo, data.CanonicalRootRole, true)
+	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, true)
+	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, true)
+}
 
-	// now, initialize and republish in the same directory
+// Tnitializing a repo and republishing after should succeed
+func TestPublishInitializedRepo(t *testing.T) {
+	var gun data.GUN = "docker.com/notary"
+	ts := fullTestServer(t)
+	defer ts.Close()
+
+	// uninitialized repo should not fail to publish
+	tempBaseDir, err := ioutil.TempDir("", "notary-tests")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempBaseDir)
+
+	// initialized repo should not fail to publish either
+	repo, err := NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL,
+		http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
+	require.NoError(t, err, "error creating repository: %s", err)
+
+	// now, initialize and publish
 	rootPubKey, err := repo.CryptoService.Create(data.CanonicalRootRole, repo.gun, data.ECDSAKey)
 	require.NoError(t, err, "error generating root key: %s", err)
 
