@@ -1,11 +1,11 @@
 package setup
 
 import (
-	"github.com/spf13/viper"
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/notary/utils"
 	"crypto/tls"
 	"fmt"
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/notary/utils"
+	"github.com/spf13/viper"
 	"net"
 
 	"google.golang.org/grpc"
@@ -15,13 +15,12 @@ import (
 )
 
 type Config struct {
-	GRPCAddr string
+	GRPCAddr  string
 	TLSConfig *tls.Config
 }
 
 func ViperConfig(path string) (*viper.Viper, error) {
 	vc := viper.New()
-	setDefaults(vc)
 	vc.SetConfigFile(path)
 	err := vc.ReadInConfig()
 	if err != nil {
@@ -29,13 +28,6 @@ func ViperConfig(path string) (*viper.Viper, error) {
 	}
 	logrus.Info(vc.AllSettings())
 	return vc, nil
-}
-
-// SetDefaults is responsible for setting defaults on the Viper struct
-// These should be overridden by a subsequent call to
-func setDefaults(vc *viper.Viper) {
-	vc.SetDefault("upstream.addr", "https://localhost:4443")
-	vc.SetDefault("server", map[string]string{"addr":":4445"})
 }
 
 func SetupGRPCServer(serverConfig Config) (*grpc.Server, net.Listener, error) {

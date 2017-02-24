@@ -4,7 +4,8 @@ import (
 	"flag"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary/client_api/api"
-	"github.com/docker/notary/cmd/client_api/setup"
+	"github.com/docker/notary/cmd/clientapi/setup"
+	"github.com/docker/notary/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"net"
@@ -42,6 +43,7 @@ func main() {
 	serverConfig := setup.Config{GRPCAddr: grpcAddr, TLSConfig: tlsConfig}
 
 	upstreamAddr := vc.GetString("upstream.addr")
+	upstreamCAPath := utils.GetPathRelativeToConfig(vc, "upstream.tls_ca_file")
 
 	lis, err := net.Listen("tcp", serverConfig.GRPCAddr)
 	if err != nil {
@@ -51,7 +53,7 @@ func main() {
 
 	creds := credentials.NewTLS(serverConfig.TLSConfig)
 	opts := []grpc.ServerOption{grpc.Creds(creds)}
-	s, err := api.NewServer(upstreamAddr, opts)
+	s, err := api.NewServer(upstreamAddr, upstreamCAPath, opts)
 	if err != nil {
 		logrus.Fatal(err)
 	}

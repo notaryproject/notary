@@ -7,16 +7,19 @@ import (
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
+	"golang.org/x/net/context"
 )
 
 type Client struct {
 	client NotaryClient
 	cs     signed.CryptoService
+	gun    data.GUN
 }
 
-func NewClient(conn *grpc.ClientConn) *Client {
+func NewClient(conn *grpc.ClientConn, gun data.GUN) *Client {
 	return &Client{
 		client: NewNotaryClient(conn),
+		gun:    gun,
 	}
 }
 
@@ -33,11 +36,23 @@ func (c *Client) DeleteTrustData(deleteRemote bool) error {
 }
 
 func (c *Client) AddTarget(target *client.Target, roles ...data.RoleName) error {
-	return ErrNotImplemented
+	t := &TargetAction{
+		Gun:    c.gun.String(),
+		Name:   target.Name,
+		Length: target.Length,
+		Hashes: target.Hashes,
+	}
+	_, err := c.client.AddTarget(context.Background(), t)
+	return err
 }
 
 func (c *Client) RemoveTarget(targetName string, roles ...data.RoleName) error {
-	return ErrNotImplemented
+	t := &TargetAction{
+		Gun:  c.gun.String(),
+		Name: targetName,
+	}
+	_, err := c.client.RemoveTarget(context.Background(), t)
+	return err
 }
 
 func (c *Client) ListTargets(roles ...data.RoleName) ([]*client.TargetWithRole, error) {

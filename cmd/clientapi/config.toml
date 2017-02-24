@@ -8,3 +8,4 @@ level = "debug"
 
 [upstream]
 addr = "https://notaryserver:4443"
+

@@ -99,30 +99,6 @@ cat "intermediate-ca.crt" >> "notary-signer.crt"
 
 rm "notary-signer.cnf" "notary-signer.csr"
 
-# Then generate notary-escrow
-# Use the existing notary-escrow key
-openssl req -new -key "notary-escrow.key" -out "notary-escrow.csr" -sha256 \
-        -subj '/C=US/ST=CA/L=San Francisco/O=Docker/CN=notary-escrow'
-
-cat > "notary-escrow.cnf" <<EOL
-[notary_escrow]
-authorityKeyIdentifier=keyid,issuer
-basicConstraints = critical,CA:FALSE
-extendedKeyUsage=serverAuth,clientAuth
-keyUsage = critical, digitalSignature, keyEncipherment
-subjectAltName = DNS:notary-escrow, DNS:notaryescrow, DNS:localhost, IP:127.0.0.1
-subjectKeyIdentifier=hash
-EOL
-
-openssl x509 -req -days 750 -in "notary-escrow.csr" -sha256 \
-        -CA "intermediate-ca.crt" -CAkey "intermediate-ca.key"  -CAcreateserial \
-        -out "notary-escrow.crt" -extfile "notary-escrow.cnf" -extensions notary_escrow
-# append the intermediate cert to this one to make it a proper bundle
-cat "intermediate-ca.crt" >> "notary-escrow.crt"
-
-rm "notary-escrow.cnf" "notary-escrow.csr"
-
-
 # Then generate secure.example.com
 # Use the existing secure.example.com key
 openssl req -new -key "secure.example.com.key" -out "secure.example.com.csr" -sha256 \
@@ -142,7 +118,6 @@ openssl x509 -req -days 750 -in "secure.example.com.csr" -sha256 \
         -CA "intermediate-ca.crt" -CAkey "intermediate-ca.key"  -CAcreateserial \
         -out "secure.example.com.crt" -extfile "secure.example.com.cnf" -extensions secure.example.com
 rm "secure.example.com.cnf" "secure.example.com.csr"
-rm "intermediate-ca.key" "intermediate-ca.srl"
 
 
 # generate self-signed_docker.com-notary.crt and self-signed_secure.example.com
@@ -167,3 +142,28 @@ EOL
 
         rm "${selfsigned}.cnf" "${selfsigned}.csr" "${selfsigned}.key"
 done
+
+# Then generate clientapi-server
+# Use the existing clientapi-server key
+openssl req -new -key "clientapi-server.key" -out "clientapi-server.csr" -sha256 \
+        -subj '/C=US/ST=CA/L=San Francisco/O=Docker/CN=clientapi-server'
+
+cat > "clientapi-server.cnf" <<EOL
+[clientapi_server]
+authorityKeyIdentifier=keyid,issuer
+basicConstraints = critical,CA:FALSE
+extendedKeyUsage=serverAuth,clientAuth
+keyUsage = critical, digitalSignature, keyEncipherment
+subjectAltName = DNS:clientapi-server, DNS:localhost, IP:127.0.0.1
+subjectKeyIdentifier=hash
+EOL
+
+openssl x509 -req -days 750 -in "clientapi-server.csr" -sha256 \
+        -CA "intermediate-ca.crt" -CAkey "intermediate-ca.key"  -CAcreateserial \
+        -out "clientapi-server.crt" -extfile "clientapi-server.cnf" -extensions clientapi_server
+# append the intermediate cert to this one to make it a proper bundle
+cat "intermediate-ca.crt" >> "clientapi-server.crt"
+
+rm "clientapi-server.cnf" "clientapi-server.csr"
+
+rm "intermediate-ca.key" "intermediate-ca.srl"

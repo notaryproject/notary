@@ -7,8 +7,11 @@ import (
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/client_api/api"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/utils"
 	"net/http"
 )
+
+const remoteConfigField = "api"
 
 type repoFactory func(gun data.GUN) (client.Repository, error)
 
@@ -34,10 +37,16 @@ func ConfigureRepo(v *viper.Viper, retriever notary.PassRetriever, onlineOperati
 			trustPin,
 		)
 	}
+
 	remoteRepo := func(gun data.GUN) (client.Repository, error) {
-		return api.NewClient(nil), nil
+		conn, err := utils.GetGRPCClient(v, remoteConfigField)
+		if err != nil {
+			return nil, err
+		}
+		return api.NewClient(conn, gun), nil
 	}
-	if v.GetBool("remote") {
+
+	if v.IsSet(remoteConfigField) {
 		return remoteRepo
 	}
 	return localRepo
