@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"time"
+	"os"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
@@ -21,7 +22,6 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/utils"
-	"os"
 )
 
 const (
@@ -670,9 +670,7 @@ func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 		return err
 	}
 
-	remote := r.remoteStore
-
-	return remote.SetMulti(data.MetadataRoleMapToStringMap(updatedFiles))
+	return r.remoteStore.SetMulti(data.MetadataRoleMapToStringMap(updatedFiles))
 }
 
 func signRootIfNecessary(updates map[data.RoleName][]byte, repo *tuf.Repo, extraSigningKeys data.KeyList, initialPublish bool) error {
