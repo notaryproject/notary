@@ -121,7 +121,7 @@ func NewNotaryRepository(baseDir string, gun data.GUN, baseURL string, remoteSto
 }
 
 // GetGUN is a getter for the GUN object from a NotaryRepository
-func (r *NotaryRepository) GetGUN() string {
+func (r *NotaryRepository) GetGUN() data.GUN {
 	return r.gun
 }
 
@@ -635,7 +635,7 @@ func (r *NotaryRepository) Publish() error {
 
 func (r *NotaryRepository) isMetaCached() (bool, error) {
 	for _, role := range data.BaseRoles {
-		_, err := r.cache.GetSized(role, store.NoSizeLimit)
+		_, err := r.cache.GetSized(role.String(), store.NoSizeLimit)
 		if err != nil {
 			if _, ok := err.(store.ErrMetaNotFound); ok {
 				continue

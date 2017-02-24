@@ -1041,7 +1041,7 @@ func maybeAutoPublish(cmd *cobra.Command, doPublish bool, gun data.GUN, config *
 	return publishAndPrintToCLI(cmd, nRepo)
 }
 
-func publishAndPrintToCLI(cmd *cobra.Command, nRepo *notaryclient.NotaryRepository, gun data.GUN) error {
+func publishAndPrintToCLI(cmd *cobra.Command, nRepo *notaryclient.NotaryRepository) error {
 	if err := nRepo.Publish(); err != nil {
 		return err
 	}
