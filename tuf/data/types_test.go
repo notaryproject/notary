@@ -235,3 +235,66 @@ func TestCompareMultiHashes(t *testing.T) {
 	err = CompareMultiHashes(hashes1, hashes2)
 	require.Error(t, err)
 }
+
+func TestFileMetaEquals(t *testing.T) {
+	var err error
+
+	hashes1 := make(Hashes)
+	hashes2 := make(Hashes)
+	hashes1["sha384"], err = hex.DecodeString("64becc3c23843942b1040ffd4743d1368d988ddf046d17d448a6e199c02c3044b425a680112b399d4dbe9b35b7ccc989")
+	require.NoError(t, err)
+	hashes2[notary.SHA256], err = hex.DecodeString("766af0ef090a4f2307e49160fa242db6fb95f071ad81a198eeb7d770e61cd6d8")
+	require.NoError(t, err)
+
+	rawMessage1, rawMessage2 := json.RawMessage{}, json.RawMessage{}
+	require.NoError(t, rawMessage1.UnmarshalJSON([]byte("hello")))
+	require.NoError(t, rawMessage2.UnmarshalJSON([]byte("there")))
+
+	f1 := []FileMeta{
+		{
+			Length: 1,
+			Hashes: hashes1,
+		},
+		{
+			Length: 2,
+			Hashes: hashes1,
+		},
+		{
+			Length: 1,
+			Hashes: hashes2,
+		},
+		{
+			Length: 1,
+			Hashes: hashes1,
+			Custom: &rawMessage1,
+		},
+		{},
+	}
+
+	f2 := []FileMeta{
+		{
+			Length: 1,
+			Hashes: hashes1,
+			Custom: &rawMessage1,
+		},
+		{
+			Length: 1,
+			Hashes: hashes1,
+			Custom: &rawMessage2,
+		},
+		{
+			Length: 1,
+			Hashes: hashes1,
+		},
+	}
+
+	require.False(t, FileMeta{}.Equals(f1[0]))
+	require.True(t, f1[0].Equals(f1[0]))
+	for _, meta := range f1[1:] {
+		require.False(t, f1[0].Equals(meta))
+	}
+	require.True(t, f2[0].Equals(f2[0]))
+	for _, meta := range f2[1:] {
+		require.False(t, f2[0].Equals(meta))
+	}
+}

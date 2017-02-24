@@ -1,6 +1,7 @@
 package data
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/subtle"
@@ -179,6 +180,34 @@ type FileMeta struct {
 	Length int64            `json:"length"`
 	Hashes Hashes           `json:"hashes"`
 	Custom *json.RawMessage `json:"custom,omitempty"`
+}
+
+// Equals returns true if the other FileMeta object is equivalent to this one
+func (f FileMeta) Equals(o FileMeta) bool {
+	if o.Length != f.Length || len(f.Hashes) != len(f.Hashes) {
+		return false
+	}
+	if f.Custom == nil && o.Custom != nil || f.Custom != nil && o.Custom == nil {
+		return false
+	}
+	// we don't care if these are valid hashes, just that they are equal
+	for key, val := range f.Hashes {
+		if !bytes.Equal(val, o.Hashes[key]) {
+			return false
+		}
+	}
+	if f.Custom == nil && o.Custom == nil {
+		return true
+	}
+	fBytes, err := f.Custom.MarshalJSON()
+	if err != nil {
+		return false
+	}
+	oBytes, err := o.Custom.MarshalJSON()
+	if err != nil {
+		return false
+	}
+	return bytes.Equal(fBytes, oBytes)
 }
 
 // CheckHashes verifies all the checksums specified by the "hashes" of the payload.
