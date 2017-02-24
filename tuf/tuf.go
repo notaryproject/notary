@@ -818,17 +818,20 @@ func (tr *Repo) AddTargets(role data.RoleName, targets data.Files) (data.Files, 
 
 // RemoveTargets removes the given target (paths) from the given target role (delegation)
 func (tr *Repo) RemoveTargets(role data.RoleName, targets ...string) error {
-	if err := tr.VerifyCanSign(role); err != nil {
-		return err
+	cantSignErr := tr.VerifyCanSign(role)
+	if _, ok := cantSignErr.(data.ErrInvalidRole); ok {
+		return cantSignErr
 	}
-
+	var needSign bool
 	removeTargetVisitor := func(targetPath string) func(*data.SignedTargets, data.DelegationRole) interface{} {
 		return func(tgt *data.SignedTargets, validRole data.DelegationRole) interface{} {
 			// We've already validated the role path in our walk, so just modify the metadata
 			// We don't check against the target path against the valid role paths because it's
 			// possible we got into an invalid state and are trying to fix it
-			delete(tgt.Signed.Targets, targetPath)
-			tgt.Dirty = true
+			if _, needSign = tgt.Signed.Targets[targetPath]; needSign && cantSignErr == nil {
+				delete(tgt.Signed.Targets, targetPath)
+				tgt.Dirty = true
+			}
 			return StopWalk{}
 		}
 	}
@@ -838,6 +841,10 @@ func (tr *Repo) RemoveTargets(role data.RoleName, targets ...string) error {
 	if ok {
 		for _, path := range targets {
 			tr.WalkTargets("", role, removeTargetVisitor(path))
+			fmt.Println(path, needSign, cantSignErr)
+			if needSign && cantSignErr != nil {
+				return cantSignErr
+			}
 		}
 	}
 
