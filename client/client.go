@@ -7,10 +7,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"regexp"
 	"time"
-	"os"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
