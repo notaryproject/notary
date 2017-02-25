@@ -24,6 +24,7 @@ func getRemoteStore(baseURL string, gun data.GUN, rt http.RoundTripper) (store.R
 		rt,
 	)
 	if err != nil {
+		logrus.Error(err)
 		return store.OfflineStore{}, err
 	}
 	return s, err

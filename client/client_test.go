@@ -3704,7 +3704,8 @@ func TestDeleteRemoteRepo(t *testing.T) {
 	requireRepoHasExpectedKeys(t, repo, rootKeyID, true)
 
 	// Try connecting to the remote store directly and make sure that no metadata exists for this gun
-	remoteStore := repo.remoteStore
+	remoteStore, err := repo.GetRemoteStore()
+	require.NoError(t, err)
 	meta, err := remoteStore.GetSized(data.CanonicalRootRole.String(), store.NoSizeLimit)
 	require.Error(t, err)
 	require.IsType(t, store.ErrMetaNotFound{}, err)
@@ -3729,7 +3730,8 @@ func TestDeleteRemoteRepo(t *testing.T) {
 	require.Len(t, longLivingCl.List(), 1)
 
 	// Check that the other repo's remote data is unaffected
-	remoteStore = longLivingRepo.remoteStore
+	remoteStore, err = longLivingRepo.GetRemoteStore()
+	require.NoError(t, err)
 	meta, err = remoteStore.GetSized(data.CanonicalRootRole.String(), store.NoSizeLimit)
 	require.NoError(t, err)
 	require.NotNil(t, meta)
