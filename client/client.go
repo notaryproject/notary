@@ -77,7 +77,7 @@ func NewFileCachedNotaryRepository(baseDir string, gun data.GUN, baseURL string,
 
 	remoteStore, err := getRemoteStore(baseURL, gun, rt)
 	if err != nil {
-		return nil, err
+		logrus.Error(err)
 	}
 
 	cl, err := changelist.NewFileChangelist(filepath.Join(
