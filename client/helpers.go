@@ -26,7 +26,7 @@ func getRemoteStore(baseURL string, gun data.GUN, rt http.RoundTripper) (store.R
 	if err != nil {
 		return store.OfflineStore{}, err
 	}
-	return s, err
+	return s, nil
 }
 
 func applyChangelist(repo *tuf.Repo, invalid *tuf.Repo, cl changelist.Changelist) error {

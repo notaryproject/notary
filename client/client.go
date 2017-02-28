@@ -76,8 +76,10 @@ func NewFileCachedNotaryRepository(baseDir string, gun data.GUN, baseURL string,
 	cryptoService := cryptoservice.NewCryptoService(keyStores...)
 
 	remoteStore, err := getRemoteStore(baseURL, gun, rt)
+	// baseURL is syntactically invalid
 	if err != nil {
 		logrus.Error(err)
+		return nil, err
 	}
 
 	cl, err := changelist.NewFileChangelist(filepath.Join(
@@ -1150,7 +1152,7 @@ func DeleteTrustData(baseDir string, gun data.GUN, URL string, rt http.RoundTrip
 	if deleteRemote {
 		remote, err := getRemoteStore(URL, gun, rt)
 		if err != nil {
-			logrus.Error("unable to instantiate remote store")
+			logrus.Error("unable to instantiate a remote store: %v", err)
 			return err
 		}
 		if err := remote.RemoveAll(); err != nil {
