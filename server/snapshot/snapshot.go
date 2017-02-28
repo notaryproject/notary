@@ -17,7 +17,7 @@ import (
 // the existing one. Only the PublicKey is returned. The private part
 // is held by the CryptoService.
 func GetOrCreateSnapshotKey(gun data.GUN, store storage.MetaStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
-	_, rootJSON, err := store.GetCurrent(gun, data.CanonicalRootRole)
+	_, rootJSON, err := store.GetCurrent(gun, storage.DefaultNamespace, data.CanonicalRootRole)
 	if err != nil {
 		// If the error indicates we couldn't find the root, create a new key
 		if _, ok := err.(storage.ErrNotFound); !ok {
@@ -69,7 +69,7 @@ func RotateSnapshotKey(gun data.GUN, store storage.MetaStore, crypto signed.Cryp
 func GetOrCreateSnapshot(gun data.GUN, checksum string, store storage.MetaStore, cryptoService signed.CryptoService) (
 	*time.Time, []byte, error) {
 
-	lastModified, currentJSON, err := store.GetChecksum(gun, data.CanonicalSnapshotRole, checksum)
+	lastModified, currentJSON, err := store.GetChecksum(gun, storage.DefaultNamespace, data.CanonicalSnapshotRole, checksum)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -87,7 +87,7 @@ func GetOrCreateSnapshot(gun data.GUN, checksum string, store storage.MetaStore,
 	builder := tuf.NewRepoBuilder(gun, cryptoService, trustpinning.TrustPinConfig{})
 
 	// load the current root to ensure we use the correct snapshot key.
-	_, rootJSON, err := store.GetCurrent(gun, data.CanonicalRootRole)
+	_, rootJSON, err := store.GetCurrent(gun, storage.DefaultNamespace, data.CanonicalRootRole)
 	if err != nil {
 		logrus.Debug("Previous snapshot, but no root for GUN ", gun)
 		return nil, nil, err

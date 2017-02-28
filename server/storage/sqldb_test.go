@@ -71,6 +71,18 @@ func TestSQLUpdateCurrentEmpty(t *testing.T) {
 	dbStore.DB.Close()
 }
 
+// TestSQLUpdateCurrent asserts that UpdateCurrent will add a new TUF file
+// if no previous version of that gun and role existed in a namespace.
+func TestSQLUpdateNamespaced(t *testing.T) {
+	dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
+
+	expected := testUpdateCurrentNamespaced(t, dbStore)
+	assertExpectedGormTUFMeta(t, expected, dbStore.DB)
+
+	dbStore.DB.Close()
+}
+
 // TestSQLUpdateCurrentVersionCheckOldVersionExists asserts that UpdateCurrent will add a
 // new (higher) version of an existing TUF file, and that an error is raised if
 // trying to update to an older version of a TUF file that already exists.
@@ -193,7 +205,7 @@ func TestSQLDBGetChecksum(t *testing.T) {
 	checksumBytes := sha256.Sum256(j)
 	checksum := hex.EncodeToString(checksumBytes[:])
 
-	dbStore.UpdateCurrent("gun", update)
+	dbStore.UpdateCurrent("gun", DefaultNamespace, update)
 
 	// create and add a newer timestamp. We're going to try and get the one
 	// created above by checksum
@@ -215,9 +227,9 @@ func TestSQLDBGetChecksum(t *testing.T) {
 		Data:    newJ,
 	}
 
-	dbStore.UpdateCurrent("gun", update)
+	dbStore.UpdateCurrent("gun", DefaultNamespace, update)
 
-	cDate, data, err := dbStore.GetChecksum("gun", data.CanonicalTimestampRole, checksum)
+	cDate, data, err := dbStore.GetChecksum("gun", DefaultNamespace, data.CanonicalTimestampRole, checksum)
 	require.NoError(t, err)
 	require.EqualValues(t, j, data)
 	// the creation date was sometime wthin the last minute
@@ -229,7 +241,7 @@ func TestSQLDBGetChecksumNotFound(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
-	_, _, err := dbStore.GetChecksum("gun", data.CanonicalTimestampRole, "12345")
+	_, _, err := dbStore.GetChecksum("gun", DefaultNamespace, data.CanonicalTimestampRole, "12345")
 	require.Error(t, err)
 	require.IsType(t, ErrNotFound{}, err)
 }

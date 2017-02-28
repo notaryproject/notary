@@ -103,7 +103,7 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 		}
 		return errors.ErrInvalidUpdate.WithDetail(serializable)
 	}
-	err = store.UpdateMany(gun, updates)
+	err = store.UpdateMany(gun, storage.DefaultNamespace, updates)
 	if err != nil {
 		// If we have an old version error, surface to user with error code
 		if _, ok := err.(storage.ErrOldVersion); ok {
@@ -169,7 +169,7 @@ func DeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 		logger.Error("500 DELETE repository: no storage exists")
 		return errors.ErrNoStorage.WithDetail(nil)
 	}
-	err := store.Delete(gun)
+	err := store.Delete(gun, storage.DefaultNamespace)
 	if err != nil {
 		logger.Error("500 DELETE repository")
 		return errors.ErrUnknown.WithDetail(err)

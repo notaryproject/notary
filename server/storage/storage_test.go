@@ -12,25 +12,27 @@ import (
 )
 
 type StoredTUFMeta struct {
-	Gun     data.GUN
-	Role    data.RoleName
-	SHA256  string
-	Data    []byte
-	Version int
+	Gun       data.GUN
+	Role      data.RoleName
+	SHA256    string
+	Data      []byte
+	Version   int
+	Namespace Namespace
 }
 
-func SampleCustomTUFObj(gun data.GUN, role data.RoleName, version int, tufdata []byte) StoredTUFMeta {
+func SampleCustomTUFObj(gun data.GUN, role data.RoleName, version int, namespace Namespace, tufdata []byte) StoredTUFMeta {
 	if tufdata == nil {
-		tufdata = []byte(fmt.Sprintf("%s_%s_%d", gun, role, version))
+		tufdata = []byte(fmt.Sprintf("%s_%s_%d_%s", gun, role, version, namespace))
 	}
 	checksum := sha256.Sum256(tufdata)
 	hexChecksum := hex.EncodeToString(checksum[:])
 	return StoredTUFMeta{
-		Gun:     gun,
-		Role:    role,
-		Version: version,
-		SHA256:  hexChecksum,
-		Data:    tufdata,
+		Gun:       gun,
+		Role:      role,
+		Version:   version,
+		SHA256:    hexChecksum,
+		Data:      tufdata,
+		Namespace: namespace,
 	}
 }
 
@@ -46,7 +48,7 @@ func assertExpectedTUFMetaInStore(t *testing.T, s MetaStore, expected []StoredTU
 	for _, tufObj := range expected {
 		var prevTime *time.Time
 		if current {
-			cDate, tufdata, err := s.GetCurrent(tufObj.Gun, tufObj.Role)
+			cDate, tufdata, err := s.GetCurrent(tufObj.Gun, tufObj.Namespace, tufObj.Role)
 			require.NoError(t, err)
 			require.Equal(t, tufObj.Data, tufdata)
 
@@ -59,7 +61,7 @@ func assertExpectedTUFMetaInStore(t *testing.T, s MetaStore, expected []StoredTU
 		checksumBytes := sha256.Sum256(tufObj.Data)
 		checksum := hex.EncodeToString(checksumBytes[:])
 
-		cDate, tufdata, err := s.GetChecksum(tufObj.Gun, tufObj.Role, checksum)
+		cDate, tufdata, err := s.GetChecksum(tufObj.Gun, tufObj.Namespace, tufObj.Role, checksum)
 		require.NoError(t, err)
 		require.Equal(t, tufObj.Data, tufdata)
 
@@ -80,9 +82,31 @@ func testUpdateCurrentEmptyStore(t *testing.T, s MetaStore) []StoredTUFMeta {
 	for _, role := range append(data.BaseRoles, "targets/a") {
 		for _, gun := range []data.GUN{"gun1", "gun2"} {
 			// Adding a new TUF file should succeed
-			tufObj := SampleCustomTUFObj(gun, role, 1, nil)
-			require.NoError(t, s.UpdateCurrent(tufObj.Gun, MakeUpdate(tufObj)))
+			tufObj := SampleCustomTUFObj(gun, role, 1, DefaultNamespace, nil)
+			require.NoError(t, s.UpdateCurrent(tufObj.Gun, tufObj.Namespace, MakeUpdate(tufObj)))
 			expected = append(expected, tufObj)
+		}
+	}
+
+	assertExpectedTUFMetaInStore(t, s, expected, true)
+	return expected
+}
+
+// UpdateCurrent should namespace metadata correctly
+func testUpdateCurrentNamespaced(t *testing.T, s MetaStore) []StoredTUFMeta {
+	expected := make([]StoredTUFMeta, 0, 20)
+
+	for _, role := range append(data.BaseRoles, "targets/a") {
+		for _, gun := range []data.GUN{"gun1", "gun2"} {
+			// Adding a new TUF file should succeed
+			tufObj := SampleCustomTUFObj(gun, role, 1, DefaultNamespace, nil)
+			require.NoError(t, s.UpdateCurrent(tufObj.Gun, tufObj.Namespace, MakeUpdate(tufObj)))
+			expected = append(expected, tufObj)
+
+			// Adding a new TUF file should succeed
+			tufObjNs := SampleCustomTUFObj(gun, role, 1, "namespace", nil)
+			require.NoError(t, s.UpdateCurrent(tufObjNs.Gun, tufObjNs.Namespace, MakeUpdate(tufObjNs)))
+			expected = append(expected, tufObjNs)
 		}
 	}
 
@@ -97,17 +121,17 @@ func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore, oldVersionExists b
 	role, gun := data.CanonicalRootRole, data.GUN("testGUN")
 
 	expected := []StoredTUFMeta{
-		SampleCustomTUFObj(gun, role, 1, nil),
-		SampleCustomTUFObj(gun, role, 2, nil),
-		SampleCustomTUFObj(gun, role, 4, nil),
+		SampleCustomTUFObj(gun, role, 1, DefaultNamespace, nil),
+		SampleCustomTUFObj(gun, role, 2, DefaultNamespace, nil),
+		SampleCustomTUFObj(gun, role, 4, DefaultNamespace, nil),
 	}
 
 	// starting meta is version 1
-	require.NoError(t, s.UpdateCurrent(gun, MakeUpdate(expected[0])))
+	require.NoError(t, s.UpdateCurrent(gun, DefaultNamespace, MakeUpdate(expected[0])))
 
 	// inserting meta version immediately above it and skipping ahead will succeed
-	require.NoError(t, s.UpdateCurrent(gun, MakeUpdate(expected[1])))
-	require.NoError(t, s.UpdateCurrent(gun, MakeUpdate(expected[2])))
+	require.NoError(t, s.UpdateCurrent(gun, DefaultNamespace, MakeUpdate(expected[1])))
+	require.NoError(t, s.UpdateCurrent(gun, DefaultNamespace, MakeUpdate(expected[2])))
 
 	// Inserting a version that already exists, or that is lower than the current version, will fail
 	version := 3
@@ -115,8 +139,8 @@ func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore, oldVersionExists b
 		version = 4
 	}
 
-	tufObj := SampleCustomTUFObj(gun, role, version, nil)
-	err := s.UpdateCurrent(gun, MakeUpdate(tufObj))
+	tufObj := SampleCustomTUFObj(gun, role, version, DefaultNamespace, nil)
+	err := s.UpdateCurrent(gun, DefaultNamespace, MakeUpdate(tufObj))
 	require.Error(t, err, "Error should not be nil")
 	require.IsType(t, ErrOldVersion{}, err,
 		"Expected ErrOldVersion error type, got: %v", err)
@@ -129,20 +153,20 @@ func testUpdateCurrentVersionCheck(t *testing.T, s MetaStore, oldVersionExists b
 // GetVersion should successfully retrieve a version of an existing TUF file,
 // but will return an error if the requested version does not exist.
 func testGetVersion(t *testing.T, s MetaStore) {
-	_, _, err := s.GetVersion("gun", "role", 2)
+	_, _, err := s.GetVersion("gun", DefaultNamespace, "role", 2)
 	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
 
-	s.UpdateCurrent("gun", MetaUpdate{"role", 2, []byte("version2")})
-	_, d, err := s.GetVersion("gun", "role", 2)
+	s.UpdateCurrent("gun", DefaultNamespace, MetaUpdate{"role", 2, []byte("version2")})
+	_, d, err := s.GetVersion("gun", DefaultNamespace, "role", 2)
 	require.Nil(t, err, "Expected error to be nil")
 	require.Equal(t, []byte("version2"), d, "Data was incorrect")
 
 	// Getting newer version fails
-	_, _, err = s.GetVersion("gun", "role", 3)
+	_, _, err = s.GetVersion("gun", DefaultNamespace, "role", 3)
 	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
 
 	// Getting another gun/role fails
-	_, _, err = s.GetVersion("badgun", "badrole", 2)
+	_, _, err = s.GetVersion("badgun", DefaultNamespace, "badrole", 2)
 	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
 }
 
@@ -153,21 +177,21 @@ func testUpdateManyNoConflicts(t *testing.T, s MetaStore) []StoredTUFMeta {
 	firstBatch := make([]StoredTUFMeta, 4)
 	updates := make([]MetaUpdate, 4)
 	for i, role := range data.BaseRoles {
-		firstBatch[i] = SampleCustomTUFObj(gun, role, 1, nil)
+		firstBatch[i] = SampleCustomTUFObj(gun, role, 1, DefaultNamespace, nil)
 		updates[i] = MakeUpdate(firstBatch[i])
 	}
 
-	require.NoError(t, s.UpdateMany(gun, updates))
+	require.NoError(t, s.UpdateMany(gun, DefaultNamespace, updates))
 	assertExpectedTUFMetaInStore(t, s, firstBatch, true)
 
 	secondBatch := make([]StoredTUFMeta, 4)
 	// no conflicts with what's in DB or with itself
 	for i, role := range data.BaseRoles {
-		secondBatch[i] = SampleCustomTUFObj(gun, role, 2, nil)
+		secondBatch[i] = SampleCustomTUFObj(gun, role, 2, DefaultNamespace, nil)
 		updates[i] = MakeUpdate(secondBatch[i])
 	}
 
-	require.NoError(t, s.UpdateMany(gun, updates))
+	require.NoError(t, s.UpdateMany(gun, DefaultNamespace, updates))
 	// the first batch is still there, but are no longer the current ones
 	assertExpectedTUFMetaInStore(t, s, firstBatch, false)
 	assertExpectedTUFMetaInStore(t, s, secondBatch, true)
@@ -178,11 +202,11 @@ func testUpdateManyNoConflicts(t *testing.T, s MetaStore) []StoredTUFMeta {
 	role := data.CanonicalRootRole
 	updates = updates[:2]
 	for i, version := range []int{4, 3} {
-		thirdBatch[i] = SampleCustomTUFObj(gun, role, version, nil)
+		thirdBatch[i] = SampleCustomTUFObj(gun, role, version, DefaultNamespace, nil)
 		updates[i] = MakeUpdate(thirdBatch[i])
 	}
 
-	require.NoError(t, s.UpdateMany(gun, updates))
+	require.NoError(t, s.UpdateMany(gun, DefaultNamespace, updates))
 
 	// all the other data is still there, but are no longer the current ones
 	assertExpectedTUFMetaInStore(t, s, append(firstBatch, secondBatch...), false)
@@ -199,11 +223,11 @@ func testUpdateManyConflictRollback(t *testing.T, s MetaStore) []StoredTUFMeta {
 	successBatch := make([]StoredTUFMeta, 4)
 	updates := make([]MetaUpdate, 4)
 	for i, role := range data.BaseRoles {
-		successBatch[i] = SampleCustomTUFObj(gun, role, 1, nil)
+		successBatch[i] = SampleCustomTUFObj(gun, role, 1, DefaultNamespace, nil)
 		updates[i] = MakeUpdate(successBatch[i])
 	}
 
-	require.NoError(t, s.UpdateMany(gun, updates))
+	require.NoError(t, s.UpdateMany(gun, DefaultNamespace, updates))
 
 	before, err := s.GetChanges("0", 1000, "")
 	if _, ok := s.(RethinkDB); !ok {
@@ -218,7 +242,7 @@ func testUpdateManyConflictRollback(t *testing.T, s MetaStore) []StoredTUFMeta {
 			version = 1
 		}
 		tufdata := []byte(fmt.Sprintf("%s_%s_%d_bad", gun, role, version))
-		badBatch[i] = SampleCustomTUFObj(gun, role, version, tufdata)
+		badBatch[i] = SampleCustomTUFObj(gun, role, version, DefaultNamespace, tufdata)
 		updates[i] = MakeUpdate(badBatch[i])
 	}
 
@@ -229,14 +253,14 @@ func testUpdateManyConflictRollback(t *testing.T, s MetaStore) []StoredTUFMeta {
 	}
 	require.Equal(t, len(before), len(after))
 
-	err = s.UpdateMany(gun, updates)
+	err = s.UpdateMany(gun, DefaultNamespace, updates)
 	require.Error(t, err)
 	require.IsType(t, ErrOldVersion{}, err)
 
 	// self-conflicting, in that it's a duplicate, but otherwise no DB conflicts
-	duplicate := SampleCustomTUFObj(gun, data.CanonicalTimestampRole, 3, []byte("duplicate"))
+	duplicate := SampleCustomTUFObj(gun, data.CanonicalTimestampRole, 3, DefaultNamespace, []byte("duplicate"))
 	duplicateUpdate := MakeUpdate(duplicate)
-	err = s.UpdateMany(gun, []MetaUpdate{duplicateUpdate, duplicateUpdate})
+	err = s.UpdateMany(gun, DefaultNamespace, []MetaUpdate{duplicateUpdate, duplicateUpdate})
 	require.Error(t, err)
 	require.IsType(t, ErrOldVersion{}, err)
 
@@ -246,7 +270,7 @@ func testUpdateManyConflictRollback(t *testing.T, s MetaStore) []StoredTUFMeta {
 		checksumBytes := sha256.Sum256(tufObj.Data)
 		checksum := hex.EncodeToString(checksumBytes[:])
 
-		_, _, err = s.GetChecksum(tufObj.Gun, tufObj.Role, checksum)
+		_, _, err = s.GetChecksum(tufObj.Gun, DefaultNamespace, tufObj.Role, checksum)
 		require.Error(t, err)
 		require.IsType(t, ErrNotFound{}, err)
 	}
@@ -258,43 +282,43 @@ func testUpdateManyConflictRollback(t *testing.T, s MetaStore) []StoredTUFMeta {
 func testDeleteSuccess(t *testing.T, s MetaStore) {
 	var gun data.GUN = "testGUN"
 	// If there is nothing in the DB, delete is a no-op success
-	require.NoError(t, s.Delete(gun))
+	require.NoError(t, s.Delete(gun, DefaultNamespace))
 
 	// If there is data in the DB, all versions are deleted
 	unexpected := make([]StoredTUFMeta, 0, 10)
 	updates := make([]MetaUpdate, 0, 10)
 	for version := 1; version < 3; version++ {
 		for _, role := range append(data.BaseRoles, "targets/a") {
-			tufObj := SampleCustomTUFObj(gun, role, version, nil)
+			tufObj := SampleCustomTUFObj(gun, role, version, DefaultNamespace, nil)
 			unexpected = append(unexpected, tufObj)
 			updates = append(updates, MakeUpdate(tufObj))
 		}
 	}
-	require.NoError(t, s.UpdateMany(gun, updates))
+	require.NoError(t, s.UpdateMany(gun, DefaultNamespace, updates))
 	assertExpectedTUFMetaInStore(t, s, unexpected[:5], false)
 	assertExpectedTUFMetaInStore(t, s, unexpected[5:], true)
 
-	require.NoError(t, s.Delete(gun))
+	require.NoError(t, s.Delete(gun, DefaultNamespace))
 
 	for _, tufObj := range unexpected {
-		_, _, err := s.GetCurrent(tufObj.Gun, tufObj.Role)
+		_, _, err := s.GetCurrent(tufObj.Gun, DefaultNamespace, tufObj.Role)
 		require.IsType(t, ErrNotFound{}, err)
 
 		checksumBytes := sha256.Sum256(tufObj.Data)
 		checksum := hex.EncodeToString(checksumBytes[:])
 
-		_, _, err = s.GetChecksum(tufObj.Gun, tufObj.Role, checksum)
+		_, _, err = s.GetChecksum(tufObj.Gun, DefaultNamespace, tufObj.Role, checksum)
 		require.Error(t, err)
 		require.IsType(t, ErrNotFound{}, err)
 	}
 
 	// We can now write the same files without conflicts to the DB
-	require.NoError(t, s.UpdateMany(gun, updates))
+	require.NoError(t, s.UpdateMany(gun, DefaultNamespace, updates))
 	assertExpectedTUFMetaInStore(t, s, unexpected[:5], false)
 	assertExpectedTUFMetaInStore(t, s, unexpected[5:], true)
 
 	// And delete them again successfully
-	require.NoError(t, s.Delete(gun))
+	require.NoError(t, s.Delete(gun, DefaultNamespace))
 }
 
 func testGetChanges(t *testing.T, s MetaStore) {
@@ -304,7 +328,7 @@ func testGetChanges(t *testing.T, s MetaStore) {
 	require.Len(t, c, 0)
 
 	// add some records
-	require.NoError(t, s.UpdateMany("alpine", []MetaUpdate{
+	require.NoError(t, s.UpdateMany("alpine", DefaultNamespace, []MetaUpdate{
 		{
 			Role:    data.CanonicalTimestampRole,
 			Version: 1,
@@ -326,7 +350,7 @@ func testGetChanges(t *testing.T, s MetaStore) {
 			Data:    []byte{'4'},
 		},
 	}))
-	require.NoError(t, s.UpdateMany("busybox", []MetaUpdate{
+	require.NoError(t, s.UpdateMany("busybox", DefaultNamespace, []MetaUpdate{
 		{
 			Role:    data.CanonicalTimestampRole,
 			Version: 1,
@@ -423,7 +447,7 @@ func testGetChanges(t *testing.T, s MetaStore) {
 	// hasn't changed (only timestamps should create changes)
 	before, err := s.GetChanges("-1", -1, "")
 	require.NoError(t, err)
-	require.NoError(t, s.UpdateMany("alpine", []MetaUpdate{
+	require.NoError(t, s.UpdateMany("alpine", DefaultNamespace, []MetaUpdate{
 		{
 			Role:    data.CanonicalSnapshotRole,
 			Version: 1,
@@ -435,7 +459,7 @@ func testGetChanges(t *testing.T, s MetaStore) {
 	require.Equal(t, before, after)
 
 	// do a deletion and check is shows up.
-	require.NoError(t, s.Delete("alpine"))
+	require.NoError(t, s.Delete("alpine", DefaultNamespace))
 	c, err = s.GetChanges("-1", -1, "")
 	require.NoError(t, err)
 	require.Len(t, c, 1)
@@ -444,7 +468,7 @@ func testGetChanges(t *testing.T, s MetaStore) {
 
 	// do another deletion and check it doesn't show up because no records were deleted
 	// after the first one
-	require.NoError(t, s.Delete("alpine"))
+	require.NoError(t, s.Delete("alpine", DefaultNamespace))
 	c, err = s.GetChanges("-1", -2, "")
 	require.NoError(t, err)
 	require.Len(t, c, 2)

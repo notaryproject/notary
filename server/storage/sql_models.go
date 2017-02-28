@@ -20,11 +20,12 @@ const ChangefeedTableName = "changefeed"
 // TUFFile represents a TUF file in the database
 type TUFFile struct {
 	gorm.Model
-	Gun     string `sql:"type:varchar(255);not null"`
-	Role    string `sql:"type:varchar(255);not null"`
-	Version int    `sql:"not null"`
-	SHA256  string `gorm:"column:sha256" sql:"type:varchar(64);"`
-	Data    []byte `sql:"type:longblob;not null"`
+	Gun       string `sql:"type:varchar(255);not null"`
+	Role      string `sql:"type:varchar(255);not null"`
+	Version   int    `sql:"not null"`
+	Namespace string `sql:"type:varchar(20);not null"`
+	SHA256    string `gorm:"column:sha256" sql:"type:varchar(64);"`
+	Data      []byte `sql:"type:longblob;not null"`
 }
 
 // TableName sets a specific table name for TUFFile
@@ -38,6 +39,7 @@ type Change struct {
 	CreatedAt time.Time
 	GUN       string `gorm:"column:gun" sql:"type:varchar(255);not null"`
 	Version   int    `sql:"not null"`
+	Namespace string `sql:"type:varchar(20);not null"`
 	SHA256    string `gorm:"column:sha256" sql:"type:varchar(64);"`
 	Category  string `sql:"type:varchar(20);not null;"`
 }
@@ -55,7 +57,7 @@ func CreateTUFTable(db gorm.DB) error {
 		return query.Error
 	}
 	query = db.Model(&TUFFile{}).AddUniqueIndex(
-		"idx_gun", "gun", "role", "version")
+		"idx_gun", "gun", "role", "version", "namespace")
 	return query.Error
 }
 

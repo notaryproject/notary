@@ -46,12 +46,12 @@ func translateOldVersionError(err error) error {
 }
 
 // UpdateCurrent updates a single TUF.
-func (db *SQLStorage) UpdateCurrent(gun data.GUN, update MetaUpdate) error {
+func (db *SQLStorage) UpdateCurrent(gun data.GUN, namespace Namespace, update MetaUpdate) error {
 	// ensure we're not inserting an immediately old version - can't use the
 	// struct, because that only works with non-zero values, and Version
 	// can be 0.
-	exists := db.Where("gun = ? and role = ? and version >= ?",
-		gun.String(), update.Role.String(), update.Version).First(&TUFFile{})
+	exists := db.Where("gun = ? and role = ? and namespace = ? and version >= ?",
+		gun.String(), update.Role.String(), namespace.String(), update.Version).First(&TUFFile{})
 
 	if !exists.RecordNotFound() {
 		return ErrOldVersion{}
@@ -69,11 +69,12 @@ func (db *SQLStorage) UpdateCurrent(gun data.GUN, update MetaUpdate) error {
 	if err := func() error {
 		// write new TUFFile entry
 		if err = translateOldVersionError(tx.Create(&TUFFile{
-			Gun:     gun.String(),
-			Role:    update.Role.String(),
-			Version: update.Version,
-			SHA256:  hexChecksum,
-			Data:    update.Data,
+			Gun:       gun.String(),
+			Role:      update.Role.String(),
+			Version:   update.Version,
+			SHA256:    hexChecksum,
+			Data:      update.Data,
+			Namespace: namespace.String(),
 		}).Error); err != nil {
 			return err
 		}
@@ -81,7 +82,7 @@ func (db *SQLStorage) UpdateCurrent(gun data.GUN, update MetaUpdate) error {
 		// If we're publishing a timestamp, update the changefeed as this is
 		// technically an new version of the TUF repo
 		if update.Role == data.CanonicalTimestampRole {
-			if err := db.writeChangefeed(tx, gun, update.Version, hexChecksum); err != nil {
+			if err := db.writeChangefeed(tx, gun, namespace, update.Version, hexChecksum); err != nil {
 				return err
 			}
 		}
@@ -112,7 +113,7 @@ func (db *SQLStorage) getTransaction() (*gorm.DB, rollback, error) {
 }
 
 // UpdateMany atomically updates many TUF records in a single transaction
-func (db *SQLStorage) UpdateMany(gun data.GUN, updates []MetaUpdate) error {
+func (db *SQLStorage) UpdateMany(gun data.GUN, namespace Namespace, updates []MetaUpdate) error {
 	tx, rb, err := db.getTransaction()
 	if err != nil {
 		return err
@@ -127,8 +128,8 @@ func (db *SQLStorage) UpdateMany(gun data.GUN, updates []MetaUpdate) error {
 			// called, version ordering in the updates list must be enforced
 			// (you cannot insert the version 2 before version 1).  And we do
 			// not care about monotonic ordering in the updates.
-			query = db.Where("gun = ? and role = ? and version >= ?",
-				gun.String(), update.Role.String(), update.Version).First(&TUFFile{})
+			query = db.Where("gun = ? and role = ? and namespace = ? and version >= ?",
+				gun.String(), update.Role.String(), namespace.String(), update.Version).First(&TUFFile{})
 
 			if !query.RecordNotFound() {
 				return ErrOldVersion{}
@@ -138,9 +139,10 @@ func (db *SQLStorage) UpdateMany(gun data.GUN, updates []MetaUpdate) error {
 			checksum := sha256.Sum256(update.Data)
 			hexChecksum := hex.EncodeToString(checksum[:])
 			query = tx.Where(map[string]interface{}{
-				"gun":     gun.String(),
-				"role":    update.Role.String(),
-				"version": update.Version,
+				"gun":       gun.String(),
+				"role":      update.Role.String(),
+				"version":   update.Version,
+				"namespace": namespace.String(),
 			}).Attrs("data", update.Data).Attrs("sha256", hexChecksum).FirstOrCreate(&row)
 
 			if query.Error != nil {
@@ -152,7 +154,7 @@ func (db *SQLStorage) UpdateMany(gun data.GUN, updates []MetaUpdate) error {
 				return ErrOldVersion{}
 			}
 			if update.Role == data.CanonicalTimestampRole {
-				if err := db.writeChangefeed(tx, gun, update.Version, hexChecksum); err != nil {
+				if err := db.writeChangefeed(tx, gun, namespace, update.Version, hexChecksum); err != nil {
 					return err
 				}
 			}
@@ -165,21 +167,26 @@ func (db *SQLStorage) UpdateMany(gun data.GUN, updates []MetaUpdate) error {
 	return tx.Commit().Error
 }
 
-func (db *SQLStorage) writeChangefeed(tx *gorm.DB, gun data.GUN, version int, checksum string) error {
+func (db *SQLStorage) writeChangefeed(tx *gorm.DB, gun data.GUN, namespace Namespace, version int, checksum string) error {
 	c := &Change{
-		GUN:      gun.String(),
-		Version:  version,
-		SHA256:   checksum,
-		Category: changeCategoryUpdate,
+		GUN:       gun.String(),
+		Version:   version,
+		SHA256:    checksum,
+		Category:  changeCategoryUpdate,
+		Namespace: namespace.String(),
 	}
 	return tx.Create(c).Error
 }
 
 // GetCurrent gets a specific TUF record
-func (db *SQLStorage) GetCurrent(gun data.GUN, tufRole data.RoleName) (*time.Time, []byte, error) {
+func (db *SQLStorage) GetCurrent(gun data.GUN, namespace Namespace, tufRole data.RoleName) (*time.Time, []byte, error) {
 	var row TUFFile
 	q := db.Select("updated_at, data").Where(
-		&TUFFile{Gun: gun.String(), Role: tufRole.String()}).Order("version desc").Limit(1).First(&row)
+		&TUFFile{
+			Gun:       gun.String(),
+			Namespace: namespace.String(),
+			Role:      tufRole.String(),
+		}).Order("version desc").Limit(1).First(&row)
 	if err := isReadErr(q, row); err != nil {
 		return nil, nil, err
 	}
@@ -187,13 +194,14 @@ func (db *SQLStorage) GetCurrent(gun data.GUN, tufRole data.RoleName) (*time.Tim
 }
 
 // GetChecksum gets a specific TUF record by its hex checksum
-func (db *SQLStorage) GetChecksum(gun data.GUN, tufRole data.RoleName, checksum string) (*time.Time, []byte, error) {
+func (db *SQLStorage) GetChecksum(gun data.GUN, namespace Namespace, tufRole data.RoleName, checksum string) (*time.Time, []byte, error) {
 	var row TUFFile
 	q := db.Select("created_at, data").Where(
 		&TUFFile{
-			Gun:    gun.String(),
-			Role:   tufRole.String(),
-			SHA256: checksum,
+			Gun:       gun.String(),
+			Role:      tufRole.String(),
+			Namespace: namespace.String(),
+			SHA256:    checksum,
 		},
 	).First(&row)
 	if err := isReadErr(q, row); err != nil {
@@ -203,13 +211,14 @@ func (db *SQLStorage) GetChecksum(gun data.GUN, tufRole data.RoleName, checksum 
 }
 
 // GetVersion gets a specific TUF record by its version
-func (db *SQLStorage) GetVersion(gun data.GUN, tufRole data.RoleName, version int) (*time.Time, []byte, error) {
+func (db *SQLStorage) GetVersion(gun data.GUN, namespace Namespace, tufRole data.RoleName, version int) (*time.Time, []byte, error) {
 	var row TUFFile
 	q := db.Select("created_at, data").Where(
 		&TUFFile{
-			Gun:     gun.String(),
-			Role:    tufRole.String(),
-			Version: version,
+			Gun:       gun.String(),
+			Role:      tufRole.String(),
+			Namespace: namespace.String(),
+			Version:   version,
 		},
 	).First(&row)
 	if err := isReadErr(q, row); err != nil {
@@ -229,13 +238,13 @@ func isReadErr(q *gorm.DB, row TUFFile) error {
 
 // Delete deletes all the records for a specific GUN - we have to do a hard delete using Unscoped
 // otherwise we can't insert for that GUN again
-func (db *SQLStorage) Delete(gun data.GUN) error {
+func (db *SQLStorage) Delete(gun data.GUN, namespace Namespace) error {
 	tx, rb, err := db.getTransaction()
 	if err != nil {
 		return err
 	}
 	if err := func() error {
-		res := tx.Unscoped().Where(&TUFFile{Gun: gun.String()}).Delete(TUFFile{})
+		res := tx.Unscoped().Where(&TUFFile{Gun: gun.String(), Namespace: namespace.String()}).Delete(TUFFile{})
 		if err := res.Error; err != nil {
 			return err
 		}
@@ -245,8 +254,9 @@ func (db *SQLStorage) Delete(gun data.GUN) error {
 			return nil
 		}
 		c := &Change{
-			GUN:      gun.String(),
-			Category: changeCategoryDeletion,
+			GUN:       gun.String(),
+			Namespace: namespace.String(),
+			Category:  changeCategoryDeletion,
 		}
 		return tx.Create(c).Error
 	}(); err != nil {

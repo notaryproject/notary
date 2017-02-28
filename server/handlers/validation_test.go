@@ -26,20 +26,20 @@ type getFailStore struct {
 
 // GetCurrent returns the current metadata, or an error depending on whether
 // getFailStore is configured to return an error for this role
-func (f getFailStore) GetCurrent(gun data.GUN, tufRole data.RoleName) (*time.Time, []byte, error) {
+func (f getFailStore) GetCurrent(gun data.GUN, namespace storage.Namespace, tufRole data.RoleName) (*time.Time, []byte, error) {
 	err := f.errsToReturn[tufRole.String()]
 	if err == nil {
-		return f.MetaStore.GetCurrent(gun, tufRole)
+		return f.MetaStore.GetCurrent(gun, storage.DefaultNamespace, tufRole)
 	}
 	return nil, nil, err
 }
 
 // GetChecksum returns the metadata with this checksum, or an error depending on
 // whether getFailStore is configured to return an error for this role
-func (f getFailStore) GetChecksum(gun data.GUN, tufRole data.RoleName, checksum string) (*time.Time, []byte, error) {
+func (f getFailStore) GetChecksum(gun data.GUN, namespace storage.Namespace, tufRole data.RoleName, checksum string) (*time.Time, []byte, error) {
 	err := f.errsToReturn[tufRole.String()]
 	if err == nil {
-		return f.MetaStore.GetChecksum(gun, tufRole, checksum)
+		return f.MetaStore.GetChecksum(gun, storage.DefaultNamespace, tufRole, checksum)
 	}
 	return nil, nil, err
 }
@@ -164,7 +164,7 @@ func TestValidatePrevTimestamp(t *testing.T) {
 	updates := []storage.MetaUpdate{root, targets, snapshot}
 
 	store := storage.NewMemStorage()
-	store.UpdateCurrent(gun, timestamp)
+	store.UpdateCurrent(gun, storage.DefaultNamespace, timestamp)
 
 	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
 	updates, err = validateUpdate(serverCrypto, gun, updates, store)
@@ -200,7 +200,7 @@ func TestValidatePreviousTimestampCorrupt(t *testing.T) {
 	// have corrupt timestamp data in the storage already
 	store := storage.NewMemStorage()
 	timestamp.Data = timestamp.Data[1:]
-	store.UpdateCurrent(gun, timestamp)
+	store.UpdateCurrent(gun, storage.DefaultNamespace, timestamp)
 
 	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
@@ -242,7 +242,7 @@ func TestValidateNoNewRoot(t *testing.T) {
 	root, targets, snapshot, timestamp, err := getUpdates(r, tg, sn, ts)
 	require.NoError(t, err)
 
-	store.UpdateCurrent(gun, root)
+	store.UpdateCurrent(gun, storage.DefaultNamespace, root)
 	updates := []storage.MetaUpdate{targets, snapshot, timestamp}
 
 	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
@@ -261,7 +261,7 @@ func TestValidateNoNewTargets(t *testing.T) {
 	root, targets, snapshot, timestamp, err := getUpdates(r, tg, sn, ts)
 	require.NoError(t, err)
 
-	store.UpdateCurrent(gun, targets)
+	store.UpdateCurrent(gun, storage.DefaultNamespace, targets)
 	updates := []storage.MetaUpdate{root, snapshot, timestamp}
 
 	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
@@ -280,8 +280,8 @@ func TestValidateOnlySnapshot(t *testing.T) {
 	root, targets, snapshot, _, err := getUpdates(r, tg, sn, ts)
 	require.NoError(t, err)
 
-	store.UpdateCurrent(gun, root)
-	store.UpdateCurrent(gun, targets)
+	store.UpdateCurrent(gun, storage.DefaultNamespace, root)
+	store.UpdateCurrent(gun, storage.DefaultNamespace, targets)
 
 	updates := []storage.MetaUpdate{snapshot}
 
@@ -301,7 +301,7 @@ func TestValidateOldRoot(t *testing.T) {
 	root, targets, snapshot, timestamp, err := getUpdates(r, tg, sn, ts)
 	require.NoError(t, err)
 
-	store.UpdateCurrent(gun, root)
+	store.UpdateCurrent(gun, storage.DefaultNamespace, root)
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
 	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
@@ -325,7 +325,7 @@ func TestValidateOldRootCorrupt(t *testing.T) {
 		Role:    root.Role,
 		Data:    root.Data[1:],
 	}
-	store.UpdateCurrent(gun, badRoot)
+	store.UpdateCurrent(gun, storage.DefaultNamespace, badRoot)
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
 	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
@@ -358,7 +358,7 @@ func TestValidateOldRootCorruptRootRole(t *testing.T) {
 		Role:    root.Role,
 		Data:    badRootJSON,
 	}
-	store.UpdateCurrent(gun, badRoot)
+	store.UpdateCurrent(gun, storage.DefaultNamespace, badRoot)
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
 	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
@@ -409,7 +409,7 @@ func TestValidateRootRotationWithOldSigs(t *testing.T) {
 
 	// set the original root in the store
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
-	require.NoError(t, store.UpdateMany(gun, updates))
+	require.NoError(t, store.UpdateMany(gun, storage.DefaultNamespace, updates))
 
 	// rotate the root key, sign with both keys, and update - update should succeed
 	newRootKey, err := testutils.CreateKey(crypto, gun, data.CanonicalRootRole, data.ECDSAKey)
@@ -426,7 +426,7 @@ func TestValidateRootRotationWithOldSigs(t *testing.T) {
 
 	updates, err = validateUpdate(serverCrypto, gun, []storage.MetaUpdate{root, snapshot}, store)
 	require.NoError(t, err)
-	require.NoError(t, store.UpdateMany(gun, updates))
+	require.NoError(t, store.UpdateMany(gun, storage.DefaultNamespace, updates))
 
 	// the next root does NOT need to be signed by both keys, because we only care
 	// about signing with both keys if the root keys have changed (signRoot again to bump the version)
@@ -450,7 +450,7 @@ func TestValidateRootRotationWithOldSigs(t *testing.T) {
 	snapshot.Version = repo.Snapshot.Signed.Version
 	updates, err = validateUpdate(serverCrypto, gun, []storage.MetaUpdate{root, snapshot}, store)
 	require.NoError(t, err)
-	require.NoError(t, store.UpdateMany(gun, updates))
+	require.NoError(t, store.UpdateMany(gun, storage.DefaultNamespace, updates))
 
 	// another root rotation requires only the previous and new keys, and not the
 	// original root key even though that original role is still in the metadata
@@ -519,7 +519,7 @@ func TestValidateRootRotationMultipleKeysThreshold1(t *testing.T) {
 
 	// set the original root in the store
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
-	require.NoError(t, store.UpdateMany(gun, updates))
+	require.NoError(t, store.UpdateMany(gun, storage.DefaultNamespace, updates))
 
 	// replace the keys with just 1 key
 	rotatedRootKey, err := testutils.CreateKey(crypto, gun, data.CanonicalRootRole, data.ECDSAKey)
@@ -580,7 +580,7 @@ func TestRootRotationNotSignedWithOldKeysForOldRole(t *testing.T) {
 	require.NoError(t, err)
 
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
-	require.NoError(t, store.UpdateMany(gun, updates))
+	require.NoError(t, store.UpdateMany(gun, storage.DefaultNamespace, updates))
 
 	finalRootKey, err := testutils.CreateKey(crypto, gun, data.CanonicalRootRole, data.ECDSAKey)
 	require.NoError(t, err)
@@ -646,7 +646,7 @@ func TestRootRotationVersionIncrement(t *testing.T) {
 
 	// set the original root in the store
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
-	require.NoError(t, store.UpdateMany(gun, updates))
+	require.NoError(t, store.UpdateMany(gun, storage.DefaultNamespace, updates))
 
 	// rotate the root key, sign with both keys, and update - update should succeed
 	newRootKey, err := testutils.CreateKey(crypto, gun, data.CanonicalRootRole, data.ECDSAKey)
@@ -670,7 +670,7 @@ func TestRootRotationVersionIncrement(t *testing.T) {
 	root.Version = root.Version - 1
 	updates, err = validateUpdate(serverCrypto, gun, []storage.MetaUpdate{root, snapshot}, store)
 	require.NoError(t, err)
-	require.NoError(t, store.UpdateMany(gun, updates))
+	require.NoError(t, store.UpdateMany(gun, storage.DefaultNamespace, updates))
 }
 
 // An update is not valid without the root metadata.
@@ -745,7 +745,7 @@ func TestValidateSnapshotGenerateWithPrev(t *testing.T) {
 
 	// set the current snapshot in the store manually so we find it when generating
 	// the next version
-	store.UpdateCurrent(gun, snapshot)
+	store.UpdateCurrent(gun, storage.DefaultNamespace, snapshot)
 
 	prev, err := data.SnapshotFromSigned(sn)
 	require.NoError(t, err)
@@ -782,7 +782,7 @@ func TestValidateSnapshotGeneratePrevCorrupt(t *testing.T) {
 	snapshot.Data = snapshot.Data[1:]
 	// set the current snapshot in the store manually so we find it when generating
 	// the next version
-	store.UpdateCurrent(gun, snapshot)
+	store.UpdateCurrent(gun, storage.DefaultNamespace, snapshot)
 
 	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
@@ -844,7 +844,7 @@ func TestValidateSnapshotGenerate(t *testing.T) {
 
 	updates := []storage.MetaUpdate{targets}
 
-	store.UpdateCurrent(gun, root)
+	store.UpdateCurrent(gun, storage.DefaultNamespace, root)
 
 	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
@@ -1316,7 +1316,7 @@ func TestLoadTargetsLoadsNothingIfNoUpdates(t *testing.T) {
 	require.NoError(t, builder.Load(data.CanonicalRootRole, metadata[data.CanonicalRootRole], 0, false))
 
 	store := storage.NewMemStorage()
-	store.UpdateCurrent(gun, storage.MetaUpdate{
+	store.UpdateCurrent(gun, storage.DefaultNamespace, storage.MetaUpdate{
 		Role:    data.CanonicalTargetsRole,
 		Version: 1,
 		Data:    metadata[data.CanonicalTargetsRole],
@@ -1359,7 +1359,7 @@ func TestValidateTargetsRequiresStoredParent(t *testing.T) {
 	require.IsType(t, validation.ErrBadTargets{}, err)
 
 	// ensure the "targets" (the parent) is in the "db"
-	store.UpdateCurrent(gun, storage.MetaUpdate{
+	store.UpdateCurrent(gun, storage.DefaultNamespace, storage.MetaUpdate{
 		Role:    data.CanonicalTargetsRole,
 		Version: 1,
 		Data:    metadata[data.CanonicalTargetsRole],
@@ -1442,7 +1442,7 @@ func TestValidateTargetsRoleNotInParent(t *testing.T) {
 	}
 	emptyStore := storage.NewMemStorage()
 	storeWithParent := storage.NewMemStorage()
-	storeWithParent.UpdateCurrent(gun, origTargetsUpdate)
+	storeWithParent.UpdateCurrent(gun, storage.DefaultNamespace, origTargetsUpdate)
 
 	// add a delegation role now
 	var delgName data.RoleName = "targets/level1"
