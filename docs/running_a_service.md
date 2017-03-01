@@ -215,7 +215,7 @@ giving the following MySQL (or equivalent) permissions to the users restricted t
 only their own databases:
 
 - Notary server database user: `SELECT, INSERT, UPDATE, DELETE`
-- Notary signer database user: `SELECT, INSERT, DELETE`
+- Notary signer database user: `SELECT, INSERT, UPDATE, DELETE`
 
 ### High Availability
 
