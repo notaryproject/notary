@@ -3,7 +3,6 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
@@ -40,12 +39,6 @@ func (r *NotaryRepository) AddDelegationRoleAndKeys(name data.RoleName, delegati
 		return data.ErrInvalidRole{Role: name, Reason: "invalid delegation role name"}
 	}
 
-	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
-	if err != nil {
-		return err
-	}
-	defer cl.Close()
-
 	logrus.Debugf(`Adding delegation "%s" with threshold %d, and %d keys\n`,
 		name, notary.MinThreshold, len(delegationKeys))
 
@@ -59,7 +52,7 @@ func (r *NotaryRepository) AddDelegationRoleAndKeys(name data.RoleName, delegati
 	}
 
 	template := newCreateDelegationChange(name, tdJSON)
-	return addChange(cl, template, name)
+	return addChange(r.changelist, template, name)
 }
 
 // AddDelegationPaths creates a changelist entry to add provided paths to an existing delegation.
@@ -69,12 +62,6 @@ func (r *NotaryRepository) AddDelegationPaths(name data.RoleName, paths []string
 	if !data.IsDelegation(name) {
 		return data.ErrInvalidRole{Role: name, Reason: "invalid delegation role name"}
 	}
-
-	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
-	if err != nil {
-		return err
-	}
-	defer cl.Close()
 
 	logrus.Debugf(`Adding %s paths to delegation %s\n`, paths, name)
 
@@ -86,7 +73,7 @@ func (r *NotaryRepository) AddDelegationPaths(name data.RoleName, paths []string
 	}
 
 	template := newCreateDelegationChange(name, tdJSON)
-	return addChange(cl, template, name)
+	return addChange(r.changelist, template, name)
 }
 
 // RemoveDelegationKeysAndPaths creates changelist entries to remove provided delegation key IDs and paths.
@@ -114,16 +101,10 @@ func (r *NotaryRepository) RemoveDelegationRole(name data.RoleName) error {
 		return data.ErrInvalidRole{Role: name, Reason: "invalid delegation role name"}
 	}
 
-	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
-	if err != nil {
-		return err
-	}
-	defer cl.Close()
-
 	logrus.Debugf(`Removing delegation "%s"\n`, name)
 
 	template := newDeleteDelegationChange(name, nil)
-	return addChange(cl, template, name)
+	return addChange(r.changelist, template, name)
 }
 
 // RemoveDelegationPaths creates a changelist entry to remove provided paths from an existing delegation.
@@ -132,12 +113,6 @@ func (r *NotaryRepository) RemoveDelegationPaths(name data.RoleName, paths []str
 	if !data.IsDelegation(name) {
 		return data.ErrInvalidRole{Role: name, Reason: "invalid delegation role name"}
 	}
-
-	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
-	if err != nil {
-		return err
-	}
-	defer cl.Close()
 
 	logrus.Debugf(`Removing %s paths from delegation "%s"\n`, paths, name)
 
@@ -149,7 +124,7 @@ func (r *NotaryRepository) RemoveDelegationPaths(name data.RoleName, paths []str
 	}
 
 	template := newUpdateDelegationChange(name, tdJSON)
-	return addChange(cl, template, name)
+	return addChange(r.changelist, template, name)
 }
 
 // RemoveDelegationKeys creates a changelist entry to remove provided keys from an existing delegation.
@@ -163,12 +138,6 @@ func (r *NotaryRepository) RemoveDelegationKeys(name data.RoleName, keyIDs []str
 		return data.ErrInvalidRole{Role: name, Reason: "invalid delegation role name"}
 	}
 
-	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
-	if err != nil {
-		return err
-	}
-	defer cl.Close()
-
 	logrus.Debugf(`Removing %s keys from delegation "%s"\n`, keyIDs, name)
 
 	tdJSON, err := json.Marshal(&changelist.TUFDelegation{
@@ -179,7 +148,7 @@ func (r *NotaryRepository) RemoveDelegationKeys(name data.RoleName, keyIDs []str
 	}
 
 	template := newUpdateDelegationChange(name, tdJSON)
-	return addChange(cl, template, name)
+	return addChange(r.changelist, template, name)
 }
 
 // ClearDelegationPaths creates a changelist entry to remove all paths from an existing delegation.
@@ -188,12 +157,6 @@ func (r *NotaryRepository) ClearDelegationPaths(name data.RoleName) error {
 	if !data.IsDelegation(name) {
 		return data.ErrInvalidRole{Role: name, Reason: "invalid delegation role name"}
 	}
-
-	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
-	if err != nil {
-		return err
-	}
-	defer cl.Close()
 
 	logrus.Debugf(`Removing all paths from delegation "%s"\n`, name)
 
@@ -205,7 +168,7 @@ func (r *NotaryRepository) ClearDelegationPaths(name data.RoleName) error {
 	}
 
 	template := newUpdateDelegationChange(name, tdJSON)
-	return addChange(cl, template, name)
+	return addChange(r.changelist, template, name)
 }
 
 func newUpdateDelegationChange(name data.RoleName, content []byte) *changelist.TUFChange {

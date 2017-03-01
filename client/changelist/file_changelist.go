@@ -137,6 +137,11 @@ func (cl FileChangelist) Close() error {
 	return nil
 }
 
+// Location returns the file path to the changelist
+func (cl FileChangelist) Location() string {
+	return cl.dir
+}
+
 // NewIterator creates an iterator from FileChangelist
 func (cl FileChangelist) NewIterator() (ChangeIterator, error) {
 	fileInfos, err := getFileNames(cl.dir)

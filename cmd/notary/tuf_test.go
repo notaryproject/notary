@@ -206,7 +206,6 @@ func TestGetTrustPinningErrors(t *testing.T) {
 	require.Error(t, tc.tufStatus(&cobra.Command{}, []string{"gun"}))
 	tc.resetAll = true
 	require.Error(t, tc.tufReset(&cobra.Command{}, []string{"gun"}))
-	require.Error(t, tc.tufDeleteGUN(&cobra.Command{}, []string{"gun"}))
 	require.Error(t, tc.tufInit(&cobra.Command{}, []string{"gun"}))
 	require.Error(t, tc.tufPublish(&cobra.Command{}, []string{"gun"}))
 	require.Error(t, tc.tufVerify(&cobra.Command{}, []string{"gun", "target", "file"}))
