@@ -76,9 +76,8 @@ func NewFileCachedNotaryRepository(baseDir string, gun data.GUN, baseURL string,
 	cryptoService := cryptoservice.NewCryptoService(keyStores...)
 
 	remoteStore, err := getRemoteStore(baseURL, gun, rt)
-	// baseURL is syntactically invalid
 	if err != nil {
-		logrus.Error(err)
+		// baseURL is syntactically invalid
 		return nil, err
 	}
 
