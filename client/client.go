@@ -179,31 +179,10 @@ func rootCertKey(gun data.GUN, privKey data.PrivateKey) (data.PublicKey, error) 
 // result is only stored on local disk, not published to the server. To do that,
 // use r.Publish() eventually.
 func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ...data.RoleName) error {
-	privKeys := make([]data.PrivateKey, 0, len(rootKeyIDs))
-	for _, keyID := range rootKeyIDs {
-		privKey, _, err := r.CryptoService.GetPrivateKey(keyID)
-		if err != nil {
-			return err
-		}
-		privKeys = append(privKeys, privKey)
-	}
-	if len(privKeys) == 0 {
-		var rootKeyID string
-		rootKeyList := r.CryptoService.ListKeys(data.CanonicalRootRole)
-		if len(rootKeyList) == 0 {
-			rootPublicKey, err := r.CryptoService.Create(data.CanonicalRootRole, "", data.ECDSAKey)
-			if err != nil {
-				return err
-			}
-			rootKeyID = rootPublicKey.ID()
-		} else {
-			rootKeyID = rootKeyList[0]
-		}
-		privKey, _, err := r.CryptoService.GetPrivateKey(rootKeyID)
-		if err != nil {
-			return err
-		}
-		privKeys = append(privKeys, privKey)
+
+	privKeys, err := getAllPrivKeys(rootKeyIDs, r.CryptoService)
+	if err != nil {
+		return err
 	}
 
 	// currently we only support server managing timestamps and snapshots, and
@@ -872,6 +851,8 @@ func (r *NotaryRepository) initializeFromCache() error {
 			err.Error())
 		return err
 	}
+
+	return nil
 }
 
 // saveMetadata saves contents of r.tufRepo onto the local disk, creating
