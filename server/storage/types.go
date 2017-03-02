@@ -10,8 +10,8 @@ func (n Namespace) String() string {
 	return string(n)
 }
 
-// DefaultNamespace is the namespace all fully signed, validated metadata lives in
-const DefaultNamespace Namespace = "default"
+// PublishedState is the namespace all fully signed, validated metadata lives in
+const PublishedState Namespace = "published"
 
 // MetaUpdate packages up the fields required to update a TUF record
 type MetaUpdate struct {

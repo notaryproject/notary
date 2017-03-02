@@ -32,7 +32,7 @@ func TestRDBTUFFileJSONUnmarshalling(t *testing.T) {
 		"gun_role_version_namespace": ["completely", "invalid", "garbage", "blah"],
 		"gun": "namespaced/name",
 		"role": "timestamp",
-		"namespace": "default",
+		"namespace": "published",
 		"version": 5,
 		"sha256": "56ee4a23129fc22c6cb4b4ba5f78d730c91ab6def514e80d807c947bb21f0d63",
 		"data": %s,
@@ -54,11 +54,11 @@ func TestRDBTUFFileJSONUnmarshalling(t *testing.T) {
 
 	expected := RDBTUFFile{
 		Timing:                  unmarshalled.Timing,
-		GunRoleVersionNamespace: []interface{}{"namespaced/name", "timestamp", 5, DefaultNamespace.String()},
+		GunRoleVersionNamespace: []interface{}{"namespaced/name", "timestamp", 5, PublishedState.String()},
 		Gun:        "namespaced/name",
 		Role:       "timestamp",
 		Version:    5,
-		Namespace:  DefaultNamespace.String(),
+		Namespace:  PublishedState.String(),
 		SHA256:     "56ee4a23129fc22c6cb4b4ba5f78d730c91ab6def514e80d807c947bb21f0d63",
 		Data:       data,
 		TSchecksum: "ebe6b6e082c94ef24043f1786a7046432506c3d193a47c299ed48ff4413ad7b0",

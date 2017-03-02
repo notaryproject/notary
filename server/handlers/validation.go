@@ -151,7 +151,7 @@ func loadAndValidateTargets(gun data.GUN, builder tuf.RepoBuilder, roles map[dat
 // snapshot on the repo as well
 func generateSnapshot(gun data.GUN, builder tuf.RepoBuilder, store storage.MetaStore) (*storage.MetaUpdate, error) {
 	var prev *data.SignedSnapshot
-	_, currentJSON, err := store.GetCurrent(gun, storage.DefaultNamespace, data.CanonicalSnapshotRole)
+	_, currentJSON, err := store.GetCurrent(gun, storage.PublishedState, data.CanonicalSnapshotRole)
 	if err == nil {
 		prev = new(data.SignedSnapshot)
 		if err = json.Unmarshal(currentJSON, prev); err != nil {
@@ -188,7 +188,7 @@ func generateSnapshot(gun data.GUN, builder tuf.RepoBuilder, store storage.MetaS
 // the other roles have already been set on the repo, and will set the generated timestamp on the repo as well
 func generateTimestamp(gun data.GUN, builder tuf.RepoBuilder, store storage.MetaStore) (*storage.MetaUpdate, error) {
 	var prev *data.SignedTimestamp
-	_, currentJSON, err := store.GetCurrent(gun, storage.DefaultNamespace, data.CanonicalTimestampRole)
+	_, currentJSON, err := store.GetCurrent(gun, storage.PublishedState, data.CanonicalTimestampRole)
 
 	switch err.(type) {
 	case nil:
@@ -224,7 +224,7 @@ func generateTimestamp(gun data.GUN, builder tuf.RepoBuilder, store storage.Meta
 }
 
 func loadFromStore(gun data.GUN, roleName data.RoleName, builder tuf.RepoBuilder, store storage.MetaStore) error {
-	_, metaJSON, err := store.GetCurrent(gun, storage.DefaultNamespace, roleName)
+	_, metaJSON, err := store.GetCurrent(gun, storage.PublishedState, roleName)
 	if err != nil {
 		return err
 	}

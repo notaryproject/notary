@@ -262,14 +262,14 @@ type recordingMetaStore struct {
 // that the metadata was requested
 func (r *recordingMetaStore) GetCurrent(gun data.GUN, namespace storage.Namespace, role data.RoleName) (*time.Time, []byte, error) {
 	r.gotten = append(r.gotten, fmt.Sprintf("%s.%s.%s", gun.String(), role.String(), namespace.String()))
-	return r.MemStorage.GetCurrent(gun, storage.DefaultNamespace, role)
+	return r.MemStorage.GetCurrent(gun, storage.PublishedState, role)
 }
 
 // GetChecksum gets the metadata from the underlying MetaStore, but also records
 // that the metadata was requested
 func (r *recordingMetaStore) GetChecksum(gun data.GUN, namepsace storage.Namespace, role data.RoleName, checksum string) (*time.Time, []byte, error) {
 	r.gotten = append(r.gotten, fmt.Sprintf("%s.%s.%s", gun.String(), role.String(), namepsace.String()))
-	return r.MemStorage.GetChecksum(gun, storage.DefaultNamespace, role, checksum)
+	return r.MemStorage.GetChecksum(gun, storage.PublishedState, role, checksum)
 }
 
 // the config can provide all the TLS information necessary - the root ca file,
@@ -368,7 +368,7 @@ func TestConfigFileTLSCanBeRelativeToConfigOrAbsolute(t *testing.T) {
 
 	// validate that we actually managed to connect and attempted to download the root though
 	require.Len(t, m.gotten, 1)
-	require.Equal(t, m.gotten[0], "repo.root.default")
+	require.Equal(t, m.gotten[0], "repo.root.published")
 }
 
 // Whatever TLS config is in the config file can be overridden by the command line
@@ -418,7 +418,7 @@ func TestConfigFileOverridenByCmdLineFlags(t *testing.T) {
 
 	// validate that we actually managed to connect and attempted to download the root though
 	require.Len(t, m.gotten, 1)
-	require.Equal(t, m.gotten[0], "repo.root.default")
+	require.Equal(t, m.gotten[0], "repo.root.published")
 }
 
 // the config can specify trust pinning settings for TOFUs, as well as pinned Certs or CA

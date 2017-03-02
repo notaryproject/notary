@@ -121,7 +121,7 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 
 	// update the storage so we don't fail just because the metadata is missing
 	for _, roleName := range data.BaseRoles {
-		require.NoError(t, s.UpdateCurrent(gun, storage.DefaultNamespace, storage.MetaUpdate{
+		require.NoError(t, s.UpdateCurrent(gun, storage.PublishedState, storage.MetaUpdate{
 			Role:    roleName,
 			Data:    meta[roleName],
 			Version: 1,
@@ -202,7 +202,7 @@ func TestGetRoleByHash(t *testing.T) {
 	}
 	j, err := json.Marshal(&ts)
 	require.NoError(t, err)
-	store.UpdateCurrent("gun", storage.DefaultNamespace, storage.MetaUpdate{
+	store.UpdateCurrent("gun", storage.PublishedState, storage.MetaUpdate{
 		Role:    data.CanonicalTimestampRole,
 		Version: 1,
 		Data:    j,
@@ -224,7 +224,7 @@ func TestGetRoleByHash(t *testing.T) {
 	}
 	newTS, err := json.Marshal(&ts)
 	require.NoError(t, err)
-	store.UpdateCurrent("gun", storage.DefaultNamespace, storage.MetaUpdate{
+	store.UpdateCurrent("gun", storage.PublishedState, storage.MetaUpdate{
 		Role:    data.CanonicalTimestampRole,
 		Version: 1,
 		Data:    newTS,
@@ -270,7 +270,7 @@ func TestGetRoleByVersion(t *testing.T) {
 	}
 	j, err := json.Marshal(&ts)
 	require.NoError(t, err)
-	store.UpdateCurrent("gun", storage.DefaultNamespace, storage.MetaUpdate{
+	store.UpdateCurrent("gun", storage.PublishedState, storage.MetaUpdate{
 		Role:    data.CanonicalTimestampRole,
 		Version: 1,
 		Data:    j,
@@ -290,7 +290,7 @@ func TestGetRoleByVersion(t *testing.T) {
 	}
 	newTS, err := json.Marshal(&ts)
 	require.NoError(t, err)
-	store.UpdateCurrent("gun", storage.DefaultNamespace, storage.MetaUpdate{
+	store.UpdateCurrent("gun", storage.PublishedState, storage.MetaUpdate{
 		Role:    data.CanonicalTimestampRole,
 		Version: 1,
 		Data:    newTS,
@@ -329,12 +329,12 @@ func TestGetCurrentRole(t *testing.T) {
 	// need both the snapshot and the timestamp, because when getting the current
 	// timestamp the server checks to see if it's out of date (there's a new snapshot)
 	// and if so, generates a new one
-	store.UpdateCurrent("gun", storage.DefaultNamespace, storage.MetaUpdate{
+	store.UpdateCurrent("gun", storage.PublishedState, storage.MetaUpdate{
 		Role:    data.CanonicalSnapshotRole,
 		Version: 1,
 		Data:    metadata[data.CanonicalSnapshotRole],
 	})
-	store.UpdateCurrent("gun", storage.DefaultNamespace, storage.MetaUpdate{
+	store.UpdateCurrent("gun", storage.PublishedState, storage.MetaUpdate{
 		Role:    data.CanonicalTimestampRole,
 		Version: 1,
 		Data:    metadata[data.CanonicalTimestampRole],

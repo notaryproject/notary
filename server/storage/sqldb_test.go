@@ -205,7 +205,7 @@ func TestSQLDBGetChecksum(t *testing.T) {
 	checksumBytes := sha256.Sum256(j)
 	checksum := hex.EncodeToString(checksumBytes[:])
 
-	dbStore.UpdateCurrent("gun", DefaultNamespace, update)
+	dbStore.UpdateCurrent("gun", PublishedState, update)
 
 	// create and add a newer timestamp. We're going to try and get the one
 	// created above by checksum
@@ -227,9 +227,9 @@ func TestSQLDBGetChecksum(t *testing.T) {
 		Data:    newJ,
 	}
 
-	dbStore.UpdateCurrent("gun", DefaultNamespace, update)
+	dbStore.UpdateCurrent("gun", PublishedState, update)
 
-	cDate, data, err := dbStore.GetChecksum("gun", DefaultNamespace, data.CanonicalTimestampRole, checksum)
+	cDate, data, err := dbStore.GetChecksum("gun", PublishedState, data.CanonicalTimestampRole, checksum)
 	require.NoError(t, err)
 	require.EqualValues(t, j, data)
 	// the creation date was sometime wthin the last minute
@@ -241,7 +241,7 @@ func TestSQLDBGetChecksumNotFound(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
-	_, _, err := dbStore.GetChecksum("gun", DefaultNamespace, data.CanonicalTimestampRole, "12345")
+	_, _, err := dbStore.GetChecksum("gun", PublishedState, data.CanonicalTimestampRole, "12345")
 	require.Error(t, err)
 	require.IsType(t, ErrNotFound{}, err)
 }

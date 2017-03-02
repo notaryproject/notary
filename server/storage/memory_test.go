@@ -83,18 +83,18 @@ func TestMemoryDeleteSuccess(t *testing.T) {
 func TestGetCurrent(t *testing.T) {
 	s := NewMemStorage()
 
-	_, _, err := s.GetCurrent("gun", DefaultNamespace, "role")
+	_, _, err := s.GetCurrent("gun", PublishedState, "role")
 	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
 
-	s.UpdateCurrent("gun", DefaultNamespace, MetaUpdate{"role", 1, []byte("test")})
-	_, d, err := s.GetCurrent("gun", DefaultNamespace, "role")
+	s.UpdateCurrent("gun", PublishedState, MetaUpdate{"role", 1, []byte("test")})
+	_, d, err := s.GetCurrent("gun", PublishedState, "role")
 	require.Nil(t, err, "Expected error to be nil")
 	require.Equal(t, []byte("test"), d, "Data was incorrect")
 }
 
 func TestGetChecksumNotFound(t *testing.T) {
 	s := NewMemStorage()
-	_, _, err := s.GetChecksum("gun", DefaultNamespace, "root", "12345")
+	_, _, err := s.GetChecksum("gun", PublishedState, "root", "12345")
 	require.Error(t, err)
 	require.IsType(t, ErrNotFound{}, err)
 }

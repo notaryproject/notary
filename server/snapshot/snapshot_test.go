@@ -102,7 +102,7 @@ func TestGetSnapshotKeyExistingMetadata(t *testing.T) {
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
 	require.NoError(t,
-		store.UpdateCurrent("gun", storage.DefaultNamespace, storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0, Data: rootJSON}))
+		store.UpdateCurrent("gun", storage.PublishedState, storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0, Data: rootJSON}))
 
 	snapshotRole, err := repo.Root.BuildBaseRole(data.CanonicalSnapshotRole)
 	require.NoError(t, err)
@@ -147,11 +147,11 @@ func TestGetSnapshotNoPreviousSnapshot(t *testing.T) {
 
 		// so we know it's not a failure in getting root
 		require.NoError(t,
-			store.UpdateCurrent("gun", storage.DefaultNamespace, storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0, Data: rootJSON}))
+			store.UpdateCurrent("gun", storage.PublishedState, storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0, Data: rootJSON}))
 
 		if snapshotJSON != nil {
 			require.NoError(t,
-				store.UpdateCurrent("gun", storage.DefaultNamespace,
+				store.UpdateCurrent("gun", storage.PublishedState,
 					storage.MetaUpdate{Role: data.CanonicalSnapshotRole, Version: 0, Data: snapshotJSON}))
 		}
 
@@ -181,7 +181,7 @@ func TestGetSnapshotReturnsPreviousSnapshotIfUnexpired(t *testing.T) {
 	snapshotJSON, err := json.Marshal(sgnd)
 	require.NoError(t, err)
 
-	require.NoError(t, store.UpdateCurrent("gun", storage.DefaultNamespace,
+	require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
 		storage.MetaUpdate{Role: data.CanonicalSnapshotRole, Version: 0, Data: snapshotJSON}))
 
 	hashBytes := sha256.Sum256(snapshotJSON)
@@ -211,9 +211,9 @@ func TestGetSnapshotOldSnapshotExpired(t *testing.T) {
 	require.NoError(t, err)
 
 	// set all the metadata
-	require.NoError(t, store.UpdateCurrent("gun", storage.DefaultNamespace,
+	require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
 		storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0, Data: rootJSON}))
-	require.NoError(t, store.UpdateCurrent("gun", storage.DefaultNamespace,
+	require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
 		storage.MetaUpdate{Role: data.CanonicalSnapshotRole, Version: 0, Data: snapshotJSON}))
 
 	hashBytes := sha256.Sum256(snapshotJSON)
@@ -247,10 +247,10 @@ func TestCannotMakeNewSnapshotIfNoRoot(t *testing.T) {
 		store := storage.NewMemStorage()
 
 		if rootJSON != nil {
-			require.NoError(t, store.UpdateCurrent("gun", storage.DefaultNamespace,
+			require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
 				storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0, Data: rootJSON}))
 		}
-		require.NoError(t, store.UpdateCurrent("gun", storage.DefaultNamespace,
+		require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
 			storage.MetaUpdate{Role: data.CanonicalSnapshotRole, Version: 1, Data: snapshotJSON}))
 
 		hashBytes := sha256.Sum256(snapshotJSON)
@@ -285,9 +285,9 @@ func TestCreateSnapshotNoKeyInCrypto(t *testing.T) {
 	require.NoError(t, err)
 
 	// set all the metadata so we know the failure to sign is just because of the key
-	require.NoError(t, store.UpdateCurrent("gun", storage.DefaultNamespace,
+	require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
 		storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0, Data: rootJSON}))
-	require.NoError(t, store.UpdateCurrent("gun", storage.DefaultNamespace,
+	require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
 		storage.MetaUpdate{Role: data.CanonicalSnapshotRole, Version: 0, Data: snapshotJSON}))
 
 	hashBytes := sha256.Sum256(snapshotJSON)
