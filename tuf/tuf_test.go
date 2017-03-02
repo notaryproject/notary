@@ -791,9 +791,23 @@ func TestAddTargetsRoleExistsAndMetadataDoesntExist(t *testing.T) {
 	targetsF, ok := r.Signed.Targets["f"]
 	require.True(t, ok)
 	require.Equal(t, f, targetsF)
+	require.True(t, r.Dirty)
+
+	// set it to not dirty so we can assert that if we add the exact same data, it won't be dirty
+	r.Dirty = false
+	_, err = repo.AddTargets("targets/test", data.Files{"f": f})
+	require.NoError(t, err)
+	require.False(t, r.Dirty)
+
+	// If we add the same target but with different metadata, it's dirty again
+	f2 := f
+	f2.Length = 2
+	_, err = repo.AddTargets("targets/test", data.Files{"f": f2})
+	require.NoError(t, err)
+	require.True(t, r.Dirty)
 }
 
-// Adding targets to a role that doesn't exist fails
+// Adding targets to a role that doesn't exist fails only if a target was actually added or updated
 func TestAddTargetsRoleDoesntExist(t *testing.T) {
 	hash := sha256.Sum256([]byte{})
 	f := data.FileMeta{
@@ -828,14 +842,21 @@ func TestAddTargetsNoSigningKeys(t *testing.T) {
 	require.NoError(t, err)
 	err = repo.UpdateDelegationKeys("targets/test", []data.PublicKey{testKey}, []string{}, 1)
 	require.NoError(t, err)
-	err = repo.UpdateDelegationPaths("targets/test", []string{"test"}, []string{}, false)
+	err = repo.UpdateDelegationPaths("targets/test", []string{""}, []string{}, false)
+	require.NoError(t, err)
+
+	_, err = repo.AddTargets("targets/test", data.Files{"f": f})
 	require.NoError(t, err)
 
 	// now delete the signing key (all keys)
 	repo.cryptoService = signed.NewEd25519()
 
-	// adding the targets to the role should create the metadata though
+	// adding the same exact target to the role should succeed even though the key is missing
 	_, err = repo.AddTargets("targets/test", data.Files{"f": f})
+	require.NoError(t, err)
+
+	// adding a different target to the role should fail because the keys is missing
+	_, err = repo.AddTargets("targets/test", data.Files{"t": f})
 	require.Error(t, err)
 	require.IsType(t, signed.ErrNoKeys{}, err)
 }
@@ -863,16 +884,29 @@ func TestRemoveExistingAndNonexistingTargets(t *testing.T) {
 	// still no metadata
 	_, ok = repo.Targets["targets/test"]
 	require.False(t, ok)
-}
 
-// Removing targets from a role that exists but without metadata succeeds.
-func TestRemoveTargetsNonexistentMetadata(t *testing.T) {
-	ed25519 := signed.NewEd25519()
-	repo := initRepo(t, ed25519)
+	// add a target to remove
+	hash := sha256.Sum256([]byte{})
+	_, err = repo.AddTargets("targets/test", data.Files{"test": data.FileMeta{
+		Length: 1,
+		Hashes: map[string][]byte{
+			"sha256": hash[:],
+		},
+	}})
+	require.NoError(t, err)
+	tgt, ok := repo.Targets["targets/test"]
+	require.True(t, ok)
+	require.True(t, tgt.Dirty)
+	// set this to false so we can prove that removing a non-existing target does not mark as dirty
+	tgt.Dirty = false
 
-	err := repo.RemoveTargets("targets/test", "f")
-	require.Error(t, err)
-	require.IsType(t, data.ErrInvalidRole{}, err)
+	require.NoError(t, repo.RemoveTargets("targets/test", "not_real"))
+	require.False(t, tgt.Dirty)
+	require.NotEmpty(t, tgt.Signed.Targets)
+
+	require.NoError(t, repo.RemoveTargets("targets/test", "test"))
+	require.True(t, tgt.Dirty)
+	require.Empty(t, tgt.Signed.Targets)
 }
 
 // Removing targets from a role that doesn't exist fails
@@ -885,7 +919,8 @@ func TestRemoveTargetsRoleDoesntExist(t *testing.T) {
 	require.IsType(t, data.ErrInvalidRole{}, err)
 }
 
-// Removing targets from a role that we don't have signing keys for fails
+// Removing targets from a role that we don't have signing keys for fails only if
+// a target was actually removed
 func TestRemoveTargetsNoSigningKeys(t *testing.T) {
 	hash := sha256.Sum256([]byte{})
 	f := data.FileMeta{
@@ -917,8 +952,12 @@ func TestRemoveTargetsNoSigningKeys(t *testing.T) {
 	// now delete the signing key (all keys)
 	repo.cryptoService = signed.NewEd25519()
 
-	// now remove the target - it should fail
-	err = repo.RemoveTargets("targets/test", "f")
+	// remove a nonexistent target - it should not fail
+	err = repo.RemoveTargets("targets/test", "t")
+	require.NoError(t, err)
+
+	// now remove a target that does exist - it should fail
+	err = repo.RemoveTargets("targets/test", "t", "f", "g")
 	require.Error(t, err)
 	require.IsType(t, signed.ErrNoKeys{}, err)
 }
