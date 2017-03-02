@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/registry/storage/cache"
 	"github.com/docker/notary/client/changelist"
 	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/tuf"
@@ -267,4 +268,25 @@ func serializeCanonicalRole(tufRepo *tuf.Repo, role data.RoleName, extraSigningK
 	}
 
 	return json.Marshal(s)
+}
+
+func isMetaCached(cache store.MetadataStore) (bool, error) {
+	if cache == nil {
+		return false, nil
+	}
+
+	for _, role := range data.BaseRoles {
+		_, err := cache.GetSized(role.String(), store.NoSizeLimit)
+		if err != nil {
+			if _, ok := err.(store.ErrMetaNotFound); ok {
+				continue
+			}
+
+			return false, err
+		}
+
+		return true, nil
+	}
+
+	return false, nil
 }
