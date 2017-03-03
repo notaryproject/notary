@@ -143,7 +143,6 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmd.AddCommand(cmdReset)
 
 	cmdTUFPublish := cmdTUFPublishTemplate.ToCommand(t.tufPublish)
-	cmdTUFPublish.Flags().StringVar(&t.rootKey, "rootkey", "", "Root key to initialize the repository with")
 	cmd.AddCommand(cmdTUFPublish)
 
 	cmd.AddCommand(cmdTUFLookupTemplate.ToCommand(t.tufLookup))
