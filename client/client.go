@@ -621,7 +621,11 @@ func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 		// If the remote is not aware of the repo, then this is being published
 		// for the first time.  Try to initialize the repository before publishing.
 		if _, ok := err.(ErrRepositoryNotExist); ok {
-			err := r.initializeFromCache()
+			err := r.bootstrapRepo()
+			if _, ok := err.(store.ErrMetaNotFound); ok {
+				err = r.Initialize(nil)
+			}
+
 			if err != nil {
 				return err
 			}
@@ -831,29 +835,6 @@ func (r *NotaryRepository) bootstrapRepo() error {
 	if err == nil {
 		r.tufRepo = tufRepo
 	}
-	return nil
-}
-
-// initializeFromCache looks for cached metadata to bootstrap from
-// and will initialize the repository from scratch otherwise.
-func (r *NotaryRepository) initializeFromCache() error {
-	metaCached, err := isMetaCached(r.cache)
-	if err != nil {
-		logrus.Debugf("Unable to verify on-disk cache: %s", err.Error())
-		return err
-	}
-
-	if metaCached {
-		err = r.bootstrapRepo()
-	} else {
-		err = r.Initialize(nil)
-	}
-	if err != nil {
-		logrus.Debugf("Unable to initialize repository at publish-time: %s",
-			err.Error())
-		return err
-	}
-
 	return nil
 }
 
