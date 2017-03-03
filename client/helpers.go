@@ -270,6 +270,8 @@ func serializeCanonicalRole(tufRepo *tuf.Repo, role data.RoleName, extraSigningK
 	return json.Marshal(s)
 }
 
+// isMetaCached looks for metadata in the cache. For each role, get the associated
+// metadata if any. Stop searching if we get an error other than metadata not found.
 func isMetaCached(cache store.MetadataStore) (bool, error) {
 	if cache == nil {
 		return false, nil
@@ -278,10 +280,13 @@ func isMetaCached(cache store.MetadataStore) (bool, error) {
 	for _, role := range data.BaseRoles {
 		_, err := cache.GetSized(role.String(), store.NoSizeLimit)
 		if err != nil {
+			// no metadata found check
 			if _, ok := err.(store.ErrMetaNotFound); ok {
+				// try with next role
 				continue
 			}
 
+			// error while searching
 			return false, err
 		}
 

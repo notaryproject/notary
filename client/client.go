@@ -834,6 +834,8 @@ func (r *NotaryRepository) bootstrapRepo() error {
 	return nil
 }
 
+// initializeFromCache looks for cached metadata to bootstrap from
+// and will initialize the repository from scratch otherwise.
 func (r *NotaryRepository) initializeFromCache() error {
 	metaCached, err := isMetaCached(r.cache)
 	if err != nil {
