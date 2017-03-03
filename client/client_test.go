@@ -1673,7 +1673,7 @@ func TestPublishUninitializedRepo(t *testing.T) {
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, true)
 }
 
-// Tnitializing a repo and republishing after should succeed
+// Initializing a repo and republishing after should succeed
 func TestPublishInitializedRepo(t *testing.T) {
 	var gun data.GUN = "docker.com/notary"
 	ts := fullTestServer(t)
@@ -2647,19 +2647,17 @@ func TestRemoteRotationNoRootKey(t *testing.T) {
 	require.IsType(t, signed.ErrInsufficientSignatures{}, err)
 }
 
-// The repo is initialized at publish time after
-// rotating the key. We should be denied the access
-// to metadata by the server when trying to retrieve it.
+// The repo should initialize successfully at publish time after
+// rotating the key.
 func TestRemoteRotationNoInit(t *testing.T) {
-	ts, _, _ := simpleTestServer(t)
+	ts := fullTestServer(t)
 	defer ts.Close()
 
 	repo := newBlankRepo(t, ts.URL)
 	defer os.RemoveAll(repo.baseDir)
 
 	err := repo.RotateKey(data.CanonicalTimestampRole, true, nil)
-	require.Error(t, err)
-	require.IsType(t, store.ErrMetaNotFound{}, err)
+	require.NoError(t, err)
 }
 
 // Rotates the keys.  After the rotation, downloading the latest metadata
