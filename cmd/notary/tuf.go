@@ -142,8 +142,7 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmdReset.Flags().BoolVar(&t.resetAll, "all", false, "Reset all changes shown in the status list")
 	cmd.AddCommand(cmdReset)
 
-	cmdTUFPublish := cmdTUFPublishTemplate.ToCommand(t.tufPublish)
-	cmd.AddCommand(cmdTUFPublish)
+	cmd.AddCommand(cmdTUFPublishTemplate.ToCommand(t.tufPublish))
 
 	cmd.AddCommand(cmdTUFLookupTemplate.ToCommand(t.tufLookup))
 

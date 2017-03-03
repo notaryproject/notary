@@ -623,10 +623,12 @@ func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 		if _, ok := err.(ErrRepositoryNotExist); ok {
 			err := r.bootstrapRepo()
 			if _, ok := err.(store.ErrMetaNotFound); ok {
+				logrus.Debugf("No metadata found on disk, initializing repository %s from scratch", r.gun.String())
 				err = r.Initialize(nil)
 			}
 
 			if err != nil {
+				logrus.Debugf("Unable to initialize repository at publish-time: %s", err.Error())
 				return err
 			}
 
