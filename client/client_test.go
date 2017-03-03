@@ -1673,37 +1673,6 @@ func TestPublishUninitializedRepo(t *testing.T) {
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, true)
 }
 
-// Initializing a repo and republishing after should succeed
-func TestPublishInitializedRepo(t *testing.T) {
-	var gun data.GUN = "docker.com/notary"
-	ts := fullTestServer(t)
-	defer ts.Close()
-
-	// uninitialized repo should not fail to publish
-	tempBaseDir, err := ioutil.TempDir("", "notary-tests")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempBaseDir)
-
-	// initialized repo should not fail to publish either
-	repo, err := NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL,
-		http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
-	require.NoError(t, err, "error creating repository: %s", err)
-
-	// now, initialize and publish
-	rootPubKey, err := repo.CryptoService.Create(data.CanonicalRootRole, repo.gun, data.ECDSAKey)
-	require.NoError(t, err, "error generating root key: %s", err)
-
-	require.NoError(t, repo.Initialize([]string{rootPubKey.ID()}))
-
-	// now metadata is created
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalRootRole, true)
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, true)
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, true)
-
-	// check we can just call publish again
-	require.NoError(t, repo.Publish())
-}
-
 // Create a repo, instantiate a notary server, and publish the repo with
 // some targets to the server, signing all the non-timestamp metadata.
 // We test this with both an RSA and ECDSA root key
