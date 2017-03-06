@@ -40,20 +40,26 @@ func main() {
 		logrus.Fatal("unable to set up TLS: %s", err.Error())
 	}
 
-	serverConfig := setup.Config{GRPCAddr: grpcAddr, TLSConfig: tlsConfig}
-
 	upstreamAddr := vc.GetString("upstream.addr")
 	upstreamCAPath := utils.GetPathRelativeToConfig(vc, "upstream.tls_ca_file")
 
-	lis, err := net.Listen("tcp", serverConfig.GRPCAddr)
+	creds := credentials.NewTLS(tlsConfig)
+	auth, err := setup.Authorization(vc)
 	if err != nil {
-		logrus.Fatal("grpc server failed to listen on %s: %v",
-			serverConfig.GRPCAddr, err)
+		logrus.Fatal("unable to configure authorization: %s", err.Error())
 	}
 
-	creds := credentials.NewTLS(serverConfig.TLSConfig)
-	opts := []grpc.ServerOption{grpc.Creds(creds)}
-	s, err := api.NewServer(upstreamAddr, upstreamCAPath, opts)
+	opts := []grpc.ServerOption{
+		grpc.Creds(creds),
+		grpc.UnaryInterceptor(auth),
+	}
+
+	srv, lis, err := setup.NewGRPCServer(grpcAddr, opts)
+	if err != nil {
+		logrus.Fatal("grpc server failed to start on %s: %v",
+			grpcAddr, err)
+	}
+	s, err := api.NewServer(upstreamAddr, upstreamCAPath, srv)
 	if err != nil {
 		logrus.Fatal(err)
 	}

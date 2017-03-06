@@ -20,8 +20,7 @@ import (
 
 // NewServer creates a new instance of a Client API server with a configured
 // upstream Notary Server.
-func NewServer(upstream string, upstreamCAPath string, serverOpts []grpc.ServerOption) (*grpc.Server, error) {
-	grpcSrv := grpc.NewServer(serverOpts...)
+func NewServer(upstream string, upstreamCAPath string, grpcSrv *grpc.Server) (*grpc.Server, error) {
 	srv := &Server{
 		upstream:       upstream,
 		upstreamCAPath: upstreamCAPath,
@@ -150,4 +149,11 @@ func (srv *Server) initRepo(gun data.GUN) (*client.NotaryRepository, error) {
 
 func retriever(keyName, alias string, createNew bool, attempts int) (string, bool, error) {
 	return "password", false, nil
+}
+
+func DefaultPermissions() map[string][]string {
+	return map[string][]string{
+		"/api.Notary/AddTarget": {"push", "pull"},
+		"/api.Notary/RemoveTarget": {"push", "pull"},
+	}
 }
