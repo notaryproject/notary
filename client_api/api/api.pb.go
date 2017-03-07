@@ -10,20 +10,25 @@ It is generated from these files:
 
 It has these top-level messages:
 	Empty
+	InitMessage
 	RoleList
 	TargetName
 	Target
 	TargetWithRole
+	TargetWithRoleResponse
 	TargetWithRoleList
+	TargetWithRoleListResponse
 	TargetByNameAction
 	Signature
 	PublicKey
 	DelegationRole
 	TargetSigned
 	TargetSignedList
+	TargetSignedListResponse
 	BasicResponse
 	Change
 	ChangeList
+	ChangeListResponse
 */
 package api
 
@@ -55,6 +60,32 @@ func (m *Empty) String() string            { return proto.CompactTextString(m) }
 func (*Empty) ProtoMessage()               {}
 func (*Empty) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
+// InitMessage holds a list of root key IDs and a list of roles for which
+// the server automatically should manage the keys
+type InitMessage struct {
+	RootKeyIDs         []string  `protobuf:"bytes,1,rep,name=rootKeyIDs" json:"rootKeyIDs,omitempty"`
+	ServerManagedRoles *RoleList `protobuf:"bytes,2,opt,name=serverManagedRoles" json:"serverManagedRoles,omitempty"`
+}
+
+func (m *InitMessage) Reset()                    { *m = InitMessage{} }
+func (m *InitMessage) String() string            { return proto.CompactTextString(m) }
+func (*InitMessage) ProtoMessage()               {}
+func (*InitMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+
+func (m *InitMessage) GetRootKeyIDs() []string {
+	if m != nil {
+		return m.RootKeyIDs
+	}
+	return nil
+}
+
+func (m *InitMessage) GetServerManagedRoles() *RoleList {
+	if m != nil {
+		return m.ServerManagedRoles
+	}
+	return nil
+}
+
 // RoleList message holds a list of TUF role names
 type RoleList struct {
 	Roles []string `protobuf:"bytes,1,rep,name=roles" json:"roles,omitempty"`
@@ -63,7 +94,7 @@ type RoleList struct {
 func (m *RoleList) Reset()                    { *m = RoleList{} }
 func (m *RoleList) String() string            { return proto.CompactTextString(m) }
 func (*RoleList) ProtoMessage()               {}
-func (*RoleList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+func (*RoleList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
 
 func (m *RoleList) GetRoles() []string {
 	if m != nil {
@@ -79,7 +110,7 @@ type TargetName struct {
 func (m *TargetName) Reset()                    { *m = TargetName{} }
 func (m *TargetName) String() string            { return proto.CompactTextString(m) }
 func (*TargetName) ProtoMessage()               {}
-func (*TargetName) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+func (*TargetName) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
 func (m *TargetName) GetName() string {
 	if m != nil {
@@ -100,7 +131,7 @@ type Target struct {
 func (m *Target) Reset()                    { *m = Target{} }
 func (m *Target) String() string            { return proto.CompactTextString(m) }
 func (*Target) ProtoMessage()               {}
-func (*Target) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+func (*Target) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
 
 func (m *Target) GetGun() string {
 	if m != nil {
@@ -146,7 +177,7 @@ type TargetWithRole struct {
 func (m *TargetWithRole) Reset()                    { *m = TargetWithRole{} }
 func (m *TargetWithRole) String() string            { return proto.CompactTextString(m) }
 func (*TargetWithRole) ProtoMessage()               {}
-func (*TargetWithRole) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+func (*TargetWithRole) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
 
 func (m *TargetWithRole) GetTarget() *Target {
 	if m != nil {
@@ -162,6 +193,38 @@ func (m *TargetWithRole) GetRole() string {
 	return ""
 }
 
+type TargetWithRoleResponse struct {
+	TargetWithRole *TargetWithRole `protobuf:"bytes,1,opt,name=targetWithRole" json:"targetWithRole,omitempty"`
+	Success        bool            `protobuf:"varint,2,opt,name=success" json:"success,omitempty"`
+	Message        string          `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`
+}
+
+func (m *TargetWithRoleResponse) Reset()                    { *m = TargetWithRoleResponse{} }
+func (m *TargetWithRoleResponse) String() string            { return proto.CompactTextString(m) }
+func (*TargetWithRoleResponse) ProtoMessage()               {}
+func (*TargetWithRoleResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+
+func (m *TargetWithRoleResponse) GetTargetWithRole() *TargetWithRole {
+	if m != nil {
+		return m.TargetWithRole
+	}
+	return nil
+}
+
+func (m *TargetWithRoleResponse) GetSuccess() bool {
+	if m != nil {
+		return m.Success
+	}
+	return false
+}
+
+func (m *TargetWithRoleResponse) GetMessage() string {
+	if m != nil {
+		return m.Message
+	}
+	return ""
+}
+
 type TargetWithRoleList struct {
 	Targets []*TargetWithRole `protobuf:"bytes,1,rep,name=targets" json:"targets,omitempty"`
 }
@@ -169,13 +232,45 @@ type TargetWithRoleList struct {
 func (m *TargetWithRoleList) Reset()                    { *m = TargetWithRoleList{} }
 func (m *TargetWithRoleList) String() string            { return proto.CompactTextString(m) }
 func (*TargetWithRoleList) ProtoMessage()               {}
-func (*TargetWithRoleList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
+func (*TargetWithRoleList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
 
 func (m *TargetWithRoleList) GetTargets() []*TargetWithRole {
 	if m != nil {
 		return m.Targets
 	}
 	return nil
+}
+
+type TargetWithRoleListResponse struct {
+	TargetWithRoleList *TargetWithRoleList `protobuf:"bytes,1,opt,name=targetWithRoleList" json:"targetWithRoleList,omitempty"`
+	Success            bool                `protobuf:"varint,2,opt,name=success" json:"success,omitempty"`
+	Message            string              `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`
+}
+
+func (m *TargetWithRoleListResponse) Reset()                    { *m = TargetWithRoleListResponse{} }
+func (m *TargetWithRoleListResponse) String() string            { return proto.CompactTextString(m) }
+func (*TargetWithRoleListResponse) ProtoMessage()               {}
+func (*TargetWithRoleListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+
+func (m *TargetWithRoleListResponse) GetTargetWithRoleList() *TargetWithRoleList {
+	if m != nil {
+		return m.TargetWithRoleList
+	}
+	return nil
+}
+
+func (m *TargetWithRoleListResponse) GetSuccess() bool {
+	if m != nil {
+		return m.Success
+	}
+	return false
+}
+
+func (m *TargetWithRoleListResponse) GetMessage() string {
+	if m != nil {
+		return m.Message
+	}
+	return ""
 }
 
 type TargetByNameAction struct {
@@ -186,7 +281,7 @@ type TargetByNameAction struct {
 func (m *TargetByNameAction) Reset()                    { *m = TargetByNameAction{} }
 func (m *TargetByNameAction) String() string            { return proto.CompactTextString(m) }
 func (*TargetByNameAction) ProtoMessage()               {}
-func (*TargetByNameAction) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+func (*TargetByNameAction) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
 
 func (m *TargetByNameAction) GetName() string {
 	if m != nil {
@@ -212,7 +307,7 @@ type Signature struct {
 func (m *Signature) Reset()                    { *m = Signature{} }
 func (m *Signature) String() string            { return proto.CompactTextString(m) }
 func (*Signature) ProtoMessage()               {}
-func (*Signature) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+func (*Signature) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
 
 func (m *Signature) GetKeyID() string {
 	if m != nil {
@@ -242,13 +337,14 @@ func (m *Signature) GetIsValid() bool {
 	return false
 }
 
+// FIXME: implement
 type PublicKey struct {
 }
 
 func (m *PublicKey) Reset()                    { *m = PublicKey{} }
 func (m *PublicKey) String() string            { return proto.CompactTextString(m) }
 func (*PublicKey) ProtoMessage()               {}
-func (*PublicKey) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+func (*PublicKey) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
 
 type DelegationRole struct {
 	Keys      map[string]*PublicKey `protobuf:"bytes,1,rep,name=keys" json:"keys,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -260,7 +356,7 @@ type DelegationRole struct {
 func (m *DelegationRole) Reset()                    { *m = DelegationRole{} }
 func (m *DelegationRole) String() string            { return proto.CompactTextString(m) }
 func (*DelegationRole) ProtoMessage()               {}
-func (*DelegationRole) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
+func (*DelegationRole) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
 
 func (m *DelegationRole) GetKeys() map[string]*PublicKey {
 	if m != nil {
@@ -299,7 +395,7 @@ type TargetSigned struct {
 func (m *TargetSigned) Reset()                    { *m = TargetSigned{} }
 func (m *TargetSigned) String() string            { return proto.CompactTextString(m) }
 func (*TargetSigned) ProtoMessage()               {}
-func (*TargetSigned) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
+func (*TargetSigned) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
 
 func (m *TargetSigned) GetRole() *DelegationRole {
 	if m != nil {
@@ -329,13 +425,45 @@ type TargetSignedList struct {
 func (m *TargetSignedList) Reset()                    { *m = TargetSignedList{} }
 func (m *TargetSignedList) String() string            { return proto.CompactTextString(m) }
 func (*TargetSignedList) ProtoMessage()               {}
-func (*TargetSignedList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
+func (*TargetSignedList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
 
 func (m *TargetSignedList) GetTargets() []*TargetSigned {
 	if m != nil {
 		return m.Targets
 	}
 	return nil
+}
+
+type TargetSignedListResponse struct {
+	TargetSignedList *TargetSignedList `protobuf:"bytes,1,opt,name=targetSignedList" json:"targetSignedList,omitempty"`
+	Success          bool              `protobuf:"varint,2,opt,name=success" json:"success,omitempty"`
+	Message          string            `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`
+}
+
+func (m *TargetSignedListResponse) Reset()                    { *m = TargetSignedListResponse{} }
+func (m *TargetSignedListResponse) String() string            { return proto.CompactTextString(m) }
+func (*TargetSignedListResponse) ProtoMessage()               {}
+func (*TargetSignedListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
+
+func (m *TargetSignedListResponse) GetTargetSignedList() *TargetSignedList {
+	if m != nil {
+		return m.TargetSignedList
+	}
+	return nil
+}
+
+func (m *TargetSignedListResponse) GetSuccess() bool {
+	if m != nil {
+		return m.Success
+	}
+	return false
+}
+
+func (m *TargetSignedListResponse) GetMessage() string {
+	if m != nil {
+		return m.Message
+	}
+	return ""
 }
 
 // BasicResponse describes a response with a true/false success indicator,
@@ -350,7 +478,7 @@ type BasicResponse struct {
 func (m *BasicResponse) Reset()                    { *m = BasicResponse{} }
 func (m *BasicResponse) String() string            { return proto.CompactTextString(m) }
 func (*BasicResponse) ProtoMessage()               {}
-func (*BasicResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
+func (*BasicResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
 
 func (m *BasicResponse) GetSuccess() bool {
 	if m != nil {
@@ -378,7 +506,7 @@ type Change struct {
 func (m *Change) Reset()                    { *m = Change{} }
 func (m *Change) String() string            { return proto.CompactTextString(m) }
 func (*Change) ProtoMessage()               {}
-func (*Change) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
+func (*Change) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
 
 func (m *Change) GetAction() string {
 	if m != nil {
@@ -423,7 +551,7 @@ type ChangeList struct {
 func (m *ChangeList) Reset()                    { *m = ChangeList{} }
 func (m *ChangeList) String() string            { return proto.CompactTextString(m) }
 func (*ChangeList) ProtoMessage()               {}
-func (*ChangeList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
+func (*ChangeList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
 
 func (m *ChangeList) GetChanges() []*Change {
 	if m != nil {
@@ -432,22 +560,59 @@ func (m *ChangeList) GetChanges() []*Change {
 	return nil
 }
 
+type ChangeListResponse struct {
+	Changelist *ChangeList `protobuf:"bytes,1,opt,name=changelist" json:"changelist,omitempty"`
+	Success    bool        `protobuf:"varint,2,opt,name=success" json:"success,omitempty"`
+	Message    string      `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`
+}
+
+func (m *ChangeListResponse) Reset()                    { *m = ChangeListResponse{} }
+func (m *ChangeListResponse) String() string            { return proto.CompactTextString(m) }
+func (*ChangeListResponse) ProtoMessage()               {}
+func (*ChangeListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
+
+func (m *ChangeListResponse) GetChangelist() *ChangeList {
+	if m != nil {
+		return m.Changelist
+	}
+	return nil
+}
+
+func (m *ChangeListResponse) GetSuccess() bool {
+	if m != nil {
+		return m.Success
+	}
+	return false
+}
+
+func (m *ChangeListResponse) GetMessage() string {
+	if m != nil {
+		return m.Message
+	}
+	return ""
+}
+
 func init() {
 	proto.RegisterType((*Empty)(nil), "api.Empty")
+	proto.RegisterType((*InitMessage)(nil), "api.InitMessage")
 	proto.RegisterType((*RoleList)(nil), "api.RoleList")
 	proto.RegisterType((*TargetName)(nil), "api.TargetName")
 	proto.RegisterType((*Target)(nil), "api.Target")
 	proto.RegisterType((*TargetWithRole)(nil), "api.TargetWithRole")
+	proto.RegisterType((*TargetWithRoleResponse)(nil), "api.TargetWithRoleResponse")
 	proto.RegisterType((*TargetWithRoleList)(nil), "api.TargetWithRoleList")
+	proto.RegisterType((*TargetWithRoleListResponse)(nil), "api.TargetWithRoleListResponse")
 	proto.RegisterType((*TargetByNameAction)(nil), "api.TargetByNameAction")
 	proto.RegisterType((*Signature)(nil), "api.Signature")
 	proto.RegisterType((*PublicKey)(nil), "api.PublicKey")
 	proto.RegisterType((*DelegationRole)(nil), "api.DelegationRole")
 	proto.RegisterType((*TargetSigned)(nil), "api.TargetSigned")
 	proto.RegisterType((*TargetSignedList)(nil), "api.TargetSignedList")
+	proto.RegisterType((*TargetSignedListResponse)(nil), "api.TargetSignedListResponse")
 	proto.RegisterType((*BasicResponse)(nil), "api.BasicResponse")
 	proto.RegisterType((*Change)(nil), "api.Change")
 	proto.RegisterType((*ChangeList)(nil), "api.ChangeList")
+	proto.RegisterType((*ChangeListResponse)(nil), "api.ChangeListResponse")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -461,19 +626,21 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for Notary service
 
 type NotaryClient interface {
+	Initialize(ctx context.Context, in *InitMessage, opts ...grpc.CallOption) (*BasicResponse, error)
+	Publish(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*BasicResponse, error)
 	// AddTarget adds a target to the TUF repository and re-signs.
 	AddTarget(ctx context.Context, in *Target, opts ...grpc.CallOption) (*BasicResponse, error)
 	// RemoveTarget deletes a target from the TUF repository and re-signs. It only
 	// uses the `name` field from the Target object, ignoring all other fields
 	RemoveTarget(ctx context.Context, in *Target, opts ...grpc.CallOption) (*BasicResponse, error)
 	// ListTargets list the targets for the specified roles in the TUF repository
-	ListTargets(ctx context.Context, in *RoleList, opts ...grpc.CallOption) (*TargetWithRoleList, error)
+	ListTargets(ctx context.Context, in *RoleList, opts ...grpc.CallOption) (*TargetWithRoleListResponse, error)
 	// GetTargetByName returns a target by the given name.
-	GetTargetByName(ctx context.Context, in *TargetByNameAction, opts ...grpc.CallOption) (*TargetWithRole, error)
+	GetTargetByName(ctx context.Context, in *TargetByNameAction, opts ...grpc.CallOption) (*TargetWithRoleResponse, error)
 	// GetAllTargetMetadataByName
-	GetAllTargetMetadataByName(ctx context.Context, in *TargetName, opts ...grpc.CallOption) (*TargetSignedList, error)
+	GetAllTargetMetadataByName(ctx context.Context, in *TargetName, opts ...grpc.CallOption) (*TargetSignedListResponse, error)
 	// GetChangelist returns the list of the repository's unpublished changes
-	GetChangelist(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ChangeList, error)
+	GetChangelist(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ChangeListResponse, error)
 }
 
 type notaryClient struct {
@@ -482,6 +649,24 @@ type notaryClient struct {
 
 func NewNotaryClient(cc *grpc.ClientConn) NotaryClient {
 	return &notaryClient{cc}
+}
+
+func (c *notaryClient) Initialize(ctx context.Context, in *InitMessage, opts ...grpc.CallOption) (*BasicResponse, error) {
+	out := new(BasicResponse)
+	err := grpc.Invoke(ctx, "/api.Notary/Initialize", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *notaryClient) Publish(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*BasicResponse, error) {
+	out := new(BasicResponse)
+	err := grpc.Invoke(ctx, "/api.Notary/Publish", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *notaryClient) AddTarget(ctx context.Context, in *Target, opts ...grpc.CallOption) (*BasicResponse, error) {
@@ -502,8 +687,8 @@ func (c *notaryClient) RemoveTarget(ctx context.Context, in *Target, opts ...grp
 	return out, nil
 }
 
-func (c *notaryClient) ListTargets(ctx context.Context, in *RoleList, opts ...grpc.CallOption) (*TargetWithRoleList, error) {
-	out := new(TargetWithRoleList)
+func (c *notaryClient) ListTargets(ctx context.Context, in *RoleList, opts ...grpc.CallOption) (*TargetWithRoleListResponse, error) {
+	out := new(TargetWithRoleListResponse)
 	err := grpc.Invoke(ctx, "/api.Notary/ListTargets", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
@@ -511,8 +696,8 @@ func (c *notaryClient) ListTargets(ctx context.Context, in *RoleList, opts ...gr
 	return out, nil
 }
 
-func (c *notaryClient) GetTargetByName(ctx context.Context, in *TargetByNameAction, opts ...grpc.CallOption) (*TargetWithRole, error) {
-	out := new(TargetWithRole)
+func (c *notaryClient) GetTargetByName(ctx context.Context, in *TargetByNameAction, opts ...grpc.CallOption) (*TargetWithRoleResponse, error) {
+	out := new(TargetWithRoleResponse)
 	err := grpc.Invoke(ctx, "/api.Notary/GetTargetByName", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
@@ -520,8 +705,8 @@ func (c *notaryClient) GetTargetByName(ctx context.Context, in *TargetByNameActi
 	return out, nil
 }
 
-func (c *notaryClient) GetAllTargetMetadataByName(ctx context.Context, in *TargetName, opts ...grpc.CallOption) (*TargetSignedList, error) {
-	out := new(TargetSignedList)
+func (c *notaryClient) GetAllTargetMetadataByName(ctx context.Context, in *TargetName, opts ...grpc.CallOption) (*TargetSignedListResponse, error) {
+	out := new(TargetSignedListResponse)
 	err := grpc.Invoke(ctx, "/api.Notary/GetAllTargetMetadataByName", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
@@ -529,8 +714,8 @@ func (c *notaryClient) GetAllTargetMetadataByName(ctx context.Context, in *Targe
 	return out, nil
 }
 
-func (c *notaryClient) GetChangelist(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ChangeList, error) {
-	out := new(ChangeList)
+func (c *notaryClient) GetChangelist(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ChangeListResponse, error) {
+	out := new(ChangeListResponse)
 	err := grpc.Invoke(ctx, "/api.Notary/GetChangelist", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
@@ -541,23 +726,61 @@ func (c *notaryClient) GetChangelist(ctx context.Context, in *Empty, opts ...grp
 // Server API for Notary service
 
 type NotaryServer interface {
+	Initialize(context.Context, *InitMessage) (*BasicResponse, error)
+	Publish(context.Context, *Empty) (*BasicResponse, error)
 	// AddTarget adds a target to the TUF repository and re-signs.
 	AddTarget(context.Context, *Target) (*BasicResponse, error)
 	// RemoveTarget deletes a target from the TUF repository and re-signs. It only
 	// uses the `name` field from the Target object, ignoring all other fields
 	RemoveTarget(context.Context, *Target) (*BasicResponse, error)
 	// ListTargets list the targets for the specified roles in the TUF repository
-	ListTargets(context.Context, *RoleList) (*TargetWithRoleList, error)
+	ListTargets(context.Context, *RoleList) (*TargetWithRoleListResponse, error)
 	// GetTargetByName returns a target by the given name.
-	GetTargetByName(context.Context, *TargetByNameAction) (*TargetWithRole, error)
+	GetTargetByName(context.Context, *TargetByNameAction) (*TargetWithRoleResponse, error)
 	// GetAllTargetMetadataByName
-	GetAllTargetMetadataByName(context.Context, *TargetName) (*TargetSignedList, error)
+	GetAllTargetMetadataByName(context.Context, *TargetName) (*TargetSignedListResponse, error)
 	// GetChangelist returns the list of the repository's unpublished changes
-	GetChangelist(context.Context, *Empty) (*ChangeList, error)
+	GetChangelist(context.Context, *Empty) (*ChangeListResponse, error)
 }
 
 func RegisterNotaryServer(s *grpc.Server, srv NotaryServer) {
 	s.RegisterService(&_Notary_serviceDesc, srv)
+}
+
+func _Notary_Initialize_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InitMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NotaryServer).Initialize(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.Notary/Initialize",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NotaryServer).Initialize(ctx, req.(*InitMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Notary_Publish_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NotaryServer).Publish(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.Notary/Publish",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NotaryServer).Publish(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Notary_AddTarget_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -673,6 +896,14 @@ var _Notary_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*NotaryServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "Initialize",
+			Handler:    _Notary_Initialize_Handler,
+		},
+		{
+			MethodName: "Publish",
+			Handler:    _Notary_Publish_Handler,
+		},
+		{
 			MethodName: "AddTarget",
 			Handler:    _Notary_AddTarget_Handler,
 		},
@@ -704,53 +935,64 @@ var _Notary_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("api.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 762 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x8c, 0x55, 0x5b, 0x6f, 0xdb, 0x36,
-	0x14, 0x8e, 0x7c, 0x8d, 0x8e, 0x9c, 0xcb, 0x98, 0x6d, 0x11, 0x84, 0x0c, 0x10, 0x98, 0x0d, 0x33,
-	0x30, 0xcc, 0x43, 0x9c, 0x87, 0x6d, 0x7d, 0x29, 0x9c, 0x4b, 0xdd, 0x20, 0x4d, 0x50, 0xb0, 0x45,
-	0xfb, 0xcc, 0xc8, 0x84, 0x25, 0x58, 0x96, 0x54, 0x93, 0x0e, 0xaa, 0xff, 0xd0, 0x5f, 0xd6, 0xe7,
-	0xbe, 0xf7, 0xaf, 0x14, 0xbc, 0xd9, 0x74, 0xeb, 0x02, 0x7d, 0xe3, 0x47, 0x9e, 0x73, 0x78, 0xce,
-	0xf7, 0x7d, 0xa2, 0xc0, 0xa7, 0x55, 0x36, 0xa8, 0x16, 0xa5, 0x28, 0x51, 0x93, 0x56, 0x19, 0xee,
-	0x42, 0xfb, 0x7a, 0x5e, 0x89, 0x1a, 0xc7, 0xb0, 0x4b, 0xca, 0x9c, 0xbd, 0xc8, 0xb8, 0x40, 0x3f,
-	0x43, 0x7b, 0x51, 0xe6, 0x8c, 0x87, 0x5e, 0xdc, 0xec, 0xfb, 0x44, 0x03, 0x1c, 0x03, 0xbc, 0xa6,
-	0x8b, 0x29, 0x13, 0xf7, 0x74, 0xce, 0x10, 0x82, 0x56, 0x41, 0xe7, 0x2c, 0xf4, 0x62, 0xaf, 0xef,
-	0x13, 0xb5, 0xc6, 0x1f, 0x3d, 0xe8, 0xe8, 0x10, 0x74, 0x08, 0xcd, 0xe9, 0xb2, 0x30, 0xa7, 0x72,
-	0xb9, 0x4a, 0x68, 0xac, 0x13, 0xd0, 0xaf, 0xd0, 0xc9, 0x59, 0x31, 0x15, 0x69, 0xd8, 0x8c, 0xbd,
-	0x7e, 0x93, 0x18, 0x84, 0xfe, 0x81, 0x4e, 0x4a, 0x79, 0xca, 0x78, 0xd8, 0x8a, 0x9b, 0xfd, 0x60,
-	0x78, 0x3c, 0x90, 0x6d, 0xeb, 0xd2, 0x83, 0xe7, 0xea, 0xe4, 0xba, 0x10, 0x8b, 0x9a, 0x98, 0x30,
-	0x59, 0x28, 0x59, 0x72, 0x51, 0xce, 0xc3, 0x76, 0xec, 0xf5, 0x7b, 0xc4, 0xa0, 0xe8, 0x7f, 0x08,
-	0x9c, 0x70, 0xd9, 0xd5, 0x8c, 0xd5, 0xb6, 0xab, 0x19, 0xab, 0xe5, 0xa8, 0x8f, 0x34, 0x5f, 0xea,
-	0xb6, 0x7a, 0x44, 0x83, 0x27, 0x8d, 0xff, 0x3c, 0x7c, 0x03, 0xfb, 0xfa, 0xc2, 0xb7, 0x99, 0x48,
-	0x25, 0x35, 0xe8, 0x14, 0x3a, 0x42, 0xed, 0xa8, 0x02, 0xc1, 0x30, 0x70, 0xba, 0x22, 0xe6, 0x48,
-	0x8e, 0x29, 0xe9, 0xb2, 0x63, 0xca, 0x35, 0xbe, 0x04, 0xb4, 0x59, 0x4a, 0xb1, 0xfc, 0x37, 0x74,
-	0x75, 0x8e, 0xe6, 0x39, 0x18, 0x1e, 0x39, 0xf5, 0x6c, 0x24, 0xb1, 0x31, 0xf8, 0xce, 0x16, 0xb9,
-	0xa8, 0xa5, 0x00, 0xa3, 0x44, 0x64, 0x65, 0xb1, 0x4d, 0x06, 0x74, 0x6a, 0xe5, 0x6b, 0xa8, 0x36,
-	0xf7, 0x54, 0x59, 0x7b, 0xad, 0x55, 0xf3, 0x1d, 0xf8, 0xaf, 0xb2, 0x69, 0x41, 0xc5, 0x72, 0xc1,
-	0x24, 0x0b, 0x33, 0x56, 0xdf, 0x5c, 0x99, 0x32, 0x1a, 0x48, 0x52, 0xe7, 0x4c, 0xa4, 0xe5, 0xc4,
-	0x0c, 0x63, 0x10, 0x3a, 0x01, 0x9f, 0xdb, 0x54, 0x25, 0x5c, 0x8f, 0xac, 0x37, 0x50, 0x08, 0xdd,
-	0x8c, 0xbf, 0xa1, 0x79, 0x36, 0x09, 0x5b, 0xb1, 0xd7, 0xdf, 0x25, 0x16, 0xe2, 0x00, 0xfc, 0x97,
-	0xcb, 0x87, 0x3c, 0x4b, 0x6e, 0x59, 0x8d, 0x3f, 0x79, 0xb0, 0x7f, 0xc5, 0x72, 0x36, 0xa5, 0x72,
-	0x0e, 0xc5, 0xef, 0x19, 0xb4, 0x66, 0xac, 0xb6, 0x6c, 0xfc, 0xa6, 0xda, 0xde, 0x0c, 0x19, 0xdc,
-	0xb2, 0xda, 0x28, 0xaf, 0x42, 0xb7, 0x9a, 0xea, 0x04, 0x7c, 0x91, 0x2e, 0x18, 0x4f, 0xcb, 0x7c,
-	0xa2, 0xda, 0x6b, 0x93, 0xf5, 0x86, 0x1c, 0xb5, 0xa2, 0x22, 0xd5, 0xce, 0xf2, 0x89, 0x06, 0xd1,
-	0x18, 0xfc, 0x55, 0xe9, 0x2d, 0x2e, 0xf9, 0xdd, 0x75, 0x49, 0x30, 0xdc, 0x57, 0xad, 0xad, 0x66,
-	0x71, 0x5d, 0xf3, 0xc1, 0x83, 0x9e, 0x96, 0x49, 0xb2, 0xcb, 0x26, 0xe8, 0x4f, 0xe3, 0x07, 0x6d,
-	0x99, 0xa3, 0x2d, 0x43, 0x69, 0x93, 0x38, 0xee, 0x6a, 0x7c, 0xdf, 0x5d, 0x03, 0x80, 0x15, 0xd3,
-	0x3c, 0x6c, 0x2a, 0xa2, 0x74, 0x37, 0x2b, 0x31, 0x89, 0x13, 0x81, 0x9f, 0xc2, 0xa1, 0xdb, 0x8d,
-	0xf2, 0xdd, 0x5f, 0x5f, 0xfb, 0xee, 0x27, 0xe7, 0x26, 0x1d, 0xb7, 0x76, 0xdd, 0x25, 0xec, 0x5d,
-	0x50, 0x9e, 0x25, 0x84, 0xf1, 0xaa, 0x2c, 0xb8, 0x92, 0x97, 0x2f, 0x93, 0x84, 0x71, 0xae, 0x46,
-	0xda, 0x25, 0x16, 0xca, 0x93, 0x39, 0xe3, 0x9c, 0x4e, 0xad, 0x1c, 0x16, 0xe2, 0xf7, 0xd0, 0xb9,
-	0x4c, 0x69, 0x31, 0x55, 0x1f, 0x3c, 0x55, 0xc6, 0x35, 0xec, 0x1a, 0x24, 0x55, 0xe1, 0x49, 0x59,
-	0xd9, 0x4c, 0x0d, 0xa4, 0xba, 0xa2, 0xae, 0xb4, 0xc7, 0x7c, 0xa2, 0xd6, 0x72, 0x4f, 0x4a, 0xa6,
-	0xbc, 0xe5, 0x13, 0xb5, 0x96, 0x37, 0x27, 0x65, 0x21, 0x58, 0x21, 0xcc, 0xe7, 0x6f, 0x21, 0x3e,
-	0x07, 0xd0, 0x37, 0xab, 0xc9, 0xff, 0x80, 0x6e, 0xa2, 0x90, 0x9d, 0x5c, 0x73, 0xac, 0x23, 0x88,
-	0x3d, 0x1b, 0x7e, 0x6e, 0x40, 0xe7, 0xbe, 0x14, 0x74, 0x51, 0xa3, 0x01, 0xf8, 0xa3, 0xc9, 0xc4,
-	0xbc, 0x69, 0xae, 0x22, 0x11, 0x52, 0x60, 0x83, 0x1b, 0xbc, 0x83, 0xce, 0xa0, 0x47, 0xd8, 0xbc,
-	0x7c, 0x64, 0x3f, 0x9e, 0xf2, 0x2f, 0x04, 0xb2, 0x39, 0x1d, 0xc3, 0xd1, 0xe6, 0xd7, 0x1a, 0x1d,
-	0x6f, 0x79, 0x13, 0xe4, 0x01, 0xde, 0x41, 0x23, 0x38, 0x18, 0x33, 0xe1, 0xbe, 0x09, 0xc8, 0x8d,
-	0x76, 0x9f, 0x89, 0x68, 0xdb, 0xd3, 0x82, 0x77, 0xd0, 0x33, 0x88, 0xc6, 0x4c, 0x8c, 0xf2, 0x5c,
-	0x9f, 0xdc, 0x31, 0x41, 0x27, 0x54, 0x50, 0x53, 0xed, 0xc0, 0x49, 0x92, 0x1b, 0xd1, 0x2f, 0xdf,
-	0x18, 0xc5, 0xb4, 0x32, 0x80, 0xbd, 0x31, 0x13, 0x9a, 0xc7, 0x5c, 0x32, 0x0d, 0x2a, 0x52, 0xfd,
-	0x59, 0xa2, 0x03, 0x87, 0x64, 0x1d, 0xff, 0xd0, 0x51, 0x7f, 0xa0, 0xf3, 0x2f, 0x01, 0x00, 0x00,
-	0xff, 0xff, 0xc2, 0x4b, 0x49, 0x92, 0x8e, 0x06, 0x00, 0x00,
+	// 935 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x9c, 0x56, 0xdd, 0x6e, 0xe3, 0x44,
+	0x14, 0xc6, 0x49, 0x9b, 0xae, 0x8f, 0xd3, 0x1f, 0x06, 0xd8, 0x5a, 0x61, 0x17, 0x22, 0x2f, 0x88,
+	0x48, 0x88, 0xac, 0x36, 0x8b, 0x10, 0x3f, 0x42, 0xab, 0x6e, 0x77, 0x15, 0xaa, 0xd2, 0x0a, 0x0d,
+	0x08, 0xae, 0xa7, 0xce, 0x51, 0x6c, 0xd5, 0xb1, 0x8d, 0x67, 0x52, 0x61, 0xde, 0x00, 0x89, 0x1b,
+	0x2e, 0x79, 0x25, 0xae, 0x79, 0x02, 0x9e, 0x04, 0xcd, 0x8f, 0xed, 0x71, 0xe2, 0x48, 0xab, 0xde,
+	0xcd, 0x99, 0xf9, 0xce, 0x37, 0xe7, 0xef, 0x1b, 0x1b, 0x5c, 0x96, 0xc7, 0xd3, 0xbc, 0xc8, 0x44,
+	0x46, 0xfa, 0x2c, 0x8f, 0x83, 0x03, 0xd8, 0x7f, 0xbd, 0xca, 0x45, 0x19, 0x24, 0xe0, 0x5d, 0xa4,
+	0xb1, 0xb8, 0x42, 0xce, 0xd9, 0x12, 0xc9, 0x07, 0x00, 0x45, 0x96, 0x89, 0x4b, 0x2c, 0x2f, 0x5e,
+	0x71, 0xdf, 0x19, 0xf7, 0x27, 0x2e, 0xb5, 0x76, 0xc8, 0xb7, 0x40, 0x38, 0x16, 0x77, 0x58, 0x5c,
+	0xb1, 0x94, 0x2d, 0x71, 0x41, 0xb3, 0x04, 0xb9, 0xdf, 0x1b, 0x3b, 0x13, 0x6f, 0x76, 0x38, 0x95,
+	0x97, 0xc8, 0x9d, 0xef, 0x63, 0x2e, 0x68, 0x07, 0x30, 0x18, 0xc3, 0x83, 0xea, 0x9c, 0xbc, 0x0b,
+	0xfb, 0x85, 0xf2, 0xd6, 0xb7, 0x68, 0x23, 0x18, 0x03, 0xfc, 0xc4, 0x8a, 0x25, 0x8a, 0x6b, 0xb6,
+	0x42, 0x42, 0x60, 0x2f, 0x65, 0x2b, 0xf4, 0x9d, 0xb1, 0x33, 0x71, 0xa9, 0x5a, 0x07, 0xff, 0x38,
+	0x30, 0xd0, 0x10, 0x72, 0x02, 0xfd, 0xe5, 0x3a, 0x35, 0xa7, 0x72, 0x59, 0x3b, 0xf4, 0x1a, 0x07,
+	0xf2, 0x10, 0x06, 0x09, 0xa6, 0x4b, 0x11, 0xf9, 0xfd, 0xb1, 0x33, 0xe9, 0x53, 0x63, 0x91, 0xa7,
+	0x30, 0x88, 0x18, 0x8f, 0x90, 0xfb, 0x7b, 0xe3, 0xfe, 0xc4, 0x9b, 0x9d, 0xaa, 0xf8, 0x35, 0xf5,
+	0xf4, 0x3b, 0x75, 0xf2, 0x3a, 0x15, 0x45, 0x49, 0x0d, 0x4c, 0x12, 0x85, 0x6b, 0x2e, 0xb2, 0x95,
+	0xbf, 0x3f, 0x76, 0x26, 0x43, 0x6a, 0xac, 0xd1, 0x57, 0xe0, 0x59, 0x70, 0x19, 0xd5, 0x2d, 0x96,
+	0x55, 0x54, 0xb7, 0x58, 0xca, 0x54, 0xef, 0x58, 0xb2, 0xd6, 0x61, 0x0d, 0xa9, 0x36, 0xbe, 0xee,
+	0x7d, 0xe9, 0x04, 0x17, 0x70, 0xa4, 0x2f, 0xfc, 0x25, 0x16, 0x91, 0x2c, 0x0d, 0x79, 0x02, 0x03,
+	0xa1, 0x76, 0x14, 0x81, 0x37, 0xf3, 0xac, 0xa8, 0xa8, 0x39, 0x92, 0x69, 0xca, 0x72, 0x55, 0x69,
+	0xca, 0x75, 0xf0, 0x87, 0x03, 0x0f, 0xdb, 0x5c, 0x14, 0x79, 0x9e, 0xa5, 0x1c, 0xc9, 0x37, 0x70,
+	0x24, 0x5a, 0x27, 0x86, 0xfb, 0x1d, 0x8b, 0xbb, 0x76, 0xda, 0x80, 0x12, 0x1f, 0x0e, 0xf8, 0x3a,
+	0x0c, 0x91, 0xeb, 0x3e, 0x3f, 0xa0, 0x95, 0x29, 0x4f, 0x56, 0x7a, 0x6e, 0x54, 0x65, 0x5d, 0x5a,
+	0x99, 0xc1, 0x39, 0x90, 0x36, 0xab, 0xea, 0xf8, 0x67, 0x70, 0xa0, 0xb9, 0x75, 0xcf, 0x77, 0xdc,
+	0x5f, 0x61, 0x82, 0xbf, 0x1d, 0x18, 0x6d, 0xb3, 0xd4, 0x49, 0xcd, 0x81, 0x88, 0xad, 0x53, 0x93,
+	0xd8, 0x69, 0x07, 0xb1, 0x1e, 0xca, 0x6d, 0x97, 0x7b, 0x25, 0x78, 0x55, 0x25, 0xf8, 0xb2, 0x94,
+	0x83, 0x7a, 0x16, 0x8a, 0x38, 0x4b, 0xbb, 0xc6, 0x95, 0x3c, 0xa9, 0xc6, 0xbc, 0x53, 0x24, 0x66,
+	0xea, 0x7f, 0x05, 0xf7, 0xc7, 0x78, 0x99, 0x32, 0xb1, 0x2e, 0x50, 0x4e, 0xcb, 0xad, 0x54, 0x9b,
+	0xa1, 0xd1, 0x86, 0x1c, 0xbe, 0x15, 0x8a, 0x28, 0x5b, 0x98, 0xa6, 0x1b, 0x8b, 0x3c, 0x02, 0x97,
+	0x57, 0xae, 0x2a, 0xca, 0x21, 0x6d, 0x36, 0x64, 0x06, 0x31, 0xff, 0x99, 0x25, 0xf1, 0xc2, 0xdf,
+	0xd3, 0xb9, 0x19, 0x33, 0xf0, 0xc0, 0xfd, 0x61, 0x7d, 0x93, 0xc4, 0xe1, 0x25, 0x96, 0xc1, 0xbf,
+	0x0e, 0x1c, 0xbd, 0xc2, 0x04, 0x97, 0x4c, 0xe6, 0xa1, 0xda, 0xfe, 0x0c, 0xf6, 0x6e, 0xb1, 0xac,
+	0x3a, 0xf5, 0x58, 0x85, 0xdd, 0x86, 0x4c, 0x2f, 0xb1, 0x34, 0x0a, 0x51, 0xd0, 0x4e, 0xf1, 0x3d,
+	0x02, 0x57, 0x44, 0x05, 0xf2, 0x28, 0x4b, 0x16, 0x2a, 0xbc, 0x7d, 0xda, 0x6c, 0xc8, 0x54, 0x73,
+	0x26, 0x22, 0xad, 0x40, 0x97, 0x6a, 0x63, 0x34, 0x07, 0xb7, 0xa6, 0xee, 0x50, 0xd3, 0x47, 0xb6,
+	0x9a, 0xbc, 0xd9, 0x91, 0x0a, 0xad, 0xce, 0xc5, 0x56, 0xd7, 0x9f, 0x0e, 0x0c, 0x75, 0x9b, 0x64,
+	0x75, 0x71, 0x41, 0x3e, 0x31, 0xba, 0xb1, 0xc7, 0xbf, 0x9d, 0x94, 0x16, 0x93, 0xa5, 0xc2, 0xde,
+	0x6e, 0x15, 0x4e, 0x01, 0xea, 0x4a, 0x73, 0xbf, 0xaf, 0x0a, 0xa5, 0xa3, 0xa9, 0x9b, 0x49, 0x2d,
+	0x44, 0xf0, 0x02, 0x4e, 0xec, 0x68, 0xd4, 0xf0, 0x7d, 0xba, 0xa9, 0x89, 0xb7, 0xad, 0x9b, 0x34,
+	0xae, 0x51, 0xc4, 0x5f, 0x0e, 0xf8, 0x9b, 0x0c, 0xb5, 0x1e, 0xce, 0xe0, 0x44, 0x6c, 0x9c, 0x99,
+	0x3c, 0xdf, 0xdb, 0xa2, 0x54, 0x8e, 0x5b, 0xf0, 0x7b, 0x4a, 0xfd, 0xf0, 0x25, 0xe3, 0x71, 0x58,
+	0xc7, 0x61, 0x91, 0x38, 0x3b, 0x49, 0x7a, 0x6d, 0x92, 0xdf, 0x60, 0x70, 0x1e, 0xb1, 0x74, 0xa9,
+	0x1e, 0x6b, 0xa6, 0xc4, 0x64, 0x3a, 0x6e, 0x2c, 0x39, 0x29, 0x3c, 0xcc, 0xf2, 0xca, 0x53, 0x1b,
+	0x72, 0xe2, 0x44, 0x99, 0x57, 0x31, 0xa9, 0xb5, 0xdc, 0x93, 0x63, 0xa4, 0xe6, 0xdd, 0xa5, 0x6a,
+	0x2d, 0x6f, 0x0e, 0xb3, 0x54, 0x60, 0x2a, 0xcc, 0xd3, 0x5d, 0x99, 0xc1, 0x73, 0x00, 0x7d, 0xb3,
+	0x2a, 0xc0, 0xc7, 0x70, 0x10, 0x2a, 0xab, 0xea, 0x86, 0xee, 0xbb, 0x46, 0xd0, 0xea, 0x2c, 0x28,
+	0x81, 0x34, 0x4e, 0x75, 0xe2, 0x4f, 0x01, 0x34, 0x20, 0x69, 0x4a, 0x7f, 0x6c, 0xf9, 0x2b, 0xb0,
+	0x05, 0xb9, 0x4f, 0xb9, 0x67, 0xff, 0xf5, 0x61, 0x70, 0x9d, 0x09, 0x56, 0x94, 0xe4, 0x73, 0x00,
+	0xf9, 0xe9, 0x8e, 0x59, 0x12, 0xff, 0x8e, 0xe4, 0x44, 0xdd, 0x64, 0x7d, 0xcb, 0x47, 0x44, 0xed,
+	0xb4, 0x9a, 0x13, 0xbc, 0x25, 0x07, 0x4e, 0x69, 0x85, 0x47, 0x04, 0x14, 0x40, 0xfd, 0x07, 0xec,
+	0x00, 0x4f, 0xc1, 0x3d, 0x5b, 0x2c, 0xcc, 0xd7, 0xd6, 0xd6, 0xc0, 0x0e, 0xfc, 0x33, 0x18, 0x52,
+	0x5c, 0x65, 0x77, 0xf8, 0xe6, 0x2e, 0x2f, 0xc0, 0x93, 0x85, 0xd1, 0x18, 0x4e, 0xda, 0xef, 0xe3,
+	0xe8, 0xc3, 0x5d, 0x0f, 0x79, 0x43, 0x70, 0x01, 0xc7, 0x73, 0x14, 0xf6, 0x6b, 0x4c, 0xec, 0xe7,
+	0xdf, 0x7e, 0xa0, 0x47, 0xef, 0x77, 0x7d, 0x70, 0x1a, 0xaa, 0x6b, 0x18, 0xcd, 0x51, 0x9c, 0x25,
+	0x89, 0x46, 0x5c, 0xa1, 0x60, 0x0b, 0x26, 0x98, 0x61, 0x3d, 0xb6, 0x9c, 0xe5, 0xc6, 0xe8, 0x71,
+	0xb7, 0xae, 0x1a, 0xbe, 0x2f, 0xe0, 0x70, 0x8e, 0xe2, 0xbc, 0xe9, 0xb8, 0x5d, 0xf1, 0xd3, 0xcd,
+	0xd1, 0xa8, 0xfd, 0x6e, 0x06, 0xea, 0x4f, 0xed, 0xf9, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff, 0xea,
+	0x85, 0x57, 0x39, 0xb6, 0x09, 0x00, 0x00,
 }

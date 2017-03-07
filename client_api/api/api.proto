@@ -4,6 +4,9 @@ package api;
 
 // Notary Interface
 service Notary {
+    rpc Initialize(InitMessage) returns (BasicResponse) {}
+
+    rpc Publish(Empty) returns (BasicResponse) {}
 
     // AddTarget adds a target to the TUF repository and re-signs.
     rpc AddTarget(Target) returns (BasicResponse) {}
@@ -13,20 +16,27 @@ service Notary {
     rpc RemoveTarget(Target) returns (BasicResponse) {}
 
     // ListTargets list the targets for the specified roles in the TUF repository
-    rpc ListTargets(RoleList) returns (TargetWithRoleList) {}
+    rpc ListTargets(RoleList) returns (TargetWithRoleListResponse) {}
 
     // GetTargetByName returns a target by the given name.
-    rpc GetTargetByName(TargetByNameAction) returns (TargetWithRole) {}
+    rpc GetTargetByName(TargetByNameAction) returns (TargetWithRoleResponse) {}
 
     // GetAllTargetMetadataByName
-    rpc GetAllTargetMetadataByName(TargetName) returns (TargetSignedList) {}
+    rpc GetAllTargetMetadataByName(TargetName) returns (TargetSignedListResponse) {}
 
     // GetChangelist returns the list of the repository's unpublished changes
-    rpc GetChangelist(Empty) returns (ChangeList) {}
+    rpc GetChangelist(Empty) returns (ChangeListResponse) {}
 }
 
 message Empty {
 
+}
+
+// InitMessage holds a list of root key IDs and a list of roles for which
+// the server automatically should manage the keys
+message InitMessage {
+    repeated string rootKeyIDs = 1;
+    RoleList serverManagedRoles = 2;
 }
 
 // RoleList message holds a list of TUF role names
@@ -53,8 +63,20 @@ message TargetWithRole {
     string role = 2;
 }
 
+message TargetWithRoleResponse {
+    TargetWithRole targetWithRole = 1;
+    bool success = 2;
+    string message = 3;
+}
+
 message TargetWithRoleList {
     repeated TargetWithRole targets = 1;
+}
+
+message TargetWithRoleListResponse {
+    TargetWithRoleList targetWithRoleList = 1;
+    bool success = 2;
+    string message = 3;
 }
 
 message TargetByNameAction {
@@ -69,8 +91,8 @@ message Signature {
     bool isValid = 4;
 }
 
+// FIXME: implement
 message PublicKey {
-
 }
 
 message DelegationRole {
@@ -88,6 +110,12 @@ message TargetSigned {
 
 message TargetSignedList {
     repeated TargetSigned targets = 1;
+}
+
+message TargetSignedListResponse {
+    TargetSignedList targetSignedList = 1;
+    bool success = 2;
+    string message = 3;
 }
 
 // BasicResponse describes a response with a true/false success indicator,
@@ -113,5 +141,10 @@ message ChangeList {
     repeated Change changes = 1;
 }
 
+message ChangeListResponse {
+    ChangeList changelist = 1;
+    bool success = 2;
+    string message = 3;
+}
 
 
