@@ -32,6 +32,13 @@ service Notary {
     rpc RemoveDelegationPaths(RemoveDelegationPathsMessage) returns (BasicResponse) {}
     rpc RemoveDelegationKeys(RemoveDelegationKeysMessage) returns (BasicResponse) {}
     rpc ClearDelegationPaths(ClearDelegationPathsMessage) returns (BasicResponse) {}
+
+    rpc Witness(RoleNameList) returns (RoleNameListResponse) {}
+
+    rpc RotateKey(RotateKeyMessage) returns (BasicResponse) {}
+
+    rpc CryptoService(Empty) returns (CryptoServiceMessage) {}
+    rpc SetLegacyVersions(VersionMessage) returns (Empty) {}
 }
 
 message Empty {
@@ -78,6 +85,12 @@ message ClearDelegationPathsMessage {
     string role = 1;
 }
 
+message RotateKeyMessage {
+    string role = 1;
+    bool serverManagesKey = 2;
+    repeated string keyList = 3;
+}
+
 // InitMessage holds a list of root key IDs and a list of roles for which
 // the server automatically should manage the keys
 message InitMessage {
@@ -88,6 +101,12 @@ message InitMessage {
 // RoleNameList message holds a list of TUF role names
 message RoleNameList {
     repeated string roles = 1;
+}
+
+message RoleNameListResponse {
+    RoleNameList roleNameList = 1;
+    bool success = 2;
+    string message = 3;
 }
 
 message TargetName {
@@ -231,4 +250,11 @@ message RoleWithSignaturesListResponse {
     string message = 3;
 }
 
+// FIXME: unimplemented
+message CryptoServiceMessage {
+}
+
+message VersionMessage {
+    int32 version = 1;
+}
 
