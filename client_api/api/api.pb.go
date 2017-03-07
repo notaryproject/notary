@@ -10,14 +10,22 @@ It is generated from these files:
 
 It has these top-level messages:
 	Empty
+	AddDelegationMessage
+	AddDelegationRoleAndKeysMessage
+	AddDelegationPathsMessage
+	RemoveDelegationKeysAndPathsMessage
+	RemoveDelegationRoleMessage
+	RemoveDelegationPathsMessage
+	RemoveDelegationKeysMessage
+	ClearDelegationPathsMessage
 	InitMessage
-	RoleList
+	RoleNameList
 	TargetName
 	Target
 	TargetWithRole
 	TargetWithRoleResponse
-	TargetWithRoleList
-	TargetWithRoleListResponse
+	TargetWithRoleNameList
+	TargetWithRoleNameListResponse
 	TargetByNameAction
 	Signature
 	PublicKey
@@ -29,6 +37,13 @@ It has these top-level messages:
 	Change
 	ChangeList
 	ChangeListResponse
+	RootRole
+	Role
+	RoleList
+	RoleListResponse
+	RoleWithSignatures
+	RoleWithSignaturesList
+	RoleWithSignaturesListResponse
 */
 package api
 
@@ -60,17 +75,211 @@ func (m *Empty) String() string            { return proto.CompactTextString(m) }
 func (*Empty) ProtoMessage()               {}
 func (*Empty) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
+type AddDelegationMessage struct {
+	Name           string       `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	DelegationKeys []*PublicKey `protobuf:"bytes,2,rep,name=delegationKeys" json:"delegationKeys,omitempty"`
+	Paths          []string     `protobuf:"bytes,3,rep,name=paths" json:"paths,omitempty"`
+}
+
+func (m *AddDelegationMessage) Reset()                    { *m = AddDelegationMessage{} }
+func (m *AddDelegationMessage) String() string            { return proto.CompactTextString(m) }
+func (*AddDelegationMessage) ProtoMessage()               {}
+func (*AddDelegationMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+
+func (m *AddDelegationMessage) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *AddDelegationMessage) GetDelegationKeys() []*PublicKey {
+	if m != nil {
+		return m.DelegationKeys
+	}
+	return nil
+}
+
+func (m *AddDelegationMessage) GetPaths() []string {
+	if m != nil {
+		return m.Paths
+	}
+	return nil
+}
+
+type AddDelegationRoleAndKeysMessage struct {
+	Name           string       `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	DelegationKeys []*PublicKey `protobuf:"bytes,2,rep,name=delegationKeys" json:"delegationKeys,omitempty"`
+}
+
+func (m *AddDelegationRoleAndKeysMessage) Reset()                    { *m = AddDelegationRoleAndKeysMessage{} }
+func (m *AddDelegationRoleAndKeysMessage) String() string            { return proto.CompactTextString(m) }
+func (*AddDelegationRoleAndKeysMessage) ProtoMessage()               {}
+func (*AddDelegationRoleAndKeysMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+
+func (m *AddDelegationRoleAndKeysMessage) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *AddDelegationRoleAndKeysMessage) GetDelegationKeys() []*PublicKey {
+	if m != nil {
+		return m.DelegationKeys
+	}
+	return nil
+}
+
+type AddDelegationPathsMessage struct {
+	Name  string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	Paths []string `protobuf:"bytes,2,rep,name=paths" json:"paths,omitempty"`
+}
+
+func (m *AddDelegationPathsMessage) Reset()                    { *m = AddDelegationPathsMessage{} }
+func (m *AddDelegationPathsMessage) String() string            { return proto.CompactTextString(m) }
+func (*AddDelegationPathsMessage) ProtoMessage()               {}
+func (*AddDelegationPathsMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+
+func (m *AddDelegationPathsMessage) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *AddDelegationPathsMessage) GetPaths() []string {
+	if m != nil {
+		return m.Paths
+	}
+	return nil
+}
+
+type RemoveDelegationKeysAndPathsMessage struct {
+	Name   string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	KeyIDs []string `protobuf:"bytes,2,rep,name=keyIDs" json:"keyIDs,omitempty"`
+	Paths  []string `protobuf:"bytes,3,rep,name=paths" json:"paths,omitempty"`
+}
+
+func (m *RemoveDelegationKeysAndPathsMessage) Reset()         { *m = RemoveDelegationKeysAndPathsMessage{} }
+func (m *RemoveDelegationKeysAndPathsMessage) String() string { return proto.CompactTextString(m) }
+func (*RemoveDelegationKeysAndPathsMessage) ProtoMessage()    {}
+func (*RemoveDelegationKeysAndPathsMessage) Descriptor() ([]byte, []int) {
+	return fileDescriptor0, []int{4}
+}
+
+func (m *RemoveDelegationKeysAndPathsMessage) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *RemoveDelegationKeysAndPathsMessage) GetKeyIDs() []string {
+	if m != nil {
+		return m.KeyIDs
+	}
+	return nil
+}
+
+func (m *RemoveDelegationKeysAndPathsMessage) GetPaths() []string {
+	if m != nil {
+		return m.Paths
+	}
+	return nil
+}
+
+type RemoveDelegationRoleMessage struct {
+	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+}
+
+func (m *RemoveDelegationRoleMessage) Reset()                    { *m = RemoveDelegationRoleMessage{} }
+func (m *RemoveDelegationRoleMessage) String() string            { return proto.CompactTextString(m) }
+func (*RemoveDelegationRoleMessage) ProtoMessage()               {}
+func (*RemoveDelegationRoleMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
+
+func (m *RemoveDelegationRoleMessage) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+type RemoveDelegationPathsMessage struct {
+	Name  string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	Paths []string `protobuf:"bytes,2,rep,name=paths" json:"paths,omitempty"`
+}
+
+func (m *RemoveDelegationPathsMessage) Reset()                    { *m = RemoveDelegationPathsMessage{} }
+func (m *RemoveDelegationPathsMessage) String() string            { return proto.CompactTextString(m) }
+func (*RemoveDelegationPathsMessage) ProtoMessage()               {}
+func (*RemoveDelegationPathsMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+
+func (m *RemoveDelegationPathsMessage) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *RemoveDelegationPathsMessage) GetPaths() []string {
+	if m != nil {
+		return m.Paths
+	}
+	return nil
+}
+
+type RemoveDelegationKeysMessage struct {
+	Name   string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	KeyIDs []string `protobuf:"bytes,2,rep,name=keyIDs" json:"keyIDs,omitempty"`
+}
+
+func (m *RemoveDelegationKeysMessage) Reset()                    { *m = RemoveDelegationKeysMessage{} }
+func (m *RemoveDelegationKeysMessage) String() string            { return proto.CompactTextString(m) }
+func (*RemoveDelegationKeysMessage) ProtoMessage()               {}
+func (*RemoveDelegationKeysMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+
+func (m *RemoveDelegationKeysMessage) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *RemoveDelegationKeysMessage) GetKeyIDs() []string {
+	if m != nil {
+		return m.KeyIDs
+	}
+	return nil
+}
+
+type ClearDelegationPathsMessage struct {
+	Role string `protobuf:"bytes,1,opt,name=role" json:"role,omitempty"`
+}
+
+func (m *ClearDelegationPathsMessage) Reset()                    { *m = ClearDelegationPathsMessage{} }
+func (m *ClearDelegationPathsMessage) String() string            { return proto.CompactTextString(m) }
+func (*ClearDelegationPathsMessage) ProtoMessage()               {}
+func (*ClearDelegationPathsMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+
+func (m *ClearDelegationPathsMessage) GetRole() string {
+	if m != nil {
+		return m.Role
+	}
+	return ""
+}
+
 // InitMessage holds a list of root key IDs and a list of roles for which
 // the server automatically should manage the keys
 type InitMessage struct {
-	RootKeyIDs         []string  `protobuf:"bytes,1,rep,name=rootKeyIDs" json:"rootKeyIDs,omitempty"`
-	ServerManagedRoles *RoleList `protobuf:"bytes,2,opt,name=serverManagedRoles" json:"serverManagedRoles,omitempty"`
+	RootKeyIDs         []string      `protobuf:"bytes,1,rep,name=rootKeyIDs" json:"rootKeyIDs,omitempty"`
+	ServerManagedRoles *RoleNameList `protobuf:"bytes,2,opt,name=serverManagedRoles" json:"serverManagedRoles,omitempty"`
 }
 
 func (m *InitMessage) Reset()                    { *m = InitMessage{} }
 func (m *InitMessage) String() string            { return proto.CompactTextString(m) }
 func (*InitMessage) ProtoMessage()               {}
-func (*InitMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+func (*InitMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
 
 func (m *InitMessage) GetRootKeyIDs() []string {
 	if m != nil {
@@ -79,24 +288,24 @@ func (m *InitMessage) GetRootKeyIDs() []string {
 	return nil
 }
 
-func (m *InitMessage) GetServerManagedRoles() *RoleList {
+func (m *InitMessage) GetServerManagedRoles() *RoleNameList {
 	if m != nil {
 		return m.ServerManagedRoles
 	}
 	return nil
 }
 
-// RoleList message holds a list of TUF role names
-type RoleList struct {
+// RoleNameList message holds a list of TUF role names
+type RoleNameList struct {
 	Roles []string `protobuf:"bytes,1,rep,name=roles" json:"roles,omitempty"`
 }
 
-func (m *RoleList) Reset()                    { *m = RoleList{} }
-func (m *RoleList) String() string            { return proto.CompactTextString(m) }
-func (*RoleList) ProtoMessage()               {}
-func (*RoleList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+func (m *RoleNameList) Reset()                    { *m = RoleNameList{} }
+func (m *RoleNameList) String() string            { return proto.CompactTextString(m) }
+func (*RoleNameList) ProtoMessage()               {}
+func (*RoleNameList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
 
-func (m *RoleList) GetRoles() []string {
+func (m *RoleNameList) GetRoles() []string {
 	if m != nil {
 		return m.Roles
 	}
@@ -110,7 +319,7 @@ type TargetName struct {
 func (m *TargetName) Reset()                    { *m = TargetName{} }
 func (m *TargetName) String() string            { return proto.CompactTextString(m) }
 func (*TargetName) ProtoMessage()               {}
-func (*TargetName) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+func (*TargetName) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
 
 func (m *TargetName) GetName() string {
 	if m != nil {
@@ -131,7 +340,7 @@ type Target struct {
 func (m *Target) Reset()                    { *m = Target{} }
 func (m *Target) String() string            { return proto.CompactTextString(m) }
 func (*Target) ProtoMessage()               {}
-func (*Target) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+func (*Target) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
 
 func (m *Target) GetGun() string {
 	if m != nil {
@@ -177,7 +386,7 @@ type TargetWithRole struct {
 func (m *TargetWithRole) Reset()                    { *m = TargetWithRole{} }
 func (m *TargetWithRole) String() string            { return proto.CompactTextString(m) }
 func (*TargetWithRole) ProtoMessage()               {}
-func (*TargetWithRole) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
+func (*TargetWithRole) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
 
 func (m *TargetWithRole) GetTarget() *Target {
 	if m != nil {
@@ -202,7 +411,7 @@ type TargetWithRoleResponse struct {
 func (m *TargetWithRoleResponse) Reset()                    { *m = TargetWithRoleResponse{} }
 func (m *TargetWithRoleResponse) String() string            { return proto.CompactTextString(m) }
 func (*TargetWithRoleResponse) ProtoMessage()               {}
-func (*TargetWithRoleResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+func (*TargetWithRoleResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
 
 func (m *TargetWithRoleResponse) GetTargetWithRole() *TargetWithRole {
 	if m != nil {
@@ -225,48 +434,48 @@ func (m *TargetWithRoleResponse) GetMessage() string {
 	return ""
 }
 
-type TargetWithRoleList struct {
+type TargetWithRoleNameList struct {
 	Targets []*TargetWithRole `protobuf:"bytes,1,rep,name=targets" json:"targets,omitempty"`
 }
 
-func (m *TargetWithRoleList) Reset()                    { *m = TargetWithRoleList{} }
-func (m *TargetWithRoleList) String() string            { return proto.CompactTextString(m) }
-func (*TargetWithRoleList) ProtoMessage()               {}
-func (*TargetWithRoleList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+func (m *TargetWithRoleNameList) Reset()                    { *m = TargetWithRoleNameList{} }
+func (m *TargetWithRoleNameList) String() string            { return proto.CompactTextString(m) }
+func (*TargetWithRoleNameList) ProtoMessage()               {}
+func (*TargetWithRoleNameList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
 
-func (m *TargetWithRoleList) GetTargets() []*TargetWithRole {
+func (m *TargetWithRoleNameList) GetTargets() []*TargetWithRole {
 	if m != nil {
 		return m.Targets
 	}
 	return nil
 }
 
-type TargetWithRoleListResponse struct {
-	TargetWithRoleList *TargetWithRoleList `protobuf:"bytes,1,opt,name=targetWithRoleList" json:"targetWithRoleList,omitempty"`
-	Success            bool                `protobuf:"varint,2,opt,name=success" json:"success,omitempty"`
-	Message            string              `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`
+type TargetWithRoleNameListResponse struct {
+	TargetWithRoleNameList *TargetWithRoleNameList `protobuf:"bytes,1,opt,name=targetWithRoleNameList" json:"targetWithRoleNameList,omitempty"`
+	Success                bool                    `protobuf:"varint,2,opt,name=success" json:"success,omitempty"`
+	Message                string                  `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`
 }
 
-func (m *TargetWithRoleListResponse) Reset()                    { *m = TargetWithRoleListResponse{} }
-func (m *TargetWithRoleListResponse) String() string            { return proto.CompactTextString(m) }
-func (*TargetWithRoleListResponse) ProtoMessage()               {}
-func (*TargetWithRoleListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+func (m *TargetWithRoleNameListResponse) Reset()                    { *m = TargetWithRoleNameListResponse{} }
+func (m *TargetWithRoleNameListResponse) String() string            { return proto.CompactTextString(m) }
+func (*TargetWithRoleNameListResponse) ProtoMessage()               {}
+func (*TargetWithRoleNameListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
 
-func (m *TargetWithRoleListResponse) GetTargetWithRoleList() *TargetWithRoleList {
+func (m *TargetWithRoleNameListResponse) GetTargetWithRoleNameList() *TargetWithRoleNameList {
 	if m != nil {
-		return m.TargetWithRoleList
+		return m.TargetWithRoleNameList
 	}
 	return nil
 }
 
-func (m *TargetWithRoleListResponse) GetSuccess() bool {
+func (m *TargetWithRoleNameListResponse) GetSuccess() bool {
 	if m != nil {
 		return m.Success
 	}
 	return false
 }
 
-func (m *TargetWithRoleListResponse) GetMessage() string {
+func (m *TargetWithRoleNameListResponse) GetMessage() string {
 	if m != nil {
 		return m.Message
 	}
@@ -274,14 +483,14 @@ func (m *TargetWithRoleListResponse) GetMessage() string {
 }
 
 type TargetByNameAction struct {
-	Name  string    `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	Roles *RoleList `protobuf:"bytes,2,opt,name=roles" json:"roles,omitempty"`
+	Name  string        `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	Roles *RoleNameList `protobuf:"bytes,2,opt,name=roles" json:"roles,omitempty"`
 }
 
 func (m *TargetByNameAction) Reset()                    { *m = TargetByNameAction{} }
 func (m *TargetByNameAction) String() string            { return proto.CompactTextString(m) }
 func (*TargetByNameAction) ProtoMessage()               {}
-func (*TargetByNameAction) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
+func (*TargetByNameAction) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
 
 func (m *TargetByNameAction) GetName() string {
 	if m != nil {
@@ -290,7 +499,7 @@ func (m *TargetByNameAction) GetName() string {
 	return ""
 }
 
-func (m *TargetByNameAction) GetRoles() *RoleList {
+func (m *TargetByNameAction) GetRoles() *RoleNameList {
 	if m != nil {
 		return m.Roles
 	}
@@ -307,7 +516,7 @@ type Signature struct {
 func (m *Signature) Reset()                    { *m = Signature{} }
 func (m *Signature) String() string            { return proto.CompactTextString(m) }
 func (*Signature) ProtoMessage()               {}
-func (*Signature) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
+func (*Signature) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
 
 func (m *Signature) GetKeyID() string {
 	if m != nil {
@@ -337,14 +546,37 @@ func (m *Signature) GetIsValid() bool {
 	return false
 }
 
-// FIXME: implement
 type PublicKey struct {
+	Id        string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
+	Algorithm string `protobuf:"bytes,2,opt,name=algorithm" json:"algorithm,omitempty"`
+	Public    []byte `protobuf:"bytes,3,opt,name=public,proto3" json:"public,omitempty"`
 }
 
 func (m *PublicKey) Reset()                    { *m = PublicKey{} }
 func (m *PublicKey) String() string            { return proto.CompactTextString(m) }
 func (*PublicKey) ProtoMessage()               {}
-func (*PublicKey) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
+func (*PublicKey) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
+
+func (m *PublicKey) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+func (m *PublicKey) GetAlgorithm() string {
+	if m != nil {
+		return m.Algorithm
+	}
+	return ""
+}
+
+func (m *PublicKey) GetPublic() []byte {
+	if m != nil {
+		return m.Public
+	}
+	return nil
+}
 
 type DelegationRole struct {
 	Keys      map[string]*PublicKey `protobuf:"bytes,1,rep,name=keys" json:"keys,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -356,7 +588,7 @@ type DelegationRole struct {
 func (m *DelegationRole) Reset()                    { *m = DelegationRole{} }
 func (m *DelegationRole) String() string            { return proto.CompactTextString(m) }
 func (*DelegationRole) ProtoMessage()               {}
-func (*DelegationRole) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
+func (*DelegationRole) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
 
 func (m *DelegationRole) GetKeys() map[string]*PublicKey {
 	if m != nil {
@@ -395,7 +627,7 @@ type TargetSigned struct {
 func (m *TargetSigned) Reset()                    { *m = TargetSigned{} }
 func (m *TargetSigned) String() string            { return proto.CompactTextString(m) }
 func (*TargetSigned) ProtoMessage()               {}
-func (*TargetSigned) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
+func (*TargetSigned) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{21} }
 
 func (m *TargetSigned) GetRole() *DelegationRole {
 	if m != nil {
@@ -425,7 +657,7 @@ type TargetSignedList struct {
 func (m *TargetSignedList) Reset()                    { *m = TargetSignedList{} }
 func (m *TargetSignedList) String() string            { return proto.CompactTextString(m) }
 func (*TargetSignedList) ProtoMessage()               {}
-func (*TargetSignedList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
+func (*TargetSignedList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{22} }
 
 func (m *TargetSignedList) GetTargets() []*TargetSigned {
 	if m != nil {
@@ -443,7 +675,7 @@ type TargetSignedListResponse struct {
 func (m *TargetSignedListResponse) Reset()                    { *m = TargetSignedListResponse{} }
 func (m *TargetSignedListResponse) String() string            { return proto.CompactTextString(m) }
 func (*TargetSignedListResponse) ProtoMessage()               {}
-func (*TargetSignedListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
+func (*TargetSignedListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{23} }
 
 func (m *TargetSignedListResponse) GetTargetSignedList() *TargetSignedList {
 	if m != nil {
@@ -478,7 +710,7 @@ type BasicResponse struct {
 func (m *BasicResponse) Reset()                    { *m = BasicResponse{} }
 func (m *BasicResponse) String() string            { return proto.CompactTextString(m) }
 func (*BasicResponse) ProtoMessage()               {}
-func (*BasicResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
+func (*BasicResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{24} }
 
 func (m *BasicResponse) GetSuccess() bool {
 	if m != nil {
@@ -506,7 +738,7 @@ type Change struct {
 func (m *Change) Reset()                    { *m = Change{} }
 func (m *Change) String() string            { return proto.CompactTextString(m) }
 func (*Change) ProtoMessage()               {}
-func (*Change) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
+func (*Change) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{25} }
 
 func (m *Change) GetAction() string {
 	if m != nil {
@@ -551,7 +783,7 @@ type ChangeList struct {
 func (m *ChangeList) Reset()                    { *m = ChangeList{} }
 func (m *ChangeList) String() string            { return proto.CompactTextString(m) }
 func (*ChangeList) ProtoMessage()               {}
-func (*ChangeList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
+func (*ChangeList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{26} }
 
 func (m *ChangeList) GetChanges() []*Change {
 	if m != nil {
@@ -569,7 +801,7 @@ type ChangeListResponse struct {
 func (m *ChangeListResponse) Reset()                    { *m = ChangeListResponse{} }
 func (m *ChangeListResponse) String() string            { return proto.CompactTextString(m) }
 func (*ChangeListResponse) ProtoMessage()               {}
-func (*ChangeListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
+func (*ChangeListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{27} }
 
 func (m *ChangeListResponse) GetChangelist() *ChangeList {
 	if m != nil {
@@ -592,16 +824,200 @@ func (m *ChangeListResponse) GetMessage() string {
 	return ""
 }
 
+type RootRole struct {
+	KeyIDs    []string `protobuf:"bytes,1,rep,name=keyIDs" json:"keyIDs,omitempty"`
+	Threshold int32    `protobuf:"varint,2,opt,name=threshold" json:"threshold,omitempty"`
+}
+
+func (m *RootRole) Reset()                    { *m = RootRole{} }
+func (m *RootRole) String() string            { return proto.CompactTextString(m) }
+func (*RootRole) ProtoMessage()               {}
+func (*RootRole) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{28} }
+
+func (m *RootRole) GetKeyIDs() []string {
+	if m != nil {
+		return m.KeyIDs
+	}
+	return nil
+}
+
+func (m *RootRole) GetThreshold() int32 {
+	if m != nil {
+		return m.Threshold
+	}
+	return 0
+}
+
+type Role struct {
+	RootRole *RootRole `protobuf:"bytes,1,opt,name=rootRole" json:"rootRole,omitempty"`
+	Name     string    `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
+	Paths    []string  `protobuf:"bytes,3,rep,name=paths" json:"paths,omitempty"`
+}
+
+func (m *Role) Reset()                    { *m = Role{} }
+func (m *Role) String() string            { return proto.CompactTextString(m) }
+func (*Role) ProtoMessage()               {}
+func (*Role) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{29} }
+
+func (m *Role) GetRootRole() *RootRole {
+	if m != nil {
+		return m.RootRole
+	}
+	return nil
+}
+
+func (m *Role) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *Role) GetPaths() []string {
+	if m != nil {
+		return m.Paths
+	}
+	return nil
+}
+
+type RoleList struct {
+	Roles []*Role `protobuf:"bytes,1,rep,name=roles" json:"roles,omitempty"`
+}
+
+func (m *RoleList) Reset()                    { *m = RoleList{} }
+func (m *RoleList) String() string            { return proto.CompactTextString(m) }
+func (*RoleList) ProtoMessage()               {}
+func (*RoleList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{30} }
+
+func (m *RoleList) GetRoles() []*Role {
+	if m != nil {
+		return m.Roles
+	}
+	return nil
+}
+
+type RoleListResponse struct {
+	RoleList *RoleList `protobuf:"bytes,1,opt,name=roleList" json:"roleList,omitempty"`
+	Success  bool      `protobuf:"varint,2,opt,name=success" json:"success,omitempty"`
+	Message  string    `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`
+}
+
+func (m *RoleListResponse) Reset()                    { *m = RoleListResponse{} }
+func (m *RoleListResponse) String() string            { return proto.CompactTextString(m) }
+func (*RoleListResponse) ProtoMessage()               {}
+func (*RoleListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{31} }
+
+func (m *RoleListResponse) GetRoleList() *RoleList {
+	if m != nil {
+		return m.RoleList
+	}
+	return nil
+}
+
+func (m *RoleListResponse) GetSuccess() bool {
+	if m != nil {
+		return m.Success
+	}
+	return false
+}
+
+func (m *RoleListResponse) GetMessage() string {
+	if m != nil {
+		return m.Message
+	}
+	return ""
+}
+
+type RoleWithSignatures struct {
+	Signatures []*Signature `protobuf:"bytes,1,rep,name=signatures" json:"signatures,omitempty"`
+	Role       *Role        `protobuf:"bytes,2,opt,name=role" json:"role,omitempty"`
+}
+
+func (m *RoleWithSignatures) Reset()                    { *m = RoleWithSignatures{} }
+func (m *RoleWithSignatures) String() string            { return proto.CompactTextString(m) }
+func (*RoleWithSignatures) ProtoMessage()               {}
+func (*RoleWithSignatures) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{32} }
+
+func (m *RoleWithSignatures) GetSignatures() []*Signature {
+	if m != nil {
+		return m.Signatures
+	}
+	return nil
+}
+
+func (m *RoleWithSignatures) GetRole() *Role {
+	if m != nil {
+		return m.Role
+	}
+	return nil
+}
+
+type RoleWithSignaturesList struct {
+	RoleWithSignatures []*RoleWithSignatures `protobuf:"bytes,1,rep,name=roleWithSignatures" json:"roleWithSignatures,omitempty"`
+}
+
+func (m *RoleWithSignaturesList) Reset()                    { *m = RoleWithSignaturesList{} }
+func (m *RoleWithSignaturesList) String() string            { return proto.CompactTextString(m) }
+func (*RoleWithSignaturesList) ProtoMessage()               {}
+func (*RoleWithSignaturesList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{33} }
+
+func (m *RoleWithSignaturesList) GetRoleWithSignatures() []*RoleWithSignatures {
+	if m != nil {
+		return m.RoleWithSignatures
+	}
+	return nil
+}
+
+type RoleWithSignaturesListResponse struct {
+	RoleWithSignaturesList *RoleWithSignaturesList `protobuf:"bytes,1,opt,name=roleWithSignaturesList" json:"roleWithSignaturesList,omitempty"`
+	Success                bool                    `protobuf:"varint,2,opt,name=success" json:"success,omitempty"`
+	Message                string                  `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`
+}
+
+func (m *RoleWithSignaturesListResponse) Reset()                    { *m = RoleWithSignaturesListResponse{} }
+func (m *RoleWithSignaturesListResponse) String() string            { return proto.CompactTextString(m) }
+func (*RoleWithSignaturesListResponse) ProtoMessage()               {}
+func (*RoleWithSignaturesListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{34} }
+
+func (m *RoleWithSignaturesListResponse) GetRoleWithSignaturesList() *RoleWithSignaturesList {
+	if m != nil {
+		return m.RoleWithSignaturesList
+	}
+	return nil
+}
+
+func (m *RoleWithSignaturesListResponse) GetSuccess() bool {
+	if m != nil {
+		return m.Success
+	}
+	return false
+}
+
+func (m *RoleWithSignaturesListResponse) GetMessage() string {
+	if m != nil {
+		return m.Message
+	}
+	return ""
+}
+
 func init() {
 	proto.RegisterType((*Empty)(nil), "api.Empty")
+	proto.RegisterType((*AddDelegationMessage)(nil), "api.AddDelegationMessage")
+	proto.RegisterType((*AddDelegationRoleAndKeysMessage)(nil), "api.AddDelegationRoleAndKeysMessage")
+	proto.RegisterType((*AddDelegationPathsMessage)(nil), "api.AddDelegationPathsMessage")
+	proto.RegisterType((*RemoveDelegationKeysAndPathsMessage)(nil), "api.RemoveDelegationKeysAndPathsMessage")
+	proto.RegisterType((*RemoveDelegationRoleMessage)(nil), "api.RemoveDelegationRoleMessage")
+	proto.RegisterType((*RemoveDelegationPathsMessage)(nil), "api.RemoveDelegationPathsMessage")
+	proto.RegisterType((*RemoveDelegationKeysMessage)(nil), "api.RemoveDelegationKeysMessage")
+	proto.RegisterType((*ClearDelegationPathsMessage)(nil), "api.ClearDelegationPathsMessage")
 	proto.RegisterType((*InitMessage)(nil), "api.InitMessage")
-	proto.RegisterType((*RoleList)(nil), "api.RoleList")
+	proto.RegisterType((*RoleNameList)(nil), "api.RoleNameList")
 	proto.RegisterType((*TargetName)(nil), "api.TargetName")
 	proto.RegisterType((*Target)(nil), "api.Target")
 	proto.RegisterType((*TargetWithRole)(nil), "api.TargetWithRole")
 	proto.RegisterType((*TargetWithRoleResponse)(nil), "api.TargetWithRoleResponse")
-	proto.RegisterType((*TargetWithRoleList)(nil), "api.TargetWithRoleList")
-	proto.RegisterType((*TargetWithRoleListResponse)(nil), "api.TargetWithRoleListResponse")
+	proto.RegisterType((*TargetWithRoleNameList)(nil), "api.TargetWithRoleNameList")
+	proto.RegisterType((*TargetWithRoleNameListResponse)(nil), "api.TargetWithRoleNameListResponse")
 	proto.RegisterType((*TargetByNameAction)(nil), "api.TargetByNameAction")
 	proto.RegisterType((*Signature)(nil), "api.Signature")
 	proto.RegisterType((*PublicKey)(nil), "api.PublicKey")
@@ -613,6 +1029,13 @@ func init() {
 	proto.RegisterType((*Change)(nil), "api.Change")
 	proto.RegisterType((*ChangeList)(nil), "api.ChangeList")
 	proto.RegisterType((*ChangeListResponse)(nil), "api.ChangeListResponse")
+	proto.RegisterType((*RootRole)(nil), "api.RootRole")
+	proto.RegisterType((*Role)(nil), "api.Role")
+	proto.RegisterType((*RoleList)(nil), "api.RoleList")
+	proto.RegisterType((*RoleListResponse)(nil), "api.RoleListResponse")
+	proto.RegisterType((*RoleWithSignatures)(nil), "api.RoleWithSignatures")
+	proto.RegisterType((*RoleWithSignaturesList)(nil), "api.RoleWithSignaturesList")
+	proto.RegisterType((*RoleWithSignaturesListResponse)(nil), "api.RoleWithSignaturesListResponse")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -634,13 +1057,23 @@ type NotaryClient interface {
 	// uses the `name` field from the Target object, ignoring all other fields
 	RemoveTarget(ctx context.Context, in *Target, opts ...grpc.CallOption) (*BasicResponse, error)
 	// ListTargets list the targets for the specified roles in the TUF repository
-	ListTargets(ctx context.Context, in *RoleList, opts ...grpc.CallOption) (*TargetWithRoleListResponse, error)
+	ListTargets(ctx context.Context, in *RoleNameList, opts ...grpc.CallOption) (*TargetWithRoleNameListResponse, error)
 	// GetTargetByName returns a target by the given name.
 	GetTargetByName(ctx context.Context, in *TargetByNameAction, opts ...grpc.CallOption) (*TargetWithRoleResponse, error)
 	// GetAllTargetMetadataByName
 	GetAllTargetMetadataByName(ctx context.Context, in *TargetName, opts ...grpc.CallOption) (*TargetSignedListResponse, error)
 	// GetChangelist returns the list of the repository's unpublished changes
 	GetChangelist(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ChangeListResponse, error)
+	ListRoles(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RoleWithSignaturesListResponse, error)
+	GetDelegationRoles(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RoleListResponse, error)
+	AddDelegation(ctx context.Context, in *AddDelegationMessage, opts ...grpc.CallOption) (*BasicResponse, error)
+	AddDelegationRoleAndKeys(ctx context.Context, in *AddDelegationRoleAndKeysMessage, opts ...grpc.CallOption) (*BasicResponse, error)
+	AddDelegationPaths(ctx context.Context, in *AddDelegationPathsMessage, opts ...grpc.CallOption) (*BasicResponse, error)
+	RemoveDelegationKeysAndPaths(ctx context.Context, in *RemoveDelegationKeysAndPathsMessage, opts ...grpc.CallOption) (*BasicResponse, error)
+	RemoveDelegationRole(ctx context.Context, in *RemoveDelegationRoleMessage, opts ...grpc.CallOption) (*BasicResponse, error)
+	RemoveDelegationPaths(ctx context.Context, in *RemoveDelegationPathsMessage, opts ...grpc.CallOption) (*BasicResponse, error)
+	RemoveDelegationKeys(ctx context.Context, in *RemoveDelegationKeysMessage, opts ...grpc.CallOption) (*BasicResponse, error)
+	ClearDelegationPaths(ctx context.Context, in *ClearDelegationPathsMessage, opts ...grpc.CallOption) (*BasicResponse, error)
 }
 
 type notaryClient struct {
@@ -687,8 +1120,8 @@ func (c *notaryClient) RemoveTarget(ctx context.Context, in *Target, opts ...grp
 	return out, nil
 }
 
-func (c *notaryClient) ListTargets(ctx context.Context, in *RoleList, opts ...grpc.CallOption) (*TargetWithRoleListResponse, error) {
-	out := new(TargetWithRoleListResponse)
+func (c *notaryClient) ListTargets(ctx context.Context, in *RoleNameList, opts ...grpc.CallOption) (*TargetWithRoleNameListResponse, error) {
+	out := new(TargetWithRoleNameListResponse)
 	err := grpc.Invoke(ctx, "/api.Notary/ListTargets", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
@@ -723,6 +1156,96 @@ func (c *notaryClient) GetChangelist(ctx context.Context, in *Empty, opts ...grp
 	return out, nil
 }
 
+func (c *notaryClient) ListRoles(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RoleWithSignaturesListResponse, error) {
+	out := new(RoleWithSignaturesListResponse)
+	err := grpc.Invoke(ctx, "/api.Notary/ListRoles", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *notaryClient) GetDelegationRoles(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RoleListResponse, error) {
+	out := new(RoleListResponse)
+	err := grpc.Invoke(ctx, "/api.Notary/GetDelegationRoles", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *notaryClient) AddDelegation(ctx context.Context, in *AddDelegationMessage, opts ...grpc.CallOption) (*BasicResponse, error) {
+	out := new(BasicResponse)
+	err := grpc.Invoke(ctx, "/api.Notary/AddDelegation", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *notaryClient) AddDelegationRoleAndKeys(ctx context.Context, in *AddDelegationRoleAndKeysMessage, opts ...grpc.CallOption) (*BasicResponse, error) {
+	out := new(BasicResponse)
+	err := grpc.Invoke(ctx, "/api.Notary/AddDelegationRoleAndKeys", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *notaryClient) AddDelegationPaths(ctx context.Context, in *AddDelegationPathsMessage, opts ...grpc.CallOption) (*BasicResponse, error) {
+	out := new(BasicResponse)
+	err := grpc.Invoke(ctx, "/api.Notary/AddDelegationPaths", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *notaryClient) RemoveDelegationKeysAndPaths(ctx context.Context, in *RemoveDelegationKeysAndPathsMessage, opts ...grpc.CallOption) (*BasicResponse, error) {
+	out := new(BasicResponse)
+	err := grpc.Invoke(ctx, "/api.Notary/RemoveDelegationKeysAndPaths", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *notaryClient) RemoveDelegationRole(ctx context.Context, in *RemoveDelegationRoleMessage, opts ...grpc.CallOption) (*BasicResponse, error) {
+	out := new(BasicResponse)
+	err := grpc.Invoke(ctx, "/api.Notary/RemoveDelegationRole", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *notaryClient) RemoveDelegationPaths(ctx context.Context, in *RemoveDelegationPathsMessage, opts ...grpc.CallOption) (*BasicResponse, error) {
+	out := new(BasicResponse)
+	err := grpc.Invoke(ctx, "/api.Notary/RemoveDelegationPaths", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *notaryClient) RemoveDelegationKeys(ctx context.Context, in *RemoveDelegationKeysMessage, opts ...grpc.CallOption) (*BasicResponse, error) {
+	out := new(BasicResponse)
+	err := grpc.Invoke(ctx, "/api.Notary/RemoveDelegationKeys", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *notaryClient) ClearDelegationPaths(ctx context.Context, in *ClearDelegationPathsMessage, opts ...grpc.CallOption) (*BasicResponse, error) {
+	out := new(BasicResponse)
+	err := grpc.Invoke(ctx, "/api.Notary/ClearDelegationPaths", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for Notary service
 
 type NotaryServer interface {
@@ -734,13 +1257,23 @@ type NotaryServer interface {
 	// uses the `name` field from the Target object, ignoring all other fields
 	RemoveTarget(context.Context, *Target) (*BasicResponse, error)
 	// ListTargets list the targets for the specified roles in the TUF repository
-	ListTargets(context.Context, *RoleList) (*TargetWithRoleListResponse, error)
+	ListTargets(context.Context, *RoleNameList) (*TargetWithRoleNameListResponse, error)
 	// GetTargetByName returns a target by the given name.
 	GetTargetByName(context.Context, *TargetByNameAction) (*TargetWithRoleResponse, error)
 	// GetAllTargetMetadataByName
 	GetAllTargetMetadataByName(context.Context, *TargetName) (*TargetSignedListResponse, error)
 	// GetChangelist returns the list of the repository's unpublished changes
 	GetChangelist(context.Context, *Empty) (*ChangeListResponse, error)
+	ListRoles(context.Context, *Empty) (*RoleWithSignaturesListResponse, error)
+	GetDelegationRoles(context.Context, *Empty) (*RoleListResponse, error)
+	AddDelegation(context.Context, *AddDelegationMessage) (*BasicResponse, error)
+	AddDelegationRoleAndKeys(context.Context, *AddDelegationRoleAndKeysMessage) (*BasicResponse, error)
+	AddDelegationPaths(context.Context, *AddDelegationPathsMessage) (*BasicResponse, error)
+	RemoveDelegationKeysAndPaths(context.Context, *RemoveDelegationKeysAndPathsMessage) (*BasicResponse, error)
+	RemoveDelegationRole(context.Context, *RemoveDelegationRoleMessage) (*BasicResponse, error)
+	RemoveDelegationPaths(context.Context, *RemoveDelegationPathsMessage) (*BasicResponse, error)
+	RemoveDelegationKeys(context.Context, *RemoveDelegationKeysMessage) (*BasicResponse, error)
+	ClearDelegationPaths(context.Context, *ClearDelegationPathsMessage) (*BasicResponse, error)
 }
 
 func RegisterNotaryServer(s *grpc.Server, srv NotaryServer) {
@@ -820,7 +1353,7 @@ func _Notary_RemoveTarget_Handler(srv interface{}, ctx context.Context, dec func
 }
 
 func _Notary_ListTargets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RoleList)
+	in := new(RoleNameList)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -832,7 +1365,7 @@ func _Notary_ListTargets_Handler(srv interface{}, ctx context.Context, dec func(
 		FullMethod: "/api.Notary/ListTargets",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NotaryServer).ListTargets(ctx, req.(*RoleList))
+		return srv.(NotaryServer).ListTargets(ctx, req.(*RoleNameList))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -891,6 +1424,186 @@ func _Notary_GetChangelist_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Notary_ListRoles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NotaryServer).ListRoles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.Notary/ListRoles",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NotaryServer).ListRoles(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Notary_GetDelegationRoles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NotaryServer).GetDelegationRoles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.Notary/GetDelegationRoles",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NotaryServer).GetDelegationRoles(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Notary_AddDelegation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddDelegationMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NotaryServer).AddDelegation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.Notary/AddDelegation",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NotaryServer).AddDelegation(ctx, req.(*AddDelegationMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Notary_AddDelegationRoleAndKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddDelegationRoleAndKeysMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NotaryServer).AddDelegationRoleAndKeys(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.Notary/AddDelegationRoleAndKeys",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NotaryServer).AddDelegationRoleAndKeys(ctx, req.(*AddDelegationRoleAndKeysMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Notary_AddDelegationPaths_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddDelegationPathsMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NotaryServer).AddDelegationPaths(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.Notary/AddDelegationPaths",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NotaryServer).AddDelegationPaths(ctx, req.(*AddDelegationPathsMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Notary_RemoveDelegationKeysAndPaths_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveDelegationKeysAndPathsMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NotaryServer).RemoveDelegationKeysAndPaths(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.Notary/RemoveDelegationKeysAndPaths",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NotaryServer).RemoveDelegationKeysAndPaths(ctx, req.(*RemoveDelegationKeysAndPathsMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Notary_RemoveDelegationRole_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveDelegationRoleMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NotaryServer).RemoveDelegationRole(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.Notary/RemoveDelegationRole",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NotaryServer).RemoveDelegationRole(ctx, req.(*RemoveDelegationRoleMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Notary_RemoveDelegationPaths_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveDelegationPathsMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NotaryServer).RemoveDelegationPaths(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.Notary/RemoveDelegationPaths",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NotaryServer).RemoveDelegationPaths(ctx, req.(*RemoveDelegationPathsMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Notary_RemoveDelegationKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveDelegationKeysMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NotaryServer).RemoveDelegationKeys(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.Notary/RemoveDelegationKeys",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NotaryServer).RemoveDelegationKeys(ctx, req.(*RemoveDelegationKeysMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Notary_ClearDelegationPaths_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClearDelegationPathsMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NotaryServer).ClearDelegationPaths(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.Notary/ClearDelegationPaths",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NotaryServer).ClearDelegationPaths(ctx, req.(*ClearDelegationPathsMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Notary_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "api.Notary",
 	HandlerType: (*NotaryServer)(nil),
@@ -927,6 +1640,46 @@ var _Notary_serviceDesc = grpc.ServiceDesc{
 			MethodName: "GetChangelist",
 			Handler:    _Notary_GetChangelist_Handler,
 		},
+		{
+			MethodName: "ListRoles",
+			Handler:    _Notary_ListRoles_Handler,
+		},
+		{
+			MethodName: "GetDelegationRoles",
+			Handler:    _Notary_GetDelegationRoles_Handler,
+		},
+		{
+			MethodName: "AddDelegation",
+			Handler:    _Notary_AddDelegation_Handler,
+		},
+		{
+			MethodName: "AddDelegationRoleAndKeys",
+			Handler:    _Notary_AddDelegationRoleAndKeys_Handler,
+		},
+		{
+			MethodName: "AddDelegationPaths",
+			Handler:    _Notary_AddDelegationPaths_Handler,
+		},
+		{
+			MethodName: "RemoveDelegationKeysAndPaths",
+			Handler:    _Notary_RemoveDelegationKeysAndPaths_Handler,
+		},
+		{
+			MethodName: "RemoveDelegationRole",
+			Handler:    _Notary_RemoveDelegationRole_Handler,
+		},
+		{
+			MethodName: "RemoveDelegationPaths",
+			Handler:    _Notary_RemoveDelegationPaths_Handler,
+		},
+		{
+			MethodName: "RemoveDelegationKeys",
+			Handler:    _Notary_RemoveDelegationKeys_Handler,
+		},
+		{
+			MethodName: "ClearDelegationPaths",
+			Handler:    _Notary_ClearDelegationPaths_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "api.proto",
@@ -935,64 +1688,91 @@ var _Notary_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("api.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 935 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x9c, 0x56, 0xdd, 0x6e, 0xe3, 0x44,
-	0x14, 0xc6, 0x49, 0x9b, 0xae, 0x8f, 0xd3, 0x1f, 0x06, 0xd8, 0x5a, 0x61, 0x17, 0x22, 0x2f, 0x88,
-	0x48, 0x88, 0xac, 0x36, 0x8b, 0x10, 0x3f, 0x42, 0xab, 0x6e, 0x77, 0x15, 0xaa, 0xd2, 0x0a, 0x0d,
-	0x08, 0xae, 0xa7, 0xce, 0x51, 0x6c, 0xd5, 0xb1, 0x8d, 0x67, 0x52, 0x61, 0xde, 0x00, 0x89, 0x1b,
-	0x2e, 0x79, 0x25, 0xae, 0x79, 0x02, 0x9e, 0x04, 0xcd, 0x8f, 0xed, 0x71, 0xe2, 0x48, 0xab, 0xde,
-	0xcd, 0x99, 0xf9, 0xce, 0x37, 0xe7, 0xef, 0x1b, 0x1b, 0x5c, 0x96, 0xc7, 0xd3, 0xbc, 0xc8, 0x44,
-	0x46, 0xfa, 0x2c, 0x8f, 0x83, 0x03, 0xd8, 0x7f, 0xbd, 0xca, 0x45, 0x19, 0x24, 0xe0, 0x5d, 0xa4,
-	0xb1, 0xb8, 0x42, 0xce, 0xd9, 0x12, 0xc9, 0x07, 0x00, 0x45, 0x96, 0x89, 0x4b, 0x2c, 0x2f, 0x5e,
-	0x71, 0xdf, 0x19, 0xf7, 0x27, 0x2e, 0xb5, 0x76, 0xc8, 0xb7, 0x40, 0x38, 0x16, 0x77, 0x58, 0x5c,
-	0xb1, 0x94, 0x2d, 0x71, 0x41, 0xb3, 0x04, 0xb9, 0xdf, 0x1b, 0x3b, 0x13, 0x6f, 0x76, 0x38, 0x95,
-	0x97, 0xc8, 0x9d, 0xef, 0x63, 0x2e, 0x68, 0x07, 0x30, 0x18, 0xc3, 0x83, 0xea, 0x9c, 0xbc, 0x0b,
-	0xfb, 0x85, 0xf2, 0xd6, 0xb7, 0x68, 0x23, 0x18, 0x03, 0xfc, 0xc4, 0x8a, 0x25, 0x8a, 0x6b, 0xb6,
-	0x42, 0x42, 0x60, 0x2f, 0x65, 0x2b, 0xf4, 0x9d, 0xb1, 0x33, 0x71, 0xa9, 0x5a, 0x07, 0xff, 0x38,
-	0x30, 0xd0, 0x10, 0x72, 0x02, 0xfd, 0xe5, 0x3a, 0x35, 0xa7, 0x72, 0x59, 0x3b, 0xf4, 0x1a, 0x07,
-	0xf2, 0x10, 0x06, 0x09, 0xa6, 0x4b, 0x11, 0xf9, 0xfd, 0xb1, 0x33, 0xe9, 0x53, 0x63, 0x91, 0xa7,
-	0x30, 0x88, 0x18, 0x8f, 0x90, 0xfb, 0x7b, 0xe3, 0xfe, 0xc4, 0x9b, 0x9d, 0xaa, 0xf8, 0x35, 0xf5,
-	0xf4, 0x3b, 0x75, 0xf2, 0x3a, 0x15, 0x45, 0x49, 0x0d, 0x4c, 0x12, 0x85, 0x6b, 0x2e, 0xb2, 0x95,
-	0xbf, 0x3f, 0x76, 0x26, 0x43, 0x6a, 0xac, 0xd1, 0x57, 0xe0, 0x59, 0x70, 0x19, 0xd5, 0x2d, 0x96,
-	0x55, 0x54, 0xb7, 0x58, 0xca, 0x54, 0xef, 0x58, 0xb2, 0xd6, 0x61, 0x0d, 0xa9, 0x36, 0xbe, 0xee,
-	0x7d, 0xe9, 0x04, 0x17, 0x70, 0xa4, 0x2f, 0xfc, 0x25, 0x16, 0x91, 0x2c, 0x0d, 0x79, 0x02, 0x03,
-	0xa1, 0x76, 0x14, 0x81, 0x37, 0xf3, 0xac, 0xa8, 0xa8, 0x39, 0x92, 0x69, 0xca, 0x72, 0x55, 0x69,
-	0xca, 0x75, 0xf0, 0x87, 0x03, 0x0f, 0xdb, 0x5c, 0x14, 0x79, 0x9e, 0xa5, 0x1c, 0xc9, 0x37, 0x70,
-	0x24, 0x5a, 0x27, 0x86, 0xfb, 0x1d, 0x8b, 0xbb, 0x76, 0xda, 0x80, 0x12, 0x1f, 0x0e, 0xf8, 0x3a,
-	0x0c, 0x91, 0xeb, 0x3e, 0x3f, 0xa0, 0x95, 0x29, 0x4f, 0x56, 0x7a, 0x6e, 0x54, 0x65, 0x5d, 0x5a,
-	0x99, 0xc1, 0x39, 0x90, 0x36, 0xab, 0xea, 0xf8, 0x67, 0x70, 0xa0, 0xb9, 0x75, 0xcf, 0x77, 0xdc,
-	0x5f, 0x61, 0x82, 0xbf, 0x1d, 0x18, 0x6d, 0xb3, 0xd4, 0x49, 0xcd, 0x81, 0x88, 0xad, 0x53, 0x93,
-	0xd8, 0x69, 0x07, 0xb1, 0x1e, 0xca, 0x6d, 0x97, 0x7b, 0x25, 0x78, 0x55, 0x25, 0xf8, 0xb2, 0x94,
-	0x83, 0x7a, 0x16, 0x8a, 0x38, 0x4b, 0xbb, 0xc6, 0x95, 0x3c, 0xa9, 0xc6, 0xbc, 0x53, 0x24, 0x66,
-	0xea, 0x7f, 0x05, 0xf7, 0xc7, 0x78, 0x99, 0x32, 0xb1, 0x2e, 0x50, 0x4e, 0xcb, 0xad, 0x54, 0x9b,
-	0xa1, 0xd1, 0x86, 0x1c, 0xbe, 0x15, 0x8a, 0x28, 0x5b, 0x98, 0xa6, 0x1b, 0x8b, 0x3c, 0x02, 0x97,
-	0x57, 0xae, 0x2a, 0xca, 0x21, 0x6d, 0x36, 0x64, 0x06, 0x31, 0xff, 0x99, 0x25, 0xf1, 0xc2, 0xdf,
-	0xd3, 0xb9, 0x19, 0x33, 0xf0, 0xc0, 0xfd, 0x61, 0x7d, 0x93, 0xc4, 0xe1, 0x25, 0x96, 0xc1, 0xbf,
-	0x0e, 0x1c, 0xbd, 0xc2, 0x04, 0x97, 0x4c, 0xe6, 0xa1, 0xda, 0xfe, 0x0c, 0xf6, 0x6e, 0xb1, 0xac,
-	0x3a, 0xf5, 0x58, 0x85, 0xdd, 0x86, 0x4c, 0x2f, 0xb1, 0x34, 0x0a, 0x51, 0xd0, 0x4e, 0xf1, 0x3d,
-	0x02, 0x57, 0x44, 0x05, 0xf2, 0x28, 0x4b, 0x16, 0x2a, 0xbc, 0x7d, 0xda, 0x6c, 0xc8, 0x54, 0x73,
-	0x26, 0x22, 0xad, 0x40, 0x97, 0x6a, 0x63, 0x34, 0x07, 0xb7, 0xa6, 0xee, 0x50, 0xd3, 0x47, 0xb6,
-	0x9a, 0xbc, 0xd9, 0x91, 0x0a, 0xad, 0xce, 0xc5, 0x56, 0xd7, 0x9f, 0x0e, 0x0c, 0x75, 0x9b, 0x64,
-	0x75, 0x71, 0x41, 0x3e, 0x31, 0xba, 0xb1, 0xc7, 0xbf, 0x9d, 0x94, 0x16, 0x93, 0xa5, 0xc2, 0xde,
-	0x6e, 0x15, 0x4e, 0x01, 0xea, 0x4a, 0x73, 0xbf, 0xaf, 0x0a, 0xa5, 0xa3, 0xa9, 0x9b, 0x49, 0x2d,
-	0x44, 0xf0, 0x02, 0x4e, 0xec, 0x68, 0xd4, 0xf0, 0x7d, 0xba, 0xa9, 0x89, 0xb7, 0xad, 0x9b, 0x34,
-	0xae, 0x51, 0xc4, 0x5f, 0x0e, 0xf8, 0x9b, 0x0c, 0xb5, 0x1e, 0xce, 0xe0, 0x44, 0x6c, 0x9c, 0x99,
-	0x3c, 0xdf, 0xdb, 0xa2, 0x54, 0x8e, 0x5b, 0xf0, 0x7b, 0x4a, 0xfd, 0xf0, 0x25, 0xe3, 0x71, 0x58,
-	0xc7, 0x61, 0x91, 0x38, 0x3b, 0x49, 0x7a, 0x6d, 0x92, 0xdf, 0x60, 0x70, 0x1e, 0xb1, 0x74, 0xa9,
-	0x1e, 0x6b, 0xa6, 0xc4, 0x64, 0x3a, 0x6e, 0x2c, 0x39, 0x29, 0x3c, 0xcc, 0xf2, 0xca, 0x53, 0x1b,
-	0x72, 0xe2, 0x44, 0x99, 0x57, 0x31, 0xa9, 0xb5, 0xdc, 0x93, 0x63, 0xa4, 0xe6, 0xdd, 0xa5, 0x6a,
-	0x2d, 0x6f, 0x0e, 0xb3, 0x54, 0x60, 0x2a, 0xcc, 0xd3, 0x5d, 0x99, 0xc1, 0x73, 0x00, 0x7d, 0xb3,
-	0x2a, 0xc0, 0xc7, 0x70, 0x10, 0x2a, 0xab, 0xea, 0x86, 0xee, 0xbb, 0x46, 0xd0, 0xea, 0x2c, 0x28,
-	0x81, 0x34, 0x4e, 0x75, 0xe2, 0x4f, 0x01, 0x34, 0x20, 0x69, 0x4a, 0x7f, 0x6c, 0xf9, 0x2b, 0xb0,
-	0x05, 0xb9, 0x4f, 0xb9, 0x67, 0xff, 0xf5, 0x61, 0x70, 0x9d, 0x09, 0x56, 0x94, 0xe4, 0x73, 0x00,
-	0xf9, 0xe9, 0x8e, 0x59, 0x12, 0xff, 0x8e, 0xe4, 0x44, 0xdd, 0x64, 0x7d, 0xcb, 0x47, 0x44, 0xed,
-	0xb4, 0x9a, 0x13, 0xbc, 0x25, 0x07, 0x4e, 0x69, 0x85, 0x47, 0x04, 0x14, 0x40, 0xfd, 0x07, 0xec,
-	0x00, 0x4f, 0xc1, 0x3d, 0x5b, 0x2c, 0xcc, 0xd7, 0xd6, 0xd6, 0xc0, 0x0e, 0xfc, 0x33, 0x18, 0x52,
-	0x5c, 0x65, 0x77, 0xf8, 0xe6, 0x2e, 0x2f, 0xc0, 0x93, 0x85, 0xd1, 0x18, 0x4e, 0xda, 0xef, 0xe3,
-	0xe8, 0xc3, 0x5d, 0x0f, 0x79, 0x43, 0x70, 0x01, 0xc7, 0x73, 0x14, 0xf6, 0x6b, 0x4c, 0xec, 0xe7,
-	0xdf, 0x7e, 0xa0, 0x47, 0xef, 0x77, 0x7d, 0x70, 0x1a, 0xaa, 0x6b, 0x18, 0xcd, 0x51, 0x9c, 0x25,
-	0x89, 0x46, 0x5c, 0xa1, 0x60, 0x0b, 0x26, 0x98, 0x61, 0x3d, 0xb6, 0x9c, 0xe5, 0xc6, 0xe8, 0x71,
-	0xb7, 0xae, 0x1a, 0xbe, 0x2f, 0xe0, 0x70, 0x8e, 0xe2, 0xbc, 0xe9, 0xb8, 0x5d, 0xf1, 0xd3, 0xcd,
-	0xd1, 0xa8, 0xfd, 0x6e, 0x06, 0xea, 0x4f, 0xed, 0xf9, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff, 0xea,
-	0x85, 0x57, 0x39, 0xb6, 0x09, 0x00, 0x00,
+	// 1364 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xb4, 0x58, 0xef, 0x6e, 0x1b, 0x45,
+	0x10, 0xe7, 0x6c, 0xc7, 0xe9, 0x8d, 0x1d, 0x37, 0x5d, 0x9a, 0xc4, 0x75, 0x93, 0xd4, 0x5c, 0x82,
+	0x6a, 0x54, 0xe1, 0x2a, 0x29, 0xaa, 0x28, 0x48, 0x50, 0x37, 0x89, 0xdc, 0x10, 0x12, 0xa5, 0x57,
+	0x54, 0x3e, 0x20, 0x21, 0x6d, 0x7d, 0x2b, 0xfb, 0x94, 0xf3, 0x9d, 0xb9, 0x5b, 0x47, 0x35, 0x6f,
+	0x80, 0xc4, 0x17, 0x1e, 0x83, 0x57, 0xe1, 0x33, 0xaf, 0xc1, 0x3b, 0xa0, 0xfd, 0x73, 0x7b, 0x7b,
+	0xff, 0x12, 0x64, 0x89, 0x6f, 0x37, 0xbb, 0xbf, 0xf9, 0xcd, 0xec, 0xec, 0xce, 0xec, 0xce, 0x81,
+	0x89, 0x67, 0x6e, 0x7f, 0x16, 0x06, 0x34, 0x40, 0x55, 0x3c, 0x73, 0xad, 0x55, 0x58, 0x39, 0x99,
+	0xce, 0xe8, 0xc2, 0xfa, 0x00, 0xf7, 0x07, 0x8e, 0x73, 0x4c, 0x3c, 0x32, 0xc6, 0xd4, 0x0d, 0xfc,
+	0x73, 0x12, 0x45, 0x78, 0x4c, 0x10, 0x82, 0x9a, 0x8f, 0xa7, 0xa4, 0x6d, 0x74, 0x8d, 0x9e, 0x69,
+	0xf3, 0x6f, 0xf4, 0x1c, 0x5a, 0x8e, 0x02, 0x9e, 0x91, 0x45, 0xd4, 0xae, 0x74, 0xab, 0xbd, 0xc6,
+	0x61, 0xab, 0xcf, 0xd8, 0x2f, 0xe7, 0xef, 0x3d, 0x77, 0x74, 0x46, 0x16, 0x76, 0x06, 0x85, 0xee,
+	0xc3, 0xca, 0x0c, 0xd3, 0x49, 0xd4, 0xae, 0x76, 0xab, 0x3d, 0xd3, 0x16, 0x82, 0x35, 0x85, 0x47,
+	0x29, 0xcb, 0x76, 0xe0, 0x91, 0x81, 0xef, 0x30, 0x8d, 0xff, 0xc1, 0x09, 0xeb, 0x04, 0x1e, 0xa4,
+	0xcc, 0x5d, 0x32, 0x27, 0x6e, 0x32, 0xa4, 0xbc, 0xae, 0xe8, 0x5e, 0x8f, 0x61, 0xcf, 0x26, 0xd3,
+	0xe0, 0x9a, 0x1c, 0xa7, 0xe8, 0x07, 0xbe, 0x73, 0x2b, 0xe1, 0x26, 0xd4, 0xaf, 0xc8, 0xe2, 0xf4,
+	0x38, 0x66, 0x94, 0x52, 0x49, 0x78, 0x0e, 0xe0, 0x61, 0xd6, 0x10, 0x8b, 0xd0, 0x0d, 0x06, 0xac,
+	0xd7, 0xb0, 0x9d, 0x55, 0x59, 0x72, 0x95, 0xa7, 0x79, 0xe3, 0xb7, 0xed, 0x4b, 0xc9, 0xea, 0xd8,
+	0x3a, 0x8e, 0x3c, 0x82, 0xc3, 0x72, 0x9f, 0xc2, 0xc0, 0x53, 0x54, 0xec, 0xdb, 0x9a, 0x41, 0xe3,
+	0xd4, 0x77, 0x69, 0x0c, 0xd9, 0x05, 0x08, 0x83, 0x80, 0x9e, 0x09, 0x76, 0x83, 0xb3, 0x6b, 0x23,
+	0x68, 0x00, 0x28, 0x22, 0xe1, 0x35, 0x09, 0xcf, 0xb1, 0x8f, 0xc7, 0xc4, 0x61, 0x61, 0x62, 0x5e,
+	0x18, 0xbd, 0xc6, 0xe1, 0x3d, 0x7e, 0x2a, 0xd8, 0xc8, 0x05, 0x9e, 0x92, 0xef, 0xdd, 0x88, 0xda,
+	0x05, 0x60, 0x6b, 0x1f, 0x9a, 0x3a, 0x86, 0x45, 0x25, 0xe4, 0x2c, 0xc2, 0x9a, 0x10, 0xac, 0x2e,
+	0xc0, 0x0f, 0x38, 0x1c, 0x13, 0xca, 0x70, 0x85, 0x3b, 0xf0, 0x97, 0x01, 0x75, 0x01, 0x41, 0xeb,
+	0x50, 0x1d, 0xcf, 0x7d, 0x39, 0xcb, 0x3e, 0x95, 0x42, 0x25, 0x1d, 0x35, 0x8f, 0xf8, 0x63, 0x3a,
+	0x69, 0x57, 0xbb, 0x46, 0xaf, 0x6a, 0x4b, 0x09, 0x3d, 0x85, 0xfa, 0x04, 0x47, 0x13, 0x12, 0xb5,
+	0x6b, 0xfc, 0x74, 0x6f, 0xf1, 0x75, 0x08, 0xea, 0xfe, 0x6b, 0x3e, 0x73, 0xe2, 0xd3, 0x70, 0x61,
+	0x4b, 0x18, 0x23, 0x1a, 0xcd, 0x23, 0x1a, 0x4c, 0xdb, 0x2b, 0x5d, 0xa3, 0xd7, 0xb4, 0xa5, 0xd4,
+	0x79, 0x01, 0x0d, 0x0d, 0xce, 0xbc, 0xba, 0x22, 0x8b, 0xd8, 0xab, 0x2b, 0xb2, 0x60, 0x4b, 0xbd,
+	0xc6, 0xde, 0x5c, 0xb8, 0xd5, 0xb4, 0x85, 0xf0, 0x55, 0xe5, 0x4b, 0xc3, 0x3a, 0x85, 0x96, 0x30,
+	0xf8, 0xa3, 0x4b, 0x27, 0x2c, 0x3c, 0x68, 0x0f, 0xea, 0x94, 0x8f, 0x70, 0x82, 0xc6, 0x61, 0x43,
+	0xf3, 0xca, 0x96, 0x53, 0x6a, 0x47, 0x2b, 0xda, 0x8e, 0xfe, 0x66, 0xc0, 0x66, 0x9a, 0xcb, 0x26,
+	0xd1, 0x2c, 0xf0, 0x23, 0x82, 0xbe, 0x86, 0x16, 0x4d, 0xcd, 0x48, 0xee, 0x8f, 0x35, 0x6e, 0xa5,
+	0x94, 0x81, 0xa2, 0x36, 0xac, 0x46, 0xf3, 0xd1, 0x88, 0x44, 0x62, 0xbf, 0xef, 0xd8, 0xb1, 0xc8,
+	0x66, 0xa6, 0xe2, 0xfc, 0xf0, 0xc8, 0x9a, 0x76, 0x2c, 0x5a, 0xc3, 0xac, 0x2b, 0x6a, 0xd7, 0x3f,
+	0x87, 0x55, 0xc1, 0x2f, 0xf6, 0xbd, 0xc4, 0x87, 0x18, 0x63, 0xfd, 0x69, 0xc0, 0x6e, 0x31, 0x93,
+	0x5a, 0xdc, 0x5b, 0xd8, 0xa4, 0x85, 0x08, 0xb9, 0xc8, 0x87, 0x05, 0x06, 0x14, 0x49, 0x89, 0xea,
+	0x52, 0x8b, 0x7e, 0x03, 0x48, 0x58, 0x79, 0xb5, 0x60, 0x3c, 0x83, 0x11, 0x4b, 0xc4, 0xc2, 0x3c,
+	0x7e, 0x1c, 0x1f, 0xfd, 0xd2, 0x04, 0x92, 0xd9, 0xf0, 0x0b, 0x98, 0x6f, 0xdd, 0xb1, 0x8f, 0xe9,
+	0x3c, 0xe4, 0x65, 0x84, 0xe7, 0xbb, 0xa4, 0x12, 0x02, 0x3b, 0x94, 0x53, 0x42, 0x27, 0x81, 0x23,
+	0x0f, 0x83, 0x94, 0xd0, 0x36, 0x98, 0x51, 0xac, 0xca, 0x3d, 0x6d, 0xda, 0xc9, 0x00, 0x5b, 0x85,
+	0x1b, 0xbd, 0xc3, 0x9e, 0xeb, 0xb4, 0x6b, 0x62, 0x7d, 0x52, 0xb4, 0xde, 0x80, 0xa9, 0x0a, 0x3c,
+	0x6a, 0x41, 0xc5, 0x75, 0xa4, 0xbd, 0x8a, 0xcb, 0x49, 0xb1, 0x37, 0x0e, 0x42, 0x97, 0x4e, 0xa6,
+	0xd2, 0x5e, 0x32, 0xc0, 0x5c, 0x99, 0x71, 0x55, 0x69, 0x4f, 0x4a, 0xd6, 0xdf, 0x06, 0xb4, 0xd2,
+	0x15, 0x16, 0x1d, 0x40, 0xed, 0x8a, 0xdd, 0x2b, 0xe2, 0x0c, 0xec, 0xf0, 0x00, 0xa4, 0x21, 0x7d,
+	0x56, 0x0c, 0x45, 0xfe, 0x71, 0x68, 0x61, 0x6a, 0x6f, 0x83, 0x49, 0x27, 0x21, 0x89, 0x26, 0x81,
+	0xe7, 0x70, 0xa3, 0x2b, 0x76, 0x32, 0x90, 0xd4, 0xdd, 0x9a, 0x56, 0x77, 0x3b, 0x43, 0x30, 0x15,
+	0x75, 0x41, 0xae, 0xee, 0xeb, 0xb9, 0x9a, 0xbf, 0xf2, 0xb4, 0xdc, 0xfd, 0xdd, 0x80, 0xa6, 0xd8,
+	0x70, 0xb6, 0x47, 0xc4, 0x41, 0x8f, 0xb5, 0x3a, 0x1b, 0x1f, 0xec, 0xf4, 0xa2, 0x44, 0xaa, 0x6a,
+	0x39, 0x5e, 0x29, 0xcf, 0xf1, 0x3e, 0x80, 0xda, 0x2f, 0x71, 0x6f, 0xc5, 0xde, 0xa8, 0x23, 0x61,
+	0x6b, 0x08, 0xeb, 0x5b, 0x58, 0xd7, 0xbd, 0xe1, 0xc7, 0xf8, 0x49, 0x36, 0xdb, 0xee, 0x69, 0x96,
+	0x04, 0x2e, 0xc9, 0xb5, 0x3f, 0x0c, 0x68, 0x67, 0x19, 0x54, 0x96, 0x0d, 0x60, 0x9d, 0x66, 0xe6,
+	0xe4, 0x3a, 0x37, 0x72, 0x94, 0x5c, 0x31, 0x07, 0x5f, 0x2a, 0xa7, 0x8e, 0x60, 0xed, 0x15, 0x8e,
+	0xdc, 0x91, 0xf2, 0x43, 0x23, 0x31, 0x4a, 0x49, 0x2a, 0x69, 0x92, 0x0f, 0x50, 0x3f, 0x9a, 0x60,
+	0x7f, 0xcc, 0xaf, 0x02, 0xcc, 0xd3, 0x52, 0xee, 0xb8, 0x94, 0xd8, 0x49, 0x89, 0x46, 0xc1, 0x2c,
+	0xd6, 0x14, 0x02, 0x3b, 0x71, 0x74, 0x31, 0x8b, 0x7d, 0xe2, 0xdf, 0x6c, 0x8c, 0x1d, 0x23, 0x9e,
+	0x35, 0xa6, 0xcd, 0xbf, 0x99, 0xe5, 0x51, 0xe0, 0x53, 0xe2, 0x53, 0x79, 0x31, 0xc4, 0xa2, 0xf5,
+	0x0c, 0x40, 0x58, 0xe6, 0x01, 0xf8, 0x14, 0x56, 0x47, 0x5c, 0x8a, 0x77, 0x43, 0xec, 0xbb, 0x40,
+	0xd8, 0xf1, 0x9c, 0xb5, 0x00, 0x94, 0x28, 0xa9, 0x85, 0x3f, 0x05, 0x10, 0x00, 0x2f, 0x09, 0xfd,
+	0x5d, 0x4d, 0x9f, 0x83, 0x35, 0xc8, 0x52, 0xe1, 0x7e, 0x09, 0x77, 0xec, 0x20, 0xa0, 0x3c, 0x45,
+	0x93, 0xc7, 0x86, 0x91, 0x7a, 0x4a, 0xa5, 0x72, 0xae, 0x92, 0xc9, 0x39, 0xeb, 0x27, 0xa8, 0x71,
+	0xed, 0xcf, 0xe0, 0x4e, 0x28, 0x99, 0xa4, 0xb3, 0x6b, 0xb2, 0xca, 0x89, 0x41, 0x5b, 0x4d, 0x17,
+	0x26, 0x76, 0xf1, 0x7b, 0xed, 0x09, 0x73, 0xcf, 0x13, 0xc1, 0x7c, 0xa4, 0x3f, 0x1f, 0x1a, 0x87,
+	0xa6, 0xaa, 0xa1, 0x49, 0xed, 0x5c, 0x8f, 0xc1, 0x2a, 0x88, 0xdc, 0x2b, 0x4f, 0xbf, 0x1d, 0xd6,
+	0x94, 0x1e, 0x07, 0xaa, 0xe9, 0xa5, 0xc2, 0x37, 0x02, 0xc4, 0x98, 0xd8, 0x6d, 0xa2, 0x72, 0x34,
+	0xca, 0x24, 0xb2, 0x71, 0x5b, 0x22, 0xa3, 0x1d, 0xed, 0x72, 0x4f, 0x2d, 0x4c, 0xdc, 0xf3, 0x18,
+	0x36, 0xf3, 0x46, 0xb8, 0xcb, 0x43, 0x40, 0x61, 0x6e, 0x46, 0x1a, 0xdc, 0x52, 0x34, 0xe9, 0x69,
+	0xbb, 0x40, 0x85, 0xdf, 0xba, 0xc5, 0x36, 0xf4, 0x5b, 0x37, 0x2c, 0x44, 0xa4, 0x6e, 0xdd, 0x12,
+	0x92, 0x12, 0xd5, 0x65, 0x62, 0x7e, 0xf8, 0x8f, 0x09, 0xf5, 0x8b, 0x80, 0xe2, 0x70, 0x81, 0xbe,
+	0x00, 0x60, 0x6f, 0x5a, 0x17, 0x7b, 0xee, 0xaf, 0x04, 0xad, 0x73, 0x0f, 0xb4, 0x47, 0x6e, 0x07,
+	0xf1, 0x91, 0x54, 0x3d, 0xb1, 0x3e, 0x62, 0x35, 0x92, 0x97, 0xf7, 0x68, 0x82, 0x80, 0x03, 0x78,
+	0xd3, 0x56, 0x02, 0xee, 0x83, 0x39, 0x70, 0x1c, 0xf9, 0xfc, 0xd4, 0xcb, 0x76, 0x09, 0xfe, 0x00,
+	0x9a, 0xe2, 0x91, 0xff, 0xdf, 0x55, 0x86, 0xd0, 0x60, 0xc1, 0x10, 0x98, 0x08, 0xe5, 0x1f, 0x07,
+	0x9d, 0xbd, 0x9b, 0x5e, 0x34, 0x09, 0xd1, 0x29, 0xdc, 0x1d, 0x12, 0xaa, 0x3f, 0x49, 0x90, 0xfe,
+	0xc4, 0xd5, 0x5f, 0x29, 0x9d, 0xa2, 0x47, 0x92, 0x46, 0x75, 0x01, 0x9d, 0x21, 0xa1, 0x03, 0xcf,
+	0x13, 0x88, 0x73, 0x42, 0xb1, 0x83, 0x29, 0x96, 0xac, 0x77, 0x35, 0x65, 0x36, 0xd0, 0xd9, 0x29,
+	0xbe, 0x12, 0x12, 0xbe, 0xe7, 0xb0, 0x36, 0x24, 0xf4, 0x28, 0x29, 0x56, 0x7a, 0xe4, 0xb7, 0xb2,
+	0x55, 0x2d, 0xd1, 0xfb, 0x06, 0x4c, 0x3e, 0xc2, 0x12, 0x3c, 0xa5, 0xb3, 0x77, 0xd3, 0x71, 0x4b,
+	0xf4, 0x5f, 0x00, 0x1a, 0x12, 0x9a, 0xbe, 0x93, 0xd3, 0x44, 0x1b, 0xe9, 0x7a, 0x90, 0xa8, 0xbe,
+	0x84, 0xb5, 0x54, 0x6f, 0x8b, 0x1e, 0x70, 0x64, 0x51, 0x63, 0x5f, 0xb2, 0xb1, 0xef, 0xa0, 0x5d,
+	0xd6, 0x8c, 0xa3, 0xfd, 0x3c, 0x59, 0xbe, 0x57, 0x2f, 0xe1, 0xfd, 0x0e, 0x50, 0xbe, 0xeb, 0x46,
+	0xbb, 0x79, 0x46, 0xbd, 0x29, 0x2c, 0xe1, 0xfa, 0x39, 0xdf, 0xde, 0xea, 0xad, 0x37, 0xea, 0x89,
+	0xf0, 0xdc, 0xde, 0x9d, 0x97, 0xf0, 0x5f, 0xc0, 0xfd, 0xa2, 0x8e, 0x1b, 0x75, 0x0b, 0x79, 0xb5,
+	0x66, 0xbc, 0x84, 0xef, 0x12, 0x36, 0x0a, 0xdb, 0x71, 0xf4, 0x49, 0x21, 0xe1, 0x72, 0x1e, 0xf2,
+	0x1d, 0xea, 0x96, 0xae, 0xfc, 0x56, 0xbe, 0xa2, 0xde, 0x5c, 0xf2, 0xdd, 0xd0, 0xb6, 0x17, 0xf3,
+	0xbd, 0xaf, 0xf3, 0x3f, 0x4c, 0xcf, 0xfe, 0x0d, 0x00, 0x00, 0xff, 0xff, 0x25, 0x35, 0xc2, 0x3c,
+	0x6e, 0x12, 0x00, 0x00,
 }

@@ -5,42 +5,88 @@ package api;
 // Notary Interface
 service Notary {
     rpc Initialize(InitMessage) returns (BasicResponse) {}
-
     rpc Publish(Empty) returns (BasicResponse) {}
 
     // AddTarget adds a target to the TUF repository and re-signs.
     rpc AddTarget(Target) returns (BasicResponse) {}
-
     // RemoveTarget deletes a target from the TUF repository and re-signs. It only
     // uses the `name` field from the Target object, ignoring all other fields
     rpc RemoveTarget(Target) returns (BasicResponse) {}
-
     // ListTargets list the targets for the specified roles in the TUF repository
-    rpc ListTargets(RoleList) returns (TargetWithRoleListResponse) {}
-
+    rpc ListTargets(RoleNameList) returns (TargetWithRoleNameListResponse) {}
     // GetTargetByName returns a target by the given name.
     rpc GetTargetByName(TargetByNameAction) returns (TargetWithRoleResponse) {}
-
     // GetAllTargetMetadataByName
     rpc GetAllTargetMetadataByName(TargetName) returns (TargetSignedListResponse) {}
 
     // GetChangelist returns the list of the repository's unpublished changes
     rpc GetChangelist(Empty) returns (ChangeListResponse) {}
+
+    rpc ListRoles(Empty) returns (RoleWithSignaturesListResponse) {}
+    rpc GetDelegationRoles(Empty) returns (RoleListResponse) {}
+    rpc AddDelegation(AddDelegationMessage) returns (BasicResponse) {}
+    rpc AddDelegationRoleAndKeys(AddDelegationRoleAndKeysMessage) returns (BasicResponse) {}
+    rpc AddDelegationPaths(AddDelegationPathsMessage) returns (BasicResponse) {}
+    rpc RemoveDelegationKeysAndPaths(RemoveDelegationKeysAndPathsMessage) returns (BasicResponse) {}
+    rpc RemoveDelegationRole(RemoveDelegationRoleMessage) returns (BasicResponse) {}
+    rpc RemoveDelegationPaths(RemoveDelegationPathsMessage) returns (BasicResponse) {}
+    rpc RemoveDelegationKeys(RemoveDelegationKeysMessage) returns (BasicResponse) {}
+    rpc ClearDelegationPaths(ClearDelegationPathsMessage) returns (BasicResponse) {}
 }
 
 message Empty {
 
 }
 
+message AddDelegationMessage {
+    string name = 1;
+    repeated PublicKey delegationKeys = 2;
+    repeated string paths = 3;
+}
+
+message AddDelegationRoleAndKeysMessage {
+    string name = 1;
+    repeated PublicKey delegationKeys = 2;
+}
+
+message AddDelegationPathsMessage {
+    string name = 1;
+    repeated string paths = 2;
+}
+
+message RemoveDelegationKeysAndPathsMessage {
+    string name = 1;
+    repeated string keyIDs = 2;
+    repeated string paths = 3;
+}
+
+message RemoveDelegationRoleMessage {
+    string name = 1;
+}
+
+message RemoveDelegationPathsMessage {
+    string name = 1;
+    repeated string paths = 2;
+}
+
+message RemoveDelegationKeysMessage {
+    string name = 1;
+    repeated string keyIDs = 2;
+}
+
+message ClearDelegationPathsMessage {
+    string role = 1;
+}
+
 // InitMessage holds a list of root key IDs and a list of roles for which
 // the server automatically should manage the keys
 message InitMessage {
     repeated string rootKeyIDs = 1;
-    RoleList serverManagedRoles = 2;
+    RoleNameList serverManagedRoles = 2;
 }
 
-// RoleList message holds a list of TUF role names
-message RoleList {
+// RoleNameList message holds a list of TUF role names
+message RoleNameList {
     repeated string roles = 1;
 }
 
@@ -69,19 +115,19 @@ message TargetWithRoleResponse {
     string message = 3;
 }
 
-message TargetWithRoleList {
+message TargetWithRoleNameList {
     repeated TargetWithRole targets = 1;
 }
 
-message TargetWithRoleListResponse {
-    TargetWithRoleList targetWithRoleList = 1;
+message TargetWithRoleNameListResponse {
+    TargetWithRoleNameList targetWithRoleNameList = 1;
     bool success = 2;
     string message = 3;
 }
 
 message TargetByNameAction {
     string name = 1;
-    RoleList roles = 2;
+    RoleNameList roles = 2;
 }
 
 message Signature {
@@ -91,8 +137,10 @@ message Signature {
     bool isValid = 4;
 }
 
-// FIXME: implement
 message PublicKey {
+    string id = 1;
+    string algorithm = 2;
+    bytes public = 3;
 }
 
 message DelegationRole {
@@ -143,6 +191,42 @@ message ChangeList {
 
 message ChangeListResponse {
     ChangeList changelist = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message RootRole {
+    repeated string keyIDs = 1;
+    int32 threshold = 2;
+}
+
+message Role {
+    RootRole rootRole = 1;
+    string name = 2;
+    repeated string paths = 3;
+}
+
+message RoleList {
+    repeated Role roles = 1;
+}
+
+message RoleListResponse {
+    RoleList roleList = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message RoleWithSignatures {
+    repeated Signature signatures = 1;
+    Role role = 2;
+}
+
+message RoleWithSignaturesList {
+    repeated RoleWithSignatures roleWithSignatures = 1;
+}
+
+message RoleWithSignaturesListResponse {
+    RoleWithSignaturesList roleWithSignaturesList = 1;
     bool success = 2;
     string message = 3;
 }
