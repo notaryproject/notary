@@ -1,24 +1,86 @@
- syntax = "proto3";
+syntax = "proto3";
 
 package api;
 
 // Notary Interface
 service Notary {
+
     // AddTarget adds a target to the TUF repository and re-signs.
-    rpc AddTarget(TargetAction) returns (BasicResponse) {}
+    rpc AddTarget(Target) returns (BasicResponse) {}
 
     // RemoveTarget deletes a target from the TUF repository and re-signs. It only
     // uses the `name` field from the Target object, ignoring all other fields
-    rpc RemoveTarget(TargetAction) returns (BasicResponse) {}
+    rpc RemoveTarget(Target) returns (BasicResponse) {}
+
+    // ListTargets list the targets for the specified roles in the TUF repository
+    rpc ListTargets(RoleList) returns (TargetWithRoleList) {}
+
+    // GetTargetByName returns a target by the given name.
+    rpc GetTargetByName(TargetByNameAction) returns (TargetWithRole) {}
+
+    // GetAllTargetMetadataByName
+    rpc GetAllTargetMetadataByName(TargetName) returns (TargetSignedList) {}
 }
 
-// Target message describes a TUF target.
-message TargetAction {
+// RoleList message holds a list of TUF role names
+message RoleList {
+    repeated string roles = 1;
+}
+
+message TargetName {
+    string name = 1;
+}
+
+// Target message describes a TUF target
+message Target {
     string gun = 1;
     string name = 2;
     int64 length = 3;
     map<string, bytes> hashes = 4;
     bytes custom = 5;
+}
+
+// TargetWithRole represents a Target that exists in a particular role
+message TargetWithRole {
+    Target target = 1;
+    string role = 2;
+}
+
+message TargetWithRoleList {
+    repeated TargetWithRole targets = 1;
+}
+
+message TargetByNameAction {
+    string name = 1;
+    RoleList roles = 2;
+}
+
+message Signature {
+    string keyID = 1;
+    string method = 2;
+    bytes signature = 3;
+    bool isValid = 4;
+}
+
+message PublicKey {
+
+}
+
+message DelegationRole {
+    map<string, PublicKey> keys = 1;
+    string name = 2;
+    int32 threshold = 3;
+    repeated string paths = 4;
+}
+
+message TargetSigned {
+    DelegationRole role = 1;
+    Target target = 2;
+    repeated Signature signatures = 3;
+}
+
+message TargetSignedList {
+    repeated TargetSigned targets = 1;
 }
 
 // BasicResponse describes a response with a true/false success indicator,
@@ -29,5 +91,7 @@ message BasicResponse {
     bool success = 1;
     string message = 2;
 }
+
+
 
 
