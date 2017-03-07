@@ -20,6 +20,13 @@ service Notary {
 
     // GetAllTargetMetadataByName
     rpc GetAllTargetMetadataByName(TargetName) returns (TargetSignedList) {}
+
+    // GetChangelist returns the list of the repository's unpublished changes
+    rpc GetChangelist(Empty) returns (ChangeList) {}
+}
+
+message Empty {
+
 }
 
 // RoleList message holds a list of TUF role names
@@ -92,6 +99,19 @@ message BasicResponse {
     string message = 2;
 }
 
+// Change describes a repository's change
+message Change {
+    string action = 1;
+    string scope = 2;
+    string type = 3;
+    string path = 4;
+    bytes content = 5;
+}
+
+// ChangeList describes a list of a repository's changes
+message ChangeList {
+    repeated Change changes = 1;
+}
 
 
 
