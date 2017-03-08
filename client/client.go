@@ -120,6 +120,11 @@ func NewNotaryRepository(baseDir string, gun data.GUN, baseURL string, remoteSto
 	return nRepo, nil
 }
 
+// GetGUN is a getter for the GUN object from a NotaryRepository
+func (r *NotaryRepository) GetGUN() data.GUN {
+	return r.gun
+}
+
 // Target represents a simplified version of the data TUF operates on, so external
 // applications don't have to depend on TUF data types.
 type Target struct {
@@ -174,13 +179,10 @@ func rootCertKey(gun data.GUN, privKey data.PrivateKey) (data.PublicKey, error) 
 // result is only stored on local disk, not published to the server. To do that,
 // use r.Publish() eventually.
 func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ...data.RoleName) error {
-	privKeys := make([]data.PrivateKey, 0, len(rootKeyIDs))
-	for _, keyID := range rootKeyIDs {
-		privKey, _, err := r.CryptoService.GetPrivateKey(keyID)
-		if err != nil {
-			return err
-		}
-		privKeys = append(privKeys, privKey)
+
+	privKeys, err := getAllPrivKeys(rootKeyIDs, r.CryptoService)
+	if err != nil {
+		return err
 	}
 
 	// currently we only support server managing timestamps and snapshots, and
@@ -254,7 +256,6 @@ func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ..
 
 func (r *NotaryRepository) initializeRoles(rootKeys []data.PublicKey, localRoles, remoteRoles []data.RoleName) (
 	root, targets, snapshot, timestamp data.BaseRole, err error) {
-
 	root = data.NewBaseRole(
 		data.CanonicalRootRole,
 		notary.MinThreshold,
@@ -618,17 +619,19 @@ func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 	// update first before publishing
 	if err := r.Update(true); err != nil {
 		// If the remote is not aware of the repo, then this is being published
-		// for the first time.  Try to load from disk instead for publishing.
+		// for the first time.  Try to initialize the repository before publishing.
 		if _, ok := err.(ErrRepositoryNotExist); ok {
 			err := r.bootstrapRepo()
+			if _, ok := err.(store.ErrMetaNotFound); ok {
+				logrus.Infof("No TUF data found locally or remotely - initializing repository %s for the first time", r.gun.String())
+				err = r.Initialize(nil)
+			}
+
 			if err != nil {
-				logrus.Debugf("Unable to load repository from local files: %s",
-					err.Error())
-				if _, ok := err.(store.ErrMetaNotFound); ok {
-					return ErrRepoNotInitialized{}
-				}
+				logrus.WithError(err).Debugf("Unable to load or initialize repository during first publish: %s", err.Error())
 				return err
 			}
+
 			// Ensure we will push the initial root and targets file.  Either or
 			// both of the root and targets may not be marked as Dirty, since
 			// there may not be any changes that update them, so use a

@@ -1650,14 +1650,13 @@ func testPublishNoData(t *testing.T, rootType string, clearCache, serverManagesS
 	}
 }
 
-// Publishing an uninitialized repo will fail, but initializing and republishing
-// after should succeed
+// Publishing an uninitialized repo should not fail
 func TestPublishUninitializedRepo(t *testing.T) {
 	var gun data.GUN = "docker.com/notary"
 	ts := fullTestServer(t)
 	defer ts.Close()
 
-	// uninitialized repo should fail to publish
+	// uninitialized repo should not fail to publish
 	tempBaseDir, err := ioutil.TempDir("", "notary-tests")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempBaseDir)
@@ -1666,25 +1665,12 @@ func TestPublishUninitializedRepo(t *testing.T) {
 		http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repository: %s", err)
 	err = repo.Publish()
-	require.Error(t, err)
+	require.NoError(t, err)
 
-	// no metadata created
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalRootRole, false)
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, false)
-	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, false)
-
-	// now, initialize and republish in the same directory
-	rootPubKey, err := repo.CryptoService.Create(data.CanonicalRootRole, repo.gun, data.ECDSAKey)
-	require.NoError(t, err, "error generating root key: %s", err)
-
-	require.NoError(t, repo.Initialize([]string{rootPubKey.ID()}))
-
-	// now metadata is created
+	// metadata is created
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalRootRole, true)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalSnapshotRole, true)
 	requireRepoHasExpectedMetadata(t, repo, data.CanonicalTargetsRole, true)
-
-	require.NoError(t, repo.Publish())
 }
 
 // Create a repo, instantiate a notary server, and publish the repo with
@@ -1983,26 +1969,6 @@ func testPublishBadMetadata(t *testing.T, roleName string, repo *NotaryRepositor
 		require.Error(t, err)
 		require.IsType(t, &os.PathError{}, err)
 	}
-}
-
-// If the repo is not initialized, calling repo.Publish() should return ErrRepoNotInitialized
-func TestNotInitializedOnPublish(t *testing.T) {
-	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	defer os.RemoveAll(tempBaseDir)
-	require.NoError(t, err, "failed to create a temporary directory: %s", err)
-
-	gun := "docker.com/notary"
-	ts := fullTestServer(t)
-	defer ts.Close()
-
-	repo, _, _ := createRepoAndKey(t, data.ECDSAKey, tempBaseDir, gun, ts.URL)
-
-	addTarget(t, repo, "v1", "../fixtures/intermediate-ca.crt")
-
-	err = repo.Publish()
-	require.Error(t, err)
-	require.IsType(t, ErrRepoNotInitialized{}, err)
 }
 
 type cannotCreateKeys struct {
@@ -2650,17 +2616,17 @@ func TestRemoteRotationNoRootKey(t *testing.T) {
 	require.IsType(t, signed.ErrInsufficientSignatures{}, err)
 }
 
-// The repo hasn't been initialized, so we can't rotate
-func TestRemoteRotationNonexistentRepo(t *testing.T) {
-	ts, _, _ := simpleTestServer(t)
+// The repo should initialize successfully at publish time after
+// rotating the key.
+func TestRemoteRotationNoInit(t *testing.T) {
+	ts := fullTestServer(t)
 	defer ts.Close()
 
 	repo := newBlankRepo(t, ts.URL)
 	defer os.RemoveAll(repo.baseDir)
 
 	err := repo.RotateKey(data.CanonicalTimestampRole, true, nil)
-	require.Error(t, err)
-	require.IsType(t, ErrRepoNotInitialized{}, err)
+	require.NoError(t, err)
 }
 
 // Rotates the keys.  After the rotation, downloading the latest metadata
