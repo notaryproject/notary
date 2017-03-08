@@ -42,5 +42,5 @@ type Repository interface {
 
 	CryptoService() signed.CryptoService
 	SetLegacyVersions(int)
-	GetGUN() string
+	GetGUN() data.GUN
 }

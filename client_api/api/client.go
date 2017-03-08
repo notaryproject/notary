@@ -127,8 +127,8 @@ func (c *Client) CryptoService() signed.CryptoService {
 	return c.cs
 }
 
-func (c *Client) GetGUN() string {
-	return c.gun.String()
+func (c *Client) GetGUN() data.GUN {
+	return c.gun
 }
 
 type CryptoService struct {

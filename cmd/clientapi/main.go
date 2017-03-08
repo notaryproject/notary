@@ -8,7 +8,6 @@ import (
 	"github.com/docker/notary/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"net"
 )
 
 var (
