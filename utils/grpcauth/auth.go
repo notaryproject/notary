@@ -5,12 +5,13 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/auth"
 	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
-	"github.com/Sirupsen/logrus"
+	"strings"
 )
 
 type guner interface {
@@ -71,18 +72,22 @@ func (s ServerAuthorizer) buildAuthChallenge(gun, method string) (metadata.MD, b
 	if !ok {
 		return nil, ok
 	}
-	requiredAccess := make([]auth.Access, 0, len(perms))
-	for _, perm := range perms {
-		requiredAccess = append(requiredAccess, auth.Access{
-			Resource: auth.Resource{
-				Type: "repository",
-				Name: gun,
-			},
-			Action: perm,
-		})
+	access := buildAccessRecords(gun, perms...)
+
+	scopes := make([]string, 0, len(access))
+
+	for resource, actions := range access {
+		scopes = append(scopes, fmt.Sprintf(
+			"%s:%s:%s",
+			resource.Type,
+			resource.Name,
+			strings.Join(actions, ",")),
+		)
 	}
 
-	str = fmt.Sprintf("%s,scope=%q", str, )
+	scope := strings.Join(scopes, " ")
+
+	str = fmt.Sprintf("%s,scope=%q", str, scope)
 	return metadata.MD{
 		"WWW-Authenticate": []string{str},
 	}, true
@@ -115,4 +120,13 @@ func (c *ClientAuthorizer) Interceptor(ctx context.Context, method string, req, 
 	ctx = metadata.NewContext(ctx, md)
 	err = invoker(ctx, method, req, reply, cc, opts...)
 	return err
+}
+
+func buildAccessRecords(repo string, actions ...string) map[auth.Resource][]string {
+	return map[auth.Resource][]string{
+		auth.Resource{
+			Type: "repository",
+			Name: repo,
+		}: actions,
+	}
 }

@@ -9,3 +9,8 @@ level = "debug"
 [upstream]
 addr = "https://notaryserver:4443"
 tls_ca_file = "./root-ca.crt"
+
+[key_storage]
+method = "remote"
+addr = "https://escrow:4450"
+tls_ca_file = "./root-ca.crt"
