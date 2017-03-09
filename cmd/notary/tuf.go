@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -887,7 +888,7 @@ func tokenAuth(trustServerURL string, baseTransport *http.Transport, gun data.GU
 	if endpoint.Scheme == "" {
 		return nil, fmt.Errorf("Trust server url has to be in the form of http(s)://URL:PORT. Got: %s", trustServerURL)
 	}
-	subPath, err := url.Parse("v2/")
+	subPath, err := url.Parse(path.Join(endpoint.Path, "/v2") + "/")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse v2 subpath. This error should not have been reached. Please report it as an issue at https://github.com/docker/notary/issues: %s", err.Error())
 	}
