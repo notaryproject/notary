@@ -36,7 +36,7 @@ func (c *Client) DeleteTrustData(deleteRemote bool) error {
 }
 
 func (c *Client) AddTarget(target *client.Target, roles ...data.RoleName) error {
-	t := &TargetAction{
+	t := &Target{
 		Gun:    c.gun.String(),
 		Name:   target.Name,
 		Length: target.Length,
@@ -47,7 +47,7 @@ func (c *Client) AddTarget(target *client.Target, roles ...data.RoleName) error 
 }
 
 func (c *Client) RemoveTarget(targetName string, roles ...data.RoleName) error {
-	t := &TargetAction{
+	t := &Target{
 		Gun:  c.gun.String(),
 		Name: targetName,
 	}
@@ -56,7 +56,35 @@ func (c *Client) RemoveTarget(targetName string, roles ...data.RoleName) error {
 }
 
 func (c *Client) ListTargets(roles ...data.RoleName) ([]*client.TargetWithRole, error) {
-	return nil, ErrNotImplemented
+	targetWithRoleList, err := c.client.ListTargets(context.Background(), roles)
+	if err {
+		return []*client.TargetWithRole{}, err
+	}
+
+	targets := targetWithRoleList.TargetWithRoleNameList.Targets
+	res := make([]*client.TargetWithRole, len(targets))
+
+	for _, target := range(targets) {
+		t := target.Target
+		r := target.Role
+
+		currTarget := client.Target{
+			Name: t.GetName(),
+			Hashes: data.Hashes(t.Hashes),
+			Length: t.GetLength(),
+		}
+
+		currRole := data.RoleName(r)
+
+		targetWithRole := &client.TargetWithRole{
+			Target: currTarget,
+			Role: currRole,
+		}
+
+		res = append(res, targetWithRole)
+	}
+
+	return res, nil
 }
 
 func (c *Client) GetTargetByName(name string, roles ...data.RoleName) (*client.TargetWithRole, error) {

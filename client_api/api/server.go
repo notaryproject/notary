@@ -34,7 +34,7 @@ type Server struct {
 	upstreamCAPath string
 }
 
-func (srv *Server) AddTarget(ctx context.Context, t *TargetAction) (*BasicResponse, error) {
+func (srv *Server) AddTarget(ctx context.Context, t *Target) (*BasicResponse, error) {
 	r, err := srv.initRepo(data.GUN(t.GetGun()))
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func (srv *Server) AddTarget(ctx context.Context, t *TargetAction) (*BasicRespon
 	}, nil
 }
 
-func (srv *Server) RemoveTarget(ctx context.Context, t *TargetAction) (*BasicResponse, error) {
+func (srv *Server) RemoveTarget(ctx context.Context, t *Target) (*BasicResponse, error) {
 	r, err := srv.initRepo(data.GUN(t.GetGun()))
 	if err != nil {
 		return nil, err
