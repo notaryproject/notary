@@ -135,12 +135,53 @@ func (c *Client) GetAllTargetMetadataByName(name string) ([]client.TargetSignedS
 
 	targetsSigned := targetSignedListResponse.TargetSignedList.Targets
 
-	res := make([]*client.TargetWithRole, len(targetsSigned))
-	for index, value := range targetsSigned {
-		
+	res := make([]*client.TargetSignedStruct, len(targetsSigned))
+	for indexT, value := range targetsSigned {
+		r := value.Role
+		s := value.Signatures
+		t := value.Target
+
+
+		currTarget := client.Target{
+			Name: t.Name,
+			Hashes: t.Hashes,
+			Length: t.Length,
+		}
+
+		currSignatures := make([]data.Signature, len(s))
+		for indexS, sig := range s {
+			currSignature := data.Signature{
+				Signature: sig.Signature,
+				KeyID: sig.KeyID,
+				IsValid: sig.IsValid,
+				Method: data.SigAlgorithm(sig.Method),
+			}
+
+			currSignatures[indexS] = currSignature
+		}
+
+		currKeys := make(map[string]data.PublicKey, len(r.Keys))
+		for pubStr, pubKey := range r.Keys {
+			currKeys[pubStr] = data.NewPublicKey(pubKey.Algorithm, pubKey.Public)
+		}
+
+		currRole := data.DelegationRole{
+			BaseRole: data.BaseRole{
+				Keys: currKeys,
+				Name: data.RoleName(r.Name),
+				Threshold: int(r.Threshold), // FIXME
+			},
+			Paths: r.Paths,
+		}
+
+		res[indexT] = &client.TargetSignedStruct{
+			Role: currRole,
+			Target: currTarget,
+			Signatures: currSignatures,
+		}
 	}
 
-	return nil, ErrNotImplemented
+	return res, nil
 }
 
 func (c *Client) GetChangelist() (changelist.Changelist, error) {
