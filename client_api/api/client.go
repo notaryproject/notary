@@ -56,15 +56,20 @@ func (c *Client) RemoveTarget(targetName string, roles ...data.RoleName) error {
 }
 
 func (c *Client) ListTargets(roles ...data.RoleName) ([]*client.TargetWithRole, error) {
-	targetWithRoleList, err := c.client.ListTargets(context.Background(), roles)
-	if err {
+	rolesList := make([]string, len(roles))
+	for index, value := range roles {
+		rolesList[index] = value.String()
+	}
+
+	targetWithRoleList, err := c.client.ListTargets(context.Background(), &RoleNameList{Roles:rolesList})
+	if err != nil {
 		return []*client.TargetWithRole{}, err
 	}
 
 	targets := targetWithRoleList.TargetWithRoleNameList.Targets
 	res := make([]*client.TargetWithRole, len(targets))
 
-	for _, target := range(targets) {
+	for index, target := range targets {
 		t := target.Target
 		r := target.Role
 
@@ -81,17 +86,60 @@ func (c *Client) ListTargets(roles ...data.RoleName) ([]*client.TargetWithRole, 
 			Role: currRole,
 		}
 
-		res = append(res, targetWithRole)
+		res[index] = targetWithRole
 	}
 
 	return res, nil
 }
 
 func (c *Client) GetTargetByName(name string, roles ...data.RoleName) (*client.TargetWithRole, error) {
-	return nil, ErrNotImplemented
+	rolesList := make([]string, len(roles))
+	for index, value := range roles {
+		rolesList[index] = value.String()
+	}
+
+	targetByNameAction := &TargetByNameAction{
+		Name: name,
+		Roles: &RoleNameList{Roles:rolesList},
+	}
+
+	targetWithRole, err := c.client.GetTargetByName(context.Background(), targetByNameAction)
+	if err != nil {
+		return nil, err
+	}
+
+	target := targetWithRole.TargetWithRole.Target
+	role := targetWithRole.TargetWithRole.Role
+
+	res := &client.TargetWithRole{
+		Target: client.Target{
+			Name: target.GetName(),
+			Hashes: data.Hashes(target.Hashes),
+			Length: target.GetLength(),
+		},
+		Role: data.RoleName(role),
+	}
+
+	return res, nil
 }
 
 func (c *Client) GetAllTargetMetadataByName(name string) ([]client.TargetSignedStruct, error) {
+	targetName := &TargetName{
+		Name: name,
+	}
+
+	targetSignedListResponse, err := c.client.GetAllTargetMetadataByName(context.Background(), targetName)
+	if err != nil {
+		return nil, err
+	}
+
+	targetsSigned := targetSignedListResponse.TargetSignedList.Targets
+
+	res := make([]*client.TargetWithRole, len(targetsSigned))
+	for index, value := range targetsSigned {
+		
+	}
+
 	return nil, ErrNotImplemented
 }
 
