@@ -197,6 +197,9 @@ func (c *Client) GetAllTargetMetadataByName(name string) ([]client.TargetSignedS
 
 func (c *Client) GetChangelist() (changelist.Changelist, error) {
 	changes, err := c.client.GetChangelist(context.Background(), &Empty{})
+	if err != nil {
+		return nil, err
+	}
 
 	currChangeList := changelist.NewMemChangelist()
 	for _, change := range changes.Changelist.Changes {
@@ -211,10 +214,68 @@ func (c *Client) GetChangelist() (changelist.Changelist, error) {
 }
 
 func (c *Client) ListRoles() ([]client.RoleWithSignatures, error) {
-	return nil, ErrNotImplemented
+	roleWithSigsListResp, err := c.client.ListRoles(context.Background(), &Empty{})
+	if err != nil {
+		return nil, err
+	}
+
+	roleWithSignaturesList := roleWithSigsListResp.RoleWithSignaturesList.RoleWithSignatures
+
+	res := make([]client.RoleWithSignatures, len(roleWithSignaturesList))
+	for index, value := range roleWithSignaturesList {
+		r := value.Role
+		s := value.Signatures
+
+		currSignatures := make([]data.Signature, len(s))
+		for indexSig, sig := range value.Signatures {
+			currSignature := data.Signature{
+				Signature: sig.Signature,
+				KeyID: sig.KeyID,
+				IsValid: sig.IsValid,
+				Method: data.SigAlgorithm(sig.Method),
+			}
+
+			currSignatures[indexSig] = currSignature
+		}
+
+		currRole := data.Role{
+			RootRole: data.RootRole{
+				KeyIDs: r.RootRole.KeyIDs,
+				Threshold: int(r.RootRole.Threshold), // FIXME
+			},
+			Name: data.RoleName(r.Name),
+			Paths: r.Paths,
+		}
+
+		res[index] = client.RoleWithSignatures{
+			Signatures: currSignatures,
+			Role: currRole,
+		}
+	}
+
+	return res, nil
 }
 
 func (c *Client) GetDelegationRoles() ([]data.Role, error) {
+	roleListResp, err := c.client.GetDelegationRoles(context.Background(), &Empty{})
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]data.Role, len(roleListResp.RoleList.Roles))
+	for index, role := range roleListResp.RoleList.Roles {
+		currRole := data.Role{
+			RootRole: data.RootRole{
+				KeyIDs: role.RootRole.KeyIDs,
+				Threshold: int(role.RootRole.Threshold),
+			},
+			Name: data.RoleName(role.Name),
+			Paths: role.Paths,
+		}
+
+		res[index] = currRole
+	}
+
 	return nil, ErrNotImplemented
 }
 
