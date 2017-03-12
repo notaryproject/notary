@@ -24,11 +24,22 @@ func NewClient(conn *grpc.ClientConn, gun data.GUN) *Client {
 }
 
 func (c *Client) Initialize(rootKeyIDs []string, serverManagedRoles ...data.RoleName) error {
-	return ErrNotImplemented
+	roles := make([]string, len(serverManagedRoles))
+	for index, value := range serverManagedRoles {
+		roles[index] = value.String()
+	}
+
+	initMsg := &InitMessage{
+		RootKeyIDs: rootKeyIDs,
+		ServerManagedRoles: &RoleNameList{Roles:roles},
+	}
+	_, err := c.client.Initialize(context.Background(), initMsg)
+	return err
 }
 
 func (c *Client) Publish() error {
-	return ErrNotImplemented
+	_, err := c.client.Publish(context.Background(), &Empty{})
+	return err
 }
 
 func (c *Client) DeleteTrustData(deleteRemote bool) error {
@@ -135,7 +146,7 @@ func (c *Client) GetAllTargetMetadataByName(name string) ([]client.TargetSignedS
 
 	targetsSigned := targetSignedListResponse.TargetSignedList.Targets
 
-	res := make([]*client.TargetSignedStruct, len(targetsSigned))
+	res := make([]client.TargetSignedStruct, len(targetsSigned))
 	for indexT, value := range targetsSigned {
 		r := value.Role
 		s := value.Signatures
@@ -174,7 +185,7 @@ func (c *Client) GetAllTargetMetadataByName(name string) ([]client.TargetSignedS
 			Paths: r.Paths,
 		}
 
-		res[indexT] = &client.TargetSignedStruct{
+		res[indexT] = client.TargetSignedStruct{
 			Role: currRole,
 			Target: currTarget,
 			Signatures: currSignatures,
@@ -185,7 +196,18 @@ func (c *Client) GetAllTargetMetadataByName(name string) ([]client.TargetSignedS
 }
 
 func (c *Client) GetChangelist() (changelist.Changelist, error) {
-	return nil, ErrNotImplemented
+	changes, err := c.client.GetChangelist(context.Background(), &Empty{})
+
+	currChangeList := changelist.NewMemChangelist()
+	for _, change := range changes.Changelist.Changes {
+		c := changelist.NewTUFChange(change.Action, data.RoleName(change.Scope), change.Type, change.Path, change.Content)
+		err := currChangeList.Add(c)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return currChangeList, err
 }
 
 func (c *Client) ListRoles() ([]client.RoleWithSignatures, error) {
@@ -283,11 +305,13 @@ func (cs *CryptoService) RemoveKey(keyID string) error {
 // ListKeys returns a list of key IDs for the role, or an empty list or
 // nil if there are no keys.
 func (cs *CryptoService) ListKeys(role data.RoleName) []string {
+	keys := cs.ListKeys(role)
 	return nil
 }
 
 // ListAllKeys returns a map of all available signing key IDs to role, or
 // an empty map or nil if there are no keys.
 func (cs *CryptoService) ListAllKeys() map[string]data.RoleName {
-	return nil
+	keys := cs.ListAllKeys()
+	return keys
 }
