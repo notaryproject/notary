@@ -2,6 +2,7 @@ package api
 
 import (
 	"google.golang.org/grpc"
+	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/client/changelist"
@@ -38,7 +39,7 @@ func (c *Client) Initialize(rootKeyIDs []string, serverManagedRoles ...data.Role
 }
 
 func (c *Client) Publish() error {
-	_, err := c.client.Publish(context.Background(), &Empty{})
+	_, err := c.client.Publish(context.Background(), &google_protobuf.Empty{})
 	return err
 }
 
@@ -196,7 +197,7 @@ func (c *Client) GetAllTargetMetadataByName(name string) ([]client.TargetSignedS
 }
 
 func (c *Client) GetChangelist() (changelist.Changelist, error) {
-	changes, err := c.client.GetChangelist(context.Background(), &Empty{})
+	changes, err := c.client.GetChangelist(context.Background(), &google_protobuf.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +215,7 @@ func (c *Client) GetChangelist() (changelist.Changelist, error) {
 }
 
 func (c *Client) ListRoles() ([]client.RoleWithSignatures, error) {
-	roleWithSigsListResp, err := c.client.ListRoles(context.Background(), &Empty{})
+	roleWithSigsListResp, err := c.client.ListRoles(context.Background(), &google_protobuf.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +258,7 @@ func (c *Client) ListRoles() ([]client.RoleWithSignatures, error) {
 }
 
 func (c *Client) GetDelegationRoles() ([]data.Role, error) {
-	roleListResp, err := c.client.GetDelegationRoles(context.Background(), &Empty{})
+	roleListResp, err := c.client.GetDelegationRoles(context.Background(), &google_protobuf.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -325,7 +326,7 @@ func (c *Client) AddDelegationPaths(name data.RoleName, paths []string) error {
 	}
 
 	_, err := c.client.AddDelegationPaths(context.Background(), addDelegationPathsMessage)
-	return ErrNotImplemented
+	return err
 }
 
 func (c *Client) RemoveDelegationKeysAndPaths(name data.RoleName, keyIDs, paths []string) error {
@@ -475,6 +476,15 @@ func (cs *CryptoService) ListKeys(role data.RoleName) []string {
 // ListAllKeys returns a map of all available signing key IDs to role, or
 // an empty map or nil if there are no keys.
 func (cs *CryptoService) ListAllKeys() map[string]data.RoleName {
-	keys := cs.ListAllKeys()
-	return keys
+	keyIDsToRoles, err := cs.client.CryptoServiceListAllKeys(context.Background(), &google_protobuf.Empty{})
+	if err != nil {
+		return nil
+	}
+
+	res := make(map[string]data.RoleName, len(keyIDsToRoles.KeyIDs))
+	for key, role := range keyIDsToRoles.KeyIDs {
+		res[key] = data.RoleName(role)
+	}
+
+	return res
 }
