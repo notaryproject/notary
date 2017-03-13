@@ -2,10 +2,12 @@ syntax = "proto3";
 
 package api;
 
+import "google/protobuf/Empty.proto";
+
 // Notary Interface
 service Notary {
     rpc Initialize(InitMessage) returns (BasicResponse) {}
-    rpc Publish(Empty) returns (BasicResponse) {}
+    rpc Publish(google.protobuf.Empty) returns (BasicResponse) {}
 
     // AddTarget adds a target to the TUF repository and re-signs.
     rpc AddTarget(Target) returns (BasicResponse) {}
@@ -20,10 +22,10 @@ service Notary {
     rpc GetAllTargetMetadataByName(TargetName) returns (TargetSignedListResponse) {}
 
     // GetChangelist returns the list of the repository's unpublished changes
-    rpc GetChangelist(Empty) returns (ChangeListResponse) {}
+    rpc GetChangelist(google.protobuf.Empty) returns (ChangeListResponse) {}
 
-    rpc ListRoles(Empty) returns (RoleWithSignaturesListResponse) {}
-    rpc GetDelegationRoles(Empty) returns (RoleListResponse) {}
+    rpc ListRoles(google.protobuf.Empty) returns (RoleWithSignaturesListResponse) {}
+    rpc GetDelegationRoles(google.protobuf.Empty) returns (RoleListResponse) {}
     rpc AddDelegation(AddDelegationMessage) returns (BasicResponse) {}
     rpc AddDelegationRoleAndKeys(AddDelegationRoleAndKeysMessage) returns (BasicResponse) {}
     rpc AddDelegationPaths(AddDelegationPathsMessage) returns (BasicResponse) {}
@@ -37,12 +39,12 @@ service Notary {
 
     rpc RotateKey(RotateKeyMessage) returns (BasicResponse) {}
 
-    rpc CryptoService(Empty) returns (CryptoServiceMessage) {}
-    rpc SetLegacyVersions(VersionMessage) returns (Empty) {}
-}
+    // CryptoService implementation
+    rpc CryptoService(google.protobuf.Empty) returns (CryptoServiceMessage) {}
+    rpc CryptoServiceCreate(CryptoServiceCreateMessage) returns (PublicKeyResponse) {}
 
-message Empty {
 
+    rpc SetLegacyVersions(VersionMessage) returns (google.protobuf.Empty) {}
 }
 
 message AddDelegationMessage {
