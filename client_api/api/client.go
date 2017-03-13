@@ -403,8 +403,13 @@ func (c *Client) Witness(roles ...data.RoleName) ([]data.RoleName, error) {
 }
 
 func (c *Client) RotateKey(role data.RoleName, serverManagesKey bool, keyList []string) error {
-
-	return ErrNotImplemented
+	rotateKeyMessage := &RotateKeyMessage{
+		Role: role.String(),
+		ServerManagesKey: serverManagesKey,
+		KeyList: keyList,
+	}
+	_, err := c.client.RotateKey(context.Background(), rotateKeyMessage)
+	return err
 }
 
 func (c *Client) SetLegacyVersions(n int) {
