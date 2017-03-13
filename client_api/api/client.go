@@ -280,42 +280,130 @@ func (c *Client) GetDelegationRoles() ([]data.Role, error) {
 }
 
 func (c *Client) AddDelegation(name data.RoleName, delegationKeys []data.PublicKey, paths []string) error {
-	return ErrNotImplemented
+	currDelegationKeys := make([]*PublicKey, len(delegationKeys))
+	for index, key := range delegationKeys {
+		currDelegationKeys[index] = &PublicKey{
+			Id: key.ID(),
+			Algorithm: key.Algorithm(),
+			Public: key.Public(),
+		}
+	}
+
+	addDelegationMessage := &AddDelegationMessage{
+		Name: name.String(),
+		DelegationKeys: currDelegationKeys,
+		Paths: paths,
+	}
+
+	_, err := c.client.AddDelegation(context.Background(), addDelegationMessage)
+	return err
 }
 
 func (c *Client) AddDelegationRoleAndKeys(name data.RoleName, delegationKeys []data.PublicKey) error {
-	return ErrNotImplemented
+	pubKeys := make([]*PublicKey, len(delegationKeys))
+	for index, delegationKey := range delegationKeys {
+		pubKeys[index] = &PublicKey{
+			Id: delegationKey.ID(),
+			Algorithm: delegationKey.Algorithm(),
+			Public: delegationKey.Public(),
+		}
+	}
+
+	addDelegationRoleAndKeysMessage := &AddDelegationRoleAndKeysMessage{
+		Name: name.String(),
+		DelegationKeys: pubKeys,
+	}
+
+	_, err := c.client.AddDelegationRoleAndKeys(context.Background(), addDelegationRoleAndKeysMessage)
+	return err
 }
 
 func (c *Client) AddDelegationPaths(name data.RoleName, paths []string) error {
+	addDelegationPathsMessage := &AddDelegationPathsMessage{
+		Name: name.String(),
+		Paths: paths,
+	}
+
+	_, err := c.client.AddDelegationPaths(context.Background(), addDelegationPathsMessage)
 	return ErrNotImplemented
 }
 
 func (c *Client) RemoveDelegationKeysAndPaths(name data.RoleName, keyIDs, paths []string) error {
-	return ErrNotImplemented
+	r := &RemoveDelegationKeysAndPathsMessage{
+		Name: name.String(),
+		KeyIDs: keyIDs,
+		Paths: paths,
+	}
+
+	_, err := c.client.RemoveDelegationKeysAndPaths(context.Background(), r)
+	return err
 }
 
 func (c *Client) RemoveDelegationRole(name data.RoleName) error {
-	return ErrNotImplemented
+	r := &RemoveDelegationRoleMessage{
+		Name: name.String(),
+	}
+
+	_, err := c.client.RemoveDelegationRole(context.Background(), r)
+	return err
 }
 
 func (c *Client) RemoveDelegationPaths(name data.RoleName, paths []string) error {
-	return ErrNotImplemented
+	r := &RemoveDelegationPathsMessage{
+		Name: name.String(),
+		Paths: paths,
+	}
+
+	_, err := c.client.RemoveDelegationPaths(context.Background(), r)
+	return err
 }
 
 func (c *Client) RemoveDelegationKeys(name data.RoleName, keyIDs []string) error {
-	return ErrNotImplemented
+	r := &RemoveDelegationKeysMessage{
+		Name: name.String(),
+		KeyIDs: keyIDs,
+	}
+
+	_, err := c.client.RemoveDelegationKeys(context.Background(), r)
+	return err
 }
 
 func (c *Client) ClearDelegationPaths(name data.RoleName) error {
-	return ErrNotImplemented
+	r := &ClearDelegationPathsMessage{
+		Role: name.String(),
+	}
+
+	_, err := c.client.ClearDelegationPaths(context.Background(), r)
+	return err
 }
 
 func (c *Client) Witness(roles ...data.RoleName) ([]data.RoleName, error) {
-	return nil, ErrNotImplemented
+	roleNames := make([]string, len(roles))
+	for index, roleName := range roles {
+		roleNames[index] = roleName.String()
+	}
+
+	roleNameList := &RoleNameList{
+		Roles: roleNames,
+	}
+
+	roleNameListResponse, err := c.client.Witness(context.Background(), roleNameList)
+	if err != nil {
+		return nil, err
+	}
+
+	roleList := roleNameListResponse.RoleNameList.Roles
+
+	res := make([]data.RoleName, len(roleList))
+	for index, role := range roleList {
+		res[index] = data.RoleName(role)
+	}
+
+	return res, nil
 }
 
 func (c *Client) RotateKey(role data.RoleName, serverManagesKey bool, keyList []string) error {
+
 	return ErrNotImplemented
 }
 
