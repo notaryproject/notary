@@ -369,7 +369,7 @@ func (c *Client) RemoveDelegationKeys(name data.RoleName, keyIDs []string) error
 }
 
 func (c *Client) ClearDelegationPaths(name data.RoleName) error {
-	r := &ClearDelegationPathsMessage{
+	r := &RoleNameMessage{
 		Role: name.String(),
 	}
 
@@ -431,36 +431,45 @@ type CryptoService struct {
 // Create issues a new key pair and is responsible for loading
 // the private key into the appropriate signing service.
 func (cs *CryptoService) Create(role data.RoleName, gun data.GUN, algorithm string) (data.PublicKey, error) {
-	return nil, ErrNotImplemented
+	pub, err := cs.Create(role, gun, algorithm)
+	if err != nil {
+		return nil, err
+	}
+
+	return pub, nil
 }
 
 // AddKey adds a private key to the specified role and gun
 func (cs *CryptoService) AddKey(role data.RoleName, gun data.GUN, key data.PrivateKey) error {
-	return ErrNotImplemented
+	err := cs.AddKey(role, gun, key)
+	return err
 }
 
 // GetKey retrieves the public key if present, otherwise it returns nil
 func (cs *CryptoService) GetKey(keyID string) data.PublicKey {
-	return nil
+	pubkey := cs.GetKey(keyID)
+	return pubkey
 }
 
 // GetPrivateKey retrieves the private key and role if present and retrievable,
 // otherwise it returns nil and an error
 func (cs *CryptoService) GetPrivateKey(keyID string) (data.PrivateKey, data.RoleName, error) {
-	return nil, "", ErrNotImplemented
+	priv, role, err := cs.GetPrivateKey(keyID)
+	return priv, role, err
 }
 
 // RemoveKey deletes the specified key, and returns an error only if the key
 // removal fails. If the key doesn't exist, no error should be returned.
 func (cs *CryptoService) RemoveKey(keyID string) error {
-	return ErrNotImplemented
+	err := cs.RemoveKey(keyID)
+	return err
 }
 
 // ListKeys returns a list of key IDs for the role, or an empty list or
 // nil if there are no keys.
 func (cs *CryptoService) ListKeys(role data.RoleName) []string {
 	keys := cs.ListKeys(role)
-	return nil
+	return keys
 }
 
 // ListAllKeys returns a map of all available signing key IDs to role, or

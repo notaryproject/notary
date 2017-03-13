@@ -33,7 +33,7 @@ service Notary {
     rpc RemoveDelegationRole(RemoveDelegationRoleMessage) returns (BasicResponse) {}
     rpc RemoveDelegationPaths(RemoveDelegationPathsMessage) returns (BasicResponse) {}
     rpc RemoveDelegationKeys(RemoveDelegationKeysMessage) returns (BasicResponse) {}
-    rpc ClearDelegationPaths(ClearDelegationPathsMessage) returns (BasicResponse) {}
+    rpc ClearDelegationPaths(RoleNameMessage) returns (BasicResponse) {}
 
     rpc Witness(RoleNameList) returns (RoleNameListResponse) {}
 
@@ -42,7 +42,12 @@ service Notary {
     // CryptoService implementation
     rpc CryptoService(google.protobuf.Empty) returns (CryptoServiceMessage) {}
     rpc CryptoServiceCreate(CryptoServiceCreateMessage) returns (PublicKeyResponse) {}
-
+    rpc CryptoServiceAddKey(CryptoServiceAddKeyMessage) returns (BasicResponse) {}
+    rpc CryptoServiceGetKey(KeyIDMessage) returns (PublicKeyResponse) {}
+    rpc CryptoServiceGetPrivateKey(KeyIDMessage) returns (PrivateKeyResponse) {}
+    rpc CryptoServiceRemoveKey(KeyIDMessage) returns (BasicResponse) {}
+    rpc CryptoServiceListKeys(RoleNameMessage) returns (KeyIDsListResponse) {}
+    rpc CryptoServiceListAllKeys(google.protobuf.Empty) returns (SigningKeyIDsToRolesResponse) {}
 
     rpc SetLegacyVersions(VersionMessage) returns (google.protobuf.Empty) {}
 }
@@ -83,7 +88,7 @@ message RemoveDelegationKeysMessage {
     repeated string keyIDs = 2;
 }
 
-message ClearDelegationPathsMessage {
+message RoleNameMessage {
     string role = 1;
 }
 
@@ -162,6 +167,12 @@ message PublicKey {
     string id = 1;
     string algorithm = 2;
     bytes public = 3;
+}
+
+message PublicKeyResponse {
+    PublicKey pubkey = 1;
+    bool success = 2;
+    string message = 3;
 }
 
 message DelegationRole {
@@ -254,6 +265,47 @@ message RoleWithSignaturesListResponse {
 
 // FIXME: unimplemented
 message CryptoServiceMessage {
+}
+
+message CryptoServiceCreateMessage {
+    string roleName = 1;
+    string gun = 2;
+    string algorithm = 3;
+}
+
+message Signer {
+    PublicKey pubkey = 1;
+    string signature = 2;
+}
+
+message PrivateKey {
+    PublicKey pubkey = 1;
+    bytes signature = 2;
+    bytes privkey = 3;
+    Signer cryptoSigner = 4;
+    string sigAlgorithm = 5;
+}
+
+message CryptoServiceAddKeyMessage {
+    string roleName = 1;
+    string gun = 2;
+    PrivateKey key = 3;
+}
+
+message KeyIDMessage {
+    string keyID = 1;
+}
+
+message KeyIDsListResponse {
+    repeated string keyIDs = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message SigningKeyIDsToRolesResponse {
+    map<string, string> keyIDs = 1;
+    bool success = 2;
+    string message = 3;
 }
 
 message VersionMessage {
