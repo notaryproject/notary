@@ -292,6 +292,14 @@ message CryptoServiceAddKeyMessage {
     PrivateKey key = 3;
 }
 
+message PrivateKeyResponse {
+    string role = 1;
+    string gun = 2;
+    PrivateKey privkey = 3;
+    bool success = 4;
+    string message = 5;
+}
+
 message KeyIDMessage {
     string keyID = 1;
 }
