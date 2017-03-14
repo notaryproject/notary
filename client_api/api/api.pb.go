@@ -9,6 +9,7 @@ It is generated from these files:
 	api.proto
 
 It has these top-level messages:
+	GunMessage
 	AddDelegationMessage
 	AddDelegationRoleAndKeysMessage
 	AddDelegationPathsMessage
@@ -20,6 +21,7 @@ It has these top-level messages:
 	RotateKeyMessage
 	InitMessage
 	RoleNameList
+	RoleNameListMessage
 	RoleNameListResponse
 	TargetName
 	Target
@@ -80,16 +82,33 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
+type GunMessage struct {
+	Gun string `protobuf:"bytes,1,opt,name=gun" json:"gun,omitempty"`
+}
+
+func (m *GunMessage) Reset()                    { *m = GunMessage{} }
+func (m *GunMessage) String() string            { return proto.CompactTextString(m) }
+func (*GunMessage) ProtoMessage()               {}
+func (*GunMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
+
+func (m *GunMessage) GetGun() string {
+	if m != nil {
+		return m.Gun
+	}
+	return ""
+}
+
 type AddDelegationMessage struct {
 	Name           string       `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 	DelegationKeys []*PublicKey `protobuf:"bytes,2,rep,name=delegationKeys" json:"delegationKeys,omitempty"`
 	Paths          []string     `protobuf:"bytes,3,rep,name=paths" json:"paths,omitempty"`
+	Gun            string       `protobuf:"bytes,4,opt,name=gun" json:"gun,omitempty"`
 }
 
 func (m *AddDelegationMessage) Reset()                    { *m = AddDelegationMessage{} }
 func (m *AddDelegationMessage) String() string            { return proto.CompactTextString(m) }
 func (*AddDelegationMessage) ProtoMessage()               {}
-func (*AddDelegationMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
+func (*AddDelegationMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
 func (m *AddDelegationMessage) GetName() string {
 	if m != nil {
@@ -112,15 +131,23 @@ func (m *AddDelegationMessage) GetPaths() []string {
 	return nil
 }
 
+func (m *AddDelegationMessage) GetGun() string {
+	if m != nil {
+		return m.Gun
+	}
+	return ""
+}
+
 type AddDelegationRoleAndKeysMessage struct {
 	Name           string       `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 	DelegationKeys []*PublicKey `protobuf:"bytes,2,rep,name=delegationKeys" json:"delegationKeys,omitempty"`
+	Gun            string       `protobuf:"bytes,3,opt,name=gun" json:"gun,omitempty"`
 }
 
 func (m *AddDelegationRoleAndKeysMessage) Reset()                    { *m = AddDelegationRoleAndKeysMessage{} }
 func (m *AddDelegationRoleAndKeysMessage) String() string            { return proto.CompactTextString(m) }
 func (*AddDelegationRoleAndKeysMessage) ProtoMessage()               {}
-func (*AddDelegationRoleAndKeysMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+func (*AddDelegationRoleAndKeysMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
 
 func (m *AddDelegationRoleAndKeysMessage) GetName() string {
 	if m != nil {
@@ -136,15 +163,23 @@ func (m *AddDelegationRoleAndKeysMessage) GetDelegationKeys() []*PublicKey {
 	return nil
 }
 
+func (m *AddDelegationRoleAndKeysMessage) GetGun() string {
+	if m != nil {
+		return m.Gun
+	}
+	return ""
+}
+
 type AddDelegationPathsMessage struct {
 	Name  string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 	Paths []string `protobuf:"bytes,2,rep,name=paths" json:"paths,omitempty"`
+	Gun   string   `protobuf:"bytes,3,opt,name=gun" json:"gun,omitempty"`
 }
 
 func (m *AddDelegationPathsMessage) Reset()                    { *m = AddDelegationPathsMessage{} }
 func (m *AddDelegationPathsMessage) String() string            { return proto.CompactTextString(m) }
 func (*AddDelegationPathsMessage) ProtoMessage()               {}
-func (*AddDelegationPathsMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+func (*AddDelegationPathsMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
 func (m *AddDelegationPathsMessage) GetName() string {
 	if m != nil {
@@ -160,17 +195,25 @@ func (m *AddDelegationPathsMessage) GetPaths() []string {
 	return nil
 }
 
+func (m *AddDelegationPathsMessage) GetGun() string {
+	if m != nil {
+		return m.Gun
+	}
+	return ""
+}
+
 type RemoveDelegationKeysAndPathsMessage struct {
 	Name   string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 	KeyIDs []string `protobuf:"bytes,2,rep,name=keyIDs" json:"keyIDs,omitempty"`
 	Paths  []string `protobuf:"bytes,3,rep,name=paths" json:"paths,omitempty"`
+	Gun    string   `protobuf:"bytes,4,opt,name=gun" json:"gun,omitempty"`
 }
 
 func (m *RemoveDelegationKeysAndPathsMessage) Reset()         { *m = RemoveDelegationKeysAndPathsMessage{} }
 func (m *RemoveDelegationKeysAndPathsMessage) String() string { return proto.CompactTextString(m) }
 func (*RemoveDelegationKeysAndPathsMessage) ProtoMessage()    {}
 func (*RemoveDelegationKeysAndPathsMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor0, []int{3}
+	return fileDescriptor0, []int{4}
 }
 
 func (m *RemoveDelegationKeysAndPathsMessage) GetName() string {
@@ -194,14 +237,22 @@ func (m *RemoveDelegationKeysAndPathsMessage) GetPaths() []string {
 	return nil
 }
 
+func (m *RemoveDelegationKeysAndPathsMessage) GetGun() string {
+	if m != nil {
+		return m.Gun
+	}
+	return ""
+}
+
 type RemoveDelegationRoleMessage struct {
 	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	Gun  string `protobuf:"bytes,2,opt,name=gun" json:"gun,omitempty"`
 }
 
 func (m *RemoveDelegationRoleMessage) Reset()                    { *m = RemoveDelegationRoleMessage{} }
 func (m *RemoveDelegationRoleMessage) String() string            { return proto.CompactTextString(m) }
 func (*RemoveDelegationRoleMessage) ProtoMessage()               {}
-func (*RemoveDelegationRoleMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+func (*RemoveDelegationRoleMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
 
 func (m *RemoveDelegationRoleMessage) GetName() string {
 	if m != nil {
@@ -210,15 +261,23 @@ func (m *RemoveDelegationRoleMessage) GetName() string {
 	return ""
 }
 
+func (m *RemoveDelegationRoleMessage) GetGun() string {
+	if m != nil {
+		return m.Gun
+	}
+	return ""
+}
+
 type RemoveDelegationPathsMessage struct {
 	Name  string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 	Paths []string `protobuf:"bytes,2,rep,name=paths" json:"paths,omitempty"`
+	Gun   string   `protobuf:"bytes,3,opt,name=gun" json:"gun,omitempty"`
 }
 
 func (m *RemoveDelegationPathsMessage) Reset()                    { *m = RemoveDelegationPathsMessage{} }
 func (m *RemoveDelegationPathsMessage) String() string            { return proto.CompactTextString(m) }
 func (*RemoveDelegationPathsMessage) ProtoMessage()               {}
-func (*RemoveDelegationPathsMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
+func (*RemoveDelegationPathsMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
 
 func (m *RemoveDelegationPathsMessage) GetName() string {
 	if m != nil {
@@ -234,15 +293,23 @@ func (m *RemoveDelegationPathsMessage) GetPaths() []string {
 	return nil
 }
 
+func (m *RemoveDelegationPathsMessage) GetGun() string {
+	if m != nil {
+		return m.Gun
+	}
+	return ""
+}
+
 type RemoveDelegationKeysMessage struct {
 	Name   string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 	KeyIDs []string `protobuf:"bytes,2,rep,name=keyIDs" json:"keyIDs,omitempty"`
+	Gun    string   `protobuf:"bytes,3,opt,name=gun" json:"gun,omitempty"`
 }
 
 func (m *RemoveDelegationKeysMessage) Reset()                    { *m = RemoveDelegationKeysMessage{} }
 func (m *RemoveDelegationKeysMessage) String() string            { return proto.CompactTextString(m) }
 func (*RemoveDelegationKeysMessage) ProtoMessage()               {}
-func (*RemoveDelegationKeysMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+func (*RemoveDelegationKeysMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
 
 func (m *RemoveDelegationKeysMessage) GetName() string {
 	if m != nil {
@@ -258,14 +325,22 @@ func (m *RemoveDelegationKeysMessage) GetKeyIDs() []string {
 	return nil
 }
 
+func (m *RemoveDelegationKeysMessage) GetGun() string {
+	if m != nil {
+		return m.Gun
+	}
+	return ""
+}
+
 type RoleNameMessage struct {
 	Role string `protobuf:"bytes,1,opt,name=role" json:"role,omitempty"`
+	Gun  string `protobuf:"bytes,2,opt,name=gun" json:"gun,omitempty"`
 }
 
 func (m *RoleNameMessage) Reset()                    { *m = RoleNameMessage{} }
 func (m *RoleNameMessage) String() string            { return proto.CompactTextString(m) }
 func (*RoleNameMessage) ProtoMessage()               {}
-func (*RoleNameMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+func (*RoleNameMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
 
 func (m *RoleNameMessage) GetRole() string {
 	if m != nil {
@@ -274,16 +349,24 @@ func (m *RoleNameMessage) GetRole() string {
 	return ""
 }
 
+func (m *RoleNameMessage) GetGun() string {
+	if m != nil {
+		return m.Gun
+	}
+	return ""
+}
+
 type RotateKeyMessage struct {
 	Role             string   `protobuf:"bytes,1,opt,name=role" json:"role,omitempty"`
 	ServerManagesKey bool     `protobuf:"varint,2,opt,name=serverManagesKey" json:"serverManagesKey,omitempty"`
 	KeyList          []string `protobuf:"bytes,3,rep,name=keyList" json:"keyList,omitempty"`
+	Gun              string   `protobuf:"bytes,4,opt,name=gun" json:"gun,omitempty"`
 }
 
 func (m *RotateKeyMessage) Reset()                    { *m = RotateKeyMessage{} }
 func (m *RotateKeyMessage) String() string            { return proto.CompactTextString(m) }
 func (*RotateKeyMessage) ProtoMessage()               {}
-func (*RotateKeyMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+func (*RotateKeyMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
 
 func (m *RotateKeyMessage) GetRole() string {
 	if m != nil {
@@ -306,17 +389,25 @@ func (m *RotateKeyMessage) GetKeyList() []string {
 	return nil
 }
 
+func (m *RotateKeyMessage) GetGun() string {
+	if m != nil {
+		return m.Gun
+	}
+	return ""
+}
+
 // InitMessage holds a list of root key IDs and a list of roles for which
 // the server automatically should manage the keys
 type InitMessage struct {
 	RootKeyIDs         []string      `protobuf:"bytes,1,rep,name=rootKeyIDs" json:"rootKeyIDs,omitempty"`
 	ServerManagedRoles *RoleNameList `protobuf:"bytes,2,opt,name=serverManagedRoles" json:"serverManagedRoles,omitempty"`
+	Gun                string        `protobuf:"bytes,3,opt,name=gun" json:"gun,omitempty"`
 }
 
 func (m *InitMessage) Reset()                    { *m = InitMessage{} }
 func (m *InitMessage) String() string            { return proto.CompactTextString(m) }
 func (*InitMessage) ProtoMessage()               {}
-func (*InitMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
+func (*InitMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
 
 func (m *InitMessage) GetRootKeyIDs() []string {
 	if m != nil {
@@ -332,6 +423,13 @@ func (m *InitMessage) GetServerManagedRoles() *RoleNameList {
 	return nil
 }
 
+func (m *InitMessage) GetGun() string {
+	if m != nil {
+		return m.Gun
+	}
+	return ""
+}
+
 // RoleNameList message holds a list of TUF role names
 type RoleNameList struct {
 	Roles []string `protobuf:"bytes,1,rep,name=roles" json:"roles,omitempty"`
@@ -340,13 +438,37 @@ type RoleNameList struct {
 func (m *RoleNameList) Reset()                    { *m = RoleNameList{} }
 func (m *RoleNameList) String() string            { return proto.CompactTextString(m) }
 func (*RoleNameList) ProtoMessage()               {}
-func (*RoleNameList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
+func (*RoleNameList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
 
 func (m *RoleNameList) GetRoles() []string {
 	if m != nil {
 		return m.Roles
 	}
 	return nil
+}
+
+type RoleNameListMessage struct {
+	Roles []string `protobuf:"bytes,1,rep,name=roles" json:"roles,omitempty"`
+	Gun   string   `protobuf:"bytes,2,opt,name=gun" json:"gun,omitempty"`
+}
+
+func (m *RoleNameListMessage) Reset()                    { *m = RoleNameListMessage{} }
+func (m *RoleNameListMessage) String() string            { return proto.CompactTextString(m) }
+func (*RoleNameListMessage) ProtoMessage()               {}
+func (*RoleNameListMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
+
+func (m *RoleNameListMessage) GetRoles() []string {
+	if m != nil {
+		return m.Roles
+	}
+	return nil
+}
+
+func (m *RoleNameListMessage) GetGun() string {
+	if m != nil {
+		return m.Gun
+	}
+	return ""
 }
 
 type RoleNameListResponse struct {
@@ -358,7 +480,7 @@ type RoleNameListResponse struct {
 func (m *RoleNameListResponse) Reset()                    { *m = RoleNameListResponse{} }
 func (m *RoleNameListResponse) String() string            { return proto.CompactTextString(m) }
 func (*RoleNameListResponse) ProtoMessage()               {}
-func (*RoleNameListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
+func (*RoleNameListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
 
 func (m *RoleNameListResponse) GetRoleNameList() *RoleNameList {
 	if m != nil {
@@ -383,16 +505,24 @@ func (m *RoleNameListResponse) GetMessage() string {
 
 type TargetName struct {
 	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	Gun  string `protobuf:"bytes,2,opt,name=gun" json:"gun,omitempty"`
 }
 
 func (m *TargetName) Reset()                    { *m = TargetName{} }
 func (m *TargetName) String() string            { return proto.CompactTextString(m) }
 func (*TargetName) ProtoMessage()               {}
-func (*TargetName) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
+func (*TargetName) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
 
 func (m *TargetName) GetName() string {
 	if m != nil {
 		return m.Name
+	}
+	return ""
+}
+
+func (m *TargetName) GetGun() string {
+	if m != nil {
+		return m.Gun
 	}
 	return ""
 }
@@ -409,7 +539,7 @@ type Target struct {
 func (m *Target) Reset()                    { *m = Target{} }
 func (m *Target) String() string            { return proto.CompactTextString(m) }
 func (*Target) ProtoMessage()               {}
-func (*Target) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
+func (*Target) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
 
 func (m *Target) GetGun() string {
 	if m != nil {
@@ -455,7 +585,7 @@ type TargetWithRole struct {
 func (m *TargetWithRole) Reset()                    { *m = TargetWithRole{} }
 func (m *TargetWithRole) String() string            { return proto.CompactTextString(m) }
 func (*TargetWithRole) ProtoMessage()               {}
-func (*TargetWithRole) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
+func (*TargetWithRole) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
 
 func (m *TargetWithRole) GetTarget() *Target {
 	if m != nil {
@@ -480,7 +610,7 @@ type TargetWithRoleResponse struct {
 func (m *TargetWithRoleResponse) Reset()                    { *m = TargetWithRoleResponse{} }
 func (m *TargetWithRoleResponse) String() string            { return proto.CompactTextString(m) }
 func (*TargetWithRoleResponse) ProtoMessage()               {}
-func (*TargetWithRoleResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
+func (*TargetWithRoleResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
 
 func (m *TargetWithRoleResponse) GetTargetWithRole() *TargetWithRole {
 	if m != nil {
@@ -510,7 +640,7 @@ type TargetWithRoleNameList struct {
 func (m *TargetWithRoleNameList) Reset()                    { *m = TargetWithRoleNameList{} }
 func (m *TargetWithRoleNameList) String() string            { return proto.CompactTextString(m) }
 func (*TargetWithRoleNameList) ProtoMessage()               {}
-func (*TargetWithRoleNameList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
+func (*TargetWithRoleNameList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
 
 func (m *TargetWithRoleNameList) GetTargets() []*TargetWithRole {
 	if m != nil {
@@ -528,7 +658,7 @@ type TargetWithRoleNameListResponse struct {
 func (m *TargetWithRoleNameListResponse) Reset()                    { *m = TargetWithRoleNameListResponse{} }
 func (m *TargetWithRoleNameListResponse) String() string            { return proto.CompactTextString(m) }
 func (*TargetWithRoleNameListResponse) ProtoMessage()               {}
-func (*TargetWithRoleNameListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
+func (*TargetWithRoleNameListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
 
 func (m *TargetWithRoleNameListResponse) GetTargetWithRoleNameList() *TargetWithRoleNameList {
 	if m != nil {
@@ -554,12 +684,13 @@ func (m *TargetWithRoleNameListResponse) GetMessage() string {
 type TargetByNameAction struct {
 	Name  string        `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 	Roles *RoleNameList `protobuf:"bytes,2,opt,name=roles" json:"roles,omitempty"`
+	Gun   string        `protobuf:"bytes,3,opt,name=gun" json:"gun,omitempty"`
 }
 
 func (m *TargetByNameAction) Reset()                    { *m = TargetByNameAction{} }
 func (m *TargetByNameAction) String() string            { return proto.CompactTextString(m) }
 func (*TargetByNameAction) ProtoMessage()               {}
-func (*TargetByNameAction) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
+func (*TargetByNameAction) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
 
 func (m *TargetByNameAction) GetName() string {
 	if m != nil {
@@ -575,6 +706,13 @@ func (m *TargetByNameAction) GetRoles() *RoleNameList {
 	return nil
 }
 
+func (m *TargetByNameAction) GetGun() string {
+	if m != nil {
+		return m.Gun
+	}
+	return ""
+}
+
 type Signature struct {
 	KeyID     string `protobuf:"bytes,1,opt,name=keyID" json:"keyID,omitempty"`
 	Method    string `protobuf:"bytes,2,opt,name=method" json:"method,omitempty"`
@@ -585,7 +723,7 @@ type Signature struct {
 func (m *Signature) Reset()                    { *m = Signature{} }
 func (m *Signature) String() string            { return proto.CompactTextString(m) }
 func (*Signature) ProtoMessage()               {}
-func (*Signature) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
+func (*Signature) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{21} }
 
 func (m *Signature) GetKeyID() string {
 	if m != nil {
@@ -624,7 +762,7 @@ type PublicKey struct {
 func (m *PublicKey) Reset()                    { *m = PublicKey{} }
 func (m *PublicKey) String() string            { return proto.CompactTextString(m) }
 func (*PublicKey) ProtoMessage()               {}
-func (*PublicKey) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
+func (*PublicKey) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{22} }
 
 func (m *PublicKey) GetId() string {
 	if m != nil {
@@ -656,7 +794,7 @@ type PublicKeyResponse struct {
 func (m *PublicKeyResponse) Reset()                    { *m = PublicKeyResponse{} }
 func (m *PublicKeyResponse) String() string            { return proto.CompactTextString(m) }
 func (*PublicKeyResponse) ProtoMessage()               {}
-func (*PublicKeyResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{21} }
+func (*PublicKeyResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{23} }
 
 func (m *PublicKeyResponse) GetPubkey() *PublicKey {
 	if m != nil {
@@ -689,7 +827,7 @@ type DelegationRole struct {
 func (m *DelegationRole) Reset()                    { *m = DelegationRole{} }
 func (m *DelegationRole) String() string            { return proto.CompactTextString(m) }
 func (*DelegationRole) ProtoMessage()               {}
-func (*DelegationRole) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{22} }
+func (*DelegationRole) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{24} }
 
 func (m *DelegationRole) GetKeys() map[string]*PublicKey {
 	if m != nil {
@@ -728,7 +866,7 @@ type TargetSigned struct {
 func (m *TargetSigned) Reset()                    { *m = TargetSigned{} }
 func (m *TargetSigned) String() string            { return proto.CompactTextString(m) }
 func (*TargetSigned) ProtoMessage()               {}
-func (*TargetSigned) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{23} }
+func (*TargetSigned) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{25} }
 
 func (m *TargetSigned) GetRole() *DelegationRole {
 	if m != nil {
@@ -758,7 +896,7 @@ type TargetSignedList struct {
 func (m *TargetSignedList) Reset()                    { *m = TargetSignedList{} }
 func (m *TargetSignedList) String() string            { return proto.CompactTextString(m) }
 func (*TargetSignedList) ProtoMessage()               {}
-func (*TargetSignedList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{24} }
+func (*TargetSignedList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{26} }
 
 func (m *TargetSignedList) GetTargets() []*TargetSigned {
 	if m != nil {
@@ -776,7 +914,7 @@ type TargetSignedListResponse struct {
 func (m *TargetSignedListResponse) Reset()                    { *m = TargetSignedListResponse{} }
 func (m *TargetSignedListResponse) String() string            { return proto.CompactTextString(m) }
 func (*TargetSignedListResponse) ProtoMessage()               {}
-func (*TargetSignedListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{25} }
+func (*TargetSignedListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{27} }
 
 func (m *TargetSignedListResponse) GetTargetSignedList() *TargetSignedList {
 	if m != nil {
@@ -811,7 +949,7 @@ type BasicResponse struct {
 func (m *BasicResponse) Reset()                    { *m = BasicResponse{} }
 func (m *BasicResponse) String() string            { return proto.CompactTextString(m) }
 func (*BasicResponse) ProtoMessage()               {}
-func (*BasicResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{26} }
+func (*BasicResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{28} }
 
 func (m *BasicResponse) GetSuccess() bool {
 	if m != nil {
@@ -839,7 +977,7 @@ type Change struct {
 func (m *Change) Reset()                    { *m = Change{} }
 func (m *Change) String() string            { return proto.CompactTextString(m) }
 func (*Change) ProtoMessage()               {}
-func (*Change) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{27} }
+func (*Change) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{29} }
 
 func (m *Change) GetAction() string {
 	if m != nil {
@@ -884,7 +1022,7 @@ type ChangeList struct {
 func (m *ChangeList) Reset()                    { *m = ChangeList{} }
 func (m *ChangeList) String() string            { return proto.CompactTextString(m) }
 func (*ChangeList) ProtoMessage()               {}
-func (*ChangeList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{28} }
+func (*ChangeList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{30} }
 
 func (m *ChangeList) GetChanges() []*Change {
 	if m != nil {
@@ -902,7 +1040,7 @@ type ChangeListResponse struct {
 func (m *ChangeListResponse) Reset()                    { *m = ChangeListResponse{} }
 func (m *ChangeListResponse) String() string            { return proto.CompactTextString(m) }
 func (*ChangeListResponse) ProtoMessage()               {}
-func (*ChangeListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{29} }
+func (*ChangeListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{31} }
 
 func (m *ChangeListResponse) GetChangelist() *ChangeList {
 	if m != nil {
@@ -933,7 +1071,7 @@ type RootRole struct {
 func (m *RootRole) Reset()                    { *m = RootRole{} }
 func (m *RootRole) String() string            { return proto.CompactTextString(m) }
 func (*RootRole) ProtoMessage()               {}
-func (*RootRole) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{30} }
+func (*RootRole) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{32} }
 
 func (m *RootRole) GetKeyIDs() []string {
 	if m != nil {
@@ -958,7 +1096,7 @@ type Role struct {
 func (m *Role) Reset()                    { *m = Role{} }
 func (m *Role) String() string            { return proto.CompactTextString(m) }
 func (*Role) ProtoMessage()               {}
-func (*Role) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{31} }
+func (*Role) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{33} }
 
 func (m *Role) GetRootRole() *RootRole {
 	if m != nil {
@@ -988,7 +1126,7 @@ type RoleList struct {
 func (m *RoleList) Reset()                    { *m = RoleList{} }
 func (m *RoleList) String() string            { return proto.CompactTextString(m) }
 func (*RoleList) ProtoMessage()               {}
-func (*RoleList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{32} }
+func (*RoleList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{34} }
 
 func (m *RoleList) GetRoles() []*Role {
 	if m != nil {
@@ -1006,7 +1144,7 @@ type RoleListResponse struct {
 func (m *RoleListResponse) Reset()                    { *m = RoleListResponse{} }
 func (m *RoleListResponse) String() string            { return proto.CompactTextString(m) }
 func (*RoleListResponse) ProtoMessage()               {}
-func (*RoleListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{33} }
+func (*RoleListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{35} }
 
 func (m *RoleListResponse) GetRoleList() *RoleList {
 	if m != nil {
@@ -1037,7 +1175,7 @@ type RoleWithSignatures struct {
 func (m *RoleWithSignatures) Reset()                    { *m = RoleWithSignatures{} }
 func (m *RoleWithSignatures) String() string            { return proto.CompactTextString(m) }
 func (*RoleWithSignatures) ProtoMessage()               {}
-func (*RoleWithSignatures) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{34} }
+func (*RoleWithSignatures) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{36} }
 
 func (m *RoleWithSignatures) GetSignatures() []*Signature {
 	if m != nil {
@@ -1060,7 +1198,7 @@ type RoleWithSignaturesList struct {
 func (m *RoleWithSignaturesList) Reset()                    { *m = RoleWithSignaturesList{} }
 func (m *RoleWithSignaturesList) String() string            { return proto.CompactTextString(m) }
 func (*RoleWithSignaturesList) ProtoMessage()               {}
-func (*RoleWithSignaturesList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{35} }
+func (*RoleWithSignaturesList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{37} }
 
 func (m *RoleWithSignaturesList) GetRoleWithSignatures() []*RoleWithSignatures {
 	if m != nil {
@@ -1078,7 +1216,7 @@ type RoleWithSignaturesListResponse struct {
 func (m *RoleWithSignaturesListResponse) Reset()                    { *m = RoleWithSignaturesListResponse{} }
 func (m *RoleWithSignaturesListResponse) String() string            { return proto.CompactTextString(m) }
 func (*RoleWithSignaturesListResponse) ProtoMessage()               {}
-func (*RoleWithSignaturesListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{36} }
+func (*RoleWithSignaturesListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{38} }
 
 func (m *RoleWithSignaturesListResponse) GetRoleWithSignaturesList() *RoleWithSignaturesList {
 	if m != nil {
@@ -1108,7 +1246,7 @@ type CryptoServiceMessage struct {
 func (m *CryptoServiceMessage) Reset()                    { *m = CryptoServiceMessage{} }
 func (m *CryptoServiceMessage) String() string            { return proto.CompactTextString(m) }
 func (*CryptoServiceMessage) ProtoMessage()               {}
-func (*CryptoServiceMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{37} }
+func (*CryptoServiceMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{39} }
 
 type CryptoServiceCreateMessage struct {
 	RoleName  string `protobuf:"bytes,1,opt,name=roleName" json:"roleName,omitempty"`
@@ -1119,7 +1257,7 @@ type CryptoServiceCreateMessage struct {
 func (m *CryptoServiceCreateMessage) Reset()                    { *m = CryptoServiceCreateMessage{} }
 func (m *CryptoServiceCreateMessage) String() string            { return proto.CompactTextString(m) }
 func (*CryptoServiceCreateMessage) ProtoMessage()               {}
-func (*CryptoServiceCreateMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{38} }
+func (*CryptoServiceCreateMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{40} }
 
 func (m *CryptoServiceCreateMessage) GetRoleName() string {
 	if m != nil {
@@ -1150,7 +1288,7 @@ type Signer struct {
 func (m *Signer) Reset()                    { *m = Signer{} }
 func (m *Signer) String() string            { return proto.CompactTextString(m) }
 func (*Signer) ProtoMessage()               {}
-func (*Signer) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{39} }
+func (*Signer) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{41} }
 
 func (m *Signer) GetPubkey() *PublicKey {
 	if m != nil {
@@ -1177,7 +1315,7 @@ type PrivateKey struct {
 func (m *PrivateKey) Reset()                    { *m = PrivateKey{} }
 func (m *PrivateKey) String() string            { return proto.CompactTextString(m) }
 func (*PrivateKey) ProtoMessage()               {}
-func (*PrivateKey) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{40} }
+func (*PrivateKey) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{42} }
 
 func (m *PrivateKey) GetPubkey() *PublicKey {
 	if m != nil {
@@ -1223,7 +1361,7 @@ type CryptoServiceAddKeyMessage struct {
 func (m *CryptoServiceAddKeyMessage) Reset()                    { *m = CryptoServiceAddKeyMessage{} }
 func (m *CryptoServiceAddKeyMessage) String() string            { return proto.CompactTextString(m) }
 func (*CryptoServiceAddKeyMessage) ProtoMessage()               {}
-func (*CryptoServiceAddKeyMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{41} }
+func (*CryptoServiceAddKeyMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{43} }
 
 func (m *CryptoServiceAddKeyMessage) GetRoleName() string {
 	if m != nil {
@@ -1257,7 +1395,7 @@ type PrivateKeyResponse struct {
 func (m *PrivateKeyResponse) Reset()                    { *m = PrivateKeyResponse{} }
 func (m *PrivateKeyResponse) String() string            { return proto.CompactTextString(m) }
 func (*PrivateKeyResponse) ProtoMessage()               {}
-func (*PrivateKeyResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{42} }
+func (*PrivateKeyResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{44} }
 
 func (m *PrivateKeyResponse) GetRole() string {
 	if m != nil {
@@ -1296,16 +1434,24 @@ func (m *PrivateKeyResponse) GetMessage() string {
 
 type KeyIDMessage struct {
 	KeyID string `protobuf:"bytes,1,opt,name=keyID" json:"keyID,omitempty"`
+	Gun   string `protobuf:"bytes,2,opt,name=gun" json:"gun,omitempty"`
 }
 
 func (m *KeyIDMessage) Reset()                    { *m = KeyIDMessage{} }
 func (m *KeyIDMessage) String() string            { return proto.CompactTextString(m) }
 func (*KeyIDMessage) ProtoMessage()               {}
-func (*KeyIDMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{43} }
+func (*KeyIDMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{45} }
 
 func (m *KeyIDMessage) GetKeyID() string {
 	if m != nil {
 		return m.KeyID
+	}
+	return ""
+}
+
+func (m *KeyIDMessage) GetGun() string {
+	if m != nil {
+		return m.Gun
 	}
 	return ""
 }
@@ -1319,7 +1465,7 @@ type KeyIDsListResponse struct {
 func (m *KeyIDsListResponse) Reset()                    { *m = KeyIDsListResponse{} }
 func (m *KeyIDsListResponse) String() string            { return proto.CompactTextString(m) }
 func (*KeyIDsListResponse) ProtoMessage()               {}
-func (*KeyIDsListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{44} }
+func (*KeyIDsListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{46} }
 
 func (m *KeyIDsListResponse) GetKeyIDs() []string {
 	if m != nil {
@@ -1351,7 +1497,7 @@ type SigningKeyIDsToRolesResponse struct {
 func (m *SigningKeyIDsToRolesResponse) Reset()                    { *m = SigningKeyIDsToRolesResponse{} }
 func (m *SigningKeyIDsToRolesResponse) String() string            { return proto.CompactTextString(m) }
 func (*SigningKeyIDsToRolesResponse) ProtoMessage()               {}
-func (*SigningKeyIDsToRolesResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{45} }
+func (*SigningKeyIDsToRolesResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{47} }
 
 func (m *SigningKeyIDsToRolesResponse) GetKeyIDs() map[string]string {
 	if m != nil {
@@ -1375,13 +1521,14 @@ func (m *SigningKeyIDsToRolesResponse) GetMessage() string {
 }
 
 type VersionMessage struct {
-	Version int32 `protobuf:"varint,1,opt,name=version" json:"version,omitempty"`
+	Version int32  `protobuf:"varint,1,opt,name=version" json:"version,omitempty"`
+	Gun     string `protobuf:"bytes,2,opt,name=gun" json:"gun,omitempty"`
 }
 
 func (m *VersionMessage) Reset()                    { *m = VersionMessage{} }
 func (m *VersionMessage) String() string            { return proto.CompactTextString(m) }
 func (*VersionMessage) ProtoMessage()               {}
-func (*VersionMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{46} }
+func (*VersionMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{48} }
 
 func (m *VersionMessage) GetVersion() int32 {
 	if m != nil {
@@ -1390,7 +1537,15 @@ func (m *VersionMessage) GetVersion() int32 {
 	return 0
 }
 
+func (m *VersionMessage) GetGun() string {
+	if m != nil {
+		return m.Gun
+	}
+	return ""
+}
+
 func init() {
+	proto.RegisterType((*GunMessage)(nil), "api.GunMessage")
 	proto.RegisterType((*AddDelegationMessage)(nil), "api.AddDelegationMessage")
 	proto.RegisterType((*AddDelegationRoleAndKeysMessage)(nil), "api.AddDelegationRoleAndKeysMessage")
 	proto.RegisterType((*AddDelegationPathsMessage)(nil), "api.AddDelegationPathsMessage")
@@ -1402,6 +1557,7 @@ func init() {
 	proto.RegisterType((*RotateKeyMessage)(nil), "api.RotateKeyMessage")
 	proto.RegisterType((*InitMessage)(nil), "api.InitMessage")
 	proto.RegisterType((*RoleNameList)(nil), "api.RoleNameList")
+	proto.RegisterType((*RoleNameListMessage)(nil), "api.RoleNameListMessage")
 	proto.RegisterType((*RoleNameListResponse)(nil), "api.RoleNameListResponse")
 	proto.RegisterType((*TargetName)(nil), "api.TargetName")
 	proto.RegisterType((*Target)(nil), "api.Target")
@@ -1452,22 +1608,22 @@ const _ = grpc.SupportPackageIsVersion4
 
 type NotaryClient interface {
 	Initialize(ctx context.Context, in *InitMessage, opts ...grpc.CallOption) (*BasicResponse, error)
-	Publish(ctx context.Context, in *google_protobuf.Empty, opts ...grpc.CallOption) (*BasicResponse, error)
+	Publish(ctx context.Context, in *GunMessage, opts ...grpc.CallOption) (*BasicResponse, error)
 	// AddTarget adds a target to the TUF repository and re-signs.
 	AddTarget(ctx context.Context, in *Target, opts ...grpc.CallOption) (*BasicResponse, error)
 	// RemoveTarget deletes a target from the TUF repository and re-signs. It only
 	// uses the `name` field from the Target object, ignoring all other fields
 	RemoveTarget(ctx context.Context, in *Target, opts ...grpc.CallOption) (*BasicResponse, error)
 	// ListTargets list the targets for the specified roles in the TUF repository
-	ListTargets(ctx context.Context, in *RoleNameList, opts ...grpc.CallOption) (*TargetWithRoleNameListResponse, error)
+	ListTargets(ctx context.Context, in *RoleNameListMessage, opts ...grpc.CallOption) (*TargetWithRoleNameListResponse, error)
 	// GetTargetByName returns a target by the given name.
 	GetTargetByName(ctx context.Context, in *TargetByNameAction, opts ...grpc.CallOption) (*TargetWithRoleResponse, error)
 	// GetAllTargetMetadataByName
 	GetAllTargetMetadataByName(ctx context.Context, in *TargetName, opts ...grpc.CallOption) (*TargetSignedListResponse, error)
 	// GetChangelist returns the list of the repository's unpublished changes
-	GetChangelist(ctx context.Context, in *google_protobuf.Empty, opts ...grpc.CallOption) (*ChangeListResponse, error)
-	ListRoles(ctx context.Context, in *google_protobuf.Empty, opts ...grpc.CallOption) (*RoleWithSignaturesListResponse, error)
-	GetDelegationRoles(ctx context.Context, in *google_protobuf.Empty, opts ...grpc.CallOption) (*RoleListResponse, error)
+	GetChangelist(ctx context.Context, in *GunMessage, opts ...grpc.CallOption) (*ChangeListResponse, error)
+	ListRoles(ctx context.Context, in *GunMessage, opts ...grpc.CallOption) (*RoleWithSignaturesListResponse, error)
+	GetDelegationRoles(ctx context.Context, in *GunMessage, opts ...grpc.CallOption) (*RoleListResponse, error)
 	AddDelegation(ctx context.Context, in *AddDelegationMessage, opts ...grpc.CallOption) (*BasicResponse, error)
 	AddDelegationRoleAndKeys(ctx context.Context, in *AddDelegationRoleAndKeysMessage, opts ...grpc.CallOption) (*BasicResponse, error)
 	AddDelegationPaths(ctx context.Context, in *AddDelegationPathsMessage, opts ...grpc.CallOption) (*BasicResponse, error)
@@ -1476,17 +1632,17 @@ type NotaryClient interface {
 	RemoveDelegationPaths(ctx context.Context, in *RemoveDelegationPathsMessage, opts ...grpc.CallOption) (*BasicResponse, error)
 	RemoveDelegationKeys(ctx context.Context, in *RemoveDelegationKeysMessage, opts ...grpc.CallOption) (*BasicResponse, error)
 	ClearDelegationPaths(ctx context.Context, in *RoleNameMessage, opts ...grpc.CallOption) (*BasicResponse, error)
-	Witness(ctx context.Context, in *RoleNameList, opts ...grpc.CallOption) (*RoleNameListResponse, error)
+	Witness(ctx context.Context, in *RoleNameListMessage, opts ...grpc.CallOption) (*RoleNameListResponse, error)
 	RotateKey(ctx context.Context, in *RotateKeyMessage, opts ...grpc.CallOption) (*BasicResponse, error)
 	// CryptoService implementation
-	CryptoService(ctx context.Context, in *google_protobuf.Empty, opts ...grpc.CallOption) (*CryptoServiceMessage, error)
+	CryptoService(ctx context.Context, in *GunMessage, opts ...grpc.CallOption) (*CryptoServiceMessage, error)
 	CryptoServiceCreate(ctx context.Context, in *CryptoServiceCreateMessage, opts ...grpc.CallOption) (*PublicKeyResponse, error)
 	CryptoServiceAddKey(ctx context.Context, in *CryptoServiceAddKeyMessage, opts ...grpc.CallOption) (*BasicResponse, error)
 	CryptoServiceGetKey(ctx context.Context, in *KeyIDMessage, opts ...grpc.CallOption) (*PublicKeyResponse, error)
 	CryptoServiceGetPrivateKey(ctx context.Context, in *KeyIDMessage, opts ...grpc.CallOption) (*PrivateKeyResponse, error)
 	CryptoServiceRemoveKey(ctx context.Context, in *KeyIDMessage, opts ...grpc.CallOption) (*BasicResponse, error)
 	CryptoServiceListKeys(ctx context.Context, in *RoleNameMessage, opts ...grpc.CallOption) (*KeyIDsListResponse, error)
-	CryptoServiceListAllKeys(ctx context.Context, in *google_protobuf.Empty, opts ...grpc.CallOption) (*SigningKeyIDsToRolesResponse, error)
+	CryptoServiceListAllKeys(ctx context.Context, in *GunMessage, opts ...grpc.CallOption) (*SigningKeyIDsToRolesResponse, error)
 	SetLegacyVersions(ctx context.Context, in *VersionMessage, opts ...grpc.CallOption) (*google_protobuf.Empty, error)
 }
 
@@ -1507,7 +1663,7 @@ func (c *notaryClient) Initialize(ctx context.Context, in *InitMessage, opts ...
 	return out, nil
 }
 
-func (c *notaryClient) Publish(ctx context.Context, in *google_protobuf.Empty, opts ...grpc.CallOption) (*BasicResponse, error) {
+func (c *notaryClient) Publish(ctx context.Context, in *GunMessage, opts ...grpc.CallOption) (*BasicResponse, error) {
 	out := new(BasicResponse)
 	err := grpc.Invoke(ctx, "/api.Notary/Publish", in, out, c.cc, opts...)
 	if err != nil {
@@ -1534,7 +1690,7 @@ func (c *notaryClient) RemoveTarget(ctx context.Context, in *Target, opts ...grp
 	return out, nil
 }
 
-func (c *notaryClient) ListTargets(ctx context.Context, in *RoleNameList, opts ...grpc.CallOption) (*TargetWithRoleNameListResponse, error) {
+func (c *notaryClient) ListTargets(ctx context.Context, in *RoleNameListMessage, opts ...grpc.CallOption) (*TargetWithRoleNameListResponse, error) {
 	out := new(TargetWithRoleNameListResponse)
 	err := grpc.Invoke(ctx, "/api.Notary/ListTargets", in, out, c.cc, opts...)
 	if err != nil {
@@ -1561,7 +1717,7 @@ func (c *notaryClient) GetAllTargetMetadataByName(ctx context.Context, in *Targe
 	return out, nil
 }
 
-func (c *notaryClient) GetChangelist(ctx context.Context, in *google_protobuf.Empty, opts ...grpc.CallOption) (*ChangeListResponse, error) {
+func (c *notaryClient) GetChangelist(ctx context.Context, in *GunMessage, opts ...grpc.CallOption) (*ChangeListResponse, error) {
 	out := new(ChangeListResponse)
 	err := grpc.Invoke(ctx, "/api.Notary/GetChangelist", in, out, c.cc, opts...)
 	if err != nil {
@@ -1570,7 +1726,7 @@ func (c *notaryClient) GetChangelist(ctx context.Context, in *google_protobuf.Em
 	return out, nil
 }
 
-func (c *notaryClient) ListRoles(ctx context.Context, in *google_protobuf.Empty, opts ...grpc.CallOption) (*RoleWithSignaturesListResponse, error) {
+func (c *notaryClient) ListRoles(ctx context.Context, in *GunMessage, opts ...grpc.CallOption) (*RoleWithSignaturesListResponse, error) {
 	out := new(RoleWithSignaturesListResponse)
 	err := grpc.Invoke(ctx, "/api.Notary/ListRoles", in, out, c.cc, opts...)
 	if err != nil {
@@ -1579,7 +1735,7 @@ func (c *notaryClient) ListRoles(ctx context.Context, in *google_protobuf.Empty,
 	return out, nil
 }
 
-func (c *notaryClient) GetDelegationRoles(ctx context.Context, in *google_protobuf.Empty, opts ...grpc.CallOption) (*RoleListResponse, error) {
+func (c *notaryClient) GetDelegationRoles(ctx context.Context, in *GunMessage, opts ...grpc.CallOption) (*RoleListResponse, error) {
 	out := new(RoleListResponse)
 	err := grpc.Invoke(ctx, "/api.Notary/GetDelegationRoles", in, out, c.cc, opts...)
 	if err != nil {
@@ -1660,7 +1816,7 @@ func (c *notaryClient) ClearDelegationPaths(ctx context.Context, in *RoleNameMes
 	return out, nil
 }
 
-func (c *notaryClient) Witness(ctx context.Context, in *RoleNameList, opts ...grpc.CallOption) (*RoleNameListResponse, error) {
+func (c *notaryClient) Witness(ctx context.Context, in *RoleNameListMessage, opts ...grpc.CallOption) (*RoleNameListResponse, error) {
 	out := new(RoleNameListResponse)
 	err := grpc.Invoke(ctx, "/api.Notary/Witness", in, out, c.cc, opts...)
 	if err != nil {
@@ -1678,7 +1834,7 @@ func (c *notaryClient) RotateKey(ctx context.Context, in *RotateKeyMessage, opts
 	return out, nil
 }
 
-func (c *notaryClient) CryptoService(ctx context.Context, in *google_protobuf.Empty, opts ...grpc.CallOption) (*CryptoServiceMessage, error) {
+func (c *notaryClient) CryptoService(ctx context.Context, in *GunMessage, opts ...grpc.CallOption) (*CryptoServiceMessage, error) {
 	out := new(CryptoServiceMessage)
 	err := grpc.Invoke(ctx, "/api.Notary/CryptoService", in, out, c.cc, opts...)
 	if err != nil {
@@ -1741,7 +1897,7 @@ func (c *notaryClient) CryptoServiceListKeys(ctx context.Context, in *RoleNameMe
 	return out, nil
 }
 
-func (c *notaryClient) CryptoServiceListAllKeys(ctx context.Context, in *google_protobuf.Empty, opts ...grpc.CallOption) (*SigningKeyIDsToRolesResponse, error) {
+func (c *notaryClient) CryptoServiceListAllKeys(ctx context.Context, in *GunMessage, opts ...grpc.CallOption) (*SigningKeyIDsToRolesResponse, error) {
 	out := new(SigningKeyIDsToRolesResponse)
 	err := grpc.Invoke(ctx, "/api.Notary/CryptoServiceListAllKeys", in, out, c.cc, opts...)
 	if err != nil {
@@ -1763,22 +1919,22 @@ func (c *notaryClient) SetLegacyVersions(ctx context.Context, in *VersionMessage
 
 type NotaryServer interface {
 	Initialize(context.Context, *InitMessage) (*BasicResponse, error)
-	Publish(context.Context, *google_protobuf.Empty) (*BasicResponse, error)
+	Publish(context.Context, *GunMessage) (*BasicResponse, error)
 	// AddTarget adds a target to the TUF repository and re-signs.
 	AddTarget(context.Context, *Target) (*BasicResponse, error)
 	// RemoveTarget deletes a target from the TUF repository and re-signs. It only
 	// uses the `name` field from the Target object, ignoring all other fields
 	RemoveTarget(context.Context, *Target) (*BasicResponse, error)
 	// ListTargets list the targets for the specified roles in the TUF repository
-	ListTargets(context.Context, *RoleNameList) (*TargetWithRoleNameListResponse, error)
+	ListTargets(context.Context, *RoleNameListMessage) (*TargetWithRoleNameListResponse, error)
 	// GetTargetByName returns a target by the given name.
 	GetTargetByName(context.Context, *TargetByNameAction) (*TargetWithRoleResponse, error)
 	// GetAllTargetMetadataByName
 	GetAllTargetMetadataByName(context.Context, *TargetName) (*TargetSignedListResponse, error)
 	// GetChangelist returns the list of the repository's unpublished changes
-	GetChangelist(context.Context, *google_protobuf.Empty) (*ChangeListResponse, error)
-	ListRoles(context.Context, *google_protobuf.Empty) (*RoleWithSignaturesListResponse, error)
-	GetDelegationRoles(context.Context, *google_protobuf.Empty) (*RoleListResponse, error)
+	GetChangelist(context.Context, *GunMessage) (*ChangeListResponse, error)
+	ListRoles(context.Context, *GunMessage) (*RoleWithSignaturesListResponse, error)
+	GetDelegationRoles(context.Context, *GunMessage) (*RoleListResponse, error)
 	AddDelegation(context.Context, *AddDelegationMessage) (*BasicResponse, error)
 	AddDelegationRoleAndKeys(context.Context, *AddDelegationRoleAndKeysMessage) (*BasicResponse, error)
 	AddDelegationPaths(context.Context, *AddDelegationPathsMessage) (*BasicResponse, error)
@@ -1787,17 +1943,17 @@ type NotaryServer interface {
 	RemoveDelegationPaths(context.Context, *RemoveDelegationPathsMessage) (*BasicResponse, error)
 	RemoveDelegationKeys(context.Context, *RemoveDelegationKeysMessage) (*BasicResponse, error)
 	ClearDelegationPaths(context.Context, *RoleNameMessage) (*BasicResponse, error)
-	Witness(context.Context, *RoleNameList) (*RoleNameListResponse, error)
+	Witness(context.Context, *RoleNameListMessage) (*RoleNameListResponse, error)
 	RotateKey(context.Context, *RotateKeyMessage) (*BasicResponse, error)
 	// CryptoService implementation
-	CryptoService(context.Context, *google_protobuf.Empty) (*CryptoServiceMessage, error)
+	CryptoService(context.Context, *GunMessage) (*CryptoServiceMessage, error)
 	CryptoServiceCreate(context.Context, *CryptoServiceCreateMessage) (*PublicKeyResponse, error)
 	CryptoServiceAddKey(context.Context, *CryptoServiceAddKeyMessage) (*BasicResponse, error)
 	CryptoServiceGetKey(context.Context, *KeyIDMessage) (*PublicKeyResponse, error)
 	CryptoServiceGetPrivateKey(context.Context, *KeyIDMessage) (*PrivateKeyResponse, error)
 	CryptoServiceRemoveKey(context.Context, *KeyIDMessage) (*BasicResponse, error)
 	CryptoServiceListKeys(context.Context, *RoleNameMessage) (*KeyIDsListResponse, error)
-	CryptoServiceListAllKeys(context.Context, *google_protobuf.Empty) (*SigningKeyIDsToRolesResponse, error)
+	CryptoServiceListAllKeys(context.Context, *GunMessage) (*SigningKeyIDsToRolesResponse, error)
 	SetLegacyVersions(context.Context, *VersionMessage) (*google_protobuf.Empty, error)
 }
 
@@ -1824,7 +1980,7 @@ func _Notary_Initialize_Handler(srv interface{}, ctx context.Context, dec func(i
 }
 
 func _Notary_Publish_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(google_protobuf.Empty)
+	in := new(GunMessage)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -1836,7 +1992,7 @@ func _Notary_Publish_Handler(srv interface{}, ctx context.Context, dec func(inte
 		FullMethod: "/api.Notary/Publish",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NotaryServer).Publish(ctx, req.(*google_protobuf.Empty))
+		return srv.(NotaryServer).Publish(ctx, req.(*GunMessage))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1878,7 +2034,7 @@ func _Notary_RemoveTarget_Handler(srv interface{}, ctx context.Context, dec func
 }
 
 func _Notary_ListTargets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RoleNameList)
+	in := new(RoleNameListMessage)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -1890,7 +2046,7 @@ func _Notary_ListTargets_Handler(srv interface{}, ctx context.Context, dec func(
 		FullMethod: "/api.Notary/ListTargets",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NotaryServer).ListTargets(ctx, req.(*RoleNameList))
+		return srv.(NotaryServer).ListTargets(ctx, req.(*RoleNameListMessage))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1932,7 +2088,7 @@ func _Notary_GetAllTargetMetadataByName_Handler(srv interface{}, ctx context.Con
 }
 
 func _Notary_GetChangelist_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(google_protobuf.Empty)
+	in := new(GunMessage)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -1944,13 +2100,13 @@ func _Notary_GetChangelist_Handler(srv interface{}, ctx context.Context, dec fun
 		FullMethod: "/api.Notary/GetChangelist",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NotaryServer).GetChangelist(ctx, req.(*google_protobuf.Empty))
+		return srv.(NotaryServer).GetChangelist(ctx, req.(*GunMessage))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Notary_ListRoles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(google_protobuf.Empty)
+	in := new(GunMessage)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -1962,13 +2118,13 @@ func _Notary_ListRoles_Handler(srv interface{}, ctx context.Context, dec func(in
 		FullMethod: "/api.Notary/ListRoles",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NotaryServer).ListRoles(ctx, req.(*google_protobuf.Empty))
+		return srv.(NotaryServer).ListRoles(ctx, req.(*GunMessage))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Notary_GetDelegationRoles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(google_protobuf.Empty)
+	in := new(GunMessage)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -1980,7 +2136,7 @@ func _Notary_GetDelegationRoles_Handler(srv interface{}, ctx context.Context, de
 		FullMethod: "/api.Notary/GetDelegationRoles",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NotaryServer).GetDelegationRoles(ctx, req.(*google_protobuf.Empty))
+		return srv.(NotaryServer).GetDelegationRoles(ctx, req.(*GunMessage))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2130,7 +2286,7 @@ func _Notary_ClearDelegationPaths_Handler(srv interface{}, ctx context.Context, 
 }
 
 func _Notary_Witness_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RoleNameList)
+	in := new(RoleNameListMessage)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -2142,7 +2298,7 @@ func _Notary_Witness_Handler(srv interface{}, ctx context.Context, dec func(inte
 		FullMethod: "/api.Notary/Witness",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NotaryServer).Witness(ctx, req.(*RoleNameList))
+		return srv.(NotaryServer).Witness(ctx, req.(*RoleNameListMessage))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2166,7 +2322,7 @@ func _Notary_RotateKey_Handler(srv interface{}, ctx context.Context, dec func(in
 }
 
 func _Notary_CryptoService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(google_protobuf.Empty)
+	in := new(GunMessage)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -2178,7 +2334,7 @@ func _Notary_CryptoService_Handler(srv interface{}, ctx context.Context, dec fun
 		FullMethod: "/api.Notary/CryptoService",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NotaryServer).CryptoService(ctx, req.(*google_protobuf.Empty))
+		return srv.(NotaryServer).CryptoService(ctx, req.(*GunMessage))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2292,7 +2448,7 @@ func _Notary_CryptoServiceListKeys_Handler(srv interface{}, ctx context.Context,
 }
 
 func _Notary_CryptoServiceListAllKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(google_protobuf.Empty)
+	in := new(GunMessage)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -2304,7 +2460,7 @@ func _Notary_CryptoServiceListAllKeys_Handler(srv interface{}, ctx context.Conte
 		FullMethod: "/api.Notary/CryptoServiceListAllKeys",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NotaryServer).CryptoServiceListAllKeys(ctx, req.(*google_protobuf.Empty))
+		return srv.(NotaryServer).CryptoServiceListAllKeys(ctx, req.(*GunMessage))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2455,124 +2611,127 @@ var _Notary_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("api.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 1891 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xb4, 0x59, 0x4b, 0x6f, 0x1b, 0xc9,
-	0x11, 0xde, 0x21, 0x25, 0xca, 0x2c, 0x52, 0x12, 0xd5, 0x2b, 0x51, 0x34, 0x2d, 0xdb, 0xf4, 0x48,
-	0x9b, 0xd5, 0xee, 0x62, 0x29, 0x58, 0xce, 0xc3, 0x4e, 0x0e, 0x31, 0xf5, 0x00, 0x2d, 0xcb, 0x16,
-	0xe4, 0x91, 0x61, 0x1f, 0x02, 0x04, 0x19, 0x73, 0x3a, 0xe4, 0x40, 0xc3, 0x19, 0x66, 0xa6, 0x25,
-	0x78, 0x72, 0xcb, 0x31, 0x40, 0x2e, 0x39, 0xe6, 0x0f, 0x04, 0xc8, 0xcf, 0xc8, 0x35, 0xe7, 0xfc,
-	0xa0, 0xa0, 0x1f, 0xd3, 0xd3, 0x3d, 0x0f, 0xca, 0x21, 0xb0, 0x37, 0x76, 0x4f, 0xd5, 0x57, 0xd5,
-	0xd5, 0xf5, 0xea, 0x22, 0xd4, 0xed, 0x99, 0xdb, 0x9f, 0x85, 0x01, 0x09, 0x50, 0xd5, 0x9e, 0xb9,
-	0xdd, 0x07, 0xe3, 0x20, 0x18, 0x7b, 0xf8, 0x80, 0x6d, 0x7d, 0xba, 0xf9, 0xe3, 0xc1, 0xe9, 0x74,
-	0x46, 0x62, 0x4e, 0x61, 0x7e, 0x86, 0xcd, 0x81, 0xe3, 0x9c, 0x60, 0x0f, 0x8f, 0x6d, 0xe2, 0x06,
-	0xfe, 0x5b, 0x1c, 0x45, 0xf6, 0x18, 0x23, 0x04, 0x4b, 0xbe, 0x3d, 0xc5, 0x1d, 0xa3, 0x67, 0xec,
-	0xd7, 0x2d, 0xf6, 0x1b, 0xfd, 0x12, 0xd6, 0x1c, 0x49, 0x78, 0x8e, 0xe3, 0xa8, 0x53, 0xe9, 0x55,
-	0xf7, 0x1b, 0x87, 0x6b, 0x7d, 0x2a, 0xf1, 0xf2, 0xe6, 0x93, 0xe7, 0x8e, 0xce, 0x71, 0x6c, 0x65,
-	0xa8, 0xd0, 0x26, 0x2c, 0xcf, 0x6c, 0x32, 0x89, 0x3a, 0xd5, 0x5e, 0x75, 0xbf, 0x6e, 0xf1, 0x85,
-	0x39, 0x85, 0xc7, 0x9a, 0x64, 0x2b, 0xf0, 0xf0, 0xc0, 0x77, 0x28, 0xc7, 0x4f, 0xa0, 0x84, 0x79,
-	0x0a, 0xf7, 0x35, 0x71, 0x97, 0x54, 0x89, 0x79, 0x82, 0xa4, 0xd6, 0x15, 0x55, 0xeb, 0x31, 0xec,
-	0x5a, 0x78, 0x1a, 0xdc, 0xe2, 0x13, 0x0d, 0x7e, 0xe0, 0x3b, 0x77, 0x02, 0xb6, 0xa1, 0x76, 0x8d,
-	0xe3, 0xb3, 0x93, 0x04, 0x51, 0xac, 0x4a, 0xcc, 0xf3, 0x14, 0x1e, 0x64, 0x05, 0x51, 0x0b, 0xcd,
-	0x11, 0x60, 0xbe, 0x82, 0x9d, 0x2c, 0xcb, 0x82, 0xa7, 0x3c, 0xcb, 0x0b, 0xbf, 0xeb, 0x5e, 0x4a,
-	0x4e, 0x67, 0x7e, 0x03, 0xeb, 0x54, 0xef, 0x0b, 0x7b, 0xaa, 0xea, 0x1e, 0x06, 0x9e, 0x64, 0xa7,
-	0xbf, 0x4d, 0x0f, 0x5a, 0x56, 0x40, 0x6c, 0x82, 0xcf, 0x71, 0x3c, 0x87, 0x0e, 0x7d, 0x0f, 0xad,
-	0x08, 0x87, 0xb7, 0x38, 0x7c, 0x6b, 0xfb, 0xf6, 0x18, 0x47, 0xe7, 0x38, 0xee, 0x54, 0x7a, 0xc6,
-	0xfe, 0x3d, 0x2b, 0xb7, 0x8f, 0x3a, 0xb0, 0x72, 0x8d, 0xe3, 0x37, 0x6e, 0x44, 0x84, 0x69, 0x93,
-	0xa5, 0x39, 0x83, 0xc6, 0x99, 0xef, 0x92, 0x44, 0xd0, 0x23, 0x80, 0x30, 0x08, 0xc8, 0x39, 0xd7,
-	0xdf, 0x60, 0xb4, 0xca, 0x0e, 0x1a, 0x00, 0x52, 0xc1, 0x1d, 0x7a, 0xa0, 0x88, 0x89, 0x6d, 0x1c,
-	0x6e, 0x30, 0xbf, 0x4b, 0x8e, 0x48, 0xd1, 0xad, 0x02, 0x62, 0x73, 0x0f, 0x9a, 0x2a, 0x0d, 0xb5,
-	0x7b, 0xc8, 0x50, 0xb8, 0x34, 0xbe, 0x30, 0xff, 0x62, 0xc0, 0xa6, 0x06, 0x85, 0xa3, 0x59, 0xe0,
-	0x47, 0x18, 0xfd, 0x02, 0x9a, 0xa1, 0xb2, 0xcf, 0x4c, 0x52, 0x28, 0x5b, 0x23, 0xa3, 0x16, 0x88,
-	0x6e, 0x46, 0x23, 0x1c, 0x45, 0xc2, 0x48, 0xc9, 0x92, 0x7e, 0x99, 0xf2, 0xd3, 0x77, 0xaa, 0xcc,
-	0xbc, 0xc9, 0xd2, 0xec, 0x01, 0xbc, 0xb7, 0xc3, 0x31, 0x26, 0x14, 0xa5, 0xd0, 0xcf, 0xfe, 0x63,
-	0x40, 0x8d, 0x93, 0xa0, 0x16, 0x54, 0xc7, 0x37, 0xbe, 0xf8, 0x4a, 0x7f, 0x4a, 0x86, 0x8a, 0xee,
-	0x1b, 0x1e, 0xf6, 0xc7, 0x64, 0xc2, 0x64, 0x55, 0x2d, 0xb1, 0x42, 0x07, 0x50, 0x9b, 0xd8, 0xd1,
-	0x04, 0x47, 0x9d, 0x25, 0x16, 0xc3, 0xdb, 0xec, 0x3c, 0x1c, 0xba, 0xff, 0x8a, 0x7d, 0x39, 0xf5,
-	0x49, 0x18, 0x5b, 0x82, 0x8c, 0x02, 0x8d, 0x6e, 0x22, 0x12, 0x4c, 0x3b, 0xcb, 0x3d, 0x63, 0xbf,
-	0x69, 0x89, 0x55, 0xf7, 0x05, 0x34, 0x14, 0x72, 0xaa, 0xd5, 0x35, 0x8e, 0x13, 0xad, 0xae, 0x71,
-	0x4c, 0xcd, 0x7d, 0x6b, 0x7b, 0x37, 0x5c, 0xad, 0xa6, 0xc5, 0x17, 0xbf, 0xae, 0x3c, 0x37, 0xcc,
-	0x33, 0x58, 0xe3, 0x02, 0x3f, 0xba, 0x64, 0x42, 0x4d, 0x89, 0x76, 0xa1, 0x46, 0xd8, 0x8e, 0xb0,
-	0x72, 0x43, 0xd1, 0xca, 0x12, 0x9f, 0xa4, 0x6f, 0x56, 0x14, 0x1f, 0xfe, 0xab, 0x01, 0x6d, 0x1d,
-	0x4b, 0xde, 0xdf, 0x6f, 0x60, 0x8d, 0x68, 0x5f, 0x04, 0xf6, 0xd7, 0x0a, 0xb6, 0x64, 0xca, 0x90,
-	0x2e, 0x74, 0x8b, 0xc3, 0xac, 0x2a, 0xd2, 0x27, 0x7e, 0x84, 0x15, 0x8e, 0xcf, 0x7d, 0xaf, 0x44,
-	0x87, 0x84, 0xc6, 0xfc, 0x97, 0x01, 0x8f, 0x8a, 0x91, 0xe4, 0xe1, 0xae, 0xa0, 0x4d, 0x0a, 0x29,
-	0xc4, 0x21, 0x1f, 0x14, 0x08, 0x90, 0x20, 0x25, 0xac, 0x0b, 0x1d, 0xfa, 0x1d, 0x20, 0x2e, 0xe5,
-	0x28, 0xa6, 0x38, 0x83, 0x11, 0x4d, 0x5c, 0x85, 0xd9, 0xea, 0xdb, 0x24, 0xfc, 0x4a, 0x83, 0x58,
-	0x44, 0xe4, 0x9f, 0xa0, 0x7e, 0xe5, 0x8e, 0x7d, 0x9b, 0xdc, 0x84, 0x2c, 0x59, 0xb2, 0xac, 0x26,
-	0xa0, 0xf8, 0x82, 0x3a, 0xe5, 0x14, 0x93, 0x49, 0xe0, 0x08, 0x67, 0x10, 0x2b, 0xb4, 0x03, 0xf5,
-	0x28, 0x61, 0x65, 0x9a, 0x36, 0xad, 0x74, 0x83, 0x9e, 0xc2, 0x8d, 0x3e, 0xd8, 0x9e, 0xeb, 0x74,
-	0x96, 0xf8, 0xf9, 0xc4, 0xd2, 0x7c, 0x07, 0x75, 0x59, 0xc6, 0xd0, 0x1a, 0x54, 0x5c, 0x47, 0xc8,
-	0xab, 0xb8, 0x0c, 0xd4, 0xf6, 0xc6, 0x41, 0xe8, 0x92, 0xc9, 0x54, 0xc8, 0x4b, 0x37, 0xa8, 0x2a,
-	0x33, 0xc6, 0x2a, 0xe4, 0x89, 0x95, 0x19, 0xc0, 0x46, 0x5a, 0x19, 0x93, 0x6b, 0xfb, 0x19, 0x23,
-	0x4e, 0x02, 0x25, 0x5f, 0x41, 0xc5, 0xd7, 0x85, 0x6e, 0xe2, 0xbf, 0x06, 0xac, 0xe9, 0x85, 0x0b,
-	0x3d, 0x85, 0xa5, 0x6b, 0x5a, 0xae, 0xb9, 0xd3, 0x3d, 0x64, 0xc2, 0x74, 0x92, 0x3e, 0xad, 0x31,
-	0x3c, 0xe0, 0x19, 0x69, 0x61, 0x2e, 0xd9, 0x81, 0x3a, 0x99, 0x84, 0x38, 0x9a, 0x04, 0x9e, 0xc3,
-	0xa4, 0x2e, 0x5b, 0xe9, 0x46, 0x5a, 0xce, 0x96, 0x94, 0x72, 0xd6, 0x1d, 0x42, 0x5d, 0x42, 0x17,
-	0x24, 0x87, 0x3d, 0x35, 0x39, 0xe4, 0xed, 0xa0, 0x24, 0x8b, 0xbf, 0x19, 0xd0, 0xe4, 0x1e, 0x46,
-	0x9d, 0x02, 0x3b, 0xe8, 0x5b, 0xa5, 0x44, 0x25, 0x91, 0xa4, 0x1f, 0x4a, 0xd4, 0xad, 0x34, 0xa9,
-	0x54, 0xca, 0x93, 0x4a, 0x1f, 0x40, 0x3a, 0x08, 0x6f, 0x07, 0x12, 0x6d, 0xa4, 0x0f, 0x5a, 0x0a,
-	0x85, 0xf9, 0x5b, 0x68, 0xa9, 0xda, 0xb0, 0xb8, 0xf9, 0x21, 0x1b, 0xde, 0x1b, 0x8a, 0x24, 0x4e,
-	0x97, 0x06, 0xf7, 0xdf, 0x0d, 0xe8, 0x64, 0x11, 0xa4, 0x7f, 0x0c, 0xa0, 0x45, 0x32, 0xdf, 0xc4,
-	0x39, 0xb7, 0x72, 0x90, 0x8c, 0x31, 0x47, 0xbe, 0x90, 0xeb, 0x1c, 0xc3, 0xea, 0x91, 0x1d, 0xb9,
-	0x23, 0xa9, 0x87, 0x02, 0x62, 0x94, 0x82, 0x54, 0x74, 0x90, 0xcf, 0x50, 0x3b, 0x9e, 0xd8, 0xfe,
-	0x98, 0xd5, 0x1e, 0x9b, 0xe5, 0x01, 0x71, 0xe3, 0x62, 0x45, 0x3d, 0x25, 0x1a, 0x05, 0xb3, 0x84,
-	0x93, 0x2f, 0xa8, 0xc7, 0x91, 0x78, 0x96, 0xe8, 0xc4, 0x7e, 0xd3, 0x3d, 0xea, 0x46, 0x2c, 0x4c,
-	0xeb, 0x16, 0xfb, 0x4d, 0x25, 0x8f, 0x02, 0x9f, 0x60, 0x9f, 0x88, 0x4a, 0x94, 0x2c, 0xcd, 0x67,
-	0x00, 0x5c, 0x32, 0x33, 0xc0, 0x37, 0xb0, 0x32, 0x62, 0xab, 0xe4, 0x36, 0xf8, 0xbd, 0x73, 0x0a,
-	0x2b, 0xf9, 0x66, 0xc6, 0x80, 0x52, 0x26, 0x79, 0xf0, 0x03, 0x00, 0x4e, 0xe0, 0xa5, 0xa6, 0x5f,
-	0x57, 0xf8, 0x19, 0xb1, 0x42, 0xb2, 0x90, 0xb9, 0x5f, 0xc2, 0x3d, 0x2b, 0x08, 0x08, 0x0b, 0xd1,
-	0xb4, 0x87, 0x33, 0xb4, 0x0e, 0x55, 0x8b, 0xb9, 0x4a, 0x26, 0xe6, 0xcc, 0xdf, 0xc1, 0x12, 0xe3,
-	0xfe, 0x0e, 0xee, 0x85, 0x02, 0x49, 0x28, 0xbb, 0x2a, 0xd2, 0x2a, 0xdf, 0xb4, 0xe4, 0xe7, 0xc2,
-	0xc0, 0x2e, 0x6e, 0x83, 0x7f, 0xa0, 0xea, 0x79, 0xdc, 0x98, 0x8f, 0xd5, 0x9e, 0xa9, 0x71, 0x58,
-	0x97, 0x49, 0x3b, 0x4d, 0xd6, 0xad, 0x84, 0x58, 0x1a, 0x91, 0x69, 0xe5, 0xa9, 0xe5, 0x68, 0x55,
-	0xf2, 0x31, 0x42, 0xf9, 0x79, 0x21, 0xf3, 0x8d, 0x00, 0x51, 0x24, 0x5a, 0xbe, 0x64, 0x8c, 0x46,
-	0x99, 0x40, 0x36, 0xee, 0x0a, 0x64, 0xf4, 0x50, 0xe9, 0x26, 0xb4, 0x83, 0xf1, 0xc6, 0xc2, 0x86,
-	0x76, 0x5e, 0x08, 0x53, 0x79, 0x08, 0x28, 0xcc, 0x7d, 0x11, 0x02, 0xb7, 0x25, 0x8c, 0xfe, 0xd9,
-	0x2a, 0x60, 0x61, 0x65, 0xbe, 0x58, 0x86, 0x5a, 0xe6, 0xc3, 0x42, 0x0a, 0xad, 0xcc, 0x97, 0x80,
-	0x94, 0xb0, 0x2e, 0x64, 0xf3, 0x36, 0x6c, 0x1e, 0x87, 0xf1, 0x8c, 0x04, 0x57, 0x38, 0xbc, 0x75,
-	0x47, 0xc9, 0xbb, 0xc2, 0x9c, 0x40, 0x57, 0xdb, 0x3f, 0x0e, 0xb1, 0x4d, 0xe4, 0xab, 0xa3, 0xcb,
-	0x1d, 0xe1, 0x22, 0x6d, 0x05, 0xe4, 0x3a, 0x69, 0x63, 0x2b, 0x69, 0x1b, 0xab, 0xd5, 0xd9, 0x6a,
-	0xa6, 0xce, 0x9a, 0x17, 0x50, 0x63, 0x59, 0x2e, 0xfc, 0xe2, 0x22, 0xaa, 0x35, 0x03, 0xa2, 0x6e,
-	0xcb, 0x0d, 0xf3, 0xdf, 0x06, 0xc0, 0x65, 0xe8, 0xde, 0xf2, 0xf7, 0xcf, 0xe2, 0xa0, 0xd9, 0x0e,
-	0x63, 0x16, 0xba, 0xb7, 0x14, 0x86, 0x77, 0x03, 0xc9, 0x12, 0x1d, 0x40, 0x73, 0xc4, 0x0d, 0xc5,
-	0x0e, 0xc1, 0x32, 0x5b, 0x92, 0x9a, 0xf8, 0x96, 0xa5, 0x11, 0x20, 0x13, 0x9a, 0x91, 0x3b, 0x1e,
-	0x48, 0x83, 0x2c, 0xb3, 0x03, 0x68, 0x7b, 0xe6, 0x34, 0x63, 0xfd, 0x81, 0xe3, 0x28, 0x6f, 0xb9,
-	0xff, 0xcf, 0xfa, 0x4f, 0x78, 0x8d, 0xae, 0x2a, 0x29, 0x2f, 0x35, 0x0f, 0x2b, 0xda, 0xe6, 0x3f,
-	0x0c, 0x40, 0xca, 0x5e, 0xe2, 0xa4, 0x45, 0x6f, 0xc6, 0x3c, 0xfe, 0x77, 0xba, 0x69, 0x0a, 0x64,
-	0x48, 0x5b, 0x29, 0x0e, 0xba, 0x54, 0xea, 0xa0, 0xcb, 0xba, 0x83, 0xee, 0x41, 0x93, 0xbd, 0x1c,
-	0x93, 0xc3, 0x17, 0xf6, 0x8d, 0xe6, 0x1f, 0x00, 0xf1, 0xf7, 0xa5, 0x16, 0x65, 0x65, 0x39, 0x78,
-	0xc1, 0x2e, 0x6c, 0x87, 0xde, 0xa0, 0xeb, 0x8f, 0xb9, 0xa4, 0xf7, 0x01, 0x7b, 0x8d, 0x4a, 0x61,
-	0xa7, 0x9a, 0xb0, 0xc6, 0xe1, 0x8f, 0xd2, 0x05, 0xca, 0x58, 0xfa, 0x7c, 0x57, 0x3c, 0xcb, 0x16,
-	0xd7, 0x8d, 0x3e, 0xd9, 0x14, 0xa8, 0xbb, 0x9e, 0x6c, 0x75, 0xb5, 0x0b, 0xfb, 0x1e, 0xd6, 0x3e,
-	0xe0, 0x30, 0x52, 0xa6, 0x55, 0x1d, 0x58, 0xb9, 0xe5, 0x3b, 0x0c, 0x61, 0xd9, 0x4a, 0x96, 0x87,
-	0xff, 0x6c, 0x41, 0xed, 0x22, 0x20, 0x76, 0x18, 0xa3, 0x9f, 0x03, 0xd0, 0x47, 0xbf, 0x6b, 0x7b,
-	0xee, 0x9f, 0x31, 0x6a, 0xb1, 0xa3, 0x2a, 0x53, 0x80, 0x2e, 0x62, 0x3b, 0x5a, 0xef, 0x61, 0x7e,
-	0x85, 0x7e, 0x05, 0x2b, 0x2c, 0xf0, 0xa2, 0x09, 0x6a, 0xf7, 0xf9, 0x24, 0xad, 0x9f, 0x4c, 0xd2,
-	0xfa, 0x6c, 0x92, 0x56, 0xc2, 0xd8, 0x87, 0xfa, 0xc0, 0x71, 0xc4, 0x3b, 0x59, 0x6d, 0xf7, 0x4a,
-	0xe8, 0x9f, 0x42, 0x93, 0xcf, 0x5c, 0xbe, 0x9c, 0x65, 0x08, 0x0d, 0xea, 0x3b, 0x9c, 0x26, 0x42,
-	0xf9, 0x57, 0x4c, 0x77, 0x77, 0xde, 0xd3, 0x2b, 0x05, 0x3a, 0x83, 0xf5, 0x21, 0x26, 0xea, 0xdb,
-	0x09, 0xa9, 0x6f, 0x71, 0xf5, 0x39, 0xd5, 0x2d, 0x7a, 0xcd, 0x29, 0x50, 0x17, 0xd0, 0x1d, 0x62,
-	0x32, 0xf0, 0x3c, 0x4e, 0xf1, 0x16, 0x13, 0xdb, 0xb1, 0x89, 0x2d, 0x50, 0xd7, 0x15, 0x66, 0xba,
-	0xd1, 0x7d, 0x58, 0xdc, 0x4a, 0xa6, 0x78, 0x47, 0xb0, 0x3a, 0xc4, 0xe4, 0x38, 0x6d, 0x72, 0xca,
-	0x6e, 0x61, 0x3b, 0xdb, 0x19, 0xa5, 0x18, 0xaf, 0xa1, 0xce, 0x76, 0xa8, 0x23, 0x97, 0xf2, 0xef,
-	0xce, 0x2b, 0x5f, 0x29, 0xd6, 0x29, 0xa0, 0x21, 0x26, 0x7a, 0x8f, 0x5f, 0x0e, 0xba, 0xa5, 0xf7,
-	0x1a, 0x29, 0xcc, 0x4b, 0x58, 0xd5, 0xc6, 0x91, 0xe8, 0x3e, 0xa3, 0x2c, 0x9a, 0xc5, 0x96, 0x5c,
-	0xfe, 0x07, 0xe8, 0x94, 0xcd, 0x4f, 0xd1, 0x5e, 0x1e, 0x2c, 0x3f, 0x5e, 0x2d, 0xc1, 0x7d, 0x0d,
-	0x28, 0x3f, 0x28, 0x45, 0x8f, 0xf2, 0x88, 0xea, 0x6c, 0xb1, 0x04, 0xeb, 0xf7, 0xf9, 0x89, 0xa4,
-	0x3a, 0x2d, 0x45, 0xfb, 0xdc, 0x3c, 0x77, 0x0f, 0x54, 0x4b, 0xf0, 0x2f, 0x60, 0xb3, 0x68, 0x48,
-	0x8a, 0x7a, 0x85, 0xb8, 0xca, 0xfc, 0xb4, 0x04, 0xef, 0x12, 0xb6, 0x0a, 0x27, 0xa8, 0xe8, 0x49,
-	0x21, 0xe0, 0x62, 0x1a, 0xb2, 0x1b, 0xea, 0x95, 0x9e, 0x7c, 0x3e, 0xde, 0x11, 0x6c, 0x1e, 0x7b,
-	0xd8, 0x0e, 0xb3, 0x0a, 0x6e, 0x6a, 0xb1, 0x3f, 0x1f, 0xe3, 0x05, 0xac, 0x7c, 0x74, 0x89, 0x4f,
-	0xf3, 0x73, 0x41, 0xca, 0xb8, 0x9f, 0x9f, 0x85, 0xa4, 0xac, 0xcf, 0xa1, 0x2e, 0xc7, 0xb4, 0x28,
-	0x71, 0x6e, 0x7d, 0x6c, 0x5b, 0x22, 0xf4, 0x04, 0x56, 0xb5, 0xf6, 0xa0, 0x34, 0x64, 0xb8, 0xfc,
-	0xc2, 0x06, 0x8f, 0x5e, 0xd0, 0xd7, 0x05, 0x2d, 0x1e, 0x7a, 0x9c, 0xe7, 0xd1, 0x9a, 0xbf, 0x6e,
-	0x3b, 0xd3, 0x41, 0xa5, 0x7a, 0xbd, 0xc9, 0x20, 0xf2, 0xb6, 0xa5, 0x08, 0x51, 0x6b, 0x68, 0x4a,
-	0xaf, 0x47, 0x47, 0x1b, 0x62, 0x42, 0xd1, 0xb8, 0x99, 0xd5, 0x9e, 0x60, 0x8e, 0x46, 0xaf, 0x33,
-	0x8d, 0xd4, 0x10, 0x13, 0xa5, 0x37, 0x2c, 0x80, 0xda, 0xce, 0x36, 0x2f, 0x29, 0xd6, 0x00, 0xda,
-	0x1a, 0x16, 0x77, 0xb8, 0x12, 0x9c, 0xe2, 0x23, 0xbd, 0x82, 0x2d, 0x0d, 0x82, 0x7a, 0x04, 0xff,
-	0x5b, 0xa7, 0xd0, 0xe5, 0xb6, 0x53, 0xdc, 0x6c, 0xea, 0xfc, 0x08, 0x9d, 0x1c, 0xd2, 0xc0, 0xf3,
-	0x18, 0x58, 0x99, 0x37, 0x3c, 0xb9, 0xb3, 0x23, 0x61, 0x56, 0xdf, 0xb8, 0xc2, 0xe4, 0x0d, 0x1e,
-	0xdb, 0xa3, 0x58, 0x74, 0x06, 0x11, 0xe2, 0xc3, 0x18, 0xbd, 0x51, 0xe8, 0x96, 0x88, 0x31, 0xbf,
-	0xfa, 0x54, 0x63, 0x3b, 0xcf, 0xfe, 0x17, 0x00, 0x00, 0xff, 0xff, 0x71, 0xa2, 0xcd, 0x3c, 0x3e,
-	0x1b, 0x00, 0x00,
+	// 1944 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xb4, 0x59, 0x5f, 0x73, 0xdb, 0xc6,
+	0x11, 0x0f, 0x48, 0x89, 0x32, 0x97, 0x94, 0x2c, 0x9f, 0x65, 0x8a, 0xa6, 0xff, 0xc9, 0x90, 0xdb,
+	0x28, 0xcd, 0x84, 0x6a, 0x94, 0x36, 0x4d, 0x9b, 0xa6, 0x35, 0x4d, 0x7b, 0x18, 0x45, 0xb6, 0x46,
+	0x85, 0x32, 0xf6, 0x4c, 0x33, 0xd3, 0x29, 0x4c, 0x5c, 0x49, 0x8c, 0x40, 0x80, 0x01, 0x8e, 0x9a,
+	0xa2, 0x0f, 0xed, 0xb4, 0x6f, 0xf5, 0xf4, 0xa5, 0x8f, 0xfd, 0x08, 0xfd, 0x18, 0x7d, 0xed, 0x73,
+	0x3f, 0x50, 0xe7, 0xfe, 0xe0, 0x70, 0x07, 0x1c, 0x28, 0x95, 0xd3, 0xbc, 0xf1, 0x0e, 0xbb, 0xbf,
+	0xfd, 0x73, 0xbb, 0x7b, 0xbb, 0x47, 0x68, 0xba, 0x73, 0xbf, 0x3f, 0x8f, 0x23, 0x12, 0xa1, 0xba,
+	0x3b, 0xf7, 0x7b, 0xf7, 0x26, 0x51, 0x34, 0x09, 0xf0, 0x21, 0xdb, 0x7a, 0xbb, 0xf8, 0xdd, 0xe1,
+	0x8b, 0xd9, 0x9c, 0xa4, 0x9c, 0xc2, 0x7e, 0x08, 0x30, 0x5a, 0x84, 0xaf, 0x70, 0x92, 0xb8, 0x13,
+	0x8c, 0xb6, 0xa1, 0x3e, 0x59, 0x84, 0x5d, 0x6b, 0xcf, 0x3a, 0x68, 0x3a, 0xf4, 0xa7, 0xfd, 0xce,
+	0x82, 0x9d, 0x81, 0xe7, 0x3d, 0xc7, 0x01, 0x9e, 0xb8, 0xc4, 0x8f, 0x24, 0x29, 0x82, 0xb5, 0xd0,
+	0x9d, 0x61, 0x41, 0xcb, 0x7e, 0xa3, 0x4f, 0x61, 0xcb, 0x93, 0x84, 0x27, 0x38, 0x4d, 0xba, 0xb5,
+	0xbd, 0xfa, 0x41, 0xeb, 0x68, 0xab, 0x4f, 0x55, 0x3a, 0x5b, 0xbc, 0x0d, 0xfc, 0xf1, 0x09, 0x4e,
+	0x9d, 0x02, 0x15, 0xda, 0x81, 0xf5, 0xb9, 0x4b, 0xa6, 0x49, 0xb7, 0xbe, 0x57, 0x3f, 0x68, 0x3a,
+	0x7c, 0x91, 0x29, 0xb3, 0x96, 0x2b, 0xf3, 0x27, 0x78, 0xa4, 0xe9, 0xe2, 0x44, 0x01, 0x1e, 0x84,
+	0x1e, 0xc5, 0xf8, 0x2e, 0xd4, 0x12, 0x0a, 0xd4, 0x73, 0x05, 0xde, 0xc0, 0x5d, 0x4d, 0x81, 0x33,
+	0xaa, 0xe8, 0x32, 0xd1, 0xd2, 0xb2, 0x9a, 0xc1, 0x32, 0x05, 0x38, 0x85, 0x7d, 0x07, 0xcf, 0xa2,
+	0x4b, 0xfc, 0x5c, 0x53, 0x61, 0x10, 0x7a, 0x57, 0x8a, 0xe8, 0x40, 0xe3, 0x02, 0xa7, 0xc7, 0xcf,
+	0x33, 0x19, 0x62, 0x75, 0x6d, 0xa7, 0x0e, 0xe1, 0x5e, 0x51, 0x34, 0xf5, 0xeb, 0x32, 0x91, 0x02,
+	0xa4, 0x96, 0x83, 0xfc, 0x1a, 0xee, 0x17, 0x41, 0xfe, 0x6f, 0xbe, 0xf9, 0xa6, 0xac, 0xe0, 0x55,
+	0x27, 0x5e, 0xe5, 0x93, 0x32, 0xf8, 0x4f, 0xe0, 0x26, 0xb5, 0xf6, 0xd4, 0x9d, 0xa9, 0x16, 0xc7,
+	0x51, 0x20, 0x01, 0xe9, 0x6f, 0x83, 0xc5, 0x7f, 0x84, 0x6d, 0x27, 0x22, 0x2e, 0xc1, 0x27, 0x38,
+	0x5d, 0xc6, 0xf9, 0x03, 0xd8, 0x4e, 0x70, 0x7c, 0x89, 0xe3, 0x57, 0x6e, 0xe8, 0x4e, 0x70, 0x72,
+	0x82, 0x53, 0x06, 0x73, 0xc3, 0x29, 0xed, 0xa3, 0x2e, 0x6c, 0x5c, 0xe0, 0xf4, 0xa5, 0x9f, 0x10,
+	0x71, 0x68, 0xd9, 0xd2, 0x70, 0x6c, 0x7f, 0xb1, 0xa0, 0x75, 0x1c, 0xfa, 0x24, 0x93, 0xfd, 0x10,
+	0x20, 0x8e, 0x22, 0x72, 0xc2, 0xcd, 0xb6, 0x18, 0xbb, 0xb2, 0x83, 0x06, 0x80, 0x54, 0x79, 0x1e,
+	0xb5, 0x3a, 0x61, 0x9a, 0xb4, 0x8e, 0x6e, 0xb1, 0x44, 0xc8, 0xfc, 0x40, 0x05, 0x3a, 0x06, 0x62,
+	0x83, 0xf7, 0x9e, 0x40, 0x5b, 0xe5, 0xa2, 0x47, 0x1a, 0x33, 0x5c, 0x2e, 0x9f, 0x2f, 0xec, 0x2f,
+	0xe0, 0xb6, 0x4a, 0x95, 0x69, 0x6c, 0x24, 0x36, 0x78, 0xfa, 0xcf, 0x16, 0xec, 0x68, 0xba, 0xe1,
+	0x64, 0x1e, 0x85, 0x09, 0x46, 0x3f, 0x86, 0x76, 0xac, 0xec, 0x33, 0xb7, 0x1b, 0x8d, 0xd1, 0xc8,
+	0xa8, 0x97, 0x93, 0xc5, 0x78, 0x8c, 0x93, 0x44, 0x1c, 0x44, 0xb6, 0xa4, 0x5f, 0x66, 0x5c, 0x39,
+	0x61, 0x64, 0xb6, 0xb4, 0x8f, 0x00, 0xbe, 0x76, 0xe3, 0x09, 0x26, 0x14, 0xe5, 0x9a, 0x39, 0xf1,
+	0x6f, 0x0b, 0x1a, 0x9c, 0xa9, 0x5c, 0x57, 0x25, 0x44, 0x4d, 0x8f, 0xda, 0x00, 0x87, 0x13, 0x32,
+	0x65, 0xd2, 0xeb, 0x8e, 0x58, 0xa1, 0x43, 0x68, 0x4c, 0xdd, 0x64, 0x8a, 0x93, 0xee, 0x1a, 0xab,
+	0x5b, 0xbb, 0xcc, 0x42, 0x0e, 0xdd, 0xff, 0x92, 0x7d, 0x79, 0x11, 0x92, 0x38, 0x75, 0x04, 0x19,
+	0x05, 0x1a, 0x2f, 0x12, 0x12, 0xcd, 0xba, 0xeb, 0x7b, 0xd6, 0x41, 0xdb, 0x11, 0xab, 0xde, 0x4f,
+	0xa1, 0xa5, 0x90, 0x53, 0xad, 0x2e, 0x70, 0x9a, 0x69, 0x75, 0x81, 0x53, 0x7a, 0x24, 0x97, 0x6e,
+	0xb0, 0xe0, 0x6a, 0xb5, 0x1d, 0xbe, 0xf8, 0x59, 0xed, 0x33, 0xcb, 0x3e, 0x86, 0x2d, 0x2e, 0xf0,
+	0x8d, 0x4f, 0xa6, 0xd4, 0xb9, 0x68, 0x1f, 0x1a, 0x84, 0xed, 0x08, 0xbf, 0xb7, 0x14, 0xad, 0x1c,
+	0xf1, 0x49, 0x66, 0x44, 0x2d, 0xcf, 0x08, 0xfb, 0xaf, 0x16, 0x74, 0x74, 0x2c, 0x79, 0xa2, 0x9f,
+	0xc3, 0x16, 0xd1, 0xbe, 0x08, 0xec, 0xdb, 0x0a, 0xb6, 0x64, 0x2a, 0x90, 0xae, 0x74, 0xae, 0xa3,
+	0xa2, 0x2a, 0x32, 0x4a, 0x3e, 0x82, 0x0d, 0x8e, 0xcf, 0xe3, 0xb3, 0x42, 0x87, 0x8c, 0xc6, 0xfe,
+	0xa7, 0x05, 0x0f, 0xcd, 0x48, 0xd2, 0xb8, 0x73, 0xe8, 0x10, 0x23, 0x85, 0x30, 0xf2, 0x9e, 0x41,
+	0x80, 0x04, 0xa9, 0x60, 0x5d, 0xc9, 0xe8, 0x31, 0x20, 0x2e, 0xe5, 0x59, 0x4a, 0x71, 0x06, 0x63,
+	0x5a, 0x52, 0x8d, 0x41, 0xfd, 0x7e, 0x96, 0xa2, 0x95, 0x75, 0x42, 0xcf, 0x5a, 0xa5, 0x34, 0x7c,
+	0x0b, 0xcd, 0x73, 0x7f, 0x12, 0xba, 0x64, 0x11, 0xb3, 0x54, 0x67, 0x15, 0x58, 0x80, 0xf3, 0x05,
+	0x0d, 0xd3, 0x19, 0x26, 0xd3, 0xc8, 0x13, 0xe1, 0x21, 0x56, 0xe8, 0x3e, 0x34, 0x93, 0x8c, 0x95,
+	0x41, 0xb6, 0x9d, 0x7c, 0x83, 0xda, 0xe5, 0x27, 0xaf, 0xdd, 0xc0, 0xf7, 0x58, 0x39, 0xbc, 0xe1,
+	0x64, 0x4b, 0xfb, 0x57, 0xd0, 0x94, 0x97, 0x39, 0xda, 0x82, 0x9a, 0xef, 0x09, 0x79, 0x35, 0x9f,
+	0x81, 0xba, 0xc1, 0x24, 0x8a, 0x7d, 0x32, 0x9d, 0x09, 0x79, 0xf9, 0x06, 0x55, 0x65, 0xce, 0x58,
+	0x85, 0x3c, 0xb1, 0xb2, 0x23, 0xb8, 0x95, 0xf7, 0x07, 0xd9, 0x41, 0x7e, 0x9f, 0x11, 0x67, 0xa9,
+	0x53, 0xee, 0x23, 0xc4, 0xd7, 0x95, 0xce, 0xe6, 0x3f, 0x16, 0x6c, 0xe9, 0x17, 0x31, 0xfa, 0x18,
+	0xd6, 0x2e, 0x68, 0xd3, 0xc2, 0xc3, 0xf0, 0x01, 0x13, 0xa6, 0x93, 0xf4, 0xe9, 0x7d, 0xc8, 0x4b,
+	0x00, 0x23, 0x35, 0x56, 0x97, 0xfb, 0xd0, 0x24, 0xd3, 0x18, 0x27, 0xd3, 0x28, 0xf0, 0x98, 0xd4,
+	0x75, 0x27, 0xdf, 0xc8, 0x2f, 0xe3, 0x35, 0xe5, 0x32, 0xee, 0x8d, 0xa0, 0x29, 0xa1, 0x0d, 0xe5,
+	0xe2, 0x89, 0x5a, 0x2e, 0xca, 0x7e, 0x50, 0xca, 0xc7, 0xdf, 0x2c, 0x68, 0xf3, 0x98, 0xa3, 0x41,
+	0x81, 0x3d, 0xf4, 0xbe, 0x72, 0x55, 0x66, 0xb9, 0xa5, 0x1b, 0x25, 0xee, 0xcf, 0xbc, 0xcc, 0xd4,
+	0xaa, 0xcb, 0x4c, 0x1f, 0x40, 0x06, 0x08, 0x6f, 0x78, 0x32, 0x6d, 0x64, 0x0c, 0x3a, 0x0a, 0x85,
+	0xfd, 0x4b, 0xd8, 0x56, 0xb5, 0x61, 0x99, 0xf4, 0x61, 0x31, 0xe1, 0x6f, 0x29, 0x92, 0x38, 0x5d,
+	0x9e, 0xee, 0x7f, 0xb7, 0xa0, 0x5b, 0x44, 0x90, 0xf1, 0x31, 0x80, 0x6d, 0x52, 0xf8, 0x26, 0xec,
+	0xbc, 0x53, 0x82, 0x64, 0x8c, 0x25, 0xf2, 0x95, 0x42, 0x67, 0x08, 0x9b, 0xcf, 0xdc, 0xc4, 0x1f,
+	0x4b, 0x3d, 0x14, 0x10, 0xab, 0x12, 0xa4, 0xa6, 0x83, 0xfc, 0x1e, 0x1a, 0xc3, 0xa9, 0x1b, 0x4e,
+	0xd8, 0x6d, 0xe4, 0xb2, 0xca, 0x20, 0x4e, 0x5c, 0xac, 0x68, 0xa4, 0x24, 0xe3, 0x68, 0x9e, 0x71,
+	0xf2, 0x05, 0x8d, 0x38, 0x92, 0xce, 0x33, 0x9d, 0xd8, 0x6f, 0xba, 0x47, 0xc3, 0x48, 0x74, 0x2d,
+	0xec, 0x37, 0x95, 0x3c, 0x8e, 0x42, 0x82, 0x43, 0x22, 0xee, 0xa6, 0x6c, 0x69, 0x7f, 0x02, 0xc0,
+	0x25, 0x33, 0x07, 0x7c, 0x0f, 0x36, 0xc6, 0x6c, 0x95, 0x9d, 0x06, 0x3f, 0x77, 0x4e, 0xe1, 0x64,
+	0xdf, 0xec, 0x14, 0x50, 0xce, 0x24, 0x0d, 0x3f, 0x04, 0xe0, 0x04, 0x41, 0xee, 0xfa, 0x9b, 0x0a,
+	0x3f, 0x23, 0x56, 0x48, 0x56, 0x72, 0xf7, 0x53, 0xb8, 0xe1, 0x44, 0x11, 0x61, 0x29, 0x9a, 0xf7,
+	0x9b, 0x96, 0xd6, 0x6f, 0x6a, 0x39, 0x57, 0x2b, 0xe4, 0x9c, 0xfd, 0x0d, 0xac, 0x31, 0xee, 0x0f,
+	0xe0, 0x46, 0x2c, 0x90, 0x84, 0xb2, 0x9b, 0xa2, 0xd0, 0xf2, 0x4d, 0x47, 0x7e, 0x36, 0x26, 0xb6,
+	0xb1, 0xd1, 0xb7, 0x3f, 0xa4, 0xea, 0x05, 0xdc, 0x99, 0x8f, 0xd4, 0x4e, 0xab, 0x75, 0xd4, 0x94,
+	0x65, 0x3c, 0xeb, 0xd0, 0xbe, 0xa5, 0xcd, 0x6c, 0xa0, 0x3b, 0x91, 0x69, 0x15, 0xa8, 0x17, 0xd4,
+	0xa6, 0xe4, 0x63, 0x84, 0xf2, 0xf3, 0xaa, 0x97, 0x10, 0x45, 0xa2, 0x17, 0x9a, 0xcc, 0xd1, 0xa4,
+	0x90, 0xc8, 0xd6, 0x55, 0x89, 0x8c, 0x1e, 0x28, 0xfd, 0x85, 0x66, 0x18, 0x6f, 0x35, 0x5c, 0xe8,
+	0x94, 0x85, 0x30, 0x95, 0x47, 0x80, 0xe2, 0xd2, 0x17, 0x21, 0x70, 0x57, 0xc2, 0xe8, 0x9f, 0x1d,
+	0x03, 0x0b, 0xbb, 0xf8, 0xcd, 0x32, 0xd4, 0x8b, 0x3f, 0x36, 0x52, 0x68, 0x17, 0x7f, 0x05, 0x48,
+	0x05, 0xeb, 0x4a, 0x3e, 0xef, 0xc0, 0xce, 0x30, 0x4e, 0xe7, 0x24, 0x3a, 0xc7, 0xf1, 0xa5, 0x3f,
+	0xce, 0x26, 0x1e, 0x7b, 0x0a, 0x3d, 0x6d, 0x7f, 0x18, 0x63, 0x97, 0xc8, 0x79, 0xa8, 0xc7, 0x03,
+	0xe1, 0x34, 0x6f, 0x0e, 0xe4, 0xba, 0xdc, 0xf5, 0xea, 0xf7, 0x6c, 0xbd, 0x70, 0xcf, 0xda, 0xa7,
+	0xd0, 0x60, 0x55, 0x2e, 0xbe, 0xf6, 0x25, 0xaa, 0x35, 0x03, 0xe2, 0xde, 0x96, 0x1b, 0xf6, 0xbf,
+	0x2c, 0x80, 0xb3, 0xd8, 0xbf, 0xe4, 0x73, 0xd8, 0xea, 0xa0, 0xc5, 0x0e, 0x63, 0x1e, 0xfb, 0x97,
+	0x14, 0x86, 0x77, 0x03, 0xd9, 0x12, 0x1d, 0x42, 0x7b, 0xcc, 0x1d, 0xc5, 0x8c, 0x60, 0x95, 0x2d,
+	0x2b, 0x4d, 0x7c, 0xcb, 0xd1, 0x08, 0x90, 0x0d, 0xed, 0xc4, 0x9f, 0x0c, 0xa4, 0x43, 0xd6, 0x99,
+	0x01, 0xda, 0x9e, 0x3d, 0x2b, 0x78, 0x7f, 0xe0, 0x79, 0xca, 0x4c, 0xf9, 0xbf, 0x79, 0xff, 0x31,
+	0xbf, 0xa3, 0xeb, 0x4a, 0xc9, 0xcb, 0xdd, 0xc3, 0x2e, 0x6d, 0xfb, 0x1f, 0x16, 0x20, 0x65, 0x2f,
+	0x0b, 0xd2, 0x6b, 0x4d, 0xbd, 0xe8, 0x03, 0xdd, 0x35, 0x06, 0x19, 0xd2, 0x57, 0x4a, 0x80, 0xae,
+	0x55, 0x06, 0xe8, 0xba, 0x1e, 0xa0, 0x9f, 0x42, 0x9b, 0x8d, 0xab, 0xca, 0x88, 0x68, 0xe8, 0x1b,
+	0xcb, 0xa3, 0xd6, 0x6f, 0x01, 0xf1, 0x31, 0x57, 0xcb, 0xbb, 0xaa, 0xaa, 0xbc, 0x62, 0x5f, 0x76,
+	0x9f, 0x9e, 0xa9, 0x1f, 0x4e, 0xb8, 0xa4, 0xaf, 0x23, 0x36, 0x14, 0x4b, 0x61, 0x2f, 0x34, 0x61,
+	0xad, 0xa3, 0x8f, 0x64, 0x50, 0x54, 0xb1, 0xf4, 0xf9, 0xae, 0x18, 0xdd, 0x56, 0xd7, 0x8d, 0x8e,
+	0x75, 0x0a, 0xd4, 0x55, 0x63, 0x5d, 0x53, 0xed, 0xcb, 0x7e, 0x0e, 0x5b, 0xaf, 0x71, 0x9c, 0x28,
+	0xef, 0x7a, 0x5d, 0xd8, 0xb8, 0xe4, 0x3b, 0x0c, 0x61, 0xdd, 0xc9, 0x96, 0x65, 0xb7, 0x1f, 0xbd,
+	0xdb, 0x86, 0xc6, 0x69, 0x44, 0xdc, 0x38, 0x45, 0x3f, 0x02, 0x38, 0x0e, 0x7d, 0xe2, 0xbb, 0x81,
+	0xff, 0x07, 0x8c, 0xb6, 0x99, 0xf1, 0xca, 0xf3, 0x44, 0x0f, 0xb1, 0x1d, 0xad, 0x3f, 0xb1, 0xdf,
+	0x43, 0x3f, 0x84, 0x0d, 0x96, 0x9c, 0xc9, 0x14, 0xf1, 0x40, 0xca, 0xdf, 0x22, 0x2b, 0x38, 0xfa,
+	0xd0, 0x1c, 0x78, 0x9e, 0x18, 0xab, 0xd5, 0x5e, 0xb0, 0x82, 0xfe, 0x63, 0x68, 0xf3, 0xc7, 0xa3,
+	0xeb, 0xb3, 0x9c, 0x42, 0x8b, 0x86, 0x11, 0xa7, 0x49, 0x50, 0xb7, 0x34, 0xf4, 0x64, 0x1a, 0xee,
+	0x2f, 0x1b, 0xd8, 0x72, 0xbc, 0x63, 0xb8, 0x39, 0xc2, 0x44, 0x9d, 0xb8, 0x90, 0x3a, 0xc1, 0xab,
+	0x43, 0x58, 0xcf, 0x34, 0x03, 0x6a, 0xaa, 0xf5, 0x46, 0x98, 0x0c, 0x82, 0x80, 0x53, 0xbc, 0xc2,
+	0xc4, 0xf5, 0x5c, 0xe2, 0x0a, 0xd4, 0x9b, 0x0a, 0x33, 0xdd, 0xe8, 0x3d, 0x30, 0xb7, 0x9b, 0x39,
+	0xde, 0xe7, 0xb0, 0x39, 0xc2, 0x64, 0x98, 0x37, 0x42, 0xa5, 0x53, 0xd8, 0x2d, 0xb6, 0x4d, 0x39,
+	0xf3, 0x10, 0x9a, 0x6c, 0x87, 0x0d, 0x80, 0x25, 0xc6, 0xfd, 0x65, 0x97, 0x5a, 0x0e, 0xf2, 0x0b,
+	0x40, 0x23, 0x4c, 0xf4, 0xce, 0xdf, 0x80, 0x76, 0x47, 0x6f, 0x3d, 0x72, 0xfe, 0xa7, 0xb0, 0xa9,
+	0xbd, 0xc8, 0xa2, 0xbb, 0x8c, 0xd2, 0xf4, 0x64, 0x5d, 0x71, 0xdc, 0xaf, 0xa1, 0x5b, 0xf5, 0xa8,
+	0x8c, 0x9e, 0x94, 0xc1, 0xca, 0x6f, 0xce, 0x15, 0xb8, 0x5f, 0x01, 0x2a, 0xbf, 0x15, 0xa3, 0x87,
+	0x65, 0x44, 0xf5, 0xa1, 0xb4, 0x02, 0xeb, 0x37, 0xe5, 0xe7, 0x55, 0xf5, 0x79, 0x18, 0x1d, 0x70,
+	0xf7, 0x5c, 0xfd, 0x82, 0x5c, 0x19, 0xf2, 0x3b, 0xa6, 0x37, 0x60, 0xb4, 0x67, 0xc4, 0x55, 0x9e,
+	0x87, 0x2b, 0xf0, 0xce, 0xe0, 0x8e, 0xf1, 0x39, 0x18, 0x3d, 0x36, 0x02, 0xae, 0xa6, 0x21, 0x3b,
+	0xa1, 0xbd, 0x4a, 0xcb, 0x97, 0xe3, 0x3d, 0x83, 0x9d, 0x61, 0x80, 0xdd, 0xb8, 0xa8, 0xe0, 0x8e,
+	0x96, 0xed, 0xcb, 0x31, 0x9e, 0xc2, 0xc6, 0x1b, 0x9f, 0x84, 0xac, 0x38, 0x57, 0x16, 0x89, 0xbb,
+	0xe5, 0x37, 0x93, 0x1c, 0xe1, 0x33, 0x68, 0xca, 0x47, 0x64, 0x94, 0xc5, 0xb8, 0xfe, 0xa8, 0x5c,
+	0x21, 0xfb, 0x0b, 0xd8, 0xd4, 0x9a, 0x86, 0x72, 0xca, 0x70, 0xc1, 0xc6, 0x7e, 0x8f, 0x1e, 0xd0,
+	0x6d, 0x43, 0xc7, 0x87, 0x1e, 0x95, 0x79, 0xb4, 0x5e, 0xb0, 0xd7, 0x29, 0x34, 0x54, 0xb9, 0x42,
+	0x2f, 0x0b, 0x88, 0xbc, 0x8b, 0x31, 0x21, 0x6a, 0xfd, 0x4d, 0xe5, 0xf1, 0xe8, 0x68, 0x23, 0x4c,
+	0x28, 0x1a, 0x1f, 0xc9, 0xd5, 0x16, 0x61, 0x89, 0x46, 0x5f, 0x15, 0xfa, 0xaa, 0x11, 0x26, 0x4a,
+	0xab, 0x68, 0x80, 0xda, 0x2d, 0xf6, 0x32, 0x39, 0xd6, 0x00, 0x3a, 0x1a, 0x16, 0x0f, 0xb8, 0x0a,
+	0x1c, 0xb3, 0x49, 0x5f, 0xc2, 0x1d, 0x0d, 0x82, 0x86, 0x02, 0xff, 0xf7, 0xcb, 0x18, 0x72, 0xbb,
+	0x39, 0x6e, 0xb1, 0x66, 0x9e, 0x41, 0xb7, 0x84, 0x34, 0x08, 0x02, 0x06, 0x56, 0x0a, 0x83, 0xc7,
+	0x57, 0xf6, 0x21, 0xcc, 0xdd, 0xb7, 0xce, 0x31, 0x79, 0x89, 0x27, 0xee, 0x38, 0x15, 0xfd, 0x40,
+	0x82, 0xf8, 0xa3, 0x8c, 0xde, 0x1e, 0xf4, 0x3a, 0x7d, 0xfe, 0x6f, 0x62, 0x3f, 0xfb, 0x37, 0xb1,
+	0xcf, 0xfe, 0x4d, 0xb4, 0xdf, 0x7b, 0xdb, 0x60, 0x3b, 0x9f, 0xfc, 0x37, 0x00, 0x00, 0xff, 0xff,
+	0x5a, 0xe0, 0xd0, 0x0b, 0x7f, 0x1c, 0x00, 0x00,
 }

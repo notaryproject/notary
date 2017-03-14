@@ -8,10 +8,10 @@ import (
 	"github.com/spf13/viper"
 	"net"
 
+	"github.com/docker/notary/utils/grpcauth"
 	"google.golang.org/grpc"
 	ghealth "google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"github.com/docker/notary/utils/grpcauth"
 )
 
 func ViperConfig(path string) (*viper.Viper, error) {

@@ -1,8 +1,8 @@
 package api
 
 import (
-	"google.golang.org/grpc"
 	google_protobuf "github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/grpc"
 
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/client/changelist"
@@ -31,8 +31,8 @@ func (c *Client) Initialize(rootKeyIDs []string, serverManagedRoles ...data.Role
 	}
 
 	initMsg := &InitMessage{
-		RootKeyIDs: rootKeyIDs,
-		ServerManagedRoles: &RoleNameList{Roles:roles},
+		RootKeyIDs:         rootKeyIDs,
+		ServerManagedRoles: &RoleNameList{Roles: roles},
 	}
 	_, err := c.client.Initialize(context.Background(), initMsg)
 	return err
@@ -73,7 +73,7 @@ func (c *Client) ListTargets(roles ...data.RoleName) ([]*client.TargetWithRole, 
 		rolesList[index] = value.String()
 	}
 
-	targetWithRoleList, err := c.client.ListTargets(context.Background(), &RoleNameList{Roles:rolesList})
+	targetWithRoleList, err := c.client.ListTargets(context.Background(), &RoleNameList{Roles: rolesList})
 	if err != nil {
 		return []*client.TargetWithRole{}, err
 	}
@@ -86,7 +86,7 @@ func (c *Client) ListTargets(roles ...data.RoleName) ([]*client.TargetWithRole, 
 		r := target.Role
 
 		currTarget := client.Target{
-			Name: t.GetName(),
+			Name:   t.GetName(),
 			Hashes: data.Hashes(t.Hashes),
 			Length: t.GetLength(),
 		}
@@ -95,7 +95,7 @@ func (c *Client) ListTargets(roles ...data.RoleName) ([]*client.TargetWithRole, 
 
 		targetWithRole := &client.TargetWithRole{
 			Target: currTarget,
-			Role: currRole,
+			Role:   currRole,
 		}
 
 		res[index] = targetWithRole
@@ -111,8 +111,8 @@ func (c *Client) GetTargetByName(name string, roles ...data.RoleName) (*client.T
 	}
 
 	targetByNameAction := &TargetByNameAction{
-		Name: name,
-		Roles: &RoleNameList{Roles:rolesList},
+		Name:  name,
+		Roles: &RoleNameList{Roles: rolesList},
 	}
 
 	targetWithRole, err := c.client.GetTargetByName(context.Background(), targetByNameAction)
@@ -125,7 +125,7 @@ func (c *Client) GetTargetByName(name string, roles ...data.RoleName) (*client.T
 
 	res := &client.TargetWithRole{
 		Target: client.Target{
-			Name: target.GetName(),
+			Name:   target.GetName(),
 			Hashes: data.Hashes(target.Hashes),
 			Length: target.GetLength(),
 		},
@@ -153,9 +153,8 @@ func (c *Client) GetAllTargetMetadataByName(name string) ([]client.TargetSignedS
 		s := value.Signatures
 		t := value.Target
 
-
 		currTarget := client.Target{
-			Name: t.Name,
+			Name:   t.Name,
 			Hashes: t.Hashes,
 			Length: t.Length,
 		}
@@ -164,9 +163,9 @@ func (c *Client) GetAllTargetMetadataByName(name string) ([]client.TargetSignedS
 		for indexS, sig := range s {
 			currSignature := data.Signature{
 				Signature: sig.Signature,
-				KeyID: sig.KeyID,
-				IsValid: sig.IsValid,
-				Method: data.SigAlgorithm(sig.Method),
+				KeyID:     sig.KeyID,
+				IsValid:   sig.IsValid,
+				Method:    data.SigAlgorithm(sig.Method),
 			}
 
 			currSignatures[indexS] = currSignature
@@ -179,16 +178,16 @@ func (c *Client) GetAllTargetMetadataByName(name string) ([]client.TargetSignedS
 
 		currRole := data.DelegationRole{
 			BaseRole: data.BaseRole{
-				Keys: currKeys,
-				Name: data.RoleName(r.Name),
+				Keys:      currKeys,
+				Name:      data.RoleName(r.Name),
 				Threshold: int(r.Threshold), // FIXME
 			},
 			Paths: r.Paths,
 		}
 
 		res[indexT] = client.TargetSignedStruct{
-			Role: currRole,
-			Target: currTarget,
+			Role:       currRole,
+			Target:     currTarget,
 			Signatures: currSignatures,
 		}
 	}
@@ -231,9 +230,9 @@ func (c *Client) ListRoles() ([]client.RoleWithSignatures, error) {
 		for indexSig, sig := range value.Signatures {
 			currSignature := data.Signature{
 				Signature: sig.Signature,
-				KeyID: sig.KeyID,
-				IsValid: sig.IsValid,
-				Method: data.SigAlgorithm(sig.Method),
+				KeyID:     sig.KeyID,
+				IsValid:   sig.IsValid,
+				Method:    data.SigAlgorithm(sig.Method),
 			}
 
 			currSignatures[indexSig] = currSignature
@@ -241,16 +240,16 @@ func (c *Client) ListRoles() ([]client.RoleWithSignatures, error) {
 
 		currRole := data.Role{
 			RootRole: data.RootRole{
-				KeyIDs: r.RootRole.KeyIDs,
+				KeyIDs:    r.RootRole.KeyIDs,
 				Threshold: int(r.RootRole.Threshold), // FIXME
 			},
-			Name: data.RoleName(r.Name),
+			Name:  data.RoleName(r.Name),
 			Paths: r.Paths,
 		}
 
 		res[index] = client.RoleWithSignatures{
 			Signatures: currSignatures,
-			Role: currRole,
+			Role:       currRole,
 		}
 	}
 
@@ -267,10 +266,10 @@ func (c *Client) GetDelegationRoles() ([]data.Role, error) {
 	for index, role := range roleListResp.RoleList.Roles {
 		currRole := data.Role{
 			RootRole: data.RootRole{
-				KeyIDs: role.RootRole.KeyIDs,
+				KeyIDs:    role.RootRole.KeyIDs,
 				Threshold: int(role.RootRole.Threshold),
 			},
-			Name: data.RoleName(role.Name),
+			Name:  data.RoleName(role.Name),
 			Paths: role.Paths,
 		}
 
@@ -284,16 +283,16 @@ func (c *Client) AddDelegation(name data.RoleName, delegationKeys []data.PublicK
 	currDelegationKeys := make([]*PublicKey, len(delegationKeys))
 	for index, key := range delegationKeys {
 		currDelegationKeys[index] = &PublicKey{
-			Id: key.ID(),
+			Id:        key.ID(),
 			Algorithm: key.Algorithm(),
-			Public: key.Public(),
+			Public:    key.Public(),
 		}
 	}
 
 	addDelegationMessage := &AddDelegationMessage{
-		Name: name.String(),
+		Name:           name.String(),
 		DelegationKeys: currDelegationKeys,
-		Paths: paths,
+		Paths:          paths,
 	}
 
 	_, err := c.client.AddDelegation(context.Background(), addDelegationMessage)
@@ -304,14 +303,14 @@ func (c *Client) AddDelegationRoleAndKeys(name data.RoleName, delegationKeys []d
 	pubKeys := make([]*PublicKey, len(delegationKeys))
 	for index, delegationKey := range delegationKeys {
 		pubKeys[index] = &PublicKey{
-			Id: delegationKey.ID(),
+			Id:        delegationKey.ID(),
 			Algorithm: delegationKey.Algorithm(),
-			Public: delegationKey.Public(),
+			Public:    delegationKey.Public(),
 		}
 	}
 
 	addDelegationRoleAndKeysMessage := &AddDelegationRoleAndKeysMessage{
-		Name: name.String(),
+		Name:           name.String(),
 		DelegationKeys: pubKeys,
 	}
 
@@ -321,7 +320,7 @@ func (c *Client) AddDelegationRoleAndKeys(name data.RoleName, delegationKeys []d
 
 func (c *Client) AddDelegationPaths(name data.RoleName, paths []string) error {
 	addDelegationPathsMessage := &AddDelegationPathsMessage{
-		Name: name.String(),
+		Name:  name.String(),
 		Paths: paths,
 	}
 
@@ -331,9 +330,9 @@ func (c *Client) AddDelegationPaths(name data.RoleName, paths []string) error {
 
 func (c *Client) RemoveDelegationKeysAndPaths(name data.RoleName, keyIDs, paths []string) error {
 	r := &RemoveDelegationKeysAndPathsMessage{
-		Name: name.String(),
+		Name:   name.String(),
 		KeyIDs: keyIDs,
-		Paths: paths,
+		Paths:  paths,
 	}
 
 	_, err := c.client.RemoveDelegationKeysAndPaths(context.Background(), r)
@@ -351,7 +350,7 @@ func (c *Client) RemoveDelegationRole(name data.RoleName) error {
 
 func (c *Client) RemoveDelegationPaths(name data.RoleName, paths []string) error {
 	r := &RemoveDelegationPathsMessage{
-		Name: name.String(),
+		Name:  name.String(),
 		Paths: paths,
 	}
 
@@ -361,7 +360,7 @@ func (c *Client) RemoveDelegationPaths(name data.RoleName, paths []string) error
 
 func (c *Client) RemoveDelegationKeys(name data.RoleName, keyIDs []string) error {
 	r := &RemoveDelegationKeysMessage{
-		Name: name.String(),
+		Name:   name.String(),
 		KeyIDs: keyIDs,
 	}
 
@@ -405,9 +404,9 @@ func (c *Client) Witness(roles ...data.RoleName) ([]data.RoleName, error) {
 
 func (c *Client) RotateKey(role data.RoleName, serverManagesKey bool, keyList []string) error {
 	rotateKeyMessage := &RotateKeyMessage{
-		Role: role.String(),
+		Role:             role.String(),
 		ServerManagesKey: serverManagesKey,
-		KeyList: keyList,
+		KeyList:          keyList,
 	}
 	_, err := c.client.RotateKey(context.Background(), rotateKeyMessage)
 	return err

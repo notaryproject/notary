@@ -4,9 +4,9 @@ import (
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
+	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/docker/notary"
 	"github.com/docker/notary/client"
@@ -108,7 +108,6 @@ func (srv *Server) ListRoles(context.Context, *google_protobuf.Empty) (*RoleWith
 	return nil, ErrNotImplemented
 }
 
-
 func (srv *Server) GetDelegationRoles(context.Context, *google_protobuf.Empty) (*RoleListResponse, error) {
 	return nil, ErrNotImplemented
 }
@@ -145,7 +144,6 @@ func (srv *Server) ClearDelegationPaths(context.Context, *RoleNameMessage) (*Bas
 	return nil, ErrNotImplemented
 }
 
-
 func (srv *Server) Witness(context.Context, *RoleNameList) (*RoleNameListResponse, error) {
 	return nil, ErrNotImplemented
 }
@@ -154,18 +152,42 @@ func (srv *Server) RotateKey(context.Context, *RotateKeyMessage) (*BasicResponse
 	return nil, ErrNotImplemented
 }
 
-
 // CryptoService implementation
-func (srv *Server) CryptoService(context.Context, *google_protobuf.Empty) (*CryptoServiceMessage, error)
-func (srv *Server) CryptoServiceCreate(context.Context, *CryptoServiceCreateMessage) (*PublicKeyResponse, error)
-func (srv *Server) CryptoServiceAddKey(context.Context, *CryptoServiceAddKeyMessage) (*BasicResponse, error)
-func (srv *Server) CryptoServiceGetKey(context.Context, *KeyIDMessage) (*PublicKeyResponse, error)
-func (srv *Server) CryptoServiceGetPrivateKey(context.Context, *KeyIDMessage) (*PrivateKeyResponse, error)
-func (srv *Server) CryptoServiceRemoveKey(context.Context, *KeyIDMessage) (*BasicResponse, error)
-func (srv *Server) CryptoServiceListKeys(context.Context, *RoleNameMessage) (*KeyIDsListResponse, error)
-func (srv *Server) CryptoServiceListAllKeys(context.Context, *google_protobuf.Empty) (*SigningKeyIDsToRolesResponse, error)
+func (srv *Server) CryptoService(context.Context, *google_protobuf.Empty) (*CryptoServiceMessage, error) {
+	return nil, ErrNotImplemented
+}
 
-SetLegacyVersions(context.Context, *VersionMessage) (*google_protobuf.Empty, error)
+func (srv *Server) CryptoServiceCreate(context.Context, *CryptoServiceCreateMessage) (*PublicKeyResponse, error) {
+	return nil, ErrNotImplemented
+}
+
+func (srv *Server) CryptoServiceAddKey(context.Context, *CryptoServiceAddKeyMessage) (*BasicResponse, error) {
+	return nil, ErrNotImplemented
+}
+
+func (srv *Server) CryptoServiceGetKey(context.Context, *KeyIDMessage) (*PublicKeyResponse, error) {
+	return nil, ErrNotImplemented
+}
+
+func (srv *Server) CryptoServiceGetPrivateKey(context.Context, *KeyIDMessage) (*PrivateKeyResponse, error) {
+	return nil, ErrNotImplemented
+}
+
+func (srv *Server) CryptoServiceRemoveKey(context.Context, *KeyIDMessage) (*BasicResponse, error) {
+	return nil, ErrNotImplemented
+}
+
+func (srv *Server) CryptoServiceListKeys(context.Context, *RoleNameMessage) (*KeyIDsListResponse, error) {
+	return nil, ErrNotImplemented
+}
+
+func (srv *Server) CryptoServiceListAllKeys(context.Context, *google_protobuf.Empty) (*SigningKeyIDsToRolesResponse, error) {
+	return nil, ErrNotImplemented
+}
+
+func (srv *Server) SetLegacyVersions(context.Context, *VersionMessage) (*google_protobuf.Empty, error) {
+	return nil, ErrNotImplemented
+}
 
 func publishRepo(r *client.NotaryRepository) error {
 	if err := r.Publish(); err != nil {
@@ -244,7 +266,7 @@ func retriever(keyName, alias string, createNew bool, attempts int) (string, boo
 
 func DefaultPermissions() map[string][]string {
 	return map[string][]string{
-		"/api.Notary/AddTarget": {"push", "pull"},
+		"/api.Notary/AddTarget":    {"push", "pull"},
 		"/api.Notary/RemoveTarget": {"push", "pull"},
 	}
 }
