@@ -1,7 +1,6 @@
 package api
 
 import (
-	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
 	"github.com/docker/notary/client"
@@ -33,13 +32,14 @@ func (c *Client) Initialize(rootKeyIDs []string, serverManagedRoles ...data.Role
 	initMsg := &InitMessage{
 		RootKeyIDs:         rootKeyIDs,
 		ServerManagedRoles: &RoleNameList{Roles: roles},
+		Gun: c.gun.String(),
 	}
 	_, err := c.client.Initialize(context.Background(), initMsg)
 	return err
 }
 
 func (c *Client) Publish() error {
-	_, err := c.client.Publish(context.Background(), &google_protobuf.Empty{})
+	_, err := c.client.Publish(context.Background(), &GunMessage{Gun: c.gun.String()})
 	return err
 }
 
@@ -73,7 +73,7 @@ func (c *Client) ListTargets(roles ...data.RoleName) ([]*client.TargetWithRole, 
 		rolesList[index] = value.String()
 	}
 
-	targetWithRoleList, err := c.client.ListTargets(context.Background(), &RoleNameList{Roles: rolesList})
+	targetWithRoleList, err := c.client.ListTargets(context.Background(), &RoleNameListMessage{Roles: rolesList, Gun: c.gun.String()})
 	if err != nil {
 		return []*client.TargetWithRole{}, err
 	}
@@ -113,6 +113,7 @@ func (c *Client) GetTargetByName(name string, roles ...data.RoleName) (*client.T
 	targetByNameAction := &TargetByNameAction{
 		Name:  name,
 		Roles: &RoleNameList{Roles: rolesList},
+		Gun: c.gun.String(),
 	}
 
 	targetWithRole, err := c.client.GetTargetByName(context.Background(), targetByNameAction)
@@ -136,8 +137,9 @@ func (c *Client) GetTargetByName(name string, roles ...data.RoleName) (*client.T
 }
 
 func (c *Client) GetAllTargetMetadataByName(name string) ([]client.TargetSignedStruct, error) {
-	targetName := &TargetName{
+	targetName := &TargetNameMessage{
 		Name: name,
+		Gun: c.gun.String(),
 	}
 
 	targetSignedListResponse, err := c.client.GetAllTargetMetadataByName(context.Background(), targetName)
@@ -196,7 +198,7 @@ func (c *Client) GetAllTargetMetadataByName(name string) ([]client.TargetSignedS
 }
 
 func (c *Client) GetChangelist() (changelist.Changelist, error) {
-	changes, err := c.client.GetChangelist(context.Background(), &google_protobuf.Empty{})
+	changes, err := c.client.GetChangelist(context.Background(), &GunMessage{Gun: c.gun.String()})
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +216,7 @@ func (c *Client) GetChangelist() (changelist.Changelist, error) {
 }
 
 func (c *Client) ListRoles() ([]client.RoleWithSignatures, error) {
-	roleWithSigsListResp, err := c.client.ListRoles(context.Background(), &google_protobuf.Empty{})
+	roleWithSigsListResp, err := c.client.ListRoles(context.Background(), &GunMessage{c.gun.String()})
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +259,7 @@ func (c *Client) ListRoles() ([]client.RoleWithSignatures, error) {
 }
 
 func (c *Client) GetDelegationRoles() ([]data.Role, error) {
-	roleListResp, err := c.client.GetDelegationRoles(context.Background(), &google_protobuf.Empty{})
+	roleListResp, err := c.client.GetDelegationRoles(context.Background(), &GunMessage{c.gun.String()})
 	if err != nil {
 		return nil, err
 	}
@@ -293,6 +295,7 @@ func (c *Client) AddDelegation(name data.RoleName, delegationKeys []data.PublicK
 		Name:           name.String(),
 		DelegationKeys: currDelegationKeys,
 		Paths:          paths,
+		Gun: c.gun.String(),
 	}
 
 	_, err := c.client.AddDelegation(context.Background(), addDelegationMessage)
@@ -312,6 +315,7 @@ func (c *Client) AddDelegationRoleAndKeys(name data.RoleName, delegationKeys []d
 	addDelegationRoleAndKeysMessage := &AddDelegationRoleAndKeysMessage{
 		Name:           name.String(),
 		DelegationKeys: pubKeys,
+		Gun: c.gun.String(),
 	}
 
 	_, err := c.client.AddDelegationRoleAndKeys(context.Background(), addDelegationRoleAndKeysMessage)
@@ -322,6 +326,7 @@ func (c *Client) AddDelegationPaths(name data.RoleName, paths []string) error {
 	addDelegationPathsMessage := &AddDelegationPathsMessage{
 		Name:  name.String(),
 		Paths: paths,
+		Gun: c.gun.String(),
 	}
 
 	_, err := c.client.AddDelegationPaths(context.Background(), addDelegationPathsMessage)
@@ -333,6 +338,7 @@ func (c *Client) RemoveDelegationKeysAndPaths(name data.RoleName, keyIDs, paths 
 		Name:   name.String(),
 		KeyIDs: keyIDs,
 		Paths:  paths,
+		Gun: c.gun.String(),
 	}
 
 	_, err := c.client.RemoveDelegationKeysAndPaths(context.Background(), r)
@@ -342,6 +348,7 @@ func (c *Client) RemoveDelegationKeysAndPaths(name data.RoleName, keyIDs, paths 
 func (c *Client) RemoveDelegationRole(name data.RoleName) error {
 	r := &RemoveDelegationRoleMessage{
 		Name: name.String(),
+		Gun: c.gun.String(),
 	}
 
 	_, err := c.client.RemoveDelegationRole(context.Background(), r)
@@ -352,6 +359,7 @@ func (c *Client) RemoveDelegationPaths(name data.RoleName, paths []string) error
 	r := &RemoveDelegationPathsMessage{
 		Name:  name.String(),
 		Paths: paths,
+		Gun: c.gun.String(),
 	}
 
 	_, err := c.client.RemoveDelegationPaths(context.Background(), r)
@@ -362,6 +370,7 @@ func (c *Client) RemoveDelegationKeys(name data.RoleName, keyIDs []string) error
 	r := &RemoveDelegationKeysMessage{
 		Name:   name.String(),
 		KeyIDs: keyIDs,
+		Gun: c.gun.String(),
 	}
 
 	_, err := c.client.RemoveDelegationKeys(context.Background(), r)
@@ -371,6 +380,7 @@ func (c *Client) RemoveDelegationKeys(name data.RoleName, keyIDs []string) error
 func (c *Client) ClearDelegationPaths(name data.RoleName) error {
 	r := &RoleNameMessage{
 		Role: name.String(),
+		Gun: c.gun.String(),
 	}
 
 	_, err := c.client.ClearDelegationPaths(context.Background(), r)
@@ -383,8 +393,9 @@ func (c *Client) Witness(roles ...data.RoleName) ([]data.RoleName, error) {
 		roleNames[index] = roleName.String()
 	}
 
-	roleNameList := &RoleNameList{
+	roleNameList := &RoleNameListMessage{
 		Roles: roleNames,
+		Gun: c.gun.String(),
 	}
 
 	roleNameListResponse, err := c.client.Witness(context.Background(), roleNameList)
@@ -407,6 +418,7 @@ func (c *Client) RotateKey(role data.RoleName, serverManagesKey bool, keyList []
 		Role:             role.String(),
 		ServerManagesKey: serverManagesKey,
 		KeyList:          keyList,
+		Gun: c.gun.String(),
 	}
 	_, err := c.client.RotateKey(context.Background(), rotateKeyMessage)
 	return err
@@ -475,15 +487,6 @@ func (cs *CryptoService) ListKeys(role data.RoleName) []string {
 // ListAllKeys returns a map of all available signing key IDs to role, or
 // an empty map or nil if there are no keys.
 func (cs *CryptoService) ListAllKeys() map[string]data.RoleName {
-	keyIDsToRoles, err := cs.client.CryptoServiceListAllKeys(context.Background(), &google_protobuf.Empty{})
-	if err != nil {
-		return nil
-	}
-
-	res := make(map[string]data.RoleName, len(keyIDsToRoles.KeyIDs))
-	for key, role := range keyIDsToRoles.KeyIDs {
-		res[key] = data.RoleName(role)
-	}
-
-	return res
+	keyIDsToRoles := cs.ListAllKeys()
+	return keyIDsToRoles
 }
