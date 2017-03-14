@@ -36,11 +36,40 @@ type Server struct {
 }
 
 func (srv *Server) Initialize(ctx context.Context, initMessage *InitMessage) (*BasicResponse, error) {
-	return nil, ErrNotImplemented
+	r, err := srv.initRepo(data.GUN(initMessage.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	roles := make([]data.RoleName, len(initMessage.ServerManagedRoles.Roles))
+	for index, role := range initMessage.ServerManagedRoles.Roles {
+		roles[index] = data.RoleName(role)
+	}
+
+	err = r.Initialize(initMessage.RootKeyIDs, roles...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicResponse{
+		Success: true,
+	}, nil
 }
 
-func (srv *Server) Publish(ctx context.Context, empty *google_protobuf.Empty) (*BasicResponse, error) {
-	return nil, ErrNotImplemented
+func (srv *Server) Publish(ctx context.Context, gun *GunMessage) (*BasicResponse, error) {
+	r, err := srv.initRepo(data.GUN(gun.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.Publish()
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicResponse{
+		Success: true,
+	}, nil
 }
 
 func (srv *Server) AddTarget(ctx context.Context, t *Target) (*BasicResponse, error) {
@@ -85,7 +114,45 @@ func (srv *Server) RemoveTarget(ctx context.Context, t *Target) (*BasicResponse,
 	}, nil
 }
 
-func (srv *Server) ListTargets(context.Context, *RoleNameList) (*TargetWithRoleNameListResponse, error) {
+func (srv *Server) ListTargets(ctx context.Context, message *RoleNameListMessage) (*TargetWithRoleNameListResponse, error) {
+	r, err := srv.initRepo(data.GUN(message.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	roles := make([]data.RoleName, len(message.Roles))
+	for index, role := range message.Roles {
+		roles[index] = data.RoleName(role)
+	}
+
+	targets, err := r.ListTargets(roles...)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]*TargetWithRole, len(targets))
+	for index, target := range targets {
+		res[index] = &TargetWithRole{
+			Target: &Target{
+				Gun: message.Gun,
+				Name: target.Name,
+				Length: target.Length,
+				Hashes: target.Hashes,
+
+			},
+			Role: target.Role.String()
+		}
+	}
+
+	return &TargetWithRoleNameListResponse{
+		TargetWithRoleNameList: &TargetWithRoleNameList{
+			Targets: targets,
+		},
+		Success: true,
+	}, nil
+
+
+
 	return nil, ErrNotImplemented
 }
 
@@ -95,7 +162,7 @@ func (srv *Server) GetTargetByName(context.Context, *TargetByNameAction) (*Targe
 }
 
 // GetAllTargetMetadataByName
-func (srv *Server) GetAllTargetMetadataByName(context.Context, *TargetName) (*TargetSignedListResponse, error) {
+func (srv *Server) GetAllTargetMetadataByName(context.Context, *TargetNameMessage) (*TargetSignedListResponse, error) {
 	return nil, ErrNotImplemented
 }
 
