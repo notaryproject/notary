@@ -11,12 +11,12 @@ import (
 )
 
 func TestServerAuthorizer(t *testing.T) {
-	tok, err := token.NewAuth("testRealm", "testIssuer", "service", "../../fixtures/root-ca.crt")
+	tok, err := token.NewAuth("https://auth.docker.io/token", "auth.docker.io", "registry.docker.io", "../../fixtures/root-ca.crt")
 	require.NoError(t, err)
 	auth, err := NewServerAuthorizer(
 		tok,
 		map[string][]string{
-			"/api.Notary/AddTarget": {"push", "pull"},
+			"/api.Notary/AddTarget": {"push"},
 		},
 	)
 	require.NoError(t, err)
@@ -35,7 +35,7 @@ func TestServerAuthorizer(t *testing.T) {
 		grpc.WithUnaryInterceptor(NewClientAuthorizer()),
 	)
 	require.NoError(t, err)
-	c := api.NewClient(conn, "testRepo")
+	c := api.NewClient(conn, "endophage/carrot")
 	err = c.AddTarget(
 		&client.Target{},
 		"targets",

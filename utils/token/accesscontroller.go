@@ -111,7 +111,7 @@ func (ac authChallenge) challengeParams() string {
 // SetChallenge sets the WWW-Authenticate value for the response.
 func (ac authChallenge) Headers() map[string][]string {
 	return map[string][]string{
-		"authenticate": {ac.challengeParams()},
+		"www-authenticate": {ac.challengeParams()},
 	}
 }
 
