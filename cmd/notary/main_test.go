@@ -260,11 +260,11 @@ type recordingMetaStore struct {
 
 // GetCurrent gets the metadata from the underlying MetaStore, but also records
 // that the metadata was requested
-func (r *recordingMetaStore) GetCurrent(gun data.GUN, role data.RoleName, channels ...storage.Channel) (*time.Time, []byte, error) {
+func (r *recordingMetaStore) GetCurrent(gun data.GUN, role data.RoleName, channels ...*storage.Channel) (*time.Time, []byte, error) {
 	var channelBuf bytes.Buffer
 
 	if len(channels) == 0 {
-		channels = []storage.Channel{storage.Published}
+		channels = []*storage.Channel{&storage.Published}
 	}
 	for _, channel := range channels {
 		channelBuf.WriteString(channel.Name)
@@ -275,10 +275,10 @@ func (r *recordingMetaStore) GetCurrent(gun data.GUN, role data.RoleName, channe
 
 // GetChecksum gets the metadata from the underlying MetaStore, but also records
 // that the metadata was requested
-func (r *recordingMetaStore) GetChecksum(gun data.GUN, role data.RoleName, checksum string, channels ...storage.Channel) (*time.Time, []byte, error) {
+func (r *recordingMetaStore) GetChecksum(gun data.GUN, role data.RoleName, checksum string, channels ...*storage.Channel) (*time.Time, []byte, error) {
 	var channelBuf bytes.Buffer
 	if len(channels) == 0 {
-		channels = []storage.Channel{storage.Published}
+		channels = []*storage.Channel{&storage.Published}
 	}
 	for _, channel := range channels {
 		channelBuf.WriteString(channel.Name)

@@ -46,15 +46,15 @@ func translateOldVersionError(err error) error {
 }
 
 // TufFilesInChannels scopes gorm queries to a particular channel or set of channels
-func TufFilesInChannels(defaultChannel *Channel, channels ...Channel) func(db *gorm.DB) *gorm.DB {
+func TufFilesInChannels(channels ...*Channel) func(db *gorm.DB) *gorm.DB {
 	channelIDs := []uint{}
 	for _, channel := range channels {
 		channelIDs = append(channelIDs, channel.ID)
 	}
 
-	// If no channels were added, use the default channel if provided
-	if len(channelIDs) == 0 && defaultChannel != nil {
-		channelIDs = []uint{defaultChannel.ID}
+	// If no channels were added, check Published
+	if len(channelIDs) == 0 {
+		channelIDs = []uint{Published.ID}
 	}
 
 	// If only one channel is provided, we don't need to group/collect
@@ -75,15 +75,12 @@ func TufFilesInChannels(defaultChannel *Channel, channels ...Channel) func(db *g
 
 // UpdateCurrent updates a single TUF.
 func (db *SQLStorage) UpdateCurrent(gun data.GUN, update MetaUpdate) error {
-	if update.Channel == nil {
-		update.Channel = &Published
-	}
-
+	setDefaultChannels(&update)
 	// ensure we're not inserting an immediately old version - can't use the
 	// struct, because that only works with non-zero values, and Version
 	// can be 0.
 
-	exists := db.Scopes(TufFilesInChannels(update.Channel)).
+	exists := db.Scopes(TufFilesInChannels(update.Channels...)).
 		Where("gun = ? and role = ? and version >= ?", gun.String(), update.Role.String(), update.Version).
 		First(&TUFFile{})
 
@@ -114,13 +111,13 @@ func (db *SQLStorage) UpdateCurrent(gun data.GUN, update MetaUpdate) error {
 		}
 
 		// The Channel is added separately from the TUFFile record to prevent gorm from issuing an Update
-		if err = tx.Model(&tufFile).Association("Channels").Append([]*Channel{update.Channel}).Error; err != nil {
+		if err = tx.Model(&tufFile).Association("Channels").Append(update.Channels).Error; err != nil {
 			return err
 		}
 
 		// If we're publishing a timestamp in the published channel, update the changefeed as this is
 		// technically an new version of the TUF repo
-		if update.Role == data.CanonicalTimestampRole && update.Channel.ID == Published.ID {
+		if update.Role == data.CanonicalTimestampRole && IsPublished(update.Channels) {
 			if err := db.writeChangefeed(tx, gun, update.Version, hexChecksum); err != nil {
 				return err
 			}
@@ -179,18 +176,16 @@ func (db *SQLStorage) UpdateMany(gun data.GUN, updates []MetaUpdate) error {
 			checksum := sha256.Sum256(update.Data)
 			hexChecksum := hex.EncodeToString(checksum[:])
 
-			if update.Channel == nil {
-				update.Channel = &Published
-			}
+			setDefaultChannels(&update)
 
-			query = tx.Scopes(TufFilesInChannels(update.Channel)).
+			query = tx.Scopes(TufFilesInChannels(update.Channels...)).
 				Where(map[string]interface{}{
 					"gun":     gun.String(),
 					"role":    update.Role.String(),
 					"version": update.Version,
 				}).Attrs("data", update.Data).Attrs("sha256", hexChecksum).FirstOrCreate(&row)
 
-			tx.Model(&row).Association("Channels").Append(update.Channel)
+			tx.Model(&row).Association("Channels").Append(update.Channels)
 
 			if query.Error != nil {
 				return translateOldVersionError(query.Error)
@@ -200,7 +195,7 @@ func (db *SQLStorage) UpdateMany(gun data.GUN, updates []MetaUpdate) error {
 			if _, ok := added[row.ID]; ok {
 				return ErrOldVersion{}
 			}
-			if update.Role == data.CanonicalTimestampRole && update.Channel.ID == Published.ID {
+			if update.Role == data.CanonicalTimestampRole && IsPublished(update.Channels) {
 				if err := db.writeChangefeed(tx, gun, update.Version, hexChecksum); err != nil {
 					return err
 				}
@@ -225,9 +220,9 @@ func (db *SQLStorage) writeChangefeed(tx *gorm.DB, gun data.GUN, version int, ch
 }
 
 // GetCurrent gets a specific TUF record
-func (db *SQLStorage) GetCurrent(gun data.GUN, tufRole data.RoleName, channels ...Channel) (*time.Time, []byte, error) {
+func (db *SQLStorage) GetCurrent(gun data.GUN, tufRole data.RoleName, channels ...*Channel) (*time.Time, []byte, error) {
 	var row TUFFile
-	q := db.Select("tuf_files.updated_at, data").Scopes(TufFilesInChannels(&Published, channels...)).
+	q := db.Select("tuf_files.updated_at, data").Scopes(TufFilesInChannels(channels...)).
 		Where(&TUFFile{
 			Gun:  gun.String(),
 			Role: tufRole.String(),
@@ -240,9 +235,9 @@ func (db *SQLStorage) GetCurrent(gun data.GUN, tufRole data.RoleName, channels .
 }
 
 // GetChecksum gets a specific TUF record by its hex checksum
-func (db *SQLStorage) GetChecksum(gun data.GUN, tufRole data.RoleName, checksum string, channels ...Channel) (*time.Time, []byte, error) {
+func (db *SQLStorage) GetChecksum(gun data.GUN, tufRole data.RoleName, checksum string, channels ...*Channel) (*time.Time, []byte, error) {
 	var row TUFFile
-	q := db.Select("tuf_files.created_at, data").Scopes(TufFilesInChannels(&Published, channels...)).
+	q := db.Select("tuf_files.created_at, data").Scopes(TufFilesInChannels(channels...)).
 		Where(&TUFFile{
 			Gun:    gun.String(),
 			Role:   tufRole.String(),
@@ -257,9 +252,9 @@ func (db *SQLStorage) GetChecksum(gun data.GUN, tufRole data.RoleName, checksum 
 }
 
 // GetVersion gets a specific TUF record by its version
-func (db *SQLStorage) GetVersion(gun data.GUN, tufRole data.RoleName, version int, channels ...Channel) (*time.Time, []byte, error) {
+func (db *SQLStorage) GetVersion(gun data.GUN, tufRole data.RoleName, version int, channels ...*Channel) (*time.Time, []byte, error) {
 	var row TUFFile
-	q := db.Select("tuf_files.created_at, data").Scopes(TufFilesInChannels(&Published, channels...)).
+	q := db.Select("tuf_files.created_at, data").Scopes(TufFilesInChannels(channels...)).
 		Where(&TUFFile{
 			Gun:     gun.String(),
 			Role:    tufRole.String(),

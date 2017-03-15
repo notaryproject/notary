@@ -10,7 +10,7 @@ import (
 
 func assertExpectedMemoryTUFMeta(t *testing.T, expected []StoredTUFMeta, s *MemStorage) {
 	for _, tufObj := range expected {
-		k := entryKey(tufObj.Gun, tufObj.Role, *tufObj.Channel)
+		k := entryKey(tufObj.Gun, tufObj.Role, tufObj.Channel)
 		versionList, ok := s.tufMeta[k]
 		require.True(t, ok, "Did not find this gun+role in store")
 		byVersion := make(map[int]ver)

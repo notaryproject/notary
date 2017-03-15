@@ -191,7 +191,7 @@ func (rdb RethinkDB) UpdateMany(gun data.GUN, updates []MetaUpdate) error {
 // GetCurrent returns the modification date and data part of the metadata for
 // the latest version of the given GUN and role.  If there is no data for
 // the given GUN and role, an error is returned.
-func (rdb RethinkDB) GetCurrent(gun data.GUN, role data.RoleName, channels ...Channel) (created *time.Time, data []byte, err error) {
+func (rdb RethinkDB) GetCurrent(gun data.GUN, role data.RoleName, channels ...*Channel) (created *time.Time, data []byte, err error) {
 	file := RDBTUFFile{}
 	res, err := gorethink.DB(rdb.dbName).Table(file.TableName(), gorethink.TableOpts{ReadMode: "majority"}).GetAllByIndex(
 		rdbGunRoleIdx, []string{gun.String(), role.String()},
@@ -213,7 +213,7 @@ func (rdb RethinkDB) GetCurrent(gun data.GUN, role data.RoleName, channels ...Ch
 // GetChecksum returns the given TUF role file and creation date for the
 // GUN with the provided checksum. If the given (gun, role, checksum) are
 // not found, it returns storage.ErrNotFound
-func (rdb RethinkDB) GetChecksum(gun data.GUN, role data.RoleName, checksum string, channels ...Channel) (created *time.Time, data []byte, err error) {
+func (rdb RethinkDB) GetChecksum(gun data.GUN, role data.RoleName, checksum string, channels ...*Channel) (created *time.Time, data []byte, err error) {
 	var file RDBTUFFile
 	res, err := gorethink.DB(rdb.dbName).Table(file.TableName(), gorethink.TableOpts{ReadMode: "majority"}).GetAllByIndex(
 		rdbGunRoleSHA256Idx, []string{gun.String(), role.String(), checksum},
@@ -233,7 +233,7 @@ func (rdb RethinkDB) GetChecksum(gun data.GUN, role data.RoleName, checksum stri
 }
 
 // GetVersion gets a specific TUF record by its version
-func (rdb RethinkDB) GetVersion(gun data.GUN, role data.RoleName, version int, channels ...Channel) (*time.Time, []byte, error) {
+func (rdb RethinkDB) GetVersion(gun data.GUN, role data.RoleName, version int, channels ...*Channel) (*time.Time, []byte, error) {
 	var file RDBTUFFile
 	res, err := gorethink.DB(rdb.dbName).Table(file.TableName(), gorethink.TableOpts{ReadMode: "majority"}).Get([]interface{}{gun.String(), role.String(), version}).Run(rdb.sess)
 	if err != nil {

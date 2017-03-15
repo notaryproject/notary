@@ -41,10 +41,10 @@ func SampleCustomTUFObj(gun data.GUN, role data.RoleName, version int, tufdata [
 
 func MakeUpdate(tufObj StoredTUFMeta) MetaUpdate {
 	return MetaUpdate{
-		Role:    tufObj.Role,
-		Version: tufObj.Version,
-		Data:    tufObj.Data,
-		Channel: tufObj.Channel,
+		Role:     tufObj.Role,
+		Version:  tufObj.Version,
+		Data:     tufObj.Data,
+		Channels: []*Channel{tufObj.Channel},
 	}
 }
 
@@ -52,7 +52,7 @@ func assertExpectedTUFMetaInStore(t *testing.T, s MetaStore, expected []StoredTU
 	for _, tufObj := range expected {
 		var prevTime *time.Time
 		if current {
-			cDate, tufdata, err := s.GetCurrent(tufObj.Gun, tufObj.Role, *tufObj.Channel)
+			cDate, tufdata, err := s.GetCurrent(tufObj.Gun, tufObj.Role, tufObj.Channel)
 			require.NoError(t, err)
 			require.Equal(t, tufObj.Data, tufdata)
 
@@ -65,7 +65,7 @@ func assertExpectedTUFMetaInStore(t *testing.T, s MetaStore, expected []StoredTU
 		checksumBytes := sha256.Sum256(tufObj.Data)
 		checksum := hex.EncodeToString(checksumBytes[:])
 
-		cDate, tufdata, err := s.GetChecksum(tufObj.Gun, tufObj.Role, checksum, *tufObj.Channel)
+		cDate, tufdata, err := s.GetChecksum(tufObj.Gun, tufObj.Role, checksum, tufObj.Channel)
 		require.NoError(t, err)
 		require.Equal(t, tufObj.Data, tufdata)
 
