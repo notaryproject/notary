@@ -270,88 +270,275 @@ func (srv *Server) GetChangelist(ctx context.Context, message *GunMessage) (*Cha
 	}, nil
 }
 
-func (srv *Server) ListRoles(context.Context, *google_protobuf.Empty) (*RoleWithSignaturesListResponse, error) {
-	return nil, ErrNotImplemented
+func (srv *Server) ListRoles(ctx context.Context, message *GunMessage) (*RoleWithSignaturesListResponse, error) {
+	r, err := srv.initRepo(data.GUN(message.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	roles, err := r.ListRoles()
+	if err != nil {
+		return nil, err
+	}
+
+	resRoles := make([]*RoleWithSignatures, len(roles))
+	for index, role := range roles {
+
+		resSignatures := make([]*Signature, len(role.Signatures))
+		for indexSig, signature := range role.Signatures {
+			resSignatures[indexSig] = &Signature{
+				KeyID:  signature.KeyID,
+				Method: signature.Method.String(),
+			}
+		}
+
+		resRoles[index] = &RoleWithSignatures{
+			Signatures: resSignatures,
+			Role: &Role{
+				RootRole: &RootRole{
+					KeyIDs: role.KeyIDs,
+					Threshold: int32(role.Threshold), // FIXME
+				},
+				Name: role.Name.String(),
+				Paths: role.Paths,
+			},
+		}
+	}
+
+	return &RoleWithSignaturesListResponse{
+		RoleWithSignaturesList: &RoleWithSignaturesList{
+			RoleWithSignatures: resRoles,
+		},
+		Success: true,
+	}, nil
 }
 
-func (srv *Server) GetDelegationRoles(context.Context, *google_protobuf.Empty) (*RoleListResponse, error) {
-	return nil, ErrNotImplemented
+func (srv *Server) GetDelegationRoles(ctx context.Context, message *GunMessage) (*RoleListResponse, error) {
+	r, err := srv.initRepo(data.GUN(message.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	roles, err := r.GetDelegationRoles()
+	if err != nil {
+		return nil, err
+	}
+
+	resRoles := make([]*Role, len(roles))
+	for index, role := range roles {
+		resRoles[index] = &Role{
+				RootRole: &RootRole{
+					KeyIDs: role.KeyIDs,
+					Threshold: int32(role.Threshold), // FIXME
+				},
+				Name: role.Name.String(),
+				Paths: role.Paths,
+		}
+	}
+
+	return &RoleListResponse{
+		RoleList: &RoleList{
+			Roles: resRoles,
+		},
+		Success: true,
+	}, nil
 }
 
-func (srv *Server) AddDelegation(context.Context, *AddDelegationMessage) (*BasicResponse, error) {
-	return nil, ErrNotImplemented
+func (srv *Server) AddDelegation(ctx context.Context, message *AddDelegationMessage) (*BasicResponse, error) {
+	r, err := srv.initRepo(data.GUN(message.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	delegationKeys := make([]data.PublicKey, len(message.DelegationKeys))
+	for index, key := range message.DelegationKeys {
+		delegationKeys[index] = data.NewPublicKey(key.Algorithm, key.Public)
+	}
+
+	err = r.AddDelegation(data.RoleName(message.Name), delegationKeys, message.Paths)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicResponse{
+		Success: true,
+	}, nil
 }
 
-func (srv *Server) AddDelegationRoleAndKeys(context.Context, *AddDelegationRoleAndKeysMessage) (*BasicResponse, error) {
-	return nil, ErrNotImplemented
+func (srv *Server) AddDelegationRoleAndKeys(ctx context.Context, message *AddDelegationRoleAndKeysMessage) (*BasicResponse, error) {
+	r, err := srv.initRepo(data.GUN(message.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	delegationKeys := make([]data.PublicKey, len(message.DelegationKeys))
+	for index, key := range message.DelegationKeys {
+		delegationKeys[index] = data.NewPublicKey(key.Algorithm, key.Public)
+	}
+
+	err = r.AddDelegationRoleAndKeys(data.RoleName(message.Name), delegationKeys)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicResponse{
+		Success: true,
+	}, nil
 }
 
-func (srv *Server) AddDelegationPaths(context.Context, *AddDelegationPathsMessage) (*BasicResponse, error) {
-	return nil, ErrNotImplemented
+func (srv *Server) AddDelegationPaths(ctx context.Context, message *AddDelegationPathsMessage) (*BasicResponse, error) {
+	r, err := srv.initRepo(data.GUN(message.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.AddDelegationPaths(data.RoleName(message.Name), message.Paths)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicResponse{
+		Success: true,
+	}, nil
 }
 
-func (srv *Server) RemoveDelegationKeysAndPaths(context.Context, *RemoveDelegationKeysAndPathsMessage) (*BasicResponse, error) {
-	return nil, ErrNotImplemented
+func (srv *Server) RemoveDelegationKeysAndPaths(ctx context.Context, message *RemoveDelegationKeysAndPathsMessage) (*BasicResponse, error) {
+	r, err := srv.initRepo(data.GUN(message.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.RemoveDelegationKeysAndPaths(data.RoleName(message.Name), message.KeyIDs, message.Paths)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicResponse{
+		Success: true,
+	}, nil
 }
 
-func (srv *Server) RemoveDelegationRole(context.Context, *RemoveDelegationRoleMessage) (*BasicResponse, error) {
-	return nil, ErrNotImplemented
+func (srv *Server) RemoveDelegationRole(ctx context.Context, message *RemoveDelegationRoleMessage) (*BasicResponse, error) {
+	r, err := srv.initRepo(data.GUN(message.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.RemoveDelegationRole()
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicResponse{
+		Success: true,
+	}, nil
 }
 
-func (srv *Server) RemoveDelegationPaths(context.Context, *RemoveDelegationPathsMessage) (*BasicResponse, error) {
-	return nil, ErrNotImplemented
+func (srv *Server) RemoveDelegationPaths(ctx context.Context, message *RemoveDelegationPathsMessage) (*BasicResponse, error) {
+	r, err := srv.initRepo(data.GUN(message.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.RemoveDelegationPaths()
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicResponse{
+		Success: true,
+	}, nil
 }
 
-func (srv *Server) RemoveDelegationKeys(context.Context, *RemoveDelegationKeysMessage) (*BasicResponse, error) {
-	return nil, ErrNotImplemented
+func (srv *Server) RemoveDelegationKeys(ctx context.Context, message *RemoveDelegationKeysMessage) (*BasicResponse, error) {
+	r, err := srv.initRepo(data.GUN(message.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.RemoveDelegationKeys()
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicResponse{
+		Success: true,
+	}, nil
 }
 
-func (srv *Server) ClearDelegationPaths(context.Context, *RoleNameMessage) (*BasicResponse, error) {
-	return nil, ErrNotImplemented
+func (srv *Server) ClearDelegationPaths(ctx context.Context, message *RoleNameMessage) (*BasicResponse, error) {
+	r, err := srv.initRepo(data.GUN(message.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.ClearDelegationPaths()
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicResponse{
+		Success: true,
+	}, nil
 }
 
-func (srv *Server) Witness(context.Context, *RoleNameList) (*RoleNameListResponse, error) {
-	return nil, ErrNotImplemented
+func (srv *Server) Witness(ctx context.Context, message *RoleNameListMessage) (*RoleNameListResponse, error) {
+	r, err := srv.initRepo(data.GUN(message.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	roles, err := r.Witness()
+	if err != nil {
+		return nil, err
+	}
+
+	return &RoleNameListResponse{
+		RoleNameList: &RoleNameList{
+			Roles
+		},
+		Success: true,
+	}, nil
 }
 
-func (srv *Server) RotateKey(context.Context, *RotateKeyMessage) (*BasicResponse, error) {
+func (srv *Server) RotateKey(ctx context.Context, message *RotateKeyMessage) (*BasicResponse, error) {
 	return nil, ErrNotImplemented
 }
 
 // CryptoService implementation
-func (srv *Server) CryptoService(context.Context, *google_protobuf.Empty) (*CryptoServiceMessage, error) {
+func (srv *Server) CryptoService(ctx context.Context, message *GunMessage) (*CryptoServiceMessage, error) {
 	return nil, ErrNotImplemented
 }
 
-func (srv *Server) CryptoServiceCreate(context.Context, *CryptoServiceCreateMessage) (*PublicKeyResponse, error) {
+func (srv *Server) CryptoServiceCreate(ctx context.Context, message *CryptoServiceCreateMessage) (*PublicKeyResponse, error) {
 	return nil, ErrNotImplemented
 }
 
-func (srv *Server) CryptoServiceAddKey(context.Context, *CryptoServiceAddKeyMessage) (*BasicResponse, error) {
+func (srv *Server) CryptoServiceAddKey(ctx context.Context, message *CryptoServiceAddKeyMessage) (*BasicResponse, error) {
 	return nil, ErrNotImplemented
 }
 
-func (srv *Server) CryptoServiceGetKey(context.Context, *KeyIDMessage) (*PublicKeyResponse, error) {
+func (srv *Server) CryptoServiceGetKey(ctx context.Context, message *KeyIDMessage) (*PublicKeyResponse, error) {
 	return nil, ErrNotImplemented
 }
 
-func (srv *Server) CryptoServiceGetPrivateKey(context.Context, *KeyIDMessage) (*PrivateKeyResponse, error) {
+func (srv *Server) CryptoServiceGetPrivateKey(ctx context.Context, message *KeyIDMessage) (*PrivateKeyResponse, error) {
 	return nil, ErrNotImplemented
 }
 
-func (srv *Server) CryptoServiceRemoveKey(context.Context, *KeyIDMessage) (*BasicResponse, error) {
+func (srv *Server) CryptoServiceRemoveKey(ctx context.Context, message *KeyIDMessage) (*BasicResponse, error) {
 	return nil, ErrNotImplemented
 }
 
-func (srv *Server) CryptoServiceListKeys(context.Context, *RoleNameMessage) (*KeyIDsListResponse, error) {
+func (srv *Server) CryptoServiceListKeys(ctx context.Context, message *RoleNameMessage) (*KeyIDsListResponse, error) {
 	return nil, ErrNotImplemented
 }
 
-func (srv *Server) CryptoServiceListAllKeys(context.Context, *google_protobuf.Empty) (*SigningKeyIDsToRolesResponse, error) {
+func (srv *Server) CryptoServiceListAllKeys(ctx context.Context, message *GunMessage) (*SigningKeyIDsToRolesResponse, error) {
 	return nil, ErrNotImplemented
 }
 
-func (srv *Server) SetLegacyVersions(context.Context, *VersionMessage) (*google_protobuf.Empty, error) {
+func (srv *Server) SetLegacyVersions(ctx context.Context, message *VersionMessage) (*google_protobuf.Empty, error) {
 	return nil, ErrNotImplemented
 }
 
