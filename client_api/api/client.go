@@ -32,7 +32,7 @@ func (c *Client) Initialize(rootKeyIDs []string, serverManagedRoles ...data.Role
 	initMsg := &InitMessage{
 		RootKeyIDs:         rootKeyIDs,
 		ServerManagedRoles: &RoleNameList{Roles: roles},
-		Gun: c.gun.String(),
+		Gun:                c.gun.String(),
 	}
 	_, err := c.client.Initialize(context.Background(), initMsg)
 	return err
@@ -113,7 +113,7 @@ func (c *Client) GetTargetByName(name string, roles ...data.RoleName) (*client.T
 	targetByNameAction := &TargetByNameAction{
 		Name:  name,
 		Roles: &RoleNameList{Roles: rolesList},
-		Gun: c.gun.String(),
+		Gun:   c.gun.String(),
 	}
 
 	targetWithRole, err := c.client.GetTargetByName(context.Background(), targetByNameAction)
@@ -139,7 +139,7 @@ func (c *Client) GetTargetByName(name string, roles ...data.RoleName) (*client.T
 func (c *Client) GetAllTargetMetadataByName(name string) ([]client.TargetSignedStruct, error) {
 	targetName := &TargetNameMessage{
 		Name: name,
-		Gun: c.gun.String(),
+		Gun:  c.gun.String(),
 	}
 
 	targetSignedListResponse, err := c.client.GetAllTargetMetadataByName(context.Background(), targetName)
@@ -295,7 +295,7 @@ func (c *Client) AddDelegation(name data.RoleName, delegationKeys []data.PublicK
 		Name:           name.String(),
 		DelegationKeys: currDelegationKeys,
 		Paths:          paths,
-		Gun: c.gun.String(),
+		Gun:            c.gun.String(),
 	}
 
 	_, err := c.client.AddDelegation(context.Background(), addDelegationMessage)
@@ -315,7 +315,7 @@ func (c *Client) AddDelegationRoleAndKeys(name data.RoleName, delegationKeys []d
 	addDelegationRoleAndKeysMessage := &AddDelegationRoleAndKeysMessage{
 		Name:           name.String(),
 		DelegationKeys: pubKeys,
-		Gun: c.gun.String(),
+		Gun:            c.gun.String(),
 	}
 
 	_, err := c.client.AddDelegationRoleAndKeys(context.Background(), addDelegationRoleAndKeysMessage)
@@ -326,7 +326,7 @@ func (c *Client) AddDelegationPaths(name data.RoleName, paths []string) error {
 	addDelegationPathsMessage := &AddDelegationPathsMessage{
 		Name:  name.String(),
 		Paths: paths,
-		Gun: c.gun.String(),
+		Gun:   c.gun.String(),
 	}
 
 	_, err := c.client.AddDelegationPaths(context.Background(), addDelegationPathsMessage)
@@ -338,7 +338,7 @@ func (c *Client) RemoveDelegationKeysAndPaths(name data.RoleName, keyIDs, paths 
 		Name:   name.String(),
 		KeyIDs: keyIDs,
 		Paths:  paths,
-		Gun: c.gun.String(),
+		Gun:    c.gun.String(),
 	}
 
 	_, err := c.client.RemoveDelegationKeysAndPaths(context.Background(), r)
@@ -348,7 +348,7 @@ func (c *Client) RemoveDelegationKeysAndPaths(name data.RoleName, keyIDs, paths 
 func (c *Client) RemoveDelegationRole(name data.RoleName) error {
 	r := &RemoveDelegationRoleMessage{
 		Name: name.String(),
-		Gun: c.gun.String(),
+		Gun:  c.gun.String(),
 	}
 
 	_, err := c.client.RemoveDelegationRole(context.Background(), r)
@@ -359,7 +359,7 @@ func (c *Client) RemoveDelegationPaths(name data.RoleName, paths []string) error
 	r := &RemoveDelegationPathsMessage{
 		Name:  name.String(),
 		Paths: paths,
-		Gun: c.gun.String(),
+		Gun:   c.gun.String(),
 	}
 
 	_, err := c.client.RemoveDelegationPaths(context.Background(), r)
@@ -370,7 +370,7 @@ func (c *Client) RemoveDelegationKeys(name data.RoleName, keyIDs []string) error
 	r := &RemoveDelegationKeysMessage{
 		Name:   name.String(),
 		KeyIDs: keyIDs,
-		Gun: c.gun.String(),
+		Gun:    c.gun.String(),
 	}
 
 	_, err := c.client.RemoveDelegationKeys(context.Background(), r)
@@ -380,7 +380,7 @@ func (c *Client) RemoveDelegationKeys(name data.RoleName, keyIDs []string) error
 func (c *Client) ClearDelegationPaths(name data.RoleName) error {
 	r := &RoleNameMessage{
 		Role: name.String(),
-		Gun: c.gun.String(),
+		Gun:  c.gun.String(),
 	}
 
 	_, err := c.client.ClearDelegationPaths(context.Background(), r)
@@ -395,7 +395,7 @@ func (c *Client) Witness(roles ...data.RoleName) ([]data.RoleName, error) {
 
 	roleNameList := &RoleNameListMessage{
 		Roles: roleNames,
-		Gun: c.gun.String(),
+		Gun:   c.gun.String(),
 	}
 
 	roleNameListResponse, err := c.client.Witness(context.Background(), roleNameList)
@@ -418,7 +418,7 @@ func (c *Client) RotateKey(role data.RoleName, serverManagesKey bool, keyList []
 		Role:             role.String(),
 		ServerManagesKey: serverManagesKey,
 		KeyList:          keyList,
-		Gun: c.gun.String(),
+		Gun:              c.gun.String(),
 	}
 	_, err := c.client.RotateKey(context.Background(), rotateKeyMessage)
 	return err

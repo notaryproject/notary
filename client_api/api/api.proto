@@ -42,6 +42,7 @@ service Notary {
     // CryptoService implementation
     rpc CryptoService(GunMessage) returns (CryptoServiceMessage) {}
     rpc CryptoServiceCreate(CryptoServiceCreateMessage) returns (PublicKeyResponse) {}
+    rpc CryptoServicePrivateKeySign(CryptoServicePrivateKeySignMessage) returns (SignatureResponse) {}
     rpc CryptoServiceAddKey(CryptoServiceAddKeyMessage) returns (BasicResponse) {}
     rpc CryptoServiceGetKey(KeyIDMessage) returns (PublicKeyResponse) {}
     rpc CryptoServiceGetPrivateKey(KeyIDMessage) returns (PrivateKeyResponse) {}
@@ -293,15 +294,13 @@ message CryptoServiceCreateMessage {
 
 message Signer {
     PublicKey pubkey = 1;
-    string signature = 2;
 }
 
 message PrivateKey {
     PublicKey pubkey = 1;
-    bytes signature = 2;
-    bytes privkey = 3;
-    Signer cryptoSigner = 4;
-    string sigAlgorithm = 5;
+    bytes privkey = 2;
+    Signer cryptoSigner = 3;
+    string sigAlgorithm = 4;
 }
 
 message CryptoServiceAddKeyMessage {
@@ -325,6 +324,19 @@ message KeyIDMessage {
 
 message KeyIDsListResponse {
     repeated string keyIDs = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message CryptoServicePrivateKeySignMessage {
+    PublicKey pubkey = 1;
+    bytes digest = 2;
+    bytes privkey = 3;
+    string gun = 4;
+}
+
+message SignatureResponse {
+    bytes signature = 1;
     bool success = 2;
     string message = 3;
 }
