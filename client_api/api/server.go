@@ -130,45 +130,144 @@ func (srv *Server) ListTargets(ctx context.Context, message *RoleNameListMessage
 		return nil, err
 	}
 
-	res := make([]*TargetWithRole, len(targets))
+	resTargets := make([]*TargetWithRole, len(targets))
 	for index, target := range targets {
-		res[index] = &TargetWithRole{
+		resTargets[index] = &TargetWithRole{
 			Target: &Target{
-				Gun: message.Gun,
-				Name: target.Name,
+				Gun:    message.Gun,
+				Name:   target.Name,
 				Length: target.Length,
 				Hashes: target.Hashes,
-
 			},
-			Role: target.Role.String()
+			Role: target.Role.String(),
 		}
 	}
 
 	return &TargetWithRoleNameListResponse{
 		TargetWithRoleNameList: &TargetWithRoleNameList{
-			Targets: targets,
+			Targets: resTargets,
 		},
 		Success: true,
 	}, nil
-
-
-
-	return nil, ErrNotImplemented
 }
 
 // GetTargetByName returns a target by the given name.
-func (srv *Server) GetTargetByName(context.Context, *TargetByNameAction) (*TargetWithRoleResponse, error) {
-	return nil, ErrNotImplemented
+func (srv *Server) GetTargetByName(ctx context.Context, message *TargetByNameAction) (*TargetWithRoleResponse, error) {
+	r, err := srv.initRepo(data.GUN(message.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	roles := make([]data.RoleName, len(message.Roles.Roles))
+	for index, role := range message.Roles.Roles {
+		roles[index] = data.RoleName(role)
+	}
+
+	target, err := r.GetTargetByName(message.Name, roles...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TargetWithRoleResponse{
+		TargetWithRole: &TargetWithRole{
+			Target: &Target{
+				Gun:    message.Gun,
+				Name:   target.Name,
+				Length: target.Length,
+				Hashes: target.Hashes,
+			},
+			Role: target.Role.String(),
+		},
+		Success: true,
+	}, nil
 }
 
 // GetAllTargetMetadataByName
-func (srv *Server) GetAllTargetMetadataByName(context.Context, *TargetNameMessage) (*TargetSignedListResponse, error) {
-	return nil, ErrNotImplemented
+func (srv *Server) GetAllTargetMetadataByName(ctx context.Context, message *TargetNameMessage) (*TargetSignedListResponse, error) {
+	r, err := srv.initRepo(data.GUN(message.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	targets, err := r.GetAllTargetMetadataByName(message.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	resTargets := make([]*TargetSigned, len(targets))
+	for indexTarget, target := range targets {
+
+		resSignatures := make([]*Signature, len(target.Signatures))
+		for indexSig, signature := range target.Signatures {
+			resSignatures[indexSig] = &Signature{
+				KeyID:  signature.KeyID,
+				Method: signature.Method.String(),
+			}
+		}
+
+		resKeys := make(map[string]*PublicKey, len(target.Role.Keys))
+		for keyName, keyPubkey := range target.Role.Keys {
+			resKeys[keyName] = &PublicKey{
+				Id:        keyPubkey.ID(),
+				Algorithm: keyPubkey.Algorithm(),
+				Public:    keyPubkey.Public(),
+			}
+		}
+
+		resTargets[indexTarget] = &TargetSigned{
+			Role: &DelegationRole{
+				Keys:      resKeys,
+				Name:      target.Role.Name.String(),
+				Threshold: int32(target.Role.Threshold), // FIXME
+				Paths:     target.Role.Paths,
+			},
+			Target: &Target{
+				Gun:    message.Gun,
+				Name:   target.Target.Name,
+				Length: target.Target.Length,
+				Hashes: target.Target.Hashes,
+			},
+			Signatures: resSignatures,
+		}
+	}
+
+	return &TargetSignedListResponse{
+		TargetSignedList: &TargetSignedList{
+			Targets: resTargets,
+		},
+		Success: true,
+	}, nil
 }
 
 // GetChangelist returns the list of the repository's unpublished changes
-func (srv *Server) GetChangelist(context.Context, *google_protobuf.Empty) (*ChangeListResponse, error) {
-	return nil, ErrNotImplemented
+func (srv *Server) GetChangelist(ctx context.Context, message *GunMessage) (*ChangeListResponse, error) {
+	r, err := srv.initRepo(data.GUN(message.Gun))
+	if err != nil {
+		return nil, err
+	}
+
+	changelist, err := r.GetChangelist()
+	if err != nil {
+		return nil, err
+	}
+
+	resChangelist := make([]*Change, len(changelist.List()))
+	for index, change := range changelist.List() {
+		resChangelist[index] = &Change{
+			Action:  change.Action(),
+			Scope:   change.Scope().String(),
+			Type:    change.Type(),
+			Path:    change.Path(),
+			Content: change.Content(),
+		}
+	}
+
+	return &ChangeListResponse{
+		Changelist: &ChangeList{
+			Changes: resChangelist,
+		},
+		Success: true,
+	}, nil
 }
 
 func (srv *Server) ListRoles(context.Context, *google_protobuf.Empty) (*RoleWithSignaturesListResponse, error) {
