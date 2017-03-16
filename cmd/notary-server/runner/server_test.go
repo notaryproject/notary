@@ -1,4 +1,4 @@
-package main
+package runner
 
 import (
 	"bytes"
@@ -24,9 +24,9 @@ import (
 )
 
 const (
-	Cert = "../../fixtures/notary-server.crt"
-	Key  = "../../fixtures/notary-server.key"
-	Root = "../../fixtures/root-ca.crt"
+	Cert = "../../../fixtures/notary-server.crt"
+	Key  = "../../../fixtures/notary-server.key"
+	Root = "../../../fixtures/root-ca.crt"
 )
 
 // initializes a viper object with test configuration
@@ -407,7 +407,7 @@ func TestGetGUNPRefixes(t *testing.T) {
 // For sanity, make sure we can always parse the sample config
 func TestSampleConfig(t *testing.T) {
 	var registerCalled = 0
-	_, _, err := parseServerConfig("../../fixtures/server-config.json", fakeRegisterer(&registerCalled), false)
+	_, _, err := parseServerConfig("../../../fixtures/server-config.json", fakeRegisterer(&registerCalled), false)
 	require.NoError(t, err)
 
 	// once for the DB, once for the trust service
