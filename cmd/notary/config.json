@@ -5,7 +5,7 @@
 	},
 	"api": {
 		"addr": "clientapi-server:4449",
-		"tls_ca_file": "/Users/david/go/src/github.com/docker/notary/fixtures/root-ca.crt"
+		"tls_ca_file": "/Users/nass/work/src/github.com/docker/notary/fixtures/root-ca.crt"
 	}
 }
 

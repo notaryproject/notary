@@ -247,13 +247,13 @@ func (srv *Server) GetChangelist(ctx context.Context, message *GunMessage) (*Cha
 		return nil, err
 	}
 
-	changelist, err := r.GetChangelist()
+	cl, err := r.GetChangelist()
 	if err != nil {
 		return nil, err
 	}
 
-	resChangelist := make([]*Change, len(changelist.List()))
-	for index, change := range changelist.List() {
+	resChangelist := make([]*Change, len(cl.List()))
+	for index, change := range cl.List() {
 		resChangelist[index] = &Change{
 			Action:  change.Action(),
 			Scope:   change.Scope().String(),
@@ -641,9 +641,9 @@ func (srv *Server) CryptoServiceGetPrivateKey(ctx context.Context, message *KeyI
 		Privkey: privkey.Private(),
 		CryptoSigner: &Signer{
 			Pubkey: &PublicKey{
-				Id:        data.PublicKey(privkey.CryptoSigner().Public()).ID(),
-				Algorithm: data.PublicKey(privkey.CryptoSigner().Public()).Algorithm(),
-				Public:    data.PublicKey(privkey.CryptoSigner().Public()).Public(),
+				Id:        privkey.ID(),
+				Algorithm: privkey.Algorithm(),
+				Public:    privkey.Public(),
 			},
 		},
 		SigAlgorithm: privkey.SignatureAlgorithm().String(),
