@@ -1,4 +1,4 @@
-package auth
+package client
 
 import (
 	"encoding/json"

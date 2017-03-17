@@ -50,7 +50,9 @@ func main() {
 
 	opts := []grpc.ServerOption{
 		grpc.Creds(creds),
-		grpc.UnaryInterceptor(auth),
+	}
+	if auth != nil {
+		opts = append(opts, grpc.UnaryInterceptor(auth))
 	}
 
 	srv, lis, err := setup.NewGRPCServer(grpcAddr, opts)
@@ -58,15 +60,16 @@ func main() {
 		logrus.Fatal("grpc server failed to start on %s: %v",
 			grpcAddr, err)
 	}
-	s, err := api.NewServer(upstreamAddr, upstreamCAPath, srv)
+	err = api.NewServer(upstreamAddr, upstreamCAPath, srv)
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
-	//	grpcServer, lis, err := setup.SetupGRPCServer(serverConfig)
+	srv.GetServiceInfo()
 
 	logrus.Infof("serving on %s", grpcAddr)
-	if err := s.Serve(lis); err != nil {
+	if err := srv.Serve(lis); err != nil {
+		logrus.Error("server stopped with an error: %v", err)
 	}
 	logrus.Info("server shutting down")
 }

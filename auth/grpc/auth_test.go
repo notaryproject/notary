@@ -1,9 +1,9 @@
 package grpcauth
 
 import (
+	"github.com/docker/notary/auth/token"
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/client_api/api"
-	"github.com/docker/notary/utils/token"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"net"

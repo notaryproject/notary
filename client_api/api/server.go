@@ -22,13 +22,13 @@ import (
 
 // NewServer creates a new instance of a Client API server with a configured
 // upstream Notary Server.
-func NewServer(upstream string, upstreamCAPath string, grpcSrv *grpc.Server) (*grpc.Server, error) {
+func NewServer(upstream string, upstreamCAPath string, grpcSrv *grpc.Server) error {
 	srv := &Server{
 		upstream:       upstream,
 		upstreamCAPath: upstreamCAPath,
 	}
 	RegisterNotaryServer(grpcSrv, srv)
-	return grpcSrv, nil
+	return nil
 }
 
 type Server struct {

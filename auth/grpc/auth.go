@@ -1,11 +1,11 @@
 package grpcauth
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/notary/client/auth"
-	"github.com/docker/notary/client/auth/challenge"
-	"github.com/docker/notary/utils/token"
+	auth "github.com/docker/notary/auth/client"
+	"github.com/docker/notary/auth/token"
 	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -134,7 +134,10 @@ func (c *ClientAuthorizer) Interceptor(ctx context.Context, method string, req, 
 }
 
 func (c *ClientAuthorizer) getToken(challengeHeader []string) (string, error) {
-	challenges := challenge.ParseAuthHeader(challengeHeader)
+	challenges := auth.ParseAuthHeader(challengeHeader)
+	if len(challenges) == 0 {
+		return "", errors.New("no challenge header could be parsed from the response")
+	}
 	logrus.Infof("received challenge for following token: %s", challenges[0])
 	return c.authHandler.AuthorizeRequest(challenges[0].Parameters, challenges[0].Parameters["scope"])
 }
