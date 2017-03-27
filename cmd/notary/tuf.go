@@ -32,6 +32,10 @@ import (
 	"github.com/docker/notary/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"encoding/json"
+	"io"
+	"path/filepath"
+	"github.com/docker/docker/pkg/testutil/cmd"
 )
 
 var cmdTUFListTemplate = usageTemplate{
@@ -104,6 +108,12 @@ var cmdTUFDeleteTemplate = usageTemplate{
 	Use:   "delete [ GUN ]",
 	Short: "Deletes all content for a trusted collection",
 	Long:  "Deletes all local content for a trusted collection identified by the Globally Unique Name. Remote data can also be deleted with an additional flag.",
+}
+
+var cmdTUFExportTemplate = usageTemplate{
+	Use: "export <GUN> [ roles ... ]",
+	Short: "Export the listed role files for a trusted collection.",
+	Long: "Export the listed role files for a trusted collection identified by the Globally Unique Name in the appropriate TUF file structure.",
 }
 
 type tufCommander struct {
@@ -182,6 +192,115 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmdTUFDeleteGUN := cmdTUFDeleteTemplate.ToCommand(t.tufDeleteGUN)
 	cmdTUFDeleteGUN.Flags().BoolVar(&t.deleteRemote, "remote", false, "Delete remote data for GUN in addition to local cache")
 	cmd.AddCommand(cmdTUFDeleteGUN)
+
+	cmdTUFExportGUN := cmdTUFExportTemplate.ToCommand(t.tufExportGUN)
+	cmdTUFExportGUN.Flags().StringVarP(&t.output, "output", "o", "", "File to export role files to")
+	cmd.AddCommand(cmdTUFExportGUN)
+}
+
+func (t *tufCommander) tufExportGUN(cmd *cobra.Command, args []string) error {
+	if len(args) < 1 {
+		cmd.Usage()
+		return fmt.Errorf("Please provide a GUN")
+	}
+
+	config, err := t.configGetter()
+	if err != nil {
+		return err
+	}
+
+	gun := data.GUN(args[0])
+	roles := data.NewRoleList(args[1:])
+
+	outDir := t.output
+	if outDir == "" {
+		currDir, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+
+		outDir = path.Join(currDir, filepath.FromSlash(gun.String()))
+	}
+
+	rt, err := getTransport(config, gun, readOnly)
+	if err != nil {
+		return err
+	}
+
+	trustPin, err := getTrustPinning(config)
+	if err != nil {
+		return err
+	}
+
+	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
+	if err != nil {
+		return err
+	}
+
+	// a map of roles to target names and their associated json files
+	exportFiles := make(map[data.RoleName]map[string][]byte)
+
+	if len(roles) == 0 {
+		roles := make([]data.RoleName, len(data.BaseRoles))
+		copy(roles, data.BaseRoles)
+	}
+
+	for _, role := range roles {
+		targets, err := nRepo.ListTargets(role)
+		if err != nil {
+			return err
+		}
+
+		for _, target := range targets {
+			metadata, err := nRepo.GetAllTargetMetadataByName(target.Name)
+			if err != nil {
+				return err
+			}
+
+			metadataJson, err := json.Marshal(metadata)
+			if err != nil {
+				return err
+			}
+
+			if _, ok := exportFiles[role]; !ok {
+				exportFiles[role] = make(map[string][]byte)
+
+			}
+
+			exportFiles[role][target.Name] = metadataJson
+		}
+	}
+
+	return exportGUNFiles(outDir, exportFiles, roles...)
+}
+
+func exportGUNFiles(outDir string, roleNameToTargetFiles map[data.RoleName]map[string][]byte, roles ...data.RoleName) error {
+	err := os.MkdirAll(outDir, notary.PrivExecPerms)
+	if err != nil {
+		return nil
+	}
+
+	for role, targetNamesToFiles := range roleNameToTargetFiles {
+		filename := strings.Join([]string{"0", role.String(), "json"}, ".")
+		outFile := path.Join(outDir, filename)
+
+		if _, err := os.Stat(outFile); os.IsExist(err) {
+			logrus.Warnf("Trying to export files for role %s but file %s exists, overwriting.", role.String(), outFile)
+		}
+
+		content, err := json.Marshal(targetNamesToFiles)
+		if err != nil {
+			return err
+		}
+
+		logrus.Debugf("Exporting targets for role %s in file %s.", role, outFile)
+		if err := ioutil.WriteFile(outFile, content, notary.PrivNoExecPerms); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (t *tufCommander) tufWitness(cmd *cobra.Command, args []string) error {
