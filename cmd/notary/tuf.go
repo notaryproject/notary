@@ -260,6 +260,11 @@ func (t *tufCommander) tufExportGUN(cmd *cobra.Command, args []string) error {
 		}
 
 		for _, target := range targets {
+			// do not duplicate export of delegation's targets
+			if target.Role != role {
+				continue
+			}
+
 			metadata, err := nRepo.GetAllTargetMetadataByName(target.Name)
 			if err != nil {
 				return err
