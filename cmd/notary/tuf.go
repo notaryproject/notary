@@ -16,6 +16,7 @@ import (
 
 	"golang.org/x/crypto/ssh/terminal"
 
+	"encoding/json"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
@@ -32,10 +33,7 @@ import (
 	"github.com/docker/notary/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"encoding/json"
-	"io"
 	"path/filepath"
-	"github.com/docker/docker/pkg/testutil/cmd"
 )
 
 var cmdTUFListTemplate = usageTemplate{
@@ -111,9 +109,9 @@ var cmdTUFDeleteTemplate = usageTemplate{
 }
 
 var cmdTUFExportTemplate = usageTemplate{
-	Use: "export <GUN> [ roles ... ]",
+	Use:   "export <GUN> [ roles ... ]",
 	Short: "Export the listed role files for a trusted collection.",
-	Long: "Export the listed role files for a trusted collection identified by the Globally Unique Name in the appropriate TUF file structure.",
+	Long:  "Export the listed role files for a trusted collection identified by the Globally Unique Name in the appropriate TUF file structure.",
 }
 
 type tufCommander struct {
@@ -210,6 +208,7 @@ func (t *tufCommander) tufExportGUN(cmd *cobra.Command, args []string) error {
 	}
 
 	gun := data.GUN(args[0])
+
 	roles := data.NewRoleList(args[1:])
 
 	outDir := t.output
@@ -238,13 +237,21 @@ func (t *tufCommander) tufExportGUN(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// if no role is provided, we export all targets for each registered role
+	if len(roles) == 0 {
+		rolesWithSig, err := nRepo.ListRoles()
+		if err != nil {
+			return err
+		}
+
+		roles = make([]data.RoleName, len(rolesWithSig))
+		for index, roleWithSig := range rolesWithSig {
+			roles[index] = roleWithSig.Name
+		}
+	}
+
 	// a map of roles to target names and their associated json files
 	exportFiles := make(map[data.RoleName]map[string][]byte)
-
-	if len(roles) == 0 {
-		roles := make([]data.RoleName, len(data.BaseRoles))
-		copy(roles, data.BaseRoles)
-	}
 
 	for _, role := range roles {
 		targets, err := nRepo.ListTargets(role)
@@ -272,6 +279,10 @@ func (t *tufCommander) tufExportGUN(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	if len(exportFiles) == 0 {
+		return nil
+	}
+
 	return exportGUNFiles(outDir, exportFiles, roles...)
 }
 
@@ -282,8 +293,14 @@ func exportGUNFiles(outDir string, roleNameToTargetFiles map[data.RoleName]map[s
 	}
 
 	for role, targetNamesToFiles := range roleNameToTargetFiles {
-		filename := strings.Join([]string{"0", role.String(), "json"}, ".")
-		outFile := path.Join(outDir, filename)
+		targetPath := strings.Join([]string{"0", role.String(), "json"}, ".")
+		outFile := path.Join(outDir, targetPath)
+
+		// Make sure the parent directory of the file is created (ex: "0.targets/" for "0.targets/foo.json")
+		err := os.MkdirAll(filepath.Dir(outFile), notary.PrivExecPerms)
+		if err != nil {
+			return nil
+		}
 
 		if _, err := os.Stat(outFile); os.IsExist(err) {
 			logrus.Warnf("Trying to export files for role %s but file %s exists, overwriting.", role.String(), outFile)
