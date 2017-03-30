@@ -363,6 +363,26 @@ func TestValidateRootWithPinnedCertAndIntermediates(t *testing.T) {
 		}
 	}
 	require.Equal(t, typedSignedRoot, validatedRoot)
+
+	// test is also works with a wildcarded gun in certs
+	validatedRoot, err = trustpinning.ValidateRoot(
+		nil,
+		signedRoot,
+		"docker.io/notary/test",
+		trustpinning.TrustPinConfig{
+			Certs: map[string][]string{
+				"docker.io/notar*": {ecdsax509Key.ID()},
+			},
+			DisableTOFU: true,
+		},
+	)
+	require.NoError(t, err, "failed to validate certID with intermediate")
+	for idx, sig := range typedSignedRoot.Signatures {
+		if sig.KeyID == ecdsax509Key.ID() {
+			typedSignedRoot.Signatures[idx].IsValid = true
+		}
+	}
+	require.Equal(t, typedSignedRoot, validatedRoot)
 }
 
 func TestValidateRootFailuresWithPinnedCert(t *testing.T) {
