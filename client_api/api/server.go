@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 
 	"crypto/rand"
+	"errors"
 	"github.com/docker/notary"
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/client/changelist"
@@ -18,6 +19,7 @@ import (
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/utils"
+	"google.golang.org/grpc/metadata"
 )
 
 // NewServer creates a new instance of a Client API server with a configured
@@ -37,7 +39,7 @@ type Server struct {
 }
 
 func (srv *Server) Initialize(ctx context.Context, initMessage *InitMessage) (*BasicResponse, error) {
-	r, err := srv.initRepo(data.GUN(initMessage.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(initMessage.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +60,7 @@ func (srv *Server) Initialize(ctx context.Context, initMessage *InitMessage) (*B
 }
 
 func (srv *Server) Publish(ctx context.Context, gun *GunMessage) (*BasicResponse, error) {
-	r, err := srv.initRepo(data.GUN(gun.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(gun.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -746,15 +748,17 @@ func initializeRepo(r *client.NotaryRepository) error {
 	return r.Initialize([]string{rootKeyID})
 }
 
-func (srv *Server) initRepo(gun data.GUN) (*client.NotaryRepository, error) {
+func (srv *Server) initRepo(ctx context.Context, gun data.GUN) (*client.NotaryRepository, error) {
 	logrus.Errorf("initializing with upstream ca file %s", srv.upstreamCAPath)
 	baseDir := "var/lib/clientapi"
-	rt, err := utils.GetReadOnlyAuthTransport(
-		srv.upstream,
-		[]string{gun.String()},
-		"",
-		"",
+	md, ok := metadata.FromContext(ctx)
+	if !ok {
+		return nil, errors.New("initRepo may only be used with GRPC contexts")
+	}
+	tokens := md["Authorization"]
+	rt, err := utils.GetForwardingAuthTransport(
 		srv.upstreamCAPath,
+		tokens,
 	)
 	if err != nil {
 		return nil, err

@@ -13,6 +13,7 @@ import (
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 	"io/ioutil"
+	"strings"
 )
 
 // Stolen from a mix of UCP + nautilus signer, some might be able to be cleaned up / streamlined
@@ -86,6 +87,22 @@ func GetReadOnlyAuthTransport(server string, scopes []string, username, password
 	return authedTransport, nil
 }
 
+// GetForwardingAuthTransport returns an http.RoundTripper that fowards the provided token
+// to the end service. It is assumed the token already carries the necessary authorization
+// scope to perform the action required of that end service.
+// It is presumed tokens is simply taken directly from the http.Header on an incoming request
+// to the intermediate service and requires no additional formatting.
+func GetForwardingAuthTransport(rootCAPath string, tokens []string) (http.RoundTripper, error) {
+	httpsTransport, err := httpsTransport(rootCAPath, "", "")
+	if err != nil {
+		return nil, err
+	}
+	tokenHeader := http.Header{
+		"Authorization": tokens,
+	}
+	return transport.NewTransport(httpsTransport, transport.NewHeaderRequestModifier(tokenHeader)), nil
+}
+
 func httpsTransport(caFile, clientCertFile, clientKeyFile string) (*http.Transport, error) {
 	tlsConfig := &tls.Config{}
 	transport := http.Transport{
@@ -98,7 +115,6 @@ func httpsTransport(caFile, clientCertFile, clientKeyFile string) (*http.Transpo
 		TLSClientConfig:     tlsConfig,
 	}
 	// Override with the system cert pool if the caFile was empty
-	// TODO(riyazdf): update this code when go-connections updates to use the system cert pool
 	if caFile == "" {
 		systemCertPool, err := x509.SystemCertPool()
 		if err != nil {
