@@ -52,11 +52,34 @@ func GetPathRelativeToConfig(configuration *viper.Viper, key string) string {
 // The cert/key files are relative to the config file used to populate the instance
 // of viper.
 func ParseServerTLS(configuration *viper.Viper, tlsRequired bool) (*tls.Config, error) {
-	//  unmarshalling into objects does not seem to pick up env vars
+	tlsOpts, err := ParseTLS(configuration, "server", tlsRequired)
+	if err != nil {
+		return nil, err
+	}
+	return tlsconfig.Server(tlsOpts)
+}
+
+// ParseTLS tries to parse out valid server TLS options from a Viper.
+// The cert/key files are relative to the config file used to populate the instance
+// of viper.
+func ParseTLS(configuration *viper.Viper, prefix string, tlsRequired bool) (tlsconfig.Options, error) {
+	rootCA := GetPathRelativeToConfig(
+		configuration,
+		strings.Join([]string{prefix, "tls_ca_file"}, "."),
+	)
+	clientCert := GetPathRelativeToConfig(
+		configuration,
+		strings.Join([]string{prefix, "tls_client_cert"}, "."),
+	)
+	clientKey := GetPathRelativeToConfig(
+		configuration,
+		strings.Join([]string{prefix, "tls_client_key"}, "."),
+	)
+
 	tlsOpts := tlsconfig.Options{
-		CertFile: GetPathRelativeToConfig(configuration, "server.tls_cert_file"),
-		KeyFile:  GetPathRelativeToConfig(configuration, "server.tls_key_file"),
-		CAFile:   GetPathRelativeToConfig(configuration, "server.client_ca_file"),
+		CertFile: clientCert,
+		KeyFile:  clientKey,
+		CAFile:   rootCA,
 	}
 	if tlsOpts.CAFile != "" {
 		tlsOpts.ClientAuth = tls.RequireAndVerifyClientCert
@@ -74,7 +97,7 @@ func ParseServerTLS(configuration *viper.Viper, tlsRequired bool) (*tls.Config, 
 		}
 	}
 
-	return tlsconfig.Server(tlsOpts)
+	return &tlsOpts, nil
 }
 
 // ParseLogLevel tries to parse out a log level from a Viper.  If there is no

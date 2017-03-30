@@ -1,8 +1,6 @@
 package api
 
 import (
-	"path/filepath"
-
 	"github.com/Sirupsen/logrus"
 	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
@@ -10,7 +8,6 @@ import (
 
 	"crypto/rand"
 	"errors"
-	"github.com/docker/notary"
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/cryptoservice"
@@ -22,12 +19,16 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+const baseDir = "var/lib/docker/clientapi"
+
 // NewServer creates a new instance of a Client API server with a configured
 // upstream Notary Server.
-func NewServer(upstream string, upstreamCAPath string, grpcSrv *grpc.Server) error {
+func NewServer(upstream string, upstreamCAPath string, grpcSrv *grpc.Server, keyStores []trustmanager.KeyStore) error {
+
 	srv := &Server{
 		upstream:       upstream,
 		upstreamCAPath: upstreamCAPath,
+		keyStores:      keyStores,
 	}
 	RegisterNotaryServer(grpcSrv, srv)
 	return nil
@@ -36,6 +37,7 @@ func NewServer(upstream string, upstreamCAPath string, grpcSrv *grpc.Server) err
 type Server struct {
 	upstream       string
 	upstreamCAPath string
+	keyStores      []trustmanager.KeyStore
 }
 
 func (srv *Server) Initialize(ctx context.Context, initMessage *InitMessage) (*BasicResponse, error) {
@@ -76,7 +78,7 @@ func (srv *Server) Publish(ctx context.Context, gun *GunMessage) (*BasicResponse
 }
 
 func (srv *Server) AddTarget(ctx context.Context, t *Target) (*BasicResponse, error) {
-	r, err := srv.initRepo(data.GUN(t.GetGun()))
+	r, err := srv.initRepo(ctx, data.GUN(t.GetGun()))
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +101,7 @@ func (srv *Server) AddTarget(ctx context.Context, t *Target) (*BasicResponse, er
 }
 
 func (srv *Server) RemoveTarget(ctx context.Context, t *Target) (*BasicResponse, error) {
-	r, err := srv.initRepo(data.GUN(t.GetGun()))
+	r, err := srv.initRepo(ctx, data.GUN(t.GetGun()))
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +120,7 @@ func (srv *Server) RemoveTarget(ctx context.Context, t *Target) (*BasicResponse,
 }
 
 func (srv *Server) ListTargets(ctx context.Context, message *RoleNameListMessage) (*TargetWithRoleNameListResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +158,7 @@ func (srv *Server) ListTargets(ctx context.Context, message *RoleNameListMessage
 
 // GetTargetByName returns a target by the given name.
 func (srv *Server) GetTargetByName(ctx context.Context, message *TargetByNameAction) (*TargetWithRoleResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +189,7 @@ func (srv *Server) GetTargetByName(ctx context.Context, message *TargetByNameAct
 
 // GetAllTargetMetadataByName
 func (srv *Server) GetAllTargetMetadataByName(ctx context.Context, message *TargetNameMessage) (*TargetSignedListResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +246,7 @@ func (srv *Server) GetAllTargetMetadataByName(ctx context.Context, message *Targ
 
 // GetChangelist returns the list of the repository's unpublished changes
 func (srv *Server) GetChangelist(ctx context.Context, message *GunMessage) (*ChangeListResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +276,7 @@ func (srv *Server) GetChangelist(ctx context.Context, message *GunMessage) (*Cha
 }
 
 func (srv *Server) ListRoles(ctx context.Context, message *GunMessage) (*RoleWithSignaturesListResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -317,7 +319,7 @@ func (srv *Server) ListRoles(ctx context.Context, message *GunMessage) (*RoleWit
 }
 
 func (srv *Server) GetDelegationRoles(ctx context.Context, message *GunMessage) (*RoleListResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +350,7 @@ func (srv *Server) GetDelegationRoles(ctx context.Context, message *GunMessage) 
 }
 
 func (srv *Server) AddDelegation(ctx context.Context, message *AddDelegationMessage) (*BasicResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +371,7 @@ func (srv *Server) AddDelegation(ctx context.Context, message *AddDelegationMess
 }
 
 func (srv *Server) AddDelegationRoleAndKeys(ctx context.Context, message *AddDelegationRoleAndKeysMessage) (*BasicResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +392,7 @@ func (srv *Server) AddDelegationRoleAndKeys(ctx context.Context, message *AddDel
 }
 
 func (srv *Server) AddDelegationPaths(ctx context.Context, message *AddDelegationPathsMessage) (*BasicResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -406,7 +408,7 @@ func (srv *Server) AddDelegationPaths(ctx context.Context, message *AddDelegatio
 }
 
 func (srv *Server) RemoveDelegationKeysAndPaths(ctx context.Context, message *RemoveDelegationKeysAndPathsMessage) (*BasicResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -422,7 +424,7 @@ func (srv *Server) RemoveDelegationKeysAndPaths(ctx context.Context, message *Re
 }
 
 func (srv *Server) RemoveDelegationRole(ctx context.Context, message *RemoveDelegationRoleMessage) (*BasicResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +440,7 @@ func (srv *Server) RemoveDelegationRole(ctx context.Context, message *RemoveDele
 }
 
 func (srv *Server) RemoveDelegationPaths(ctx context.Context, message *RemoveDelegationPathsMessage) (*BasicResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +456,7 @@ func (srv *Server) RemoveDelegationPaths(ctx context.Context, message *RemoveDel
 }
 
 func (srv *Server) RemoveDelegationKeys(ctx context.Context, message *RemoveDelegationKeysMessage) (*BasicResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -470,7 +472,7 @@ func (srv *Server) RemoveDelegationKeys(ctx context.Context, message *RemoveDele
 }
 
 func (srv *Server) ClearDelegationPaths(ctx context.Context, message *RoleNameMessage) (*BasicResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -486,7 +488,7 @@ func (srv *Server) ClearDelegationPaths(ctx context.Context, message *RoleNameMe
 }
 
 func (srv *Server) Witness(ctx context.Context, message *RoleNameListMessage) (*RoleNameListResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -515,7 +517,7 @@ func (srv *Server) Witness(ctx context.Context, message *RoleNameListMessage) (*
 }
 
 func (srv *Server) RotateKey(ctx context.Context, message *RotateKeyMessage) (*BasicResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -536,7 +538,7 @@ func (srv *Server) CryptoService(ctx context.Context, message *GunMessage) (*Cry
 }
 
 func (srv *Server) CryptoServiceCreate(ctx context.Context, message *CryptoServiceCreateMessage) (*PublicKeyResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -577,7 +579,7 @@ func (srv *Server) CryptoServicePrivateKeySign(ctx context.Context, message *Cry
 }
 
 func (srv *Server) CryptoServiceAddKey(ctx context.Context, message *CryptoServiceAddKeyMessage) (*BasicResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -602,7 +604,7 @@ func (srv *Server) CryptoServiceAddKey(ctx context.Context, message *CryptoServi
 }
 
 func (srv *Server) CryptoServiceGetKey(ctx context.Context, message *KeyIDMessage) (*PublicKeyResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -622,7 +624,7 @@ func (srv *Server) CryptoServiceGetKey(ctx context.Context, message *KeyIDMessag
 }
 
 func (srv *Server) CryptoServiceGetPrivateKey(ctx context.Context, message *KeyIDMessage) (*PrivateKeyResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -660,7 +662,7 @@ func (srv *Server) CryptoServiceGetPrivateKey(ctx context.Context, message *KeyI
 }
 
 func (srv *Server) CryptoServiceRemoveKey(ctx context.Context, message *KeyIDMessage) (*BasicResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -678,7 +680,7 @@ func (srv *Server) CryptoServiceRemoveKey(ctx context.Context, message *KeyIDMes
 }
 
 func (srv *Server) CryptoServiceListKeys(ctx context.Context, message *RoleNameMessage) (*KeyIDsListResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -694,7 +696,7 @@ func (srv *Server) CryptoServiceListKeys(ctx context.Context, message *RoleNameM
 }
 
 func (srv *Server) CryptoServiceListAllKeys(ctx context.Context, message *GunMessage) (*SigningKeyIDsToRolesResponse, error) {
-	r, err := srv.initRepo(data.GUN(message.Gun))
+	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
 		return nil, err
 	}
@@ -750,7 +752,6 @@ func initializeRepo(r *client.NotaryRepository) error {
 
 func (srv *Server) initRepo(ctx context.Context, gun data.GUN) (*client.NotaryRepository, error) {
 	logrus.Errorf("initializing with upstream ca file %s", srv.upstreamCAPath)
-	baseDir := "var/lib/clientapi"
 	md, ok := metadata.FromContext(ctx)
 	if !ok {
 		return nil, errors.New("initRepo may only be used with GRPC contexts")
@@ -764,12 +765,7 @@ func (srv *Server) initRepo(ctx context.Context, gun data.GUN) (*client.NotaryRe
 		return nil, err
 	}
 
-	keyStore, err := trustmanager.NewKeyFileStore(filepath.Join(baseDir, notary.PrivDir), retriever)
-	if err != nil {
-		return nil, err
-	}
-
-	cryptoService := cryptoservice.NewCryptoService(keyStore)
+	cryptoService := cryptoservice.NewCryptoService(srv.keyStores...)
 
 	remoteStore, err := storage.NewHTTPStore(
 		srv.upstream+"/v2/"+gun.String()+"/_trust/tuf/",
@@ -789,10 +785,6 @@ func (srv *Server) initRepo(ctx context.Context, gun data.GUN) (*client.NotaryRe
 		cryptoService,
 		changelist.NewMemChangelist(),
 	)
-}
-
-func retriever(keyName, alias string, createNew bool, attempts int) (string, bool, error) {
-	return "password", false, nil
 }
 
 func DefaultPermissions() map[string][]string {

@@ -5,16 +5,21 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/notary"
 	grpcauth "github.com/docker/notary/auth/grpc"
 	"github.com/docker/notary/auth/token"
 	"github.com/docker/notary/client_api/api"
+	"github.com/docker/notary/passphrase"
+	"github.com/docker/notary/trustmanager"
+	"github.com/docker/notary/trustmanager/remoteks"
 	"github.com/docker/notary/utils"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	ghealth "google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"net"
+	"path/filepath"
 )
 
 // the client api will always require push and pull permissions against
@@ -93,6 +98,52 @@ func Authorization(vc *viper.Viper) (grpc.UnaryServerInterceptor, error) {
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unrecognized authorization type: %s", authType)
+}
+
+func KeyStorage(vc *viper.Viper) ([]trustmanager.KeyStore, error) {
+	var (
+		keyStore trustmanager.KeyStore
+		err      error
+		location = vc.GetString("key_storage.type")
+		secret   = vc.GetString("key_storage.secret")
+	)
+	if secret == "" {
+		return nil, errors.New("must set a key_storage.secret")
+	}
+	switch location {
+	case "local":
+		baseDir := vc.GetString("key_storage.directory")
+		if baseDir == "" {
+			return nil, errors.New("local key storage selected but no key_storage.directory included in configuration")
+		}
+		keyStore, err = trustmanager.NewKeyFileStore(filepath.Join(baseDir, notary.PrivDir), passphrase.ConstantRetriever(secret))
+		if err != nil {
+			return nil, err
+		}
+	case "memory":
+		keyStore = trustmanager.NewKeyMemoryStore(passphrase.ConstantRetriever(secret))
+	case "remote":
+		tlsOpts, err := utils.ParseTLS(vc, "key_storage", true)
+		if err != nil {
+			return nil, err
+		}
+		tlsConfig, err := tlsconfig.Client(tlsOpts)
+		if err != nil {
+			return nil, err
+		}
+		store, err := remoteks.NewRemoteStore(
+			vc.GetString("key_storage.addr"),
+			tlsConfig,
+			vc.GetDuration("key_storage.timeout"),
+		)
+		if err != nil {
+			return nil, err
+		}
+		keyStore = trustmanager.NewGenericKeyStore(store, passphrase.ConstantRetriever(secret))
+	default:
+		return nil, errors.New("no key storage configured")
+	}
+	return []trustmanager.KeyStore{keyStore}, nil
 }
 
 func buildBasePermissionList(requiredPerms ...string) (map[string][]string, error) {

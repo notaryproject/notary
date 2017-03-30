@@ -36,7 +36,7 @@ func main() {
 	// and setupGRPCServer()
 	grpcAddr, tlsConfig, err := setup.GetAddrAndTLSConfig(vc)
 	if err != nil {
-		logrus.Fatal("unable to set up TLS: %s", err.Error())
+		logrus.Fatalf("unable to set up TLS: %s", err.Error())
 	}
 
 	upstreamAddr := vc.GetString("upstream.addr")
@@ -45,7 +45,7 @@ func main() {
 	creds := credentials.NewTLS(tlsConfig)
 	auth, err := setup.Authorization(vc)
 	if err != nil {
-		logrus.Fatal("unable to configure authorization: %s", err.Error())
+		logrus.Fatalf("unable to configure authorization: %s", err.Error())
 	}
 
 	opts := []grpc.ServerOption{
@@ -57,10 +57,14 @@ func main() {
 
 	srv, lis, err := setup.NewGRPCServer(grpcAddr, opts)
 	if err != nil {
-		logrus.Fatal("grpc server failed to start on %s: %v",
+		logrus.Fatalf("grpc server failed to start on %s: %v",
 			grpcAddr, err)
 	}
-	err = api.NewServer(upstreamAddr, upstreamCAPath, srv)
+	keyStorage, err := setup.KeyStorage(vc)
+	if err != nil {
+		logrus.Fatalf("failed to configure key storage: %s", err.Error())
+	}
+	err = api.NewServer(upstreamAddr, upstreamCAPath, srv, keyStorage)
 	if err != nil {
 		logrus.Fatal(err)
 	}
@@ -69,7 +73,7 @@ func main() {
 
 	logrus.Infof("serving on %s", grpcAddr)
 	if err := srv.Serve(lis); err != nil {
-		logrus.Error("server stopped with an error: %v", err)
+		logrus.Errorf("server stopped with an error: %v", err)
 	}
 	logrus.Info("server shutting down")
 }
