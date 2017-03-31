@@ -136,11 +136,11 @@ func wildcardMatch(gun data.GUN, certs map[string][]string) ([]string, bool) {
 		longest = ""
 		ids     []string
 	)
-	for k, v := range certs {
-		if strings.HasSuffix(k, "*") {
-			if strings.HasPrefix(gun.String(), k[:len(k)-1]) && len(k) > len(longest) {
-				longest = k
-				ids = v
+	for gunPrefix, keyIDs := range certs {
+		if strings.HasSuffix(gunPrefix, "*") {
+			if strings.HasPrefix(gun.String(), gunPrefix[:len(gunPrefix)-1]) && len(gunPrefix) > len(longest) {
+				longest = gunPrefix
+				ids = keyIDs
 			}
 		}
 	}

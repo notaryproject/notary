@@ -25,7 +25,8 @@ func TestWildcardMatch(t *testing.T) {
 	require.True(t, ok)
 
 	// wildcardMatch should also match between segment boundaries, and take
-	// the first match is finds as the ONLY match.
+	// the longest match it finds as the ONLY match (i.e. there is no merging
+	// of key IDs when there are multiple matches).
 	res, ok = wildcardMatch("docker.io/endophage/bar", testCerts)
 	require.Len(t, res, 1)
 	require.Equal(t, "def", res[0])
