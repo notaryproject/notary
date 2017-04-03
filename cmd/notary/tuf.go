@@ -16,7 +16,6 @@ import (
 
 	"golang.org/x/crypto/ssh/terminal"
 
-	"encoding/json"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
@@ -29,11 +28,13 @@ import (
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf"
 	tufutils "github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"path/filepath"
+	"github.com/docker/notary/storage"
 )
 
 var cmdTUFListTemplate = usageTemplate{
@@ -114,6 +115,12 @@ var cmdTUFExportTemplate = usageTemplate{
 	Long:  "Export the listed role files for a trusted collection identified by the Globally Unique Name in the appropriate TUF file structure.",
 }
 
+var cmdTUFImportTemplate = usageTemplate{
+	Use:   "import <GUN> [ role files ... ]",
+	Short: "Import the listed role files for a trusted collection.",
+	Long:  "Import the listed role files for a trusted collection identified by the Globally Unique Name from the appropriate TUF file structure.",
+}
+
 type tufCommander struct {
 	// these need to be set
 	configGetter func() (*viper.Viper, error)
@@ -192,8 +199,133 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmd.AddCommand(cmdTUFDeleteGUN)
 
 	cmdTUFExportGUN := cmdTUFExportTemplate.ToCommand(t.tufExportGUN)
-	cmdTUFExportGUN.Flags().StringVarP(&t.output, "output", "o", "", "File to export role files to")
+	cmdTUFExportGUN.Flags().StringVarP(&t.output, "output", "o", "", "Directory to export role files to")
 	cmd.AddCommand(cmdTUFExportGUN)
+
+	cmdTUFImportGUN := cmdTUFImportTemplate.ToCommand(t.tufImportGUN)
+	cmdTUFImportGUN.Flags().StringVarP(&t.input, "input", "i", "", "Directory to import role files from")
+	cmd.AddCommand(cmdTUFImportGUN)
+}
+
+func (t *tufCommander) tufImportGUN(cmd *cobra.Command, args []string) error {
+	if len(args) < 1 {
+		cmd.Usage()
+		return fmt.Errorf("Please provide a GUN")
+	}
+	config, err := t.configGetter()
+	if err != nil {
+		return err
+	}
+
+	gun := data.GUN(args[0])
+
+	roles := data.NewRoleList(args[1:])
+
+	inDir := t.input
+	if inDir == "" {
+		currDir, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+
+		inDir = path.Join(currDir, filepath.FromSlash(gun.String()))
+	}
+
+	return importGUNRoles(config, gun, t.retriever, inDir, roles)
+}
+
+func importGUNRoles(config *viper.Viper, gun data.GUN, retriever notary.PassRetriever, importDir string, roles []data.RoleName) error {
+	baseDir := config.GetString("trust_dir")
+
+	rt, err := getTransport(config, gun, readOnly)
+	if err != nil {
+		return err
+	}
+
+	trustPin, err := getTrustPinning(config)
+	if err != nil {
+		return err
+	}
+
+	exportCache, err := NewExportStore(importDir, "json", roles)
+	if err != nil {
+		return err
+	}
+
+	exportRepo, err := notaryclient.NewCachedNotaryRepository(
+		baseDir, gun, getRemoteTrustServer(config), rt, retriever,
+		trustPin, exportCache, nil)
+	if err != nil {
+		return err
+	}
+
+	// FIXME: use NewFileStore... and set nRepo.tufRepo when moving this code to notaryclient package.
+	refCache, err := storage.NewFileStore(
+		filepath.Join(baseDir, "tuf", filepath.FromSlash(gun.String()), "metadata"), "json",
+	)
+	if err != nil {
+		return err
+	}
+
+
+	if len(roles) == 0 {
+		roles = data.BaseRoles
+	}
+
+	b := tuf.NewRepoBuilder(gun, exportRepo.CryptoService, trustPin)
+
+	logrus.Debugf("Importing trusted collections.")
+
+	// We load the rool role from the export directory
+	rootBytes, err := exportCache.GetSized(data.CanonicalRootRole.String(), storage.NoSizeLimit)
+	if err != nil {
+		if _, ok := err.(storage.ErrMetaNotFound); ok {
+			// Or from the reference cache if not provided
+			rootBytes, err = refCache.GetSized(data.CanonicalRootRole.String(), storage.NoSizeLimit)
+			if _, ok := err.(storage.ErrMetaNotFound); ok {
+				return err
+			}
+		}
+	}
+
+	if err := b.Load(data.CanonicalRootRole, rootBytes, 1, true); err != nil {
+		return err
+	}
+
+	for _, role := range roles {
+		// We've already loaded root files
+		if role == data.CanonicalRootRole {
+			continue
+		}
+
+		jsonBytes, err := exportCache.GetSized(role.String(), storage.NoSizeLimit)
+		if err != nil {
+			if _, ok := err.(storage.ErrMetaNotFound); ok {
+				jsonBytes, err = refCache.GetSized(role.String(), storage.NoSizeLimit)
+				if _, ok := err.(storage.ErrMetaNotFound); ok {
+					return err
+				}
+			}
+		}
+
+		if err := b.Load(role, jsonBytes, 1, true); err != nil {
+			return err
+		}
+	}
+
+	tufRepo, _, err := b.Finish()
+	if err != nil {
+		return err
+	}
+
+	refRepo, err := notaryclient.NewCachedNotaryRepository(
+		baseDir, gun, getRemoteTrustServer(config), rt, retriever,
+		trustPin, refCache, tufRepo)
+	if err != nil {
+		return err
+	}
+
+	return refRepo.Publish()
 }
 
 func (t *tufCommander) tufExportGUN(cmd *cobra.Command, args []string) error {
@@ -201,7 +333,6 @@ func (t *tufCommander) tufExportGUN(cmd *cobra.Command, args []string) error {
 		cmd.Usage()
 		return fmt.Errorf("Please provide a GUN")
 	}
-
 	config, err := t.configGetter()
 	if err != nil {
 		return err
@@ -221,6 +352,7 @@ func (t *tufCommander) tufExportGUN(cmd *cobra.Command, args []string) error {
 		outDir = path.Join(currDir, filepath.FromSlash(gun.String()))
 	}
 
+
 	rt, err := getTransport(config, gun, readOnly)
 	if err != nil {
 		return err
@@ -231,98 +363,17 @@ func (t *tufCommander) tufExportGUN(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
+	cache, err := NewExportStore(outDir, "json", roles)
 	if err != nil {
 		return err
 	}
 
-	// if no role is provided, we export all targets for each registered role
-	if len(roles) == 0 {
-		rolesWithSig, err := nRepo.ListRoles()
-		if err != nil {
-			return err
-		}
-
-		roles = make([]data.RoleName, len(rolesWithSig))
-		for index, roleWithSig := range rolesWithSig {
-			roles[index] = roleWithSig.Name
-		}
-	}
-
-	// a map of roles to target names and their associated json files
-	exportFiles := make(map[data.RoleName]map[string][]byte)
-
-	for _, role := range roles {
-		targets, err := nRepo.ListTargets(role)
-		if err != nil {
-			return err
-		}
-
-		for _, target := range targets {
-			// do not duplicate export of delegation's targets
-			if target.Role != role {
-				continue
-			}
-
-			metadata, err := nRepo.GetAllTargetMetadataByName(target.Name)
-			if err != nil {
-				return err
-			}
-
-			metadataJson, err := json.Marshal(metadata)
-			if err != nil {
-				return err
-			}
-
-			if _, ok := exportFiles[role]; !ok {
-				exportFiles[role] = make(map[string][]byte)
-
-			}
-
-			exportFiles[role][target.Name] = metadataJson
-		}
-	}
-
-	if len(exportFiles) == 0 {
-		return nil
-	}
-
-	return exportGUNFiles(outDir, exportFiles, roles...)
-}
-
-func exportGUNFiles(outDir string, roleNameToTargetFiles map[data.RoleName]map[string][]byte, roles ...data.RoleName) error {
-	err := os.MkdirAll(outDir, notary.PrivExecPerms)
+	nRepo, err := notaryclient.NewCachedNotaryRepository(config.GetString("trust_dir"), gun,
+		getRemoteTrustServer(config), rt, t.retriever, trustPin, cache, nil)
 	if err != nil {
-		return nil
+		return err
 	}
-
-	for role, targetNamesToFiles := range roleNameToTargetFiles {
-		targetPath := strings.Join([]string{"0", role.String(), "json"}, ".")
-		outFile := path.Join(outDir, targetPath)
-
-		// Make sure the parent directory of the file is created (ex: "0.targets/" for "0.targets/foo.json")
-		err := os.MkdirAll(filepath.Dir(outFile), notary.PrivExecPerms)
-		if err != nil {
-			return nil
-		}
-
-		if _, err := os.Stat(outFile); os.IsExist(err) {
-			logrus.Warnf("Trying to export files for role %s but file %s exists, overwriting.", role.String(), outFile)
-		}
-
-		content, err := json.Marshal(targetNamesToFiles)
-		if err != nil {
-			return err
-		}
-
-		logrus.Debugf("Exporting targets for role %s in file %s.", role, outFile)
-		if err := ioutil.WriteFile(outFile, content, notary.PrivNoExecPerms); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return nRepo.Update(false)
 }
 
 func (t *tufCommander) tufWitness(cmd *cobra.Command, args []string) error {
