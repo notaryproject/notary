@@ -1,4 +1,4 @@
-package client
+ package client
 
 import (
 	"bytes"
@@ -22,6 +22,7 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/utils"
+	"github.com/docker/notary/storage"
 )
 
 const (
@@ -52,10 +53,8 @@ type NotaryRepository struct {
 	LegacyVersions int // number of versions back to fetch roots to sign with
 }
 
-// NewFileCachedNotaryRepository is a wrapper for NewNotaryRepository that initializes
-// a file cache from the provided repository, local config information and a crypto service.
-// It also retrieves the remote store associated to the base directory under where all the
-// trust files will be stored and the specified GUN.
+// NewFileCachedNotaryRepository is a wrapper for NewCachedNotaryRepository and hence NewCachedNotaryRepository
+// that initializes a file cache from the provided repository.
 func NewFileCachedNotaryRepository(baseDir string, gun data.GUN, baseURL string, rt http.RoundTripper,
 	retriever notary.PassRetriever, trustPinning trustpinning.TrustPinConfig) (
 	*NotaryRepository, error) {
@@ -67,6 +66,18 @@ func NewFileCachedNotaryRepository(baseDir string, gun data.GUN, baseURL string,
 	if err != nil {
 		return nil, err
 	}
+
+	return NewCachedNotaryRepository(baseDir, gun, baseURL, rt, retriever, trustPinning, cache, nil)
+}
+
+// NewCachedNotaryRepository is a wrapper for local NewNotaryRepository that initializes a config information and
+// a crypto service.
+// It also retrieves the remote store associated to the base directory under where all the
+// trust files will be stored and the specified GUN.
+func NewCachedNotaryRepository(baseDir string, gun data.GUN, baseURL string, rt http.RoundTripper,
+	retriever notary.PassRetriever, trustPinning trustpinning.TrustPinConfig, cache storage.MetadataStore,
+	tufRepo *tuf.Repo) (
+	*NotaryRepository, error) {
 
 	keyStores, err := getKeyStores(baseDir, retriever)
 	if err != nil {
@@ -88,7 +99,7 @@ func NewFileCachedNotaryRepository(baseDir string, gun data.GUN, baseURL string,
 		return nil, err
 	}
 
-	return NewNotaryRepository(baseDir, gun, baseURL, remoteStore, cache, trustPinning, cryptoService, cl)
+	return NewNotaryRepository(baseDir, gun, baseURL, remoteStore, cache, trustPinning, cryptoService, cl, tufRepo)
 }
 
 // NewNotaryRepository is the base method that returns a new notary repository.
@@ -97,7 +108,7 @@ func NewFileCachedNotaryRepository(baseDir string, gun data.GUN, baseURL string,
 // docker content trust).
 // It expects an initialized remote store and cache.
 func NewNotaryRepository(baseDir string, gun data.GUN, baseURL string, remoteStore store.RemoteStore, cache store.MetadataStore,
-	trustPinning trustpinning.TrustPinConfig, cryptoService signed.CryptoService, cl changelist.Changelist) (
+	trustPinning trustpinning.TrustPinConfig, cryptoService signed.CryptoService, cl changelist.Changelist, tufRepo *tuf.Repo) (
 	*NotaryRepository, error) {
 
 	// Repo's remote store is either a valid remote store or an OfflineStore
@@ -113,6 +124,7 @@ func NewNotaryRepository(baseDir string, gun data.GUN, baseURL string, remoteSto
 		cache:          cache,
 		remoteStore:    remoteStore,
 		CryptoService:  cryptoService,
+		tufRepo: 	tufRepo,
 		trustPinning:   trustPinning,
 		LegacyVersions: 0, // By default, don't sign with legacy roles
 	}
