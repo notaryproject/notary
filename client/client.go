@@ -552,6 +552,14 @@ func (r *NotaryRepository) GetChangelist() (changelist.Changelist, error) {
 	return r.changelist, nil
 }
 
+func (r *NotaryRepository) GetRemoteStore() store.RemoteStore {
+	return r.remoteStore
+}
+
+func (r *NotaryRepository) GetTUFRepo() *tuf.Repo {
+	return r.tufRepo
+}
+
 // getRemoteStore returns the remoteStore of a repository if valid or
 // or an OfflineStore otherwise
 func (r *NotaryRepository) getRemoteStore() store.RemoteStore {

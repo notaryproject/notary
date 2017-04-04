@@ -6,12 +6,16 @@ import (
 )
 
 // ExportStore is a wrapper around a Filesystem store which filters requested roles.
+// It references the set of roles it contains for export and import and the cache
+// from the reference repository.
 type ExportStore struct {
 	store	*storage.FilesystemStore
 	Roles	[]data.RoleName
+	refCache *storage.FilesystemStore
 }
 
-func NewExportStore(baseDir, fileExt string, roles []data.RoleName) (*ExportStore, error) {
+func NewExportStore(baseDir, fileExt string, roles []data.RoleName) (
+	*ExportStore, error) {
 	store, err := storage.NewFileStore(baseDir, fileExt)
 	if err != nil {
 		return nil, err
@@ -30,7 +34,12 @@ func (e *ExportStore) GetSized(name string, size int64) ([]byte, error) {
 
 	for _, role := range e.Roles {
 		if name == role.String() {
-			return e.store.GetSized(name, size)
+			jsonBytes, err := e.store.GetSized(name, size)
+			if err != nil {
+				return nil, err
+			}
+
+			return jsonBytes, nil
 		}
 	}
 
