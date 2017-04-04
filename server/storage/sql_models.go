@@ -50,7 +50,7 @@ func (c Change) TableName() string {
 // CreateTUFTable creates the DB table for TUFFile
 func CreateTUFTable(db gorm.DB) error {
 	// TODO: gorm
-	query := db.Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8").CreateTable(&TUFFile{})
+	query := db.AutoMigrate(&TUFFile{})
 	if query.Error != nil {
 		return query.Error
 	}
@@ -61,6 +61,6 @@ func CreateTUFTable(db gorm.DB) error {
 
 // CreateChangefeedTable creates the DB table for Changefeed
 func CreateChangefeedTable(db gorm.DB) error {
-	query := db.Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8").CreateTable(&Change{})
+	query := db.AutoMigrate(&Change{})
 	return query.Error
 }

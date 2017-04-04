@@ -6,12 +6,363 @@ import (
 	"reflect"
 )
 
+// Association Mode contains some helper methods to handle relationship things easily.
 type Association struct {
-	Scope      *Scope
-	PrimaryKey interface{}
-	Column     string
-	Error      error
-	Field      *Field
+	Error  error
+	scope  *Scope
+	column string
+	field  *Field
+}
+
+// Find find out all related associations
+func (association *Association) Find(value interface{}) *Association {
+	association.scope.related(value, association.column)
+	return association.setErr(association.scope.db.Error)
+}
+
+// Append append new associations for many2many, has_many, replace current association for has_one, belongs_to
+func (association *Association) Append(values ...interface{}) *Association {
+	if association.Error != nil {
+		return association
+	}
+
+	if relationship := association.field.Relationship; relationship.Kind == "has_one" {
+		return association.Replace(values...)
+	}
+	return association.saveAssociations(values...)
+}
+
+// Replace replace current associations with new one
+func (association *Association) Replace(values ...interface{}) *Association {
+	if association.Error != nil {
+		return association
+	}
+
+	var (
+		relationship = association.field.Relationship
+		scope        = association.scope
+		field        = association.field.Field
+		newDB        = scope.NewDB()
+	)
+
+	// Append new values
+	association.field.Set(reflect.Zero(association.field.Field.Type()))
+	association.saveAssociations(values...)
+
+	// Belongs To
+	if relationship.Kind == "belongs_to" {
+		// Set foreign key to be null when clearing value (length equals 0)
+		if len(values) == 0 {
+			// Set foreign key to be nil
+			var foreignKeyMap = map[string]interface{}{}
+			for _, foreignKey := range relationship.ForeignDBNames {
+				foreignKeyMap[foreignKey] = nil
+			}
+			association.setErr(newDB.Model(scope.Value).UpdateColumn(foreignKeyMap).Error)
+		}
+	} else {
+		// Polymorphic Relations
+		if relationship.PolymorphicDBName != "" {
+			newDB = newDB.Where(fmt.Sprintf("%v = ?", scope.Quote(relationship.PolymorphicDBName)), relationship.PolymorphicValue)
+		}
+
+		// Delete Relations except new created
+		if len(values) > 0 {
+			var associationForeignFieldNames, associationForeignDBNames []string
+			if relationship.Kind == "many_to_many" {
+				// if many to many relations, get association fields name from association foreign keys
+				associationScope := scope.New(reflect.New(field.Type()).Interface())
+				for idx, dbName := range relationship.AssociationForeignFieldNames {
+					if field, ok := associationScope.FieldByName(dbName); ok {
+						associationForeignFieldNames = append(associationForeignFieldNames, field.Name)
+						associationForeignDBNames = append(associationForeignDBNames, relationship.AssociationForeignDBNames[idx])
+					}
+				}
+			} else {
+				// If has one/many relations, use primary keys
+				for _, field := range scope.New(reflect.New(field.Type()).Interface()).PrimaryFields() {
+					associationForeignFieldNames = append(associationForeignFieldNames, field.Name)
+					associationForeignDBNames = append(associationForeignDBNames, field.DBName)
+				}
+			}
+
+			newPrimaryKeys := scope.getColumnAsArray(associationForeignFieldNames, field.Interface())
+
+			if len(newPrimaryKeys) > 0 {
+				sql := fmt.Sprintf("%v NOT IN (%v)", toQueryCondition(scope, associationForeignDBNames), toQueryMarks(newPrimaryKeys))
+				newDB = newDB.Where(sql, toQueryValues(newPrimaryKeys)...)
+			}
+		}
+
+		if relationship.Kind == "many_to_many" {
+			// if many to many relations, delete related relations from join table
+			var sourceForeignFieldNames []string
+
+			for _, dbName := range relationship.ForeignFieldNames {
+				if field, ok := scope.FieldByName(dbName); ok {
+					sourceForeignFieldNames = append(sourceForeignFieldNames, field.Name)
+				}
+			}
+
+			if sourcePrimaryKeys := scope.getColumnAsArray(sourceForeignFieldNames, scope.Value); len(sourcePrimaryKeys) > 0 {
+				newDB = newDB.Where(fmt.Sprintf("%v IN (%v)", toQueryCondition(scope, relationship.ForeignDBNames), toQueryMarks(sourcePrimaryKeys)), toQueryValues(sourcePrimaryKeys)...)
+
+				association.setErr(relationship.JoinTableHandler.Delete(relationship.JoinTableHandler, newDB, relationship))
+			}
+		} else if relationship.Kind == "has_one" || relationship.Kind == "has_many" {
+			// has_one or has_many relations, set foreign key to be nil (TODO or delete them?)
+			var foreignKeyMap = map[string]interface{}{}
+			for idx, foreignKey := range relationship.ForeignDBNames {
+				foreignKeyMap[foreignKey] = nil
+				if field, ok := scope.FieldByName(relationship.AssociationForeignFieldNames[idx]); ok {
+					newDB = newDB.Where(fmt.Sprintf("%v = ?", scope.Quote(foreignKey)), field.Field.Interface())
+				}
+			}
+
+			fieldValue := reflect.New(association.field.Field.Type()).Interface()
+			association.setErr(newDB.Model(fieldValue).UpdateColumn(foreignKeyMap).Error)
+		}
+	}
+	return association
+}
+
+// Delete remove relationship between source & passed arguments, but won't delete those arguments
+func (association *Association) Delete(values ...interface{}) *Association {
+	if association.Error != nil {
+		return association
+	}
+
+	var (
+		relationship = association.field.Relationship
+		scope        = association.scope
+		field        = association.field.Field
+		newDB        = scope.NewDB()
+	)
+
+	if len(values) == 0 {
+		return association
+	}
+
+	var deletingResourcePrimaryFieldNames, deletingResourcePrimaryDBNames []string
+	for _, field := range scope.New(reflect.New(field.Type()).Interface()).PrimaryFields() {
+		deletingResourcePrimaryFieldNames = append(deletingResourcePrimaryFieldNames, field.Name)
+		deletingResourcePrimaryDBNames = append(deletingResourcePrimaryDBNames, field.DBName)
+	}
+
+	deletingPrimaryKeys := scope.getColumnAsArray(deletingResourcePrimaryFieldNames, values...)
+
+	if relationship.Kind == "many_to_many" {
+		// source value's foreign keys
+		for idx, foreignKey := range relationship.ForeignDBNames {
+			if field, ok := scope.FieldByName(relationship.ForeignFieldNames[idx]); ok {
+				newDB = newDB.Where(fmt.Sprintf("%v = ?", scope.Quote(foreignKey)), field.Field.Interface())
+			}
+		}
+
+		// get association's foreign fields name
+		var associationScope = scope.New(reflect.New(field.Type()).Interface())
+		var associationForeignFieldNames []string
+		for _, associationDBName := range relationship.AssociationForeignFieldNames {
+			if field, ok := associationScope.FieldByName(associationDBName); ok {
+				associationForeignFieldNames = append(associationForeignFieldNames, field.Name)
+			}
+		}
+
+		// association value's foreign keys
+		deletingPrimaryKeys := scope.getColumnAsArray(associationForeignFieldNames, values...)
+		sql := fmt.Sprintf("%v IN (%v)", toQueryCondition(scope, relationship.AssociationForeignDBNames), toQueryMarks(deletingPrimaryKeys))
+		newDB = newDB.Where(sql, toQueryValues(deletingPrimaryKeys)...)
+
+		association.setErr(relationship.JoinTableHandler.Delete(relationship.JoinTableHandler, newDB, relationship))
+	} else {
+		var foreignKeyMap = map[string]interface{}{}
+		for _, foreignKey := range relationship.ForeignDBNames {
+			foreignKeyMap[foreignKey] = nil
+		}
+
+		if relationship.Kind == "belongs_to" {
+			// find with deleting relation's foreign keys
+			primaryKeys := scope.getColumnAsArray(relationship.AssociationForeignFieldNames, values...)
+			newDB = newDB.Where(
+				fmt.Sprintf("%v IN (%v)", toQueryCondition(scope, relationship.ForeignDBNames), toQueryMarks(primaryKeys)),
+				toQueryValues(primaryKeys)...,
+			)
+
+			// set foreign key to be null if there are some records affected
+			modelValue := reflect.New(scope.GetModelStruct().ModelType).Interface()
+			if results := newDB.Model(modelValue).UpdateColumn(foreignKeyMap); results.Error == nil {
+				if results.RowsAffected > 0 {
+					scope.updatedAttrsWithValues(foreignKeyMap)
+				}
+			} else {
+				association.setErr(results.Error)
+			}
+		} else if relationship.Kind == "has_one" || relationship.Kind == "has_many" {
+			// find all relations
+			primaryKeys := scope.getColumnAsArray(relationship.AssociationForeignFieldNames, scope.Value)
+			newDB = newDB.Where(
+				fmt.Sprintf("%v IN (%v)", toQueryCondition(scope, relationship.ForeignDBNames), toQueryMarks(primaryKeys)),
+				toQueryValues(primaryKeys)...,
+			)
+
+			// only include those deleting relations
+			newDB = newDB.Where(
+				fmt.Sprintf("%v IN (%v)", toQueryCondition(scope, deletingResourcePrimaryDBNames), toQueryMarks(deletingPrimaryKeys)),
+				toQueryValues(deletingPrimaryKeys)...,
+			)
+
+			// set matched relation's foreign key to be null
+			fieldValue := reflect.New(association.field.Field.Type()).Interface()
+			association.setErr(newDB.Model(fieldValue).UpdateColumn(foreignKeyMap).Error)
+		}
+	}
+
+	// Remove deleted records from source's field
+	if association.Error == nil {
+		if field.Kind() == reflect.Slice {
+			leftValues := reflect.Zero(field.Type())
+
+			for i := 0; i < field.Len(); i++ {
+				reflectValue := field.Index(i)
+				primaryKey := scope.getColumnAsArray(deletingResourcePrimaryFieldNames, reflectValue.Interface())[0]
+				var isDeleted = false
+				for _, pk := range deletingPrimaryKeys {
+					if equalAsString(primaryKey, pk) {
+						isDeleted = true
+						break
+					}
+				}
+				if !isDeleted {
+					leftValues = reflect.Append(leftValues, reflectValue)
+				}
+			}
+
+			association.field.Set(leftValues)
+		} else if field.Kind() == reflect.Struct {
+			primaryKey := scope.getColumnAsArray(deletingResourcePrimaryFieldNames, field.Interface())[0]
+			for _, pk := range deletingPrimaryKeys {
+				if equalAsString(primaryKey, pk) {
+					association.field.Set(reflect.Zero(field.Type()))
+					break
+				}
+			}
+		}
+	}
+
+	return association
+}
+
+// Clear remove relationship between source & current associations, won't delete those associations
+func (association *Association) Clear() *Association {
+	return association.Replace()
+}
+
+// Count return the count of current associations
+func (association *Association) Count() int {
+	var (
+		count        = 0
+		relationship = association.field.Relationship
+		scope        = association.scope
+		fieldValue   = association.field.Field.Interface()
+		query        = scope.DB()
+	)
+
+	if relationship.Kind == "many_to_many" {
+		query = relationship.JoinTableHandler.JoinWith(relationship.JoinTableHandler, query, scope.Value)
+	} else if relationship.Kind == "has_many" || relationship.Kind == "has_one" {
+		primaryKeys := scope.getColumnAsArray(relationship.AssociationForeignFieldNames, scope.Value)
+		query = query.Where(
+			fmt.Sprintf("%v IN (%v)", toQueryCondition(scope, relationship.ForeignDBNames), toQueryMarks(primaryKeys)),
+			toQueryValues(primaryKeys)...,
+		)
+	} else if relationship.Kind == "belongs_to" {
+		primaryKeys := scope.getColumnAsArray(relationship.ForeignFieldNames, scope.Value)
+		query = query.Where(
+			fmt.Sprintf("%v IN (%v)", toQueryCondition(scope, relationship.AssociationForeignDBNames), toQueryMarks(primaryKeys)),
+			toQueryValues(primaryKeys)...,
+		)
+	}
+
+	if relationship.PolymorphicType != "" {
+		query = query.Where(
+			fmt.Sprintf("%v.%v = ?", scope.New(fieldValue).QuotedTableName(), scope.Quote(relationship.PolymorphicDBName)),
+			relationship.PolymorphicValue,
+		)
+	}
+
+	query.Model(fieldValue).Count(&count)
+	return count
+}
+
+// saveAssociations save passed values as associations
+func (association *Association) saveAssociations(values ...interface{}) *Association {
+	var (
+		scope        = association.scope
+		field        = association.field
+		relationship = field.Relationship
+	)
+
+	saveAssociation := func(reflectValue reflect.Value) {
+		// value has to been pointer
+		if reflectValue.Kind() != reflect.Ptr {
+			reflectPtr := reflect.New(reflectValue.Type())
+			reflectPtr.Elem().Set(reflectValue)
+			reflectValue = reflectPtr
+		}
+
+		// value has to been saved for many2many
+		if relationship.Kind == "many_to_many" {
+			if scope.New(reflectValue.Interface()).PrimaryKeyZero() {
+				association.setErr(scope.NewDB().Save(reflectValue.Interface()).Error)
+			}
+		}
+
+		// Assign Fields
+		var fieldType = field.Field.Type()
+		var setFieldBackToValue, setSliceFieldBackToValue bool
+		if reflectValue.Type().AssignableTo(fieldType) {
+			field.Set(reflectValue)
+		} else if reflectValue.Type().Elem().AssignableTo(fieldType) {
+			// if field's type is struct, then need to set value back to argument after save
+			setFieldBackToValue = true
+			field.Set(reflectValue.Elem())
+		} else if fieldType.Kind() == reflect.Slice {
+			if reflectValue.Type().AssignableTo(fieldType.Elem()) {
+				field.Set(reflect.Append(field.Field, reflectValue))
+			} else if reflectValue.Type().Elem().AssignableTo(fieldType.Elem()) {
+				// if field's type is slice of struct, then need to set value back to argument after save
+				setSliceFieldBackToValue = true
+				field.Set(reflect.Append(field.Field, reflectValue.Elem()))
+			}
+		}
+
+		if relationship.Kind == "many_to_many" {
+			association.setErr(relationship.JoinTableHandler.Add(relationship.JoinTableHandler, scope.NewDB(), scope.Value, reflectValue.Interface()))
+		} else {
+			association.setErr(scope.NewDB().Select(field.Name).Save(scope.Value).Error)
+
+			if setFieldBackToValue {
+				reflectValue.Elem().Set(field.Field)
+			} else if setSliceFieldBackToValue {
+				reflectValue.Elem().Set(field.Field.Index(field.Field.Len() - 1))
+			}
+		}
+	}
+
+	for _, value := range values {
+		reflectValue := reflect.ValueOf(value)
+		indirectReflectValue := reflect.Indirect(reflectValue)
+		if indirectReflectValue.Kind() == reflect.Struct {
+			saveAssociation(reflectValue)
+		} else if indirectReflectValue.Kind() == reflect.Slice {
+			for i := 0; i < indirectReflectValue.Len(); i++ {
+				saveAssociation(indirectReflectValue.Index(i))
+			}
+		} else {
+			association.setErr(errors.New("invalid value type"))
+		}
+	}
+	return association
 }
 
 func (association *Association) setErr(err error) *Association {
@@ -19,167 +370,4 @@ func (association *Association) setErr(err error) *Association {
 		association.Error = err
 	}
 	return association
-}
-
-func (association *Association) Find(value interface{}) *Association {
-	association.Scope.related(value, association.Column)
-	return association.setErr(association.Scope.db.Error)
-}
-
-func (association *Association) Append(values ...interface{}) *Association {
-	scope := association.Scope
-	field := association.Field
-
-	for _, value := range values {
-		reflectvalue := reflect.Indirect(reflect.ValueOf(value))
-		if reflectvalue.Kind() == reflect.Struct {
-			field.Set(reflect.Append(field.Field, reflectvalue))
-		} else if reflectvalue.Kind() == reflect.Slice {
-			field.Set(reflect.AppendSlice(field.Field, reflectvalue))
-		} else {
-			association.setErr(errors.New("invalid association type"))
-		}
-	}
-	scope.Search.Select(association.Column)
-	scope.callCallbacks(scope.db.parent.callback.updates)
-	return association.setErr(scope.db.Error)
-}
-
-func (association *Association) getPrimaryKeys(values ...interface{}) []interface{} {
-	primaryKeys := []interface{}{}
-	scope := association.Scope
-
-	for _, value := range values {
-		reflectValue := reflect.Indirect(reflect.ValueOf(value))
-		if reflectValue.Kind() == reflect.Slice {
-			for i := 0; i < reflectValue.Len(); i++ {
-				if primaryField := scope.New(reflectValue.Index(i).Interface()).PrimaryField(); !primaryField.IsBlank {
-					primaryKeys = append(primaryKeys, primaryField.Field.Interface())
-				}
-			}
-		} else if reflectValue.Kind() == reflect.Struct {
-			if primaryField := scope.New(value).PrimaryField(); !primaryField.IsBlank {
-				primaryKeys = append(primaryKeys, primaryField.Field.Interface())
-			}
-		}
-	}
-	return primaryKeys
-}
-
-func (association *Association) Delete(values ...interface{}) *Association {
-	primaryKeys := association.getPrimaryKeys(values...)
-
-	if len(primaryKeys) == 0 {
-		association.setErr(errors.New("no primary key found"))
-	} else {
-		scope := association.Scope
-		relationship := association.Field.Relationship
-		// many to many
-		if relationship.Kind == "many_to_many" {
-			sql := fmt.Sprintf("%v = ? AND %v IN (?)", scope.Quote(relationship.ForeignDBName), scope.Quote(relationship.AssociationForeignDBName))
-			query := scope.NewDB().Where(sql, association.PrimaryKey, primaryKeys)
-			if err := relationship.JoinTableHandler.Delete(relationship.JoinTableHandler, query, relationship); err == nil {
-				leftValues := reflect.Zero(association.Field.Field.Type())
-				for i := 0; i < association.Field.Field.Len(); i++ {
-					value := association.Field.Field.Index(i)
-					if primaryField := association.Scope.New(value.Interface()).PrimaryField(); primaryField != nil {
-						var included = false
-						for _, primaryKey := range primaryKeys {
-							if equalAsString(primaryKey, primaryField.Field.Interface()) {
-								included = true
-							}
-						}
-						if !included {
-							leftValues = reflect.Append(leftValues, value)
-						}
-					}
-				}
-				association.Field.Set(leftValues)
-			}
-		} else {
-			association.setErr(errors.New("delete only support many to many"))
-		}
-	}
-	return association
-}
-
-func (association *Association) Replace(values ...interface{}) *Association {
-	relationship := association.Field.Relationship
-	scope := association.Scope
-	if relationship.Kind == "many_to_many" {
-		field := association.Field.Field
-
-		oldPrimaryKeys := association.getPrimaryKeys(field.Interface())
-		association.Field.Set(reflect.Zero(association.Field.Field.Type()))
-		association.Append(values...)
-		newPrimaryKeys := association.getPrimaryKeys(field.Interface())
-
-		var addedPrimaryKeys = []interface{}{}
-		for _, newKey := range newPrimaryKeys {
-			hasEqual := false
-			for _, oldKey := range oldPrimaryKeys {
-				if reflect.DeepEqual(newKey, oldKey) {
-					hasEqual = true
-					break
-				}
-			}
-			if !hasEqual {
-				addedPrimaryKeys = append(addedPrimaryKeys, newKey)
-			}
-		}
-		for _, primaryKey := range association.getPrimaryKeys(values...) {
-			addedPrimaryKeys = append(addedPrimaryKeys, primaryKey)
-		}
-
-		if len(addedPrimaryKeys) > 0 {
-			sql := fmt.Sprintf("%v = ? AND %v NOT IN (?)", scope.Quote(relationship.ForeignDBName), scope.Quote(relationship.AssociationForeignDBName))
-			query := scope.NewDB().Where(sql, association.PrimaryKey, addedPrimaryKeys)
-			association.setErr(relationship.JoinTableHandler.Delete(relationship.JoinTableHandler, query, relationship))
-		}
-	} else {
-		association.setErr(errors.New("replace only support many to many"))
-	}
-	return association
-}
-
-func (association *Association) Clear() *Association {
-	relationship := association.Field.Relationship
-	scope := association.Scope
-	if relationship.Kind == "many_to_many" {
-		sql := fmt.Sprintf("%v = ?", scope.Quote(relationship.ForeignDBName))
-		query := scope.NewDB().Where(sql, association.PrimaryKey)
-		if err := relationship.JoinTableHandler.Delete(relationship.JoinTableHandler, query, relationship); err == nil {
-			association.Field.Set(reflect.Zero(association.Field.Field.Type()))
-		} else {
-			association.setErr(err)
-		}
-	} else {
-		association.setErr(errors.New("clear only support many to many"))
-	}
-	return association
-}
-
-func (association *Association) Count() int {
-	count := -1
-	relationship := association.Field.Relationship
-	scope := association.Scope
-	newScope := scope.New(association.Field.Field.Interface())
-
-	if relationship.Kind == "many_to_many" {
-		relationship.JoinTableHandler.JoinWith(relationship.JoinTableHandler, scope.NewDB(), association.Scope.Value).Table(newScope.TableName()).Count(&count)
-	} else if relationship.Kind == "has_many" || relationship.Kind == "has_one" {
-		whereSql := fmt.Sprintf("%v.%v = ?", newScope.QuotedTableName(), newScope.Quote(relationship.ForeignDBName))
-		countScope := scope.DB().Table(newScope.TableName()).Where(whereSql, association.PrimaryKey)
-		if relationship.PolymorphicType != "" {
-			countScope = countScope.Where(fmt.Sprintf("%v.%v = ?", newScope.QuotedTableName(), newScope.Quote(relationship.PolymorphicDBName)), scope.TableName())
-		}
-		countScope.Count(&count)
-	} else if relationship.Kind == "belongs_to" {
-		if v, ok := scope.FieldByName(association.Column); ok {
-			whereSql := fmt.Sprintf("%v.%v = ?", newScope.QuotedTableName(), newScope.Quote(relationship.ForeignDBName))
-			scope.DB().Table(newScope.TableName()).Where(whereSql, v).Count(&count)
-		}
-	}
-
-	return count
 }
