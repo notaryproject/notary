@@ -239,21 +239,6 @@ func (t *tufCommander) tufImportGUN(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	trustPin, err := getTrustPinning(config)
-	if err != nil {
-		return err
-	}
-
-	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
-	if err != nil {
-		return err
-	}
-
-	if err = nRepo.Update(false); err != nil {
-		return err
-	}
-
 	exportCache, err := NewExportStore(inDir, "json", roles)
 	if err != nil {
 		return err
@@ -270,7 +255,13 @@ func (t *tufCommander) tufImportGUN(cmd *cobra.Command, args []string) error {
 		updatedRolefiles[role] = jsonByte
 	}
 
-	remote := nRepo.GetRemoteStore()
+	remote, err := storage.NewHTTPStore(
+		getRemoteTrustServer(config)+"/v2/"+gun.String()+"/_trust/tuf/",
+		"",
+		"json",
+		"key",
+		rt,
+	)
 
 	return remote.SetMulti(data.MetadataRoleMapToStringMap(updatedRolefiles))
 }
