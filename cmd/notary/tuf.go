@@ -28,7 +28,6 @@ import (
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf"
 	tufutils "github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/utils"
 	"github.com/spf13/cobra"
@@ -212,6 +211,7 @@ func (t *tufCommander) tufImportGUN(cmd *cobra.Command, args []string) error {
 		cmd.Usage()
 		return fmt.Errorf("Please provide a GUN")
 	}
+
 	config, err := t.configGetter()
 	if err != nil {
 		return err
@@ -220,6 +220,9 @@ func (t *tufCommander) tufImportGUN(cmd *cobra.Command, args []string) error {
 	gun := data.GUN(args[0])
 
 	roles := data.NewRoleList(args[1:])
+	if len(roles) == 0 {
+		roles = data.BaseRoles
+	}
 
 	inDir := t.input
 	if inDir == "" {
@@ -231,13 +234,7 @@ func (t *tufCommander) tufImportGUN(cmd *cobra.Command, args []string) error {
 		inDir = path.Join(currDir, filepath.FromSlash(gun.String()))
 	}
 
-	return importGUNRoles(config, gun, t.retriever, inDir, roles)
-}
-
-func importGUNRoles(config *viper.Viper, gun data.GUN, retriever notary.PassRetriever, importDir string, roles []data.RoleName) error {
-	baseDir := config.GetString("trust_dir")
-
-	rt, err := getTransport(config, gun, readOnly)
+	rt, err := getTransport(config, gun, readWrite)
 	if err != nil {
 		return err
 	}
@@ -247,85 +244,35 @@ func importGUNRoles(config *viper.Viper, gun data.GUN, retriever notary.PassRetr
 		return err
 	}
 
-	exportCache, err := NewExportStore(importDir, "json", roles)
+	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, t.retriever, trustPin)
 	if err != nil {
 		return err
 	}
 
-	exportRepo, err := notaryclient.NewCachedNotaryRepository(
-		baseDir, gun, getRemoteTrustServer(config), rt, retriever,
-		trustPin, exportCache, nil)
+	if err = nRepo.Update(false); err != nil {
+		return err
+	}
+
+	exportCache, err := NewExportStore(inDir, "json", roles)
 	if err != nil {
 		return err
 	}
 
-	// FIXME: use NewFileStore... and set nRepo.tufRepo when moving this code to notaryclient package.
-	refCache, err := storage.NewFileStore(
-		filepath.Join(baseDir, "tuf", filepath.FromSlash(gun.String()), "metadata"), "json",
-	)
-	if err != nil {
-		return err
-	}
-
-
-	if len(roles) == 0 {
-		roles = data.BaseRoles
-	}
-
-	b := tuf.NewRepoBuilder(gun, exportRepo.CryptoService, trustPin)
-
-	logrus.Debugf("Importing trusted collections.")
-
-	// We load the rool role from the export directory
-	rootBytes, err := exportCache.GetSized(data.CanonicalRootRole.String(), storage.NoSizeLimit)
-	if err != nil {
-		if _, ok := err.(storage.ErrMetaNotFound); ok {
-			// Or from the reference cache if not provided
-			rootBytes, err = refCache.GetSized(data.CanonicalRootRole.String(), storage.NoSizeLimit)
-			if _, ok := err.(storage.ErrMetaNotFound); ok {
-				return err
-			}
-		}
-	}
-
-	if err := b.Load(data.CanonicalRootRole, rootBytes, 1, true); err != nil {
-		return err
-	}
-
+	updatedRolefiles := make(map[data.RoleName][]byte)
 	for _, role := range roles {
-		// We've already loaded root files
-		if role == data.CanonicalRootRole {
-			continue
-		}
 
-		jsonBytes, err := exportCache.GetSized(role.String(), storage.NoSizeLimit)
+		jsonByte, err := exportCache.GetSized(role.String(), storage.NoSizeLimit)
 		if err != nil {
-			if _, ok := err.(storage.ErrMetaNotFound); ok {
-				jsonBytes, err = refCache.GetSized(role.String(), storage.NoSizeLimit)
-				if _, ok := err.(storage.ErrMetaNotFound); ok {
-					return err
-				}
-			}
-		}
-
-		if err := b.Load(role, jsonBytes, 1, true); err != nil {
 			return err
 		}
+
+		updatedRolefiles[role] = jsonByte
 	}
 
-	tufRepo, _, err := b.Finish()
-	if err != nil {
-		return err
-	}
+	remote := nRepo.GetRemoteStore()
 
-	refRepo, err := notaryclient.NewCachedNotaryRepository(
-		baseDir, gun, getRemoteTrustServer(config), rt, retriever,
-		trustPin, refCache, tufRepo)
-	if err != nil {
-		return err
-	}
-
-	return refRepo.Publish()
+	return remote.SetMulti(data.MetadataRoleMapToStringMap(updatedRolefiles))
 }
 
 func (t *tufCommander) tufExportGUN(cmd *cobra.Command, args []string) error {
