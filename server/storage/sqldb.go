@@ -26,7 +26,7 @@ func NewSQLStorage(dialect string, args ...interface{}) (*SQLStorage, error) {
 		return nil, err
 	}
 	return &SQLStorage{
-		DB: gormDB,
+		DB: *gormDB,
 	}, nil
 }
 
