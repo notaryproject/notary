@@ -363,6 +363,76 @@ func TestValidateRootWithPinnedCertAndIntermediates(t *testing.T) {
 		}
 	}
 	require.Equal(t, typedSignedRoot, validatedRoot)
+
+	// test it also works with a wildcarded gun in certs
+	validatedRoot, err = trustpinning.ValidateRoot(
+		nil,
+		signedRoot,
+		"docker.io/notary/test",
+		trustpinning.TrustPinConfig{
+			Certs: map[string][]string{
+				"docker.io/notar*": {ecdsax509Key.ID()},
+			},
+			DisableTOFU: true,
+		},
+	)
+	require.NoError(t, err, "failed to validate certID with intermediate")
+	for idx, sig := range typedSignedRoot.Signatures {
+		if sig.KeyID == ecdsax509Key.ID() {
+			typedSignedRoot.Signatures[idx].IsValid = true
+		}
+	}
+	require.Equal(t, typedSignedRoot, validatedRoot)
+
+	// incorrect key id on wildcard match should fail
+	_, err = trustpinning.ValidateRoot(
+		nil,
+		signedRoot,
+		"docker.io/notary/test",
+		trustpinning.TrustPinConfig{
+			Certs: map[string][]string{
+				"docker.io/notar*": {"badID"},
+			},
+			DisableTOFU: true,
+		},
+	)
+	require.Error(t, err, "failed to validate certID with intermediate")
+
+	// exact match should take precedence even if it fails validation
+	_, err = trustpinning.ValidateRoot(
+		nil,
+		signedRoot,
+		"docker.io/notary/test",
+		trustpinning.TrustPinConfig{
+			Certs: map[string][]string{
+				"docker.io/notary/test": {"badID"},
+				"docker.io/notar*":      {ecdsax509Key.ID()},
+			},
+			DisableTOFU: true,
+		},
+	)
+	require.Error(t, err, "failed to validate certID with intermediate")
+
+	// exact match should take precedence
+	validatedRoot, err = trustpinning.ValidateRoot(
+		nil,
+		signedRoot,
+		"docker.io/notary/test",
+		trustpinning.TrustPinConfig{
+			Certs: map[string][]string{
+				"docker.io/notary/test": {ecdsax509Key.ID()},
+				"docker.io/notar*":      {"badID"},
+			},
+			DisableTOFU: true,
+		},
+	)
+	require.NoError(t, err, "failed to validate certID with intermediate")
+	for idx, sig := range typedSignedRoot.Signatures {
+		if sig.KeyID == ecdsax509Key.ID() {
+			typedSignedRoot.Signatures[idx].IsValid = true
+		}
+	}
+	require.Equal(t, typedSignedRoot, validatedRoot)
 }
 
 func TestValidateRootFailuresWithPinnedCert(t *testing.T) {
