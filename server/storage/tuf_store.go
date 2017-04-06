@@ -33,8 +33,8 @@ type storedMeta struct {
 }
 
 // GetCurrent gets a specific TUF record, by walking from the current Timestamp to other metadata by checksum
-func (tms TUFMetaStorage) GetCurrent(gun data.GUN, namespace Namespace, tufRole data.RoleName) (*time.Time, []byte, error) {
-	timestampTime, timestampJSON, err := tms.MetaStore.GetCurrent(gun, namespace, data.CanonicalTimestampRole)
+func (tms TUFMetaStorage) GetCurrent(gun data.GUN, tufRole data.RoleName, channels ...Channel) (*time.Time, []byte, error) {
+	timestampTime, timestampJSON, err := tms.MetaStore.GetCurrent(gun, data.CanonicalTimestampRole)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -66,7 +66,7 @@ func (tms TUFMetaStorage) GetCurrent(gun data.GUN, namespace Namespace, tufRole 
 		snapshotJSON = cachedSnapshotData.data
 	} else {
 		// Get the snapshot from the underlying store by checksum if it isn't cached yet
-		snapshotTime, snapshotJSON, err = tms.GetChecksum(gun, namespace, data.CanonicalSnapshotRole, snapshotSHA256Hex)
+		snapshotTime, snapshotJSON, err = tms.GetChecksum(gun, data.CanonicalSnapshotRole, snapshotSHA256Hex)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -97,7 +97,7 @@ func (tms TUFMetaStorage) GetCurrent(gun data.GUN, namespace Namespace, tufRole 
 		return cachedRoleData.createupdate, cachedRoleData.data, nil
 	}
 
-	roleTime, roleJSON, err := tms.MetaStore.GetChecksum(gun, namespace, tufRole, roleSHA256Hex)
+	roleTime, roleJSON, err := tms.MetaStore.GetChecksum(gun, tufRole, roleSHA256Hex)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -107,11 +107,11 @@ func (tms TUFMetaStorage) GetCurrent(gun data.GUN, namespace Namespace, tufRole 
 }
 
 // GetChecksum gets a specific TUF record by checksum, also checking the internal cache
-func (tms TUFMetaStorage) GetChecksum(gun data.GUN, namespace Namespace, tufRole data.RoleName, checksum string) (*time.Time, []byte, error) {
+func (tms TUFMetaStorage) GetChecksum(gun data.GUN, tufRole data.RoleName, checksum string, channels ...Channel) (*time.Time, []byte, error) {
 	if cachedRoleData, ok := tms.cachedMeta[checksum]; ok {
 		return cachedRoleData.createupdate, cachedRoleData.data, nil
 	}
-	roleTime, roleJSON, err := tms.MetaStore.GetChecksum(gun, namespace, tufRole, checksum)
+	roleTime, roleJSON, err := tms.MetaStore.GetChecksum(gun, tufRole, checksum)
 	if err != nil {
 		return nil, nil, err
 	}

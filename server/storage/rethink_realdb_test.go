@@ -63,7 +63,7 @@ func TestRethinkBootstrapSetsUsernamePassword(t *testing.T) {
 	userSession, err := rethinkdb.UserConnection(tlsOpts, source, otherUser, otherPass)
 	require.NoError(t, err)
 	s = NewRethinkDBStorage(dbname, otherUser, otherPass, userSession)
-	_, _, err = s.GetCurrent("gun", PublishedState, data.CanonicalRootRole)
+	_, _, err = s.GetCurrent("gun", data.CanonicalRootRole)
 	require.Error(t, err)
 	require.IsType(t, gorethink.RQLRuntimeError{}, err)
 	require.Error(t, s.CheckHealth())
@@ -72,7 +72,7 @@ func TestRethinkBootstrapSetsUsernamePassword(t *testing.T) {
 	userSession, err = rethinkdb.UserConnection(tlsOpts, source, username, password)
 	require.NoError(t, err)
 	s = NewRethinkDBStorage(dbname, username, password, userSession)
-	_, _, err = s.GetCurrent("gun", PublishedState, data.CanonicalRootRole)
+	_, _, err = s.GetCurrent("gun", data.CanonicalRootRole)
 	require.Error(t, err)
 	require.IsType(t, ErrNotFound{}, err)
 	require.NoError(t, s.CheckHealth())
@@ -142,7 +142,6 @@ func TestRethinkGetVersion(t *testing.T) {
 func TestRethinkUpdateManyNoConflicts(t *testing.T) {
 	dbStore, cleanup := rethinkDBSetup(t)
 	defer cleanup()
-
 	testUpdateManyNoConflicts(t, dbStore)
 }
 

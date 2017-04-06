@@ -66,16 +66,15 @@ func TestGetTimestampNoPreviousTimestamp(t *testing.T) {
 		var gun data.GUN = "gun"
 		// so we know it's not a failure in getting root or snapshot
 		require.NoError(t,
-			store.UpdateCurrent(gun, storage.PublishedState, storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0,
+			store.UpdateCurrent(gun, storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0,
 				Data: meta[data.CanonicalRootRole]}))
 		require.NoError(t,
-			store.UpdateCurrent(gun, storage.PublishedState, storage.MetaUpdate{Role: data.CanonicalSnapshotRole, Version: 0,
+			store.UpdateCurrent(gun, storage.MetaUpdate{Role: data.CanonicalSnapshotRole, Version: 0,
 				Data: meta[data.CanonicalSnapshotRole]}))
 
 		if timestampJSON != nil {
 			require.NoError(t,
 				store.UpdateCurrent(gun,
-					storage.PublishedState,
 					storage.MetaUpdate{Role: data.CanonicalTimestampRole, Version: 0, Data: timestampJSON}))
 		}
 
@@ -99,9 +98,9 @@ func TestGetTimestampReturnsPreviousTimestampIfUnexpired(t *testing.T) {
 	meta, err := testutils.SignAndSerialize(repo)
 	require.NoError(t, err)
 
-	require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
+	require.NoError(t, store.UpdateCurrent("gun",
 		storage.MetaUpdate{Role: data.CanonicalSnapshotRole, Version: 0, Data: meta[data.CanonicalSnapshotRole]}))
-	require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
+	require.NoError(t, store.UpdateCurrent("gun",
 		storage.MetaUpdate{Role: data.CanonicalTimestampRole, Version: 0, Data: meta[data.CanonicalTimestampRole]}))
 
 	_, gottenTimestamp, err := GetOrCreateTimestamp("gun", store, crypto)
@@ -125,11 +124,11 @@ func TestGetTimestampOldTimestampExpired(t *testing.T) {
 	require.NoError(t, err)
 
 	// set all the metadata
-	require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
+	require.NoError(t, store.UpdateCurrent("gun",
 		storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0, Data: meta[data.CanonicalRootRole]}))
-	require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
+	require.NoError(t, store.UpdateCurrent("gun",
 		storage.MetaUpdate{Role: data.CanonicalSnapshotRole, Version: 0, Data: meta[data.CanonicalSnapshotRole]}))
-	require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
+	require.NoError(t, store.UpdateCurrent("gun",
 		storage.MetaUpdate{Role: data.CanonicalTimestampRole, Version: 1, Data: timestampJSON}))
 
 	_, gottenTimestamp, err := GetOrCreateTimestamp("gun", store, crypto)
@@ -188,10 +187,10 @@ func TestCannotMakeNewTimestampIfNoRootOrSnapshot(t *testing.T) {
 		dataToSet := test.test
 		store := storage.NewMemStorage()
 		for roleName, jsonBytes := range dataToSet {
-			require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
+			require.NoError(t, store.UpdateCurrent("gun",
 				storage.MetaUpdate{Role: data.RoleName(roleName), Version: 0, Data: jsonBytes}))
 		}
-		require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
+		require.NoError(t, store.UpdateCurrent("gun",
 			storage.MetaUpdate{Role: data.CanonicalTimestampRole, Version: 1, Data: timestampJSON}))
 
 		_, _, err := GetOrCreateTimestamp("gun", store, crypto)
@@ -216,11 +215,11 @@ func TestCreateTimestampNoKeyInCrypto(t *testing.T) {
 	require.NoError(t, err)
 
 	// set all the metadata so we know the failure to sign is just because of the key
-	require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
+	require.NoError(t, store.UpdateCurrent("gun",
 		storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0, Data: meta[data.CanonicalRootRole]}))
-	require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
+	require.NoError(t, store.UpdateCurrent("gun",
 		storage.MetaUpdate{Role: data.CanonicalSnapshotRole, Version: 0, Data: meta[data.CanonicalSnapshotRole]}))
-	require.NoError(t, store.UpdateCurrent("gun", storage.PublishedState,
+	require.NoError(t, store.UpdateCurrent("gun",
 		storage.MetaUpdate{Role: data.CanonicalTimestampRole, Version: 1, Data: timestampJSON}))
 
 	// pass it a new cryptoservice without the key
@@ -233,7 +232,7 @@ type FailingStore struct {
 	*storage.MemStorage
 }
 
-func (f FailingStore) GetCurrent(gun data.GUN, namespace storage.Namespace, role data.RoleName) (*time.Time, []byte, error) {
+func (f FailingStore) GetCurrent(gun data.GUN, role data.RoleName, channels ...storage.Channel) (*time.Time, []byte, error) {
 	return nil, nil, fmt.Errorf("failing store failed")
 }
 
@@ -249,7 +248,7 @@ type CorruptedStore struct {
 	*storage.MemStorage
 }
 
-func (c CorruptedStore) GetCurrent(gun data.GUN, namespace storage.Namespace, role data.RoleName) (*time.Time, []byte, error) {
+func (c CorruptedStore) GetCurrent(gun data.GUN, role data.RoleName, channels ...storage.Channel) (*time.Time, []byte, error) {
 	return &time.Time{}, []byte("junk"), nil
 }
 
@@ -279,7 +278,7 @@ func TestGetTimestampKeyExistingMetadata(t *testing.T) {
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
 	require.NoError(t,
-		store.UpdateCurrent("gun", storage.PublishedState, storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0, Data: rootJSON}))
+		store.UpdateCurrent("gun", storage.MetaUpdate{Role: data.CanonicalRootRole, Version: 0, Data: rootJSON}))
 
 	timestampRole, err := repo.Root.BuildBaseRole(data.CanonicalTimestampRole)
 	require.NoError(t, err)

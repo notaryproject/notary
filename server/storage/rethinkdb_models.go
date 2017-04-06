@@ -7,10 +7,9 @@ import (
 // These consts are the index names we've defined for RethinkDB
 const (
 	rdbSHA256Idx         = "sha256"
-	rdbGunNamespaceIdx   = "gun_namespace"
-	rdbGunRoleIdx        = "gun_role_namespace"
+	rdbGunRoleIdx        = "gun_role"
 	rdbGunRoleSHA256Idx  = "gun_role_sha256"
-	rdbGunRoleVersionIdx = "gun_role_version_namespace"
+	rdbGunRoleVersionIdx = "gun_role_version"
 )
 
 var (
@@ -22,9 +21,8 @@ var (
 			rdbSHA256Idx:         nil,
 			"gun":                nil,
 			"timestamp_checksum": nil,
-			rdbGunRoleIdx:        {"gun", "role", "namespace"},
+			rdbGunRoleIdx:        {"gun", "role"},
 			rdbGunRoleSHA256Idx:  {"gun", "role", "sha256"},
-			rdbGunNamespaceIdx:   {"gun", "namespace"},
 		},
 		// this configuration guarantees linearizability of individual atomic operations on individual documents
 		Config: map[string]string{

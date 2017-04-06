@@ -10,7 +10,7 @@ import (
 
 func assertExpectedMemoryTUFMeta(t *testing.T, expected []StoredTUFMeta, s *MemStorage) {
 	for _, tufObj := range expected {
-		k := entryKey(tufObj.Gun, tufObj.Role, tufObj.Namespace)
+		k := entryKey(tufObj.Gun, tufObj.Role, *tufObj.Channel)
 		versionList, ok := s.tufMeta[k]
 		require.True(t, ok, "Did not find this gun+role in store")
 		byVersion := make(map[int]ver)
@@ -33,10 +33,10 @@ func TestMemoryUpdateCurrentEmpty(t *testing.T) {
 }
 
 // UpdateCurrent should succeed if there was no previous metadata of the same
-// gun and role in a namespace.  They should be gettable.
-func TestMemoryUpdateNamespaced(t *testing.T) {
+// gun and role in a channel.  They should be gettable.
+func TestMemoryUpdateCurrentInChannel(t *testing.T) {
 	s := NewMemStorage()
-	expected := testUpdateCurrentNamespaced(t, s)
+	expected := testUpdateCurrentInChannel(t, s)
 	assertExpectedMemoryTUFMeta(t, expected, s)
 }
 
@@ -83,18 +83,18 @@ func TestMemoryDeleteSuccess(t *testing.T) {
 func TestGetCurrent(t *testing.T) {
 	s := NewMemStorage()
 
-	_, _, err := s.GetCurrent("gun", PublishedState, "role")
+	_, _, err := s.GetCurrent("gun", "role")
 	require.IsType(t, ErrNotFound{}, err, "Expected error to be ErrNotFound")
 
-	s.UpdateCurrent("gun", PublishedState, MetaUpdate{"role", 1, []byte("test")})
-	_, d, err := s.GetCurrent("gun", PublishedState, "role")
+	s.UpdateCurrent("gun", MetaUpdate{"role", 1, []byte("test"), nil})
+	_, d, err := s.GetCurrent("gun", "role")
 	require.Nil(t, err, "Expected error to be nil")
 	require.Equal(t, []byte("test"), d, "Data was incorrect")
 }
 
 func TestGetChecksumNotFound(t *testing.T) {
 	s := NewMemStorage()
-	_, _, err := s.GetChecksum("gun", PublishedState, "root", "12345")
+	_, _, err := s.GetChecksum("gun", "root", "12345")
 	require.Error(t, err)
 	require.IsType(t, ErrNotFound{}, err)
 }

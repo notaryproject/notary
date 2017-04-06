@@ -29,10 +29,9 @@ func TestRDBTUFFileJSONUnmarshalling(t *testing.T) {
 		"created_at": %s,
 		"updated_at": %s,
 		"deleted_at": %s,
-		"gun_role_version_namespace": ["completely", "invalid", "garbage", "blah"],
+		"gun_role_version": ["completely", "invalid", "garbage"],
 		"gun": "namespaced/name",
 		"role": "timestamp",
-		"namespace": "published",
 		"version": 5,
 		"sha256": "56ee4a23129fc22c6cb4b4ba5f78d730c91ab6def514e80d807c947bb21f0d63",
 		"data": %s,
@@ -53,15 +52,14 @@ func TestRDBTUFFileJSONUnmarshalling(t *testing.T) {
 	require.True(t, deleted.Equal(unmarshalled.DeletedAt))
 
 	expected := RDBTUFFile{
-		Timing:                  unmarshalled.Timing,
-		GunRoleVersionNamespace: []interface{}{"namespaced/name", "timestamp", 5, PublishedState.String()},
-		Gun:        "namespaced/name",
-		Role:       "timestamp",
-		Version:    5,
-		Namespace:  PublishedState.String(),
-		SHA256:     "56ee4a23129fc22c6cb4b4ba5f78d730c91ab6def514e80d807c947bb21f0d63",
-		Data:       data,
-		TSchecksum: "ebe6b6e082c94ef24043f1786a7046432506c3d193a47c299ed48ff4413ad7b0",
+		Timing:         unmarshalled.Timing,
+		GunRoleVersion: []interface{}{"namespaced/name", "timestamp", 5},
+		Gun:            "namespaced/name",
+		Role:           "timestamp",
+		Version:        5,
+		SHA256:         "56ee4a23129fc22c6cb4b4ba5f78d730c91ab6def514e80d807c947bb21f0d63",
+		Data:           data,
+		TSchecksum:     "ebe6b6e082c94ef24043f1786a7046432506c3d193a47c299ed48ff4413ad7b0",
 	}
 	require.Equal(t, expected, unmarshalled)
 }

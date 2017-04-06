@@ -224,7 +224,7 @@ func TestGetHandlerRoot(t *testing.T) {
 	require.NoError(t, err)
 	rootJSON, err := json.Marshal(root)
 	require.NoError(t, err)
-	metaStore.UpdateCurrent("gun", storage.PublishedState, storage.MetaUpdate{Role: "root", Version: 1, Data: rootJSON})
+	metaStore.UpdateCurrent("gun", storage.MetaUpdate{Role: "root", Version: 1, Data: rootJSON})
 
 	req := &http.Request{
 		Body: ioutil.NopCloser(bytes.NewBuffer(nil)),
@@ -261,14 +261,14 @@ func TestGetHandlerTimestamp(t *testing.T) {
 	snJSON, err := json.Marshal(sn)
 	require.NoError(t, err)
 	metaStore.UpdateCurrent(
-		"gun", storage.PublishedState, storage.MetaUpdate{Role: "snapshot", Version: 1, Data: snJSON})
+		"gun", storage.MetaUpdate{Role: "snapshot", Version: 1, Data: snJSON})
 
 	ts, err := repo.SignTimestamp(data.DefaultExpires("timestamp"))
 	require.NoError(t, err)
 	tsJSON, err := json.Marshal(ts)
 	require.NoError(t, err)
 	metaStore.UpdateCurrent(
-		"gun", storage.PublishedState, storage.MetaUpdate{Role: "timestamp", Version: 1, Data: tsJSON})
+		"gun", storage.MetaUpdate{Role: "timestamp", Version: 1, Data: tsJSON})
 
 	req := &http.Request{
 		Body: ioutil.NopCloser(bytes.NewBuffer(nil)),
@@ -298,14 +298,14 @@ func TestGetHandlerSnapshot(t *testing.T) {
 	snJSON, err := json.Marshal(sn)
 	require.NoError(t, err)
 	metaStore.UpdateCurrent(
-		"gun", storage.PublishedState, storage.MetaUpdate{Role: "snapshot", Version: 1, Data: snJSON})
+		"gun", storage.MetaUpdate{Role: "snapshot", Version: 1, Data: snJSON})
 
 	ts, err := repo.SignTimestamp(data.DefaultExpires("timestamp"))
 	require.NoError(t, err)
 	tsJSON, err := json.Marshal(ts)
 	require.NoError(t, err)
 	metaStore.UpdateCurrent(
-		"gun", storage.PublishedState, storage.MetaUpdate{Role: "timestamp", Version: 1, Data: tsJSON})
+		"gun", storage.MetaUpdate{Role: "timestamp", Version: 1, Data: tsJSON})
 
 	req := &http.Request{
 		Body: ioutil.NopCloser(bytes.NewBuffer(nil)),
@@ -345,7 +345,7 @@ func TestGetHandler404(t *testing.T) {
 
 func TestGetHandlerNilData(t *testing.T) {
 	metaStore := storage.NewMemStorage()
-	metaStore.UpdateCurrent("gun", storage.PublishedState, storage.MetaUpdate{Role: "root", Version: 1, Data: nil})
+	metaStore.UpdateCurrent("gun", storage.MetaUpdate{Role: "root", Version: 1, Data: nil})
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, notary.CtxKeyMetaStore, metaStore)
@@ -416,7 +416,7 @@ type failStore struct {
 	storage.MemStorage
 }
 
-func (s *failStore) GetCurrent(_ data.GUN, _ storage.Namespace, _ data.RoleName) (*time.Time, []byte, error) {
+func (s *failStore) GetCurrent(_ data.GUN, _ data.RoleName, channels ...storage.Channel) (*time.Time, []byte, error) {
 	return nil, nil, fmt.Errorf("oh no! storage has failed")
 }
 
@@ -458,7 +458,7 @@ type invalidVersionStore struct {
 	storage.MemStorage
 }
 
-func (s *invalidVersionStore) UpdateMany(_ data.GUN, _ storage.Namespace, _ []storage.MetaUpdate) error {
+func (s *invalidVersionStore) UpdateMany(_ data.GUN, _ []storage.MetaUpdate) error {
 	return storage.ErrOldVersion{}
 }
 

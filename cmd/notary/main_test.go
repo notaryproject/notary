@@ -260,16 +260,31 @@ type recordingMetaStore struct {
 
 // GetCurrent gets the metadata from the underlying MetaStore, but also records
 // that the metadata was requested
-func (r *recordingMetaStore) GetCurrent(gun data.GUN, namespace storage.Namespace, role data.RoleName) (*time.Time, []byte, error) {
-	r.gotten = append(r.gotten, fmt.Sprintf("%s.%s.%s", gun.String(), role.String(), namespace.String()))
-	return r.MemStorage.GetCurrent(gun, storage.PublishedState, role)
+func (r *recordingMetaStore) GetCurrent(gun data.GUN, role data.RoleName, channels ...storage.Channel) (*time.Time, []byte, error) {
+	var channelBuf bytes.Buffer
+
+	if len(channels) == 0 {
+		channels = []storage.Channel{storage.Published}
+	}
+	for _, channel := range channels {
+		channelBuf.WriteString(channel.Name)
+	}
+	r.gotten = append(r.gotten, fmt.Sprintf("%s.%s.%s", gun.String(), role.String(), channelBuf.String()))
+	return r.MemStorage.GetCurrent(gun, role)
 }
 
 // GetChecksum gets the metadata from the underlying MetaStore, but also records
 // that the metadata was requested
-func (r *recordingMetaStore) GetChecksum(gun data.GUN, namepsace storage.Namespace, role data.RoleName, checksum string) (*time.Time, []byte, error) {
-	r.gotten = append(r.gotten, fmt.Sprintf("%s.%s.%s", gun.String(), role.String(), namepsace.String()))
-	return r.MemStorage.GetChecksum(gun, storage.PublishedState, role, checksum)
+func (r *recordingMetaStore) GetChecksum(gun data.GUN, role data.RoleName, checksum string, channels ...storage.Channel) (*time.Time, []byte, error) {
+	var channelBuf bytes.Buffer
+	if len(channels) == 0 {
+		channels = []storage.Channel{storage.Published}
+	}
+	for _, channel := range channels {
+		channelBuf.WriteString(channel.Name)
+	}
+	r.gotten = append(r.gotten, fmt.Sprintf("%s.%s.%s", gun.String(), role.String(), channelBuf.String()))
+	return r.MemStorage.GetChecksum(gun, role, checksum)
 }
 
 // the config can provide all the TLS information necessary - the root ca file,

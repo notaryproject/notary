@@ -25,13 +25,13 @@ func getRole(ctx context.Context, store storage.MetaStore, gun data.GUN, role da
 		err          error
 	)
 	if checksum != "" {
-		lastModified, out, err = store.GetChecksum(gun, storage.PublishedState, role, checksum)
+		lastModified, out, err = store.GetChecksum(gun, role, checksum)
 	} else if version != "" {
 		v, vErr := strconv.Atoi(version)
 		if vErr != nil {
 			return nil, nil, errors.ErrMetadataNotFound.WithDetail(vErr)
 		}
-		lastModified, out, err = store.GetVersion(gun, storage.PublishedState, role, v)
+		lastModified, out, err = store.GetVersion(gun, role, v)
 	} else {
 		// the timestamp and snapshot might be server signed so are
 		// handled specially
@@ -39,7 +39,7 @@ func getRole(ctx context.Context, store storage.MetaStore, gun data.GUN, role da
 		case data.CanonicalTimestampRole, data.CanonicalSnapshotRole:
 			return getMaybeServerSigned(ctx, store, gun, role)
 		}
-		lastModified, out, err = store.GetCurrent(gun, storage.PublishedState, role)
+		lastModified, out, err = store.GetCurrent(gun, role)
 
 	}
 
@@ -98,7 +98,7 @@ func getMaybeServerSigned(ctx context.Context, store storage.MetaStore, gun data
 		}
 		if snapshotSHA256Bytes, ok := snapshotChecksums.Hashes[notary.SHA256]; ok {
 			snapshotSHA256Hex := hex.EncodeToString(snapshotSHA256Bytes[:])
-			return store.GetChecksum(gun, storage.PublishedState, role, snapshotSHA256Hex)
+			return store.GetChecksum(gun, role, snapshotSHA256Hex)
 		}
 		return nil, nil, fmt.Errorf("could not retrieve sha256 snapshot checksum")
 	}

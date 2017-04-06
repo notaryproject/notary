@@ -18,14 +18,13 @@ import (
 // RDBTUFFile is a TUF file record
 type RDBTUFFile struct {
 	rethinkdb.Timing
-	GunRoleVersionNamespace []interface{} `gorethink:"gun_role_version_namespace"`
-	Gun                     string        `gorethink:"gun"`
-	Role                    string        `gorethink:"role"`
-	Namespace               string        `gorethink:"namespace"`
-	Version                 int           `gorethink:"version"`
-	SHA256                  string        `gorethink:"sha256"`
-	Data                    []byte        `gorethink:"data"`
-	TSchecksum              string        `gorethink:"timestamp_checksum"`
+	GunRoleVersion []interface{} `gorethink:"gun_role_version"`
+	Gun            string        `gorethink:"gun"`
+	Role           string        `gorethink:"role"`
+	Version        int           `gorethink:"version"`
+	SHA256         string        `gorethink:"sha256"`
+	Data           []byte        `gorethink:"data"`
+	TSchecksum     string        `gorethink:"timestamp_checksum"`
 }
 
 // TableName returns the table name for the record type
@@ -42,7 +41,6 @@ func rdbTUFFileFromJSON(data []byte) (interface{}, error) {
 		DeletedAt  time.Time `json:"deleted_at"`
 		Gun        string    `json:"gun"`
 		Role       string    `json:"role"`
-		Namespace  string    `json:"namespace"`
 		Version    int       `json:"version"`
 		SHA256     string    `json:"sha256"`
 		Data       []byte    `json:"data"`
@@ -57,14 +55,13 @@ func rdbTUFFileFromJSON(data []byte) (interface{}, error) {
 			UpdatedAt: a.UpdatedAt,
 			DeletedAt: a.DeletedAt,
 		},
-		GunRoleVersionNamespace: []interface{}{a.Gun, a.Role, a.Version, a.Namespace},
-		Gun:        a.Gun,
-		Role:       a.Role,
-		Namespace:  a.Namespace,
-		Version:    a.Version,
-		SHA256:     a.SHA256,
-		Data:       a.Data,
-		TSchecksum: a.TSchecksum,
+		GunRoleVersion: []interface{}{a.Gun, a.Role, a.Version},
+		Gun:            a.Gun,
+		Role:           a.Role,
+		Version:        a.Version,
+		SHA256:         a.SHA256,
+		Data:           a.Data,
+		TSchecksum:     a.TSchecksum,
 	}, nil
 }
 
@@ -89,7 +86,7 @@ func NewRethinkDBStorage(dbName, user, password string, sess *gorethink.Session)
 // UpdateCurrent adds new metadata version for the given GUN if and only
 // if it's a new role, or the version is greater than the current version
 // for the role. Otherwise an error is returned.
-func (rdb RethinkDB) UpdateCurrent(gun data.GUN, namespace Namespace, update MetaUpdate) error {
+func (rdb RethinkDB) UpdateCurrent(gun data.GUN, update MetaUpdate) error {
 	now := time.Now()
 	checksum := sha256.Sum256(update.Data)
 	file := RDBTUFFile{
@@ -97,13 +94,12 @@ func (rdb RethinkDB) UpdateCurrent(gun data.GUN, namespace Namespace, update Met
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		GunRoleVersionNamespace: []interface{}{gun, update.Role, update.Version, namespace.String()},
-		Gun:       gun.String(),
-		Role:      update.Role.String(),
-		Namespace: namespace.String(),
-		Version:   update.Version,
-		SHA256:    hex.EncodeToString(checksum[:]),
-		Data:      update.Data,
+		GunRoleVersion: []interface{}{gun, update.Role, update.Version},
+		Gun:            gun.String(),
+		Role:           update.Role.String(),
+		Version:        update.Version,
+		SHA256:         hex.EncodeToString(checksum[:]),
+		Data:           update.Data,
 	}
 	_, err := gorethink.DB(rdb.dbName).Table(file.TableName()).Insert(
 		file,
@@ -119,7 +115,7 @@ func (rdb RethinkDB) UpdateCurrent(gun data.GUN, namespace Namespace, update Met
 
 // UpdateCurrentWithTSChecksum adds new metadata version for the given GUN with an associated
 // checksum for the timestamp it belongs to, to afford us transaction-like functionality
-func (rdb RethinkDB) UpdateCurrentWithTSChecksum(gun data.GUN, namespace Namespace, tsChecksum string, update MetaUpdate) error {
+func (rdb RethinkDB) UpdateCurrentWithTSChecksum(gun data.GUN, tsChecksum string, update MetaUpdate) error {
 	now := time.Now()
 	checksum := sha256.Sum256(update.Data)
 	file := RDBTUFFile{
@@ -127,14 +123,13 @@ func (rdb RethinkDB) UpdateCurrentWithTSChecksum(gun data.GUN, namespace Namespa
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		GunRoleVersionNamespace: []interface{}{gun, update.Role, update.Version, namespace.String()},
-		Gun:        gun.String(),
-		Role:       update.Role.String(),
-		Namespace:  namespace.String(),
-		Version:    update.Version,
-		SHA256:     hex.EncodeToString(checksum[:]),
-		TSchecksum: tsChecksum,
-		Data:       update.Data,
+		GunRoleVersion: []interface{}{gun, update.Role, update.Version},
+		Gun:            gun.String(),
+		Role:           update.Role.String(),
+		Version:        update.Version,
+		SHA256:         hex.EncodeToString(checksum[:]),
+		TSchecksum:     tsChecksum,
+		Data:           update.Data,
 	}
 	_, err := gorethink.DB(rdb.dbName).Table(file.TableName()).Insert(
 		file,
@@ -163,7 +158,7 @@ func (u updateSorter) Less(i, j int) bool {
 // last as this represents a published version of the repo.  However, we will
 // insert all other role data in alphabetical order first, and also include the
 // associated timestamp checksum so that we can easily roll back this pseudotransaction
-func (rdb RethinkDB) UpdateMany(gun data.GUN, namespace Namespace, updates []MetaUpdate) error {
+func (rdb RethinkDB) UpdateMany(gun data.GUN, updates []MetaUpdate) error {
 	// find the timestamp first and save its checksum
 	// then apply the updates in alphabetic role order with the timestamp last
 	// if there are any failures, we roll back in the same alphabetic order
@@ -180,7 +175,7 @@ func (rdb RethinkDB) UpdateMany(gun data.GUN, namespace Namespace, updates []Met
 	sort.Stable(updateSorter(updates))
 
 	for _, up := range updates {
-		if err := rdb.UpdateCurrentWithTSChecksum(gun, namespace, tsChecksum, up); err != nil {
+		if err := rdb.UpdateCurrentWithTSChecksum(gun, tsChecksum, up); err != nil {
 			// roll back with best-effort deletion, and then error out
 			rollbackErr := rdb.deleteByTSChecksum(tsChecksum)
 			if rollbackErr != nil {
@@ -196,10 +191,10 @@ func (rdb RethinkDB) UpdateMany(gun data.GUN, namespace Namespace, updates []Met
 // GetCurrent returns the modification date and data part of the metadata for
 // the latest version of the given GUN and role.  If there is no data for
 // the given GUN and role, an error is returned.
-func (rdb RethinkDB) GetCurrent(gun data.GUN, namespace Namespace, role data.RoleName) (created *time.Time, data []byte, err error) {
+func (rdb RethinkDB) GetCurrent(gun data.GUN, role data.RoleName, channels ...Channel) (created *time.Time, data []byte, err error) {
 	file := RDBTUFFile{}
 	res, err := gorethink.DB(rdb.dbName).Table(file.TableName(), gorethink.TableOpts{ReadMode: "majority"}).GetAllByIndex(
-		rdbGunRoleIdx, []string{gun.String(), role.String(), namespace.String()},
+		rdbGunRoleIdx, []string{gun.String(), role.String()},
 	).OrderBy(gorethink.Desc("version")).Run(rdb.sess)
 	if err != nil {
 		return nil, nil, err
@@ -218,7 +213,7 @@ func (rdb RethinkDB) GetCurrent(gun data.GUN, namespace Namespace, role data.Rol
 // GetChecksum returns the given TUF role file and creation date for the
 // GUN with the provided checksum. If the given (gun, role, checksum) are
 // not found, it returns storage.ErrNotFound
-func (rdb RethinkDB) GetChecksum(gun data.GUN, namespace Namespace, role data.RoleName, checksum string) (created *time.Time, data []byte, err error) {
+func (rdb RethinkDB) GetChecksum(gun data.GUN, role data.RoleName, checksum string, channels ...Channel) (created *time.Time, data []byte, err error) {
 	var file RDBTUFFile
 	res, err := gorethink.DB(rdb.dbName).Table(file.TableName(), gorethink.TableOpts{ReadMode: "majority"}).GetAllByIndex(
 		rdbGunRoleSHA256Idx, []string{gun.String(), role.String(), checksum},
@@ -238,9 +233,9 @@ func (rdb RethinkDB) GetChecksum(gun data.GUN, namespace Namespace, role data.Ro
 }
 
 // GetVersion gets a specific TUF record by its version
-func (rdb RethinkDB) GetVersion(gun data.GUN, namespace Namespace, role data.RoleName, version int) (*time.Time, []byte, error) {
+func (rdb RethinkDB) GetVersion(gun data.GUN, role data.RoleName, version int, channels ...Channel) (*time.Time, []byte, error) {
 	var file RDBTUFFile
-	res, err := gorethink.DB(rdb.dbName).Table(file.TableName(), gorethink.TableOpts{ReadMode: "majority"}).Get([]interface{}{gun.String(), role.String(), version, namespace.String()}).Run(rdb.sess)
+	res, err := gorethink.DB(rdb.dbName).Table(file.TableName(), gorethink.TableOpts{ReadMode: "majority"}).Get([]interface{}{gun.String(), role.String(), version}).Run(rdb.sess)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -257,9 +252,9 @@ func (rdb RethinkDB) GetVersion(gun data.GUN, namespace Namespace, role data.Rol
 
 // Delete removes all metadata for a given GUN.  It does not return an
 // error if no metadata exists for the given GUN.
-func (rdb RethinkDB) Delete(gun data.GUN, namespace Namespace) error {
+func (rdb RethinkDB) Delete(gun data.GUN) error {
 	_, err := gorethink.DB(rdb.dbName).Table(RDBTUFFile{}.TableName()).GetAllByIndex(
-		rdbGunNamespaceIdx, []string{gun.String(), namespace.String()},
+		"gun", gun.String(),
 	).Delete().RunWrite(rdb.sess)
 	if err != nil {
 		return fmt.Errorf("unable to delete %s from database: %s", gun.String(), err.Error())

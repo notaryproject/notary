@@ -17,8 +17,8 @@ import (
 func SetupSQLDB(t *testing.T, dbtype, dburl string) *SQLStorage {
 	dbStore, err := NewSQLStorage(dbtype, dburl)
 	require.NoError(t, err)
-
 	// Create the DB tables
+	require.NoError(t, CreateChannelTable(dbStore.DB))
 	require.NoError(t, CreateTUFTable(dbStore.DB))
 	require.NoError(t, CreateChangefeedTable(dbStore.DB))
 
@@ -38,18 +38,19 @@ func assertExpectedGormTUFMeta(t *testing.T, expected []StoredTUFMeta, gormDB go
 	expectedGorm := make([]TUFFile, len(expected))
 	for i, tufObj := range expected {
 		expectedGorm[i] = TUFFile{
-			Model:   gorm.Model{ID: uint(i + 1)},
-			Gun:     tufObj.Gun.String(),
-			Role:    tufObj.Role.String(),
-			Version: tufObj.Version,
-			SHA256:  tufObj.SHA256,
-			Data:    tufObj.Data,
+			Model:    gorm.Model{ID: uint(i + 1)},
+			Gun:      tufObj.Gun.String(),
+			Role:     tufObj.Role.String(),
+			Version:  tufObj.Version,
+			SHA256:   tufObj.SHA256,
+			Data:     tufObj.Data,
+			Channels: []*Channel{tufObj.Channel},
 		}
 	}
 
 	// There should just be one row
 	var rows []TUFFile
-	query := gormDB.Select("id, gun, role, version, sha256, data").Find(&rows)
+	query := gormDB.Preload("Channels").Select("id, gun, role, version, sha256, data").Find(&rows)
 	require.NoError(t, query.Error)
 	// to avoid issues with nil vs zero len list
 	if len(expectedGorm) == 0 {
@@ -71,13 +72,13 @@ func TestSQLUpdateCurrentEmpty(t *testing.T) {
 	dbStore.DB.Close()
 }
 
-// TestSQLUpdateCurrent asserts that UpdateCurrent will add a new TUF file
-// if no previous version of that gun and role existed in a namespace.
-func TestSQLUpdateNamespaced(t *testing.T) {
+// TestSQLUpdateCurrentInChannel asserts that UpdateCurrent will add a new TUF file
+// if no previous version of that gun and role existed in a channel.
+func TestSQLUpdateCurrentInChannel(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
-	expected := testUpdateCurrentNamespaced(t, dbStore)
+	expected := testUpdateCurrentInChannel(t, dbStore)
 	assertExpectedGormTUFMeta(t, expected, dbStore.DB)
 
 	dbStore.DB.Close()
@@ -205,7 +206,7 @@ func TestSQLDBGetChecksum(t *testing.T) {
 	checksumBytes := sha256.Sum256(j)
 	checksum := hex.EncodeToString(checksumBytes[:])
 
-	dbStore.UpdateCurrent("gun", PublishedState, update)
+	dbStore.UpdateCurrent("gun", update)
 
 	// create and add a newer timestamp. We're going to try and get the one
 	// created above by checksum
@@ -227,9 +228,9 @@ func TestSQLDBGetChecksum(t *testing.T) {
 		Data:    newJ,
 	}
 
-	dbStore.UpdateCurrent("gun", PublishedState, update)
+	dbStore.UpdateCurrent("gun", update)
 
-	cDate, data, err := dbStore.GetChecksum("gun", PublishedState, data.CanonicalTimestampRole, checksum)
+	cDate, data, err := dbStore.GetChecksum("gun", data.CanonicalTimestampRole, checksum)
 	require.NoError(t, err)
 	require.EqualValues(t, j, data)
 	// the creation date was sometime wthin the last minute
@@ -241,7 +242,7 @@ func TestSQLDBGetChecksumNotFound(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
 	defer cleanup()
 
-	_, _, err := dbStore.GetChecksum("gun", PublishedState, data.CanonicalTimestampRole, "12345")
+	_, _, err := dbStore.GetChecksum("gun", data.CanonicalTimestampRole, "12345")
 	require.Error(t, err)
 	require.IsType(t, ErrNotFound{}, err)
 }

@@ -22,7 +22,7 @@ import (
 // create the key at the same time by simply querying the store a second time if it
 // receives a conflict when writing.
 func GetOrCreateTimestampKey(gun data.GUN, store storage.MetaStore, crypto signed.CryptoService, createAlgorithm string) (data.PublicKey, error) {
-	_, rootJSON, err := store.GetCurrent(gun, storage.PublishedState, data.CanonicalRootRole)
+	_, rootJSON, err := store.GetCurrent(gun, data.CanonicalRootRole)
 	if err != nil {
 		// If the error indicates we couldn't find the root, create a new key
 		if _, ok := err.(storage.ErrNotFound); !ok {
@@ -76,7 +76,7 @@ func GetOrCreateTimestamp(gun data.GUN, store storage.MetaStore, cryptoService s
 
 	updates := []storage.MetaUpdate{}
 
-	lastModified, timestampJSON, err := store.GetCurrent(gun, storage.PublishedState, data.CanonicalTimestampRole)
+	lastModified, timestampJSON, err := store.GetCurrent(gun, data.CanonicalTimestampRole)
 	if err != nil {
 		logrus.Debug("error retrieving timestamp: ", err.Error())
 		return nil, nil, err
@@ -126,7 +126,7 @@ func GetOrCreateTimestamp(gun data.GUN, store storage.MetaStore, cryptoService s
 	c := time.Now()
 
 	// Write the timestamp, and potentially snapshot
-	if err = store.UpdateMany(gun, storage.PublishedState, updates); err != nil {
+	if err = store.UpdateMany(gun, updates); err != nil {
 		return nil, nil, err
 	}
 	return &c, tsUpdate.Data, nil
@@ -155,7 +155,7 @@ func createTimestamp(gun data.GUN, prev *data.SignedTimestamp, snapshot []byte, 
 	builder := tuf.NewRepoBuilder(gun, cryptoService, trustpinning.TrustPinConfig{})
 
 	// load the current root to ensure we use the correct timestamp key.
-	_, root, err := store.GetCurrent(gun, storage.PublishedState, data.CanonicalRootRole)
+	_, root, err := store.GetCurrent(gun, data.CanonicalRootRole)
 	if err != nil {
 		logrus.Debug("Previous timestamp, but no root for GUN ", gun)
 		return nil, err
