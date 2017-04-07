@@ -30,6 +30,7 @@ import (
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
+	"path/filepath"
 )
 
 var ret = passphrase.ConstantRetriever("pass")
@@ -805,4 +806,32 @@ func TestImportKeysNonexistentFile(t *testing.T) {
 
 	err = k.importKeys(&cobra.Command{}, []string{"Idontexist"})
 	require.Error(t, err)
+}
+
+func TestKeyGeneration(t *testing.T) {
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	_, err := runCommand(t, tempDir, "key", "generate", data.ECDSAKey, "--role", "targets")
+	require.NoError(t, err)
+	assertNumKeys(t, tempDir, 0, 1, false)
+
+	_, err = runCommand(t, tempDir, "key", "generate", data.ECDSAKey, "--role", "targets", "-o", filepath.Join(tempDir, "testkeys"))
+	require.NoError(t, err)
+	assertNumKeys(t, tempDir, 0, 1, false) // key shouldn't be written to store and won't show up in keylist
+
+	// test that we can read the keys we created
+	pub, err := ioutil.ReadFile(filepath.Join(tempDir, "testkeys.pub"))
+	require.NoError(t, err)
+	pubK, err := utils.ParsePEMPublicKey(pub)
+	require.NoError(t, err)
+
+	priv, err := ioutil.ReadFile(filepath.Join(tempDir, "testkeys.priv"))
+	require.NoError(t, err)
+	privK, err := utils.ParsePEMPrivateKey(priv, testPassphrase)
+	require.NoError(t, err)
+
+	// the ID is only generated from the public part of the key so they should be identical
+	require.Equal(t, pubK.ID(), privK.ID())
+
 }
