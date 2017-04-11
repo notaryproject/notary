@@ -1,4 +1,4 @@
- package client
+package client
 
 import (
 	"bytes"
@@ -16,13 +16,13 @@ import (
 	"github.com/docker/notary"
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/cryptoservice"
+	"github.com/docker/notary/storage"
 	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/utils"
-	"github.com/docker/notary/storage"
 )
 
 const (
@@ -124,7 +124,7 @@ func NewNotaryRepository(baseDir string, gun data.GUN, baseURL string, remoteSto
 		cache:          cache,
 		remoteStore:    remoteStore,
 		CryptoService:  cryptoService,
-		tufRepo: 	tufRepo,
+		tufRepo:        tufRepo,
 		trustPinning:   trustPinning,
 		LegacyVersions: 0, // By default, don't sign with legacy roles
 	}
@@ -552,10 +552,12 @@ func (r *NotaryRepository) GetChangelist() (changelist.Changelist, error) {
 	return r.changelist, nil
 }
 
+// GetRemoteStore returns the remoteStore in use for this NotaryRepository
 func (r *NotaryRepository) GetRemoteStore() store.RemoteStore {
 	return r.remoteStore
 }
 
+// GetTUFRepo returns the instance of the tuf.Repo being used by this NotaryRepository
 func (r *NotaryRepository) GetTUFRepo() *tuf.Repo {
 	return r.tufRepo
 }
