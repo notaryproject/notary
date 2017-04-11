@@ -201,15 +201,13 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmdTUFExportGUN.Flags().StringVarP(&t.output, "output", "o", "", "Directory to export role files to")
 	cmd.AddCommand(cmdTUFExportGUN)
 
-	cmdTUFImportGUN := cmdTUFImportTemplate.ToCommand(t.tufImportGUN)
-	cmdTUFImportGUN.Flags().StringVarP(&t.input, "input", "i", "", "Directory to import role files from")
-	cmd.AddCommand(cmdTUFImportGUN)
+	cmd.AddCommand(cmdTUFImportTemplate.ToCommand(t.tufImportGUN))
 }
 
 func (t *tufCommander) tufImportGUN(cmd *cobra.Command, args []string) error {
-	if len(args) < 1 {
+	if len(args) < 3 {
 		cmd.Usage()
-		return fmt.Errorf("Please provide a GUN")
+		return fmt.Errorf("Please provide a GUN, role, and file to import")
 	}
 
 	config, err := t.configGetter()
@@ -218,41 +216,28 @@ func (t *tufCommander) tufImportGUN(cmd *cobra.Command, args []string) error {
 	}
 
 	gun := data.GUN(args[0])
-
-	roles := data.NewRoleList(args[1:])
-	if len(roles) == 0 {
-		roles = data.BaseRoles
-	}
-
-	inDir := t.input
-	if inDir == "" {
-		currDir, err := os.Getwd()
-		if err != nil {
-			return err
-		}
-
-		inDir = path.Join(currDir, filepath.FromSlash(gun.String()))
-	}
+	role := data.RoleName(args[1])
+	file := args[2]
 
 	rt, err := getTransport(config, gun, readWrite)
 	if err != nil {
 		return err
 	}
 
-	exportCache, err := NewExportStore(inDir, "json", roles)
+	fileData, err := ioutil.ReadFile(file)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("file does not exist: %s", file)
+		}
 		return err
 	}
 
-	updatedRolefiles := make(map[data.RoleName][]byte)
-	for _, role := range roles {
+	if !data.ValidRole(role) {
+		return fmt.Errorf("role \"%s\" is not a valid role name", role)
+	}
 
-		jsonByte, err := exportCache.GetSized(role.String(), storage.NoSizeLimit)
-		if err != nil {
-			return err
-		}
-
-		updatedRolefiles[role] = jsonByte
+	updatedRolefiles := map[data.RoleName][]byte{
+		role: fileData,
 	}
 
 	remote, err := storage.NewHTTPStore(
@@ -262,6 +247,10 @@ func (t *tufCommander) tufImportGUN(cmd *cobra.Command, args []string) error {
 		"key",
 		rt,
 	)
+
+	if err != nil {
+		return err
+	}
 
 	return remote.SetMulti(data.MetadataRoleMapToStringMap(updatedRolefiles))
 }
