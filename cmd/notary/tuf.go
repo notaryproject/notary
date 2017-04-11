@@ -25,6 +25,7 @@ import (
 	notaryclient "github.com/docker/notary/client"
 	"github.com/docker/notary/cryptoservice"
 	"github.com/docker/notary/passphrase"
+	"github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
@@ -33,7 +34,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"path/filepath"
-	"github.com/docker/notary/storage"
 )
 
 var cmdTUFListTemplate = usageTemplate{
@@ -290,7 +290,6 @@ func (t *tufCommander) tufExportGUN(cmd *cobra.Command, args []string) error {
 		outDir = path.Join(currDir, filepath.FromSlash(gun.String()))
 	}
 
-
 	rt, err := getTransport(config, gun, readOnly)
 	if err != nil {
 		return err
@@ -301,7 +300,7 @@ func (t *tufCommander) tufExportGUN(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cache, err := NewExportStore(outDir, "json", roles)
+	cache, err := storage.NewRoleFilter(outDir, "json", roles)
 	if err != nil {
 		return err
 	}
