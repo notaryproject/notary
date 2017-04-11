@@ -551,10 +551,12 @@ func (r *NotaryRepository) GetChangelist() (changelist.Changelist, error) {
 	return r.changelist, nil
 }
 
+// GetRemoteStore returns the remoteStore in use for this NotaryRepository
 func (r *NotaryRepository) GetRemoteStore() store.RemoteStore {
 	return r.remoteStore
 }
 
+// GetTUFRepo returns the instance of the tuf.Repo being used by this NotaryRepository
 func (r *NotaryRepository) GetTUFRepo() *tuf.Repo {
 	return r.tufRepo
 }

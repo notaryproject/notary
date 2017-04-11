@@ -248,10 +248,6 @@ func rotateRemoteKey(role data.RoleName, remote store.RemoteStore) (data.PublicK
 	return pubKey, nil
 }
 
-func SerializeCanonicalRole(tufRepo *tuf.Repo, role data.RoleName, extraSigningKeys data.KeyList) (out []byte, err error) {
-	return serializeCanonicalRole(tufRepo, role, extraSigningKeys)
-}
-
 // signs and serializes the metadata for a canonical role in a TUF repo to JSON
 func serializeCanonicalRole(tufRepo *tuf.Repo, role data.RoleName, extraSigningKeys data.KeyList) (out []byte, err error) {
 	var s *data.Signed
