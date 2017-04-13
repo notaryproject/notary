@@ -21,9 +21,6 @@ service Notary {
     // GetAllTargetMetadataByName
     rpc GetAllTargetMetadataByName(TargetNameMessage) returns (TargetSignedListResponse) {}
 
-    // GetChangelist returns the list of the repository's unpublished changes
-    rpc GetChangelist(GunMessage) returns (ChangeListResponse) {}
-
     rpc ListRoles(GunMessage) returns (RoleWithSignaturesListResponse) {}
     rpc GetDelegationRoles(GunMessage) returns (RoleListResponse) {}
     rpc AddDelegation(AddDelegationMessage) returns (BasicResponse) {}
@@ -40,17 +37,16 @@ service Notary {
     rpc RotateKey(RotateKeyMessage) returns (BasicResponse) {}
 
     // CryptoService implementation
-    rpc CryptoService(GunMessage) returns (CryptoServiceMessage) {}
     rpc CryptoServiceCreate(CryptoServiceCreateMessage) returns (PublicKeyResponse) {}
-    rpc CryptoServicePrivateKeySign(CryptoServicePrivateKeySignMessage) returns (SignatureResponse) {}
+//    rpc CryptoServicePrivateKeySign(CryptoServicePrivateKeySignMessage) returns (SignatureResponse) {}
     rpc CryptoServiceAddKey(CryptoServiceAddKeyMessage) returns (BasicResponse) {}
     rpc CryptoServiceGetKey(KeyIDMessage) returns (PublicKeyResponse) {}
-    rpc CryptoServiceGetPrivateKey(KeyIDMessage) returns (PrivateKeyResponse) {}
-    rpc CryptoServiceRemoveKey(KeyIDMessage) returns (BasicResponse) {}
+//    rpc CryptoServiceGetPrivateKey(KeyIDMessage) returns (PrivateKeyResponse) {}
+//    rpc CryptoServiceRemoveKey(KeyIDMessage) returns (BasicResponse) {}
     rpc CryptoServiceListKeys(RoleNameMessage) returns (KeyIDsListResponse) {}
     rpc CryptoServiceListAllKeys(GunMessage) returns (SigningKeyIDsToRolesResponse) {}
 
-    rpc SetLegacyVersions(VersionMessage) returns (google.protobuf.Empty) {}
+//    rpc SetLegacyVersions(VersionMessage) returns (google.protobuf.Empty) {}
 }
 
 message GunMessage {
@@ -282,25 +278,16 @@ message RoleWithSignaturesListResponse {
     string message = 3;
 }
 
-// FIXME: unimplemented
-message CryptoServiceMessage {
-}
-
 message CryptoServiceCreateMessage {
     string roleName = 1;
     string gun = 2;
     string algorithm = 3;
 }
 
-message Signer {
-    PublicKey pubkey = 1;
-}
-
 message PrivateKey {
-    PublicKey pubkey = 1;
-    bytes privkey = 2;
-    Signer cryptoSigner = 3;
-    string sigAlgorithm = 4;
+    bytes pubKey = 1;
+    bytes privKey = 2;
+    string algorithm = 4;
 }
 
 message CryptoServiceAddKeyMessage {
@@ -328,18 +315,18 @@ message KeyIDsListResponse {
     string message = 3;
 }
 
-message CryptoServicePrivateKeySignMessage {
-    PublicKey pubkey = 1;
-    bytes digest = 2;
-    bytes privkey = 3;
-    string gun = 4;
-}
+//message CryptoServicePrivateKeySignMessage {
+//    PublicKey pubkey = 1;
+//    bytes digest = 2;
+//    bytes privkey = 3;
+//    string gun = 4;
+//}
 
-message SignatureResponse {
-    bytes signature = 1;
-    bool success = 2;
-    string message = 3;
-}
+//message SignatureResponse {
+//    bytes signature = 1;
+//    bool success = 2;
+//    string message = 3;
+//}
 
 message SigningKeyIDsToRolesResponse {
     map<string, string> keyIDs = 1;
@@ -347,8 +334,8 @@ message SigningKeyIDsToRolesResponse {
     string message = 3;
 }
 
-message VersionMessage {
-    int32 version = 1;
-    string gun = 2;
-}
+//message VersionMessage {
+//    int32 version = 1;
+//    string gun = 2;
+//}
 

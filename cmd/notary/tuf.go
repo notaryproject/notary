@@ -412,7 +412,7 @@ func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 		if t.output == "" {
 			return errors.New("you must provide an --output file when using an --input file")
 		}
-		fd, err := os.OpenFile(t.output, os.O_TRUNC, 0600)
+		fd, err := os.OpenFile(t.output, os.O_TRUNC|os.O_CREATE|os.O_RDWR, 0600)
 		if err != nil {
 			return err
 		}
@@ -477,7 +477,7 @@ func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 		if t.output == "" {
 			return errors.New("you must provide an --output file when using an --input file")
 		}
-		fd, err := os.OpenFile(t.output, os.O_TRUNC, 0600)
+		fd, err := os.OpenFile(t.output, os.O_TRUNC|os.O_CREATE|os.O_RDWR, 0600)
 		if err != nil {
 			return err
 		}

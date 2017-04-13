@@ -3,6 +3,7 @@ package api
 import (
 	"google.golang.org/grpc"
 
+	"errors"
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/tuf/data"
@@ -198,21 +199,7 @@ func (c *Client) GetAllTargetMetadataByName(name string) ([]client.TargetSignedS
 }
 
 func (c *Client) GetChangelist() (changelist.Changelist, error) {
-	changes, err := c.client.GetChangelist(context.Background(), &GunMessage{Gun: c.gun.String()})
-	if err != nil {
-		return nil, err
-	}
-
-	currChangeList := changelist.NewMemChangelist()
-	for _, change := range changes.Changelist.Changes {
-		c := changelist.NewTUFChange(change.Action, data.RoleName(change.Scope), change.Type, change.Path, change.Content)
-		err := currChangeList.Add(c)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return currChangeList, err
+	return changelist.NewMemChangelist(), errors.New("the Client API does not maintain a changelist")
 }
 
 func (c *Client) ListRoles() ([]client.RoleWithSignatures, error) {
@@ -429,7 +416,7 @@ func (c *Client) SetLegacyVersions(n int) {
 }
 
 func (c *Client) CryptoService() signed.CryptoService {
-	return c.cs
+	return &CryptoService{client: c.client}
 }
 
 func (c *Client) GetGUN() data.GUN {
@@ -443,50 +430,97 @@ type CryptoService struct {
 // Create issues a new key pair and is responsible for loading
 // the private key into the appropriate signing service.
 func (cs *CryptoService) Create(role data.RoleName, gun data.GUN, algorithm string) (data.PublicKey, error) {
-	pub, err := cs.Create(role, gun, algorithm)
+	pub, err := cs.client.CryptoServiceCreate(
+		context.Background(),
+		&CryptoServiceCreateMessage{
+			RoleName:  role.String(),
+			Gun:       gun.String(),
+			Algorithm: algorithm,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
-
-	return pub, nil
+	return data.NewPublicKey(
+		pub.Pubkey.Algorithm,
+		pub.Pubkey.Public,
+	), nil
 }
 
 // AddKey adds a private key to the specified role and gun
 func (cs *CryptoService) AddKey(role data.RoleName, gun data.GUN, key data.PrivateKey) error {
-	err := cs.AddKey(role, gun, key)
+	_, err := cs.client.CryptoServiceAddKey(
+		context.Background(),
+		&CryptoServiceAddKeyMessage{
+			Gun:      gun.String(),
+			RoleName: role.String(),
+			Key: &PrivateKey{
+				PrivKey:   key.Private(),
+				PubKey:    key.Public(),
+				Algorithm: key.Algorithm(),
+			},
+		},
+	)
+
 	return err
 }
 
 // GetKey retrieves the public key if present, otherwise it returns nil
 func (cs *CryptoService) GetKey(keyID string) data.PublicKey {
-	pubkey := cs.GetKey(keyID)
-	return pubkey
+	pub, err := cs.client.CryptoServiceGetKey(
+		context.Background(),
+		&KeyIDMessage{
+			KeyID: keyID,
+		},
+	)
+	if err != nil {
+		return nil
+	}
+	return data.NewPublicKey(pub.Pubkey.Algorithm, pub.Pubkey.Public)
 }
 
 // GetPrivateKey retrieves the private key and role if present and retrievable,
 // otherwise it returns nil and an error
 func (cs *CryptoService) GetPrivateKey(keyID string) (data.PrivateKey, data.RoleName, error) {
-	priv, role, err := cs.GetPrivateKey(keyID)
-	return priv, role, err
+	return nil, "", errors.New("it is not permitted to retrieve private keys from the Client API")
 }
 
 // RemoveKey deletes the specified key, and returns an error only if the key
 // removal fails. If the key doesn't exist, no error should be returned.
 func (cs *CryptoService) RemoveKey(keyID string) error {
-	err := cs.RemoveKey(keyID)
-	return err
+	return errors.New("it is not permitted to delete keys from the Client API")
 }
 
 // ListKeys returns a list of key IDs for the role, or an empty list or
 // nil if there are no keys.
 func (cs *CryptoService) ListKeys(role data.RoleName) []string {
-	keys := cs.ListKeys(role)
-	return keys
+	list, err := cs.client.CryptoServiceListKeys(
+		context.Background(),
+		&RoleNameMessage{
+			Role: role.String(),
+		},
+	)
+	if err != nil {
+		return nil
+	}
+	return list.KeyIDs
 }
 
 // ListAllKeys returns a map of all available signing key IDs to role, or
 // an empty map or nil if there are no keys.
 func (cs *CryptoService) ListAllKeys() map[string]data.RoleName {
-	keyIDsToRoles := cs.ListAllKeys()
-	return keyIDsToRoles
+	list, err := cs.client.CryptoServiceListAllKeys(
+		context.Background(),
+		&GunMessage{
+			Gun: "",
+		},
+	)
+	if err != nil {
+		return nil
+	}
+	res := make(map[string]data.RoleName)
+	for id, role := range list.KeyIDs {
+		res[id] = data.RoleName(role)
+	}
+	return res
 }

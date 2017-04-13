@@ -2,11 +2,9 @@ package api
 
 import (
 	"github.com/Sirupsen/logrus"
-	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	"crypto/rand"
 	"errors"
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/client/changelist"
@@ -244,37 +242,6 @@ func (srv *Server) GetAllTargetMetadataByName(ctx context.Context, message *Targ
 	}, nil
 }
 
-// GetChangelist returns the list of the repository's unpublished changes
-func (srv *Server) GetChangelist(ctx context.Context, message *GunMessage) (*ChangeListResponse, error) {
-	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
-	if err != nil {
-		return nil, err
-	}
-
-	cl, err := r.GetChangelist()
-	if err != nil {
-		return nil, err
-	}
-
-	resChangelist := make([]*Change, len(cl.List()))
-	for index, change := range cl.List() {
-		resChangelist[index] = &Change{
-			Action:  change.Action(),
-			Scope:   change.Scope().String(),
-			Type:    change.Type(),
-			Path:    change.Path(),
-			Content: change.Content(),
-		}
-	}
-
-	return &ChangeListResponse{
-		Changelist: &ChangeList{
-			Changes: resChangelist,
-		},
-		Success: true,
-	}, nil
-}
-
 func (srv *Server) ListRoles(ctx context.Context, message *GunMessage) (*RoleWithSignaturesListResponse, error) {
 	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
@@ -364,7 +331,9 @@ func (srv *Server) AddDelegation(ctx context.Context, message *AddDelegationMess
 	if err != nil {
 		return nil, err
 	}
-
+	if err := publishRepo(r); err != nil {
+		return nil, err
+	}
 	return &BasicResponse{
 		Success: true,
 	}, nil
@@ -385,7 +354,9 @@ func (srv *Server) AddDelegationRoleAndKeys(ctx context.Context, message *AddDel
 	if err != nil {
 		return nil, err
 	}
-
+	if err := publishRepo(r); err != nil {
+		return nil, err
+	}
 	return &BasicResponse{
 		Success: true,
 	}, nil
@@ -401,7 +372,9 @@ func (srv *Server) AddDelegationPaths(ctx context.Context, message *AddDelegatio
 	if err != nil {
 		return nil, err
 	}
-
+	if err := publishRepo(r); err != nil {
+		return nil, err
+	}
 	return &BasicResponse{
 		Success: true,
 	}, nil
@@ -417,7 +390,9 @@ func (srv *Server) RemoveDelegationKeysAndPaths(ctx context.Context, message *Re
 	if err != nil {
 		return nil, err
 	}
-
+	if err := publishRepo(r); err != nil {
+		return nil, err
+	}
 	return &BasicResponse{
 		Success: true,
 	}, nil
@@ -433,7 +408,9 @@ func (srv *Server) RemoveDelegationRole(ctx context.Context, message *RemoveDele
 	if err != nil {
 		return nil, err
 	}
-
+	if err := publishRepo(r); err != nil {
+		return nil, err
+	}
 	return &BasicResponse{
 		Success: true,
 	}, nil
@@ -449,7 +426,9 @@ func (srv *Server) RemoveDelegationPaths(ctx context.Context, message *RemoveDel
 	if err != nil {
 		return nil, err
 	}
-
+	if err := publishRepo(r); err != nil {
+		return nil, err
+	}
 	return &BasicResponse{
 		Success: true,
 	}, nil
@@ -465,7 +444,9 @@ func (srv *Server) RemoveDelegationKeys(ctx context.Context, message *RemoveDele
 	if err != nil {
 		return nil, err
 	}
-
+	if err := publishRepo(r); err != nil {
+		return nil, err
+	}
 	return &BasicResponse{
 		Success: true,
 	}, nil
@@ -481,7 +462,9 @@ func (srv *Server) ClearDelegationPaths(ctx context.Context, message *RoleNameMe
 	if err != nil {
 		return nil, err
 	}
-
+	if err := publishRepo(r); err != nil {
+		return nil, err
+	}
 	return &BasicResponse{
 		Success: true,
 	}, nil
@@ -502,7 +485,9 @@ func (srv *Server) Witness(ctx context.Context, message *RoleNameListMessage) (*
 	if err != nil {
 		return nil, err
 	}
-
+	if err := publishRepo(r); err != nil {
+		return nil, err
+	}
 	resRoles := make([]string, len(currRoles))
 	for index, role := range currRoles {
 		resRoles[index] = role.String()
@@ -526,15 +511,12 @@ func (srv *Server) RotateKey(ctx context.Context, message *RotateKeyMessage) (*B
 	if err != nil {
 		return nil, err
 	}
-
+	if err := publishRepo(r); err != nil {
+		return nil, err
+	}
 	return &BasicResponse{
 		Success: true,
 	}, nil
-}
-
-// CryptoService implementation
-func (srv *Server) CryptoService(ctx context.Context, message *GunMessage) (*CryptoServiceMessage, error) {
-	return nil, ErrNotImplemented
 }
 
 func (srv *Server) CryptoServiceCreate(ctx context.Context, message *CryptoServiceCreateMessage) (*PublicKeyResponse, error) {
@@ -560,24 +542,6 @@ func (srv *Server) CryptoServiceCreate(ctx context.Context, message *CryptoServi
 	}, nil
 }
 
-func (srv *Server) CryptoServicePrivateKeySign(ctx context.Context, message *CryptoServicePrivateKeySignMessage) (*SignatureResponse, error) {
-	pubkey := data.NewPublicKey(message.Pubkey.Algorithm, message.Pubkey.Public)
-	privkey, err := data.NewPrivateKey(pubkey, message.Privkey)
-	if err != nil {
-		return nil, err
-	}
-
-	sig, err := privkey.Sign(rand.Reader, message.Digest, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SignatureResponse{
-		Signature: sig,
-		Success:   true,
-	}, nil
-}
-
 func (srv *Server) CryptoServiceAddKey(ctx context.Context, message *CryptoServiceAddKeyMessage) (*BasicResponse, error) {
 	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
 	if err != nil {
@@ -586,9 +550,9 @@ func (srv *Server) CryptoServiceAddKey(ctx context.Context, message *CryptoServi
 
 	cs := r.CryptoService()
 
-	pubKey := data.NewPublicKey(message.Key.Pubkey.Algorithm, message.Key.Pubkey.Public)
+	pubKey := data.NewPublicKey(message.Key.Algorithm, message.Key.PubKey)
 
-	privKey, err := data.NewPrivateKey(pubKey, message.Key.Privkey)
+	privKey, err := data.NewPrivateKey(pubKey, message.Key.PrivKey)
 	if err != nil {
 		return nil, err
 	}
@@ -619,62 +583,6 @@ func (srv *Server) CryptoServiceGetKey(ctx context.Context, message *KeyIDMessag
 			Algorithm: pubkey.Algorithm(),
 			Public:    pubkey.Public(),
 		},
-		Success: true,
-	}, nil
-}
-
-func (srv *Server) CryptoServiceGetPrivateKey(ctx context.Context, message *KeyIDMessage) (*PrivateKeyResponse, error) {
-	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
-	if err != nil {
-		return nil, err
-	}
-
-	cs := r.CryptoService()
-
-	privkey, rolename, err := cs.GetPrivateKey(message.KeyID)
-	if err != nil {
-		return nil, err
-	}
-
-	resPrivkey := &PrivateKey{
-		Pubkey: &PublicKey{
-			Id:        privkey.ID(),
-			Algorithm: privkey.Algorithm(),
-			Public:    privkey.Public(),
-		},
-		Privkey: privkey.Private(),
-		CryptoSigner: &Signer{
-			Pubkey: &PublicKey{
-				Id:        privkey.ID(),
-				Algorithm: privkey.Algorithm(),
-				Public:    privkey.Public(),
-			},
-		},
-		SigAlgorithm: privkey.SignatureAlgorithm().String(),
-	}
-
-	return &PrivateKeyResponse{
-		Role:    rolename.String(),
-		Gun:     message.Gun,
-		Privkey: resPrivkey,
-		Success: true,
-	}, nil
-}
-
-func (srv *Server) CryptoServiceRemoveKey(ctx context.Context, message *KeyIDMessage) (*BasicResponse, error) {
-	r, err := srv.initRepo(ctx, data.GUN(message.Gun))
-	if err != nil {
-		return nil, err
-	}
-
-	cs := r.CryptoService()
-
-	err = cs.RemoveKey(message.KeyID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &BasicResponse{
 		Success: true,
 	}, nil
 }
@@ -714,10 +622,6 @@ func (srv *Server) CryptoServiceListAllKeys(ctx context.Context, message *GunMes
 		KeyIDs:  resKeys,
 		Success: true,
 	}, nil
-}
-
-func (srv *Server) SetLegacyVersions(ctx context.Context, message *VersionMessage) (*google_protobuf.Empty, error) {
-	return nil, ErrNotImplemented
 }
 
 func publishRepo(r *client.NotaryRepository) error {
@@ -790,7 +694,27 @@ func (srv *Server) initRepo(ctx context.Context, gun data.GUN) (*client.NotaryRe
 
 func DefaultPermissions() map[string][]string {
 	return map[string][]string{
-		"/api.Notary/AddTarget":    {"push", "pull"},
-		"/api.Notary/RemoveTarget": {"push", "pull"},
+		"/api.Notary/AddTarget":                    {"push", "pull"},
+		"/api.Notary/RemoveTarget":                 {"push", "pull"},
+		"/api.Notary/ListTargets":                  {"pull"},
+		"/api.Notary/GetTargetByName":              {"pull"},
+		"/api.Notary/GetAllTargetMetadataByName":   {"pull"},
+		"/api.Notary/ListRoles":                    {"pull"},
+		"/api.Notary/GetDelegationRoles":           {"pull"},
+		"/api.Notary/AddDelegation":                {"push", "pull"},
+		"/api.Notary/AddDelegationRoleAndKeys":     {"push", "pull"},
+		"/api.Notary/AddDelegationPaths":           {"push", "pull"},
+		"/api.Notary/RemoveDelegationKeysAndPaths": {"push", "pull"},
+		"/api.Notary/RemoveDelegationRole":         {"push", "pull"},
+		"/api.Notary/RemoveDelegationPaths":        {"push", "pull"},
+		"/api.Notary/RemoveDelegationKeys":         {"push", "pull"},
+		"/api.Notary/ClearDelegationPaths":         {"push", "pull"},
+		"/api.Notary/Witness":                      {"push", "pull"},
+		"/api.Notary/RotateKey":                    {"push", "pull"},
+		"/api.Notary/CryptoServiceCreate":          {"push", "pull"},
+		"/api.Notary/CryptoServiceAddKey":          {"push", "pull"},
+		"/api.Notary/CryptoServiceGetKey":          {"push", "pull"},
+		"/api.Notary/CryptoServiceListKeys":        {"push", "pull"},
+		"/api.Notary/CryptoServiceListAllKeys":     {"push", "pull"},
 	}
 }
