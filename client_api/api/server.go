@@ -712,10 +712,10 @@ func DefaultPermissions() map[string][]string {
 		"/api.Notary/ClearDelegationPaths":         {"push", "pull"},
 		"/api.Notary/Witness":                      {"push", "pull"},
 		"/api.Notary/RotateKey":                    {"push", "pull"},
-		"/api.Notary/CryptoServiceCreate":          {"push", "pull"},
-		"/api.Notary/CryptoServiceAddKey":          {"push", "pull"},
-		"/api.Notary/CryptoServiceGetKey":          {"push", "pull"},
-		"/api.Notary/CryptoServiceListKeys":        {"push", "pull"},
-		"/api.Notary/CryptoServiceListAllKeys":     {"push", "pull"},
+		"/api.Notary/CryptoServiceCreate":          {"*"},
+		"/api.Notary/CryptoServiceAddKey":          {"*"},
+		"/api.Notary/CryptoServiceGetKey":          {"*"},
+		"/api.Notary/CryptoServiceListKeys":        {"*"},
+		"/api.Notary/CryptoServiceListAllKeys":     {"*"},
 	}
 }

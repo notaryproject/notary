@@ -131,8 +131,7 @@ func (c *ClientAuthorizer) Interceptor(ctx context.Context, method string, req, 
 	}
 
 	ctx = metadata.NewContext(ctx, md)
-	err = invoker(ctx, method, req, reply, cc, opts...)
-	return err
+	return invoker(ctx, method, req, reply, cc, opts...)
 }
 
 func (c *ClientAuthorizer) getToken(challengeHeader []string) (string, error) {

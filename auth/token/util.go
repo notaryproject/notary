@@ -58,12 +58,21 @@ func contains(ss []string, q string) bool {
 	return false
 }
 
+// BuildAccessRecords takes a repo and a set of actions and builds a list of Access
+// records for use with token auth. This version has been specifically tweaked for
+// the Client API and will interpret an action of "*" to mean you want "catalog"
+// access rather than access to a specific gun.
 func BuildAccessRecords(repo string, actions ...string) []auth.Access {
+	accessType := "repository"
+	if len(actions) == 1 && actions[0] == "*" {
+		accessType = "registry"
+		repo = "catalog"
+	}
 	requiredAccess := make([]auth.Access, 0, len(actions))
 	for _, action := range actions {
 		requiredAccess = append(requiredAccess, auth.Access{
 			Resource: auth.Resource{
-				Type: "repository",
+				Type: accessType,
 				Name: repo,
 			},
 			Action: action,
