@@ -330,7 +330,7 @@ func TestExportImportAddFile(t *testing.T) {
 			return v, nil
 		},
 		rotateKeyServerManaged: true,
-		getRetriever: func() notary.PassRetriever { return ret },
+		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
 	}
 	require.NoError(t, k.keysRotate(&cobra.Command{}, []string{"gun", data.CanonicalSnapshotRole.String()}))
 
