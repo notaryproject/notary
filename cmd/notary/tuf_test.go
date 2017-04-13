@@ -321,6 +321,19 @@ func TestExportImportAddFile(t *testing.T) {
 		retriever: passphrase.ConstantRetriever("pass"),
 	}
 	require.NoError(t, tc.tufAdd(&cobra.Command{}, []string{"gun", "target2", targetFilePath}))
+
+	k := &keyCommander{
+		configGetter: func() (*viper.Viper, error) {
+			v := viper.New()
+			v.SetDefault("trust_dir", tempBaseDir)
+			v.SetDefault("remote_server.url", s.URL)
+			return v, nil
+		},
+		rotateKeyServerManaged: true,
+		getRetriever: func() notary.PassRetriever { return ret },
+	}
+	require.NoError(t, k.keysRotate(&cobra.Command{}, []string{"gun", data.CanonicalSnapshotRole.String()}))
+
 	require.NoError(t, tc.tufImportGUN(&cobra.Command{}, []string{"gun", "targets", targetsJSONpath}))
 
 	var buf2 bytes.Buffer
