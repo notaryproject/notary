@@ -784,6 +784,7 @@ func (srv *Server) initRepo(ctx context.Context, gun data.GUN) (*client.NotaryRe
 		trustpinning.TrustPinConfig{},
 		cryptoService,
 		changelist.NewMemChangelist(),
+		nil,
 	)
 }
 

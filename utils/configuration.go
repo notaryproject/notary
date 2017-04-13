@@ -69,12 +69,13 @@ func ParseTLS(configuration *viper.Viper, prefix string, tlsRequired bool) (tlsc
 	)
 	clientCert := GetPathRelativeToConfig(
 		configuration,
-		strings.Join([]string{prefix, "tls_client_cert"}, "."),
+		strings.Join([]string{prefix, "tls_cert_file"}, "."),
 	)
 	clientKey := GetPathRelativeToConfig(
 		configuration,
-		strings.Join([]string{prefix, "tls_client_key"}, "."),
+		strings.Join([]string{prefix, "tls_key_file"}, "."),
 	)
+	logrus.Infof("tls files: \nCA: %s\ncert: %s\nkey: %s", rootCA, clientCert, clientKey)
 
 	tlsOpts := tlsconfig.Options{
 		CertFile: clientCert,
@@ -88,16 +89,16 @@ func ParseTLS(configuration *viper.Viper, prefix string, tlsRequired bool) (tlsc
 	if !tlsRequired {
 		cert, key, ca := tlsOpts.CertFile, tlsOpts.KeyFile, tlsOpts.CAFile
 		if cert == "" && key == "" && ca == "" {
-			return nil, nil
+			return tlsconfig.Options{}, nil
 		}
 
 		if (cert == "" && key != "") || (cert != "" && key == "") || (cert == "" && key == "" && ca != "") {
-			return nil, fmt.Errorf(
+			return tlsconfig.Options{}, fmt.Errorf(
 				"either include both a cert and key file, or no TLS information at all to disable TLS")
 		}
 	}
 
-	return &tlsOpts, nil
+	return tlsOpts, nil
 }
 
 // ParseLogLevel tries to parse out a log level from a Viper.  If there is no

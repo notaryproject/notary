@@ -7,11 +7,10 @@ services:
     depends_on:
       - server
     ports:
-      - "4449:4449"  
-    volumes:
-      - clientapi_data:/var/lib/clientapi
+      - "4449:4449"
     networks:
       api:
+      esc:
     entrypoint: clientapi
     command: -config=./fixtures/clientapi-server-config.toml
   server:
@@ -47,6 +46,16 @@ services:
     command: -c "./migrations/migrate.sh && notary-signer -config=./fixtures/signer-config.json"
     depends_on:
       - mysql
+  escrow:
+    build:
+          context: .
+          dockerfile: escrow.Dockerfile
+    networks:
+      esc:
+        aliases:
+          - notaryescrow
+    entrypoint: escrow
+    command: -config=./fixtures/escrow-config-local.toml
   mysql:
     networks:
       - mdb
@@ -69,4 +78,6 @@ networks:
   sig:
     external: false
   api:
+    external: false
+  esc:
     external: false

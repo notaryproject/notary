@@ -4,6 +4,6 @@ path = "/tmp/keys"
 
 [server]
 addr = "0.0.0.0:4450"
-tls_key_file = "notary-escrow.key"
-tls_cert_file = "notary-escrow.crt"
-client_ca_file = ""
+tls_key_file = "./notary-escrow.key"
+tls_cert_file = "./notary-escrow.crt"
+tls_ca_file = "./root-ca.crt"

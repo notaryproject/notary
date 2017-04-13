@@ -65,7 +65,7 @@ openssl x509 -req -days 750 -in "notary-escrow.csr" -sha256 \
         -CA "intermediate-ca.crt" -CAkey "intermediate-ca.key"  -CAcreateserial \
         -out "notary-escrow.crt" -extfile "cert_config.cnf" -extensions notary_escrow
 # append the intermediate cert to this one to make it a proper bundle
-cat "intermediate-ca.crt" >> "notary-server.crt"
+cat "intermediate-ca.crt" >> "notary-escrow.crt"
 
 rm "notary-escrow.csr"
 
