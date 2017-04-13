@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-connections/tlsconfig"
+	auth "github.com/docker/notary/auth/client"
+	"github.com/docker/notary/auth/grpc"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -43,7 +45,7 @@ func grpcTLS(configuration *viper.Viper, prefix string) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-func GetGRPCClient(vc *viper.Viper, prefix string) (*grpc.ClientConn, error) {
+func GetGRPCClient(vc *viper.Viper, prefix string, credStore auth.CredentialStore) (*grpc.ClientConn, error) {
 	var (
 		dialOpts = []grpc.DialOption{
 			grpc.WithBlock(),
@@ -76,6 +78,7 @@ func GetGRPCClient(vc *viper.Viper, prefix string) (*grpc.ClientConn, error) {
 			dialOpts = append(dialOpts, grpc.WithTransportCredentials(creds))
 		}
 	}
+	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpcauth.NewClientAuthorizer(credStore)))
 
 	return grpc.Dial(addr, dialOpts...)
 }

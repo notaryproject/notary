@@ -9,6 +9,7 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/utils"
 	"net/http"
+	"github.com/docker/notary/auth/grpc"
 )
 
 const remoteConfigField = "api"
@@ -39,7 +40,11 @@ func ConfigureRepo(v *viper.Viper, retriever notary.PassRetriever, onlineOperati
 	}
 
 	remoteRepo := func(gun data.GUN) (client.Repository, error) {
-		conn, err := utils.GetGRPCClient(v, remoteConfigField)
+		conn, err := utils.GetGRPCClient(
+			v,
+			remoteConfigField,
+			grpcauth.NewCredStore(&passwordStore{false}, nil, nil),
+		)
 		if err != nil {
 			return nil, err
 		}

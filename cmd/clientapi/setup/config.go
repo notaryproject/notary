@@ -73,20 +73,21 @@ func Authorization(vc *viper.Viper) (grpc.UnaryServerInterceptor, error) {
 	switch authType {
 	case notary.AuthTypeToken:
 		var (
-			realm          = vc.GetString("auth.options.realm")
-			service        = vc.GetString("auth.options.service")
-			issuer         = vc.GetString("auth.options.issuer")
-			rootCAPath     = vc.GetString("auth.options.rootcertbundle")
-			permissions    = vc.GetStringMap("auth.options.permissions")
-			tokenAuth, err = token.NewAuth(realm, issuer, service, rootCAPath)
+			realm       = vc.GetString("auth.options.realm")
+			service     = vc.GetString("auth.options.service")
+			issuer      = vc.GetString("auth.options.issuer")
+			rootCAPath  = utils.GetPathRelativeToConfig(vc, "auth.options.rootcertbundle")
+			permissions = vc.GetStringMap("auth.options.permissions")
 		)
+		logrus.Debugf("token realm: %s", realm)
+		logrus.Debugf("token service: %s", service)
+		logrus.Debugf("token issuer: %s", issuer)
+		logrus.Debugf("token ca path: %s", rootCAPath)
+		tokenAuth, err := token.NewAuth(realm, issuer, service, rootCAPath)
 		if err != nil {
 			return nil, err
 		}
-		basePerms, err := buildBasePermissionList("push", "pull")
-		if err != nil {
-			return nil, err
-		}
+		basePerms := api.DefaultPermissions()
 		basePerms, err = mergePermissions(basePerms, permissions)
 		if err != nil {
 			return nil, err
@@ -144,22 +145,6 @@ func KeyStorage(vc *viper.Viper) ([]trustmanager.KeyStore, error) {
 		return nil, errors.New("no key storage configured")
 	}
 	return []trustmanager.KeyStore{keyStore}, nil
-}
-
-func buildBasePermissionList(requiredPerms ...string) (map[string][]string, error) {
-	srv := grpc.Server{}
-	apiSrv := api.Server{}
-	api.RegisterNotaryServer(&srv, &apiSrv)
-	srvInfo := srv.GetServiceInfo()
-	svc, ok := srvInfo["api.Notary"]
-	if !ok {
-		return nil, errors.New("could not find api.Notary service")
-	}
-	permissions := make(map[string][]string)
-	for _, method := range svc.Methods {
-		permissions[method.Name] = requiredPerms
-	}
-	return permissions, nil
 }
 
 func mergePermissions(basePerms map[string][]string, additional map[string]interface{}) (map[string][]string, error) {

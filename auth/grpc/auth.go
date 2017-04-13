@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 type guner interface {
@@ -55,6 +56,7 @@ func (s ServerAuthorizer) Interceptor(ctx context.Context, req interface{}, info
 				rawToken = ts[0]
 			}
 		}
+		rawToken = strings.TrimPrefix(rawToken, "Bearer ")
 		if _, err := s.authVerifier.Authorize(rawToken); !ok || err != nil {
 			md := s.authVerifier.ChallengeHeaders(
 				err,
@@ -79,11 +81,11 @@ type ClientAuthorizer struct {
 	authHandler *auth.TokenHandler
 }
 
-func NewClientAuthorizer() grpc.UnaryClientInterceptor {
+func NewClientAuthorizer(credStr auth.CredentialStore) grpc.UnaryClientInterceptor {
 	c := ClientAuthorizer{
 		authHandler: auth.NewTokenHandler(
 			http.DefaultTransport,
-			credStore{},
+			credStr,
 			"registry-client",
 			"",
 		),
@@ -142,7 +144,7 @@ func (c *ClientAuthorizer) getToken(challengeHeader []string) (string, error) {
 	return c.authHandler.AuthorizeRequest(challenges[0].Parameters, challenges[0].Parameters["scope"])
 }
 
-func NewCredStore(username, password string, refreshTokens, accessTokens map[string]string) auth.CredentialStore {
+func NewCredStore(store auth.CredentialStore, refreshTokens, accessTokens map[string]string) auth.CredentialStore {
 	if refreshTokens == nil {
 		refreshTokens = make(map[string]string)
 	}
@@ -150,24 +152,25 @@ func NewCredStore(username, password string, refreshTokens, accessTokens map[str
 		accessTokens = make(map[string]string)
 	}
 	return &credStore{
-		username:      username,
-		password:      password,
+		store:         store,
 		refreshTokens: refreshTokens,
 		accessTokens:  accessTokens,
 	}
 }
 
 type credStore struct {
-	username, password          string
+	store                       auth.CredentialStore
 	refreshTokens, accessTokens map[string]string
 }
 
-func (cs credStore) Basic(*url.URL) (string, string) {
-	return cs.username, cs.password
+func (cs credStore) Basic(u *url.URL) (string, string) {
+	return cs.store.Basic(u)
 }
 
-func (cs credStore) RefreshToken(*url.URL, string) string {
-	return ""
+func (cs credStore) RefreshToken(u *url.URL, t string) string {
+	return cs.store.RefreshToken(u, t)
 }
 
-func (cs credStore) SetRefreshToken(realm *url.URL, service, token string) {}
+func (cs credStore) SetRefreshToken(realm *url.URL, service, token string) {
+	cs.store.SetRefreshToken(realm, service, token)
+}

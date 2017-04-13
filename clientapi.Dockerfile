@@ -1,6 +1,6 @@
 FROM golang:1.7.5-alpine
 
-RUN apk add --update git gcc libc-dev && rm -rf /var/cache/apk/*
+RUN apk add --update git gcc libc-dev ca-certificates && rm -rf /var/cache/apk/*
 
 ENV NOTARY_PKG github.com/docker/notary
 

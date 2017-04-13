@@ -660,7 +660,8 @@ func (srv *Server) initRepo(ctx context.Context, gun data.GUN) (*client.NotaryRe
 	if !ok {
 		return nil, errors.New("initRepo may only be used with GRPC contexts")
 	}
-	tokens := md["Authorization"]
+	tokens := md["authorization"]
+	logrus.Debugf("forwarding tokens: %s", tokens)
 	rt, err := utils.GetForwardingAuthTransport(
 		srv.upstreamCAPath,
 		tokens,
