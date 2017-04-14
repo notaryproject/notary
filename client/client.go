@@ -32,9 +32,12 @@ const (
 	SignWithAllOldVersions = -1
 )
 
+var (
+	serverManagesSnapshotKeyByDefault = false
+)
+
 func init() {
 	data.SetDefaultExpiryTimes(data.NotaryDefaultExpiries)
-	SetManagedRoleKeys(defaultManagedRoleKeys)
 }
 
 // NotaryRepository stores all the information needed to operate on a notary
@@ -186,26 +189,10 @@ func rootCertKey(gun data.GUN, privKey data.PrivateKey) (data.PublicKey, error) 
 	return x509PublicKey, nil
 }
 
-// These values are configurable lists of locally and remotely managed roles
-type ManagedRoleKeys struct {
-	locallyManagedKeys []data.RoleName
-	remotelyManagedKeys []data.RoleName
-}
-var defaultManagedRoleKeys = ManagedRoleKeys{
-	locallyManagedKeys: []data.RoleName{
-		data.CanonicalTargetsRole,
-		data.CanonicalSnapshotRole,
-		data.CanonicalRootRole,
-	},
-	remotelyManagedKeys: []data.RoleName{
-		data.CanonicalTimestampRole,
-	},
-}
-
-// SetManagedRolesKeys allows one to change the default locally and remotely managed role keys
-func SetManagedRoleKeys(roleKeys ManagedRoleKeys) {
-	defaultManagedRoleKeys.locallyManagedKeys = roleKeys.locallyManagedKeys
-	defaultManagedRoleKeys.remotelyManagedKeys = roleKeys.remotelyManagedKeys
+// SetServerManagesSnapshot changes the default behaviour so that the server
+// always manages the snaoshot
+func SetServerManagesSnapshot() {
+	serverManagesSnapshotKeyByDefault = true
 }
 
 // Initialize creates a new repository by using rootKey as the root Key for the
@@ -223,29 +210,31 @@ func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ..
 	// nothing else - timestamps are always managed by the server, and implicit
 	// (do not have to be passed in as part of `serverManagedRoles`, so that
 	// the API of Initialize doesn't change).
-	var serverManagesSnapshot bool
-	locallyManagedKeys := defaultManagedRoleKeys.locallyManagedKeys
-	remotelyManagedKeys := defaultManagedRoleKeys.remotelyManagedKeys
+	serverManagesSnapshot := serverManagesSnapshotKeyByDefault
+	locallyManagedKeys := []data.RoleName{
+		data.CanonicalTargetsRole,
+		data.CanonicalSnapshotRole,
+		// root is also locally managed, but that should have been created
+		// already
+	}
+	remotelyManagedKeys := []data.RoleName{data.CanonicalTimestampRole}
+
 	for _, role := range serverManagedRoles {
 		switch role {
 		// We add timestamp or snapshot role if not already present in the remotely managed list
-		case data.CanonicalTimestampRole, data.CanonicalSnapshotRole:
-			present := false
-			for _, remotelyManagedKey := range remotelyManagedKeys {
-				if remotelyManagedKey == role {
-					present = true
-				}
-			}
-
-			if !present {
-				remotelyManagedKeys = append(remotelyManagedKeys, role)
-				if role == data.CanonicalSnapshotRole {
-					serverManagesSnapshot = true
-				}
-			}
+		case data.CanonicalTimestampRole:
+			continue
+		case data.CanonicalSnapshotRole:
+			serverManagesSnapshot = true
 		default:
 			return ErrInvalidRemoteRole{Role: role}
 		}
+	}
+
+	if serverManagesSnapshot {
+		locallyManagedKeys = []data.RoleName{data.CanonicalTargetsRole}
+		remotelyManagedKeys = append(
+			remotelyManagedKeys, data.CanonicalSnapshotRole)
 	}
 
 	rootKeys := make([]data.PublicKey, 0, len(privKeys))

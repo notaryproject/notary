@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/notary/client"
 	"github.com/docker/notary/client_api/api"
 	"github.com/docker/notary/cmd/clientapi/setup"
 	"github.com/docker/notary/utils"
@@ -22,6 +23,7 @@ func init() {
 		"path to configuration file; supported formats are JSON, YAML, and TOML",
 	)
 	flag.Parse()
+	client.SetServerManagesSnapshot()
 }
 
 func main() {
