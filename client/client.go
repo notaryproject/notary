@@ -34,6 +34,7 @@ const (
 
 func init() {
 	data.SetDefaultExpiryTimes(data.NotaryDefaultExpiries)
+	SetManagedRoleKeys(defaultManagedRoleKeys)
 }
 
 // NotaryRepository stores all the information needed to operate on a notary
@@ -185,6 +186,28 @@ func rootCertKey(gun data.GUN, privKey data.PrivateKey) (data.PublicKey, error) 
 	return x509PublicKey, nil
 }
 
+// These values are configurable lists of locally and remotely managed roles
+type ManagedRoleKeys struct {
+	locallyManagedKeys []data.RoleName
+	remotelyManagedKeys []data.RoleName
+}
+var defaultManagedRoleKeys = ManagedRoleKeys{
+	locallyManagedKeys: []data.RoleName{
+		data.CanonicalTargetsRole,
+		data.CanonicalSnapshotRole,
+		data.CanonicalRootRole,
+	},
+	remotelyManagedKeys: []data.RoleName{
+		data.CanonicalTimestampRole,
+	},
+}
+
+// SetManagedRolesKeys allows one to change the default locally and remotely managed role keys
+func SetManagedRoleKeys(roleKeys ManagedRoleKeys) {
+	defaultManagedRoleKeys.locallyManagedKeys = roleKeys.locallyManagedKeys
+	defaultManagedRoleKeys.remotelyManagedKeys = roleKeys.remotelyManagedKeys
+}
+
 // Initialize creates a new repository by using rootKey as the root Key for the
 // TUF repository. The server must be reachable (and is asked to generate a
 // timestamp key and possibly other serverManagedRoles), but the created repository
@@ -201,23 +224,25 @@ func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ..
 	// (do not have to be passed in as part of `serverManagedRoles`, so that
 	// the API of Initialize doesn't change).
 	var serverManagesSnapshot bool
-	locallyManagedKeys := []data.RoleName{
-		data.CanonicalTargetsRole,
-		data.CanonicalSnapshotRole,
-		// root is also locally managed, but that should have been created
-		// already
-	}
-	remotelyManagedKeys := []data.RoleName{data.CanonicalTimestampRole}
+	locallyManagedKeys := defaultManagedRoleKeys.locallyManagedKeys
+	remotelyManagedKeys := defaultManagedRoleKeys.remotelyManagedKeys
 	for _, role := range serverManagedRoles {
 		switch role {
-		case data.CanonicalTimestampRole:
-			continue // timestamp is already in the right place
-		case data.CanonicalSnapshotRole:
-			// because we put Snapshot last
-			locallyManagedKeys = []data.RoleName{data.CanonicalTargetsRole}
-			remotelyManagedKeys = append(
-				remotelyManagedKeys, data.CanonicalSnapshotRole)
-			serverManagesSnapshot = true
+		// We add timestamp or snapshot role if not already present in the remotely managed list
+		case data.CanonicalTimestampRole, data.CanonicalSnapshotRole:
+			present := false
+			for _, remotelyManagedKey := range remotelyManagedKeys {
+				if remotelyManagedKey == role {
+					present = true
+				}
+			}
+
+			if !present {
+				remotelyManagedKeys = append(remotelyManagedKeys, role)
+				if role == data.CanonicalSnapshotRole {
+					serverManagesSnapshot = true
+				}
+			}
 		default:
 			return ErrInvalidRemoteRole{Role: role}
 		}
