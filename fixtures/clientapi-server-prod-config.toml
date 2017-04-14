@@ -7,8 +7,7 @@ tls_key_file = "./clientapi-server.key"
 level = "debug"
 
 [upstream]
-addr = "https://notaryserver:4443"
-tls_ca_file = "./root-ca.crt"
+addr = "https://notary.docker.io"
 
 [key_storage]
 type = "remote"
@@ -17,3 +16,13 @@ tls_ca_file = "./root-ca.crt"
 tls_cert_file = "./clientapi-server.crt"
 tls_key_file = "./clientapi-server.key"
 secret = "fixturesecret"
+
+[auth]
+type = "token"
+
+    [auth.options]
+    realm = "https://auth.docker.io/token"
+    service = "notary.docker.io"
+    issuer = "auth.docker.io"
+    rootcertbundle = "./tokencertbundle.pem"
+
