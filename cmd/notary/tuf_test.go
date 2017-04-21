@@ -9,12 +9,35 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/registry/client/auth"
+	"github.com/docker/notary/tuf/data"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
-
-	"github.com/docker/notary/tuf/data"
 )
+
+func TestImportRootCert(t *testing.T) {
+	certFile := "/Users/xjqw46/test/wildcard/tuf/motorolasolutions.com/wildcard/metadata/public.pem"
+
+	pKeys, err := importRootCert(certFile)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(pKeys), "length of the public key slice should be 1")
+
+	pkey := pKeys[0]
+	expectedCert := `-----BEGIN CERTIFICATE-----
+MIIBeTCCAR6gAwIBAgIRANBbisNFPzTP0AGYpt/9A+gwCgYIKoZIzj0EAwIwIjEg
+MB4GA1UEAxMXbW90b3JvbGFzb2x1dGlvbnMuY29tLyowHhcNMTcwNDIxMjAwODMz
+WhcNMjcwNDE5MjAwODMzWjAiMSAwHgYDVQQDExdtb3Rvcm9sYXNvbHV0aW9ucy5j
+b20vKjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABABNAJcPmmq1u7momB86nDsm
+zjSaqNp/81qRbhy66OwGCdW4xB4rjEPkGwLuGf/Z2Iv2bpW88mYEHS63XvKsPgOj
+NTAzMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUEDDAKBggrBgEFBQcDAzAMBgNVHRMB
+Af8EAjAAMAoGCCqGSM49BAMCA0kAMEYCIQCfBCLOwZbMteiN+fbaufRQ+dZsuzM8
+BhGUrl2GLIHPqgIhAIQMb+IjIhY/eJ0cRccWlQz11eIL1rtyrkcKr0e6rKO3
+-----END CERTIFICATE-----`
+
+	require.Equal(t, "184225703b57d45e2bffc12a7633f787b62cb32b7fb3f1febf1f838418260164", pkey.ID())
+	require.Equal(t, "ecdsa-x509", pkey.Algorithm())
+	require.Equal(t, expectedCert, pkey.Public())
+}
 
 func TestTokenAuth(t *testing.T) {
 	var (

@@ -183,6 +183,59 @@ func TestInitWithRootKey(t *testing.T) {
 	require.Error(t, err, "Init with wrong role should error")
 }
 
+// TestInitWithRootCert test use cases associated with notary init --rootkey --rootcert
+func TestInitWithRootCert(t *testing.T) {
+	// -- setup --
+	setUp(t)
+
+	motoGUN := "motorolasolutions.com/*"
+
+	tempDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	//create encrypted root key
+	privKey, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+
+	encrpytedPEMPrivKey, err := utils.EncryptPrivateKey(privKey, data.CanonicalRootRole, data.GUN(motoGUN), testPassphrase)
+	require.NoError(t, err)
+
+	encryptedPEMKeyFilename := filepath.Join(tempDir, "encrypted_key.key")
+	err = ioutil.WriteFile(encryptedPEMKeyFilename, encrpytedPEMPrivKey, 0644)
+	require.NoError(t, err)
+
+	//filepathes of certificates used in this test
+	// TODO: move the file to notary/fixture or appropriate places
+	nonMatchingCertFilename := filepath.Join("~/test", "non_matching_cert.pem")
+	nonExistingCertFilename := filepath.Join("~/test", "non_existing_cert.pem")
+	matchingCertFilename := filepath.Join("~/test", "matching_cert.pem")
+
+	res, err := runCommand(t, tempDir, "-s", server.URL, "init", "motorolasolutions.com/hello", "--rootkey")
+	require.Error(t, err)
+
+	//test init repo without --rootkey but with --rootcert
+	res, err = runCommand(t, tempDir, "-s", server.URL, "init", "motorolasolutions.com/hello", "--rootcert", matchingCertFilename)
+	require.Error(t, err)
+
+	//test init repo with nonexisting path to rootcert
+	res, err = runCommand(t, tempDir, "-s", server.URL, "init", "motorolasolutions.com/hello", "--rootkey", encryptedPEMKeyFilename, "--rootcert", nonExistingCertFilename)
+	require.Error(t, err)
+
+	//init repo with non-matching rootcert
+	res, err = runCommand(t, tempDir, "-s", server.URL, "init", "motorolasolutions.com/hello", "--rootkey", encryptedPEMKeyFilename, "--rootcert", nonMatchingCertFilename)
+	require.Error(t, err)
+
+	//init repo with matching rootcert
+	res, err = runCommand(t, tempDir, "-s", server.URL, "init", "motorolasolutions.com/hello", "--rootkey", encryptedPEMKeyFilename, "--rootcert", matchingCertFilename)
+	require.NoError(t, err)
+
+	err = ioutil.WriteFile(filepath.Join(tempDir, "log.txt"), []byte(res), 0644)
+	require.NoError(t, err)
+}
+
 // Initializes a repo, adds a target, publishes the target, lists the target,
 // verifies the target, and then removes the target.
 func TestClientTUFInteraction(t *testing.T) {
