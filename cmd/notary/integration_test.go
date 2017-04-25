@@ -207,6 +207,9 @@ func TestInitWithRootCert(t *testing.T) {
 	err = ioutil.WriteFile(encryptedPEMKeyFilename, encrpytedPEMPrivKey, 0644)
 	require.NoError(t, err)
 
+	// crypService := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(passphrase.ConstantRetriever(testPassphrase)))
+	// pubKey, err := crypService.Create(data.CanonicalRootRole, motoGUN, data.ECDSAKey)
+
 	//filepathes of certificates used in this test
 	// TODO: move the file to notary/fixture or appropriate places
 	nonMatchingCertFilename := filepath.Join("~/test", "non_matching_cert.pem")
@@ -220,6 +223,10 @@ func TestInitWithRootCert(t *testing.T) {
 	res, err = runCommand(t, tempDir, "-s", server.URL, "init", "motorolasolutions.com/hello", "--rootcert", matchingCertFilename)
 	require.Error(t, err)
 
+	//init repo with matching rootcert
+	res, err = runCommand(t, tempDir, "-s", server.URL, "init", "motorolasolutions.com/hello", "--rootkey", encryptedPEMKeyFilename, "--rootcert", matchingCertFilename)
+	require.NoError(t, err)
+
 	//test init repo with nonexisting path to rootcert
 	res, err = runCommand(t, tempDir, "-s", server.URL, "init", "motorolasolutions.com/hello", "--rootkey", encryptedPEMKeyFilename, "--rootcert", nonExistingCertFilename)
 	require.Error(t, err)
@@ -228,11 +235,26 @@ func TestInitWithRootCert(t *testing.T) {
 	res, err = runCommand(t, tempDir, "-s", server.URL, "init", "motorolasolutions.com/hello", "--rootkey", encryptedPEMKeyFilename, "--rootcert", nonMatchingCertFilename)
 	require.Error(t, err)
 
-	//init repo with matching rootcert
-	res, err = runCommand(t, tempDir, "-s", server.URL, "init", "motorolasolutions.com/hello", "--rootkey", encryptedPEMKeyFilename, "--rootcert", matchingCertFilename)
-	require.NoError(t, err)
-
 	err = ioutil.WriteFile(filepath.Join(tempDir, "log.txt"), []byte(res), 0644)
+	require.NoError(t, err)
+}
+
+func TestInitOneTest(t *testing.T) {
+	setUp(t)
+
+	// tempDir := tempDirWithConfig(t, "{}")
+	// defer os.RemoveAll(tempDir)
+
+	server := setupServer()
+	defer server.Close()
+
+	//test init repo without --rootkey but with --rootcert
+	_, err := runCommand(t, "/Users/xjqw46/test/wildcard/private", "init",
+		"motorolasolutions.com/hello2",
+		"--rootkey",
+		"/Users/xjqw46/test/wildcard/private/13012c56c9916e348df2731837a1f8dba7839903699f645702ecbedce1960cd7.key",
+		"--rootcert",
+		"/Users/xjqw46/test/wildcard/private/pub.pem")
 	require.NoError(t, err)
 }
 

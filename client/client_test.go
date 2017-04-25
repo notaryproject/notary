@@ -329,6 +329,99 @@ func TestInitRepositoryMultipleRootKeys(t *testing.T) {
 	require.Len(t, repo.tufRepo.Root.Signed.Roles[data.CanonicalRootRole].KeyIDs, 2)
 }
 
+// TestInitRepositoryWithRootKeyAndCert tests initializing a repository with root cert specified
+func TestInitRepositoryWithRootKeyAndCert(t *testing.T) {
+	// Temporary directory where test files will be created
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+	require.NoError(t, err, "failed to create a temporary directory")
+	defer os.RemoveAll(tempBaseDir)
+
+	ts, _, _ := simpleTestServer(t)
+	defer ts.Close()
+
+	repo, rec, rootPubKeyID := createRepoAndKey(
+		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
+
+	err = repo.repoInitialize([]string{rootPubKeyID}, []data.PublicKey{repo.CryptoService.GetKey(rootPubKeyID)})
+	require.NoError(t, err)
+
+	// generates the target role, the snapshot role
+	rec.requireCreated(t, []string{data.CanonicalTargetsRole.String(), data.CanonicalSnapshotRole.String()})
+
+	// has one root keys
+	require.Len(t, repo.tufRepo.Root.Signed.Roles[data.CanonicalRootRole].KeyIDs, 1)
+}
+
+func TestInitRepositoryWithUnmatchedRootKeyAndCert(t *testing.T) {
+	// Temporary directory where test files will be created
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+	require.NoError(t, err, "failed to create a temporary directory")
+	defer os.RemoveAll(tempBaseDir)
+
+	ts, _, _ := simpleTestServer(t)
+	defer ts.Close()
+
+	repo, _, rootPubKeyID := createRepoAndKey(
+		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
+
+	//create a second key pair that will not be used to init repository
+	rootPubKey2, err := repo.CryptoService.Create(data.CanonicalRootRole, repo.gun, data.ECDSAKey)
+	require.NoError(t, err, "error generating second root key: %s", err)
+	cert2 := repo.CryptoService.GetKey(rootPubKey2.ID())
+
+	err = repo.repoInitialize([]string{rootPubKeyID}, []data.PublicKey{cert2})
+	require.Error(t, err)
+
+	// has one root keys
+	require.Nil(t, repo.tufRepo)
+}
+
+func TestInitRepositoryWithOneRootKeyAndMultipleCert(t *testing.T) {
+	// Temporary directory where test files will be created
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+	require.NoError(t, err, "failed to create a temporary directory")
+	defer os.RemoveAll(tempBaseDir)
+
+	ts, _, _ := simpleTestServer(t)
+	defer ts.Close()
+
+	repo, _, rootPubKeyID := createRepoAndKey(
+		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
+	cert1 := repo.CryptoService.GetKey(rootPubKeyID)
+
+	//create a second key pair that will not be used to init repository
+	rootPubKey2, err := repo.CryptoService.Create(data.CanonicalRootRole, repo.gun, data.ECDSAKey)
+	require.NoError(t, err, "error generating second root key: %s", err)
+	cert2 := repo.CryptoService.GetKey(rootPubKey2.ID())
+
+	err = repo.repoInitialize([]string{rootPubKeyID}, []data.PublicKey{cert2, cert1})
+	require.Error(t, err)
+
+	// has one root keys
+	require.Nil(t, repo.tufRepo)
+}
+
+func TestInitRepositoryWithNoRootKeyAndOneCert(t *testing.T) {
+	// Temporary directory where test files will be created
+	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+	require.NoError(t, err, "failed to create a temporary directory")
+	defer os.RemoveAll(tempBaseDir)
+
+	ts, _, _ := simpleTestServer(t)
+	defer ts.Close()
+
+	repo, _, rootPubKeyID := createRepoAndKey(
+		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
+	cert1 := repo.CryptoService.GetKey(rootPubKeyID)
+
+	err = repo.repoInitialize([]string{}, []data.PublicKey{cert1})
+	require.Error(t, err)
+	fmt.Println(err.Error())
+
+	// has one root keys
+	require.Nil(t, repo.tufRepo)
+}
+
 // Initializing a new repo fails if unable to get the timestamp key, even if
 // the snapshot key is available
 func TestInitRepositoryNeedsRemoteTimestampKey(t *testing.T) {
