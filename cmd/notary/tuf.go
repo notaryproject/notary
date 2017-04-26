@@ -465,7 +465,7 @@ func importRootCert(certFilePath string) ([]data.PublicKey, error) {
 		return publicKeys, nil
 	}
 
-	// read from file
+	// read certificate from file
 	certFile, err := os.Open(certFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("Opening file to import as root cert: %v", err)
@@ -525,7 +525,7 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 	}
 
 	// if err = nRepo.Initialize(rootKeyIDs, rootCerts); err != nil {
-	if err = nRepo.Initialize(rootKeyIDs, rootCerts); err != nil {
+	if err = nRepo.InitializeWithCertificate(rootKeyIDs, rootCerts); err != nil {
 		return err
 	}
 

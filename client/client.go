@@ -15,6 +15,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	canonicaljson "github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
+
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/cryptoservice"
 	store "github.com/docker/notary/storage"
@@ -170,8 +171,7 @@ func rootCertKey(gun data.GUN, privKey data.PrivateKey) (data.PublicKey, error) 
 
 	x509PublicKey := utils.CertToKey(cert)
 	if x509PublicKey == nil {
-		return nil, fmt.Errorf(
-			"cannot use regenerated certificate: format %s", cert.PublicKeyAlgorithm)
+		return nil, fmt.Errorf("cannot use regenerated certificate: format %d", cert.PublicKeyAlgorithm)
 	}
 
 	return x509PublicKey, nil
@@ -213,9 +213,9 @@ func (r *NotaryRepository) repoInitialize(rootKeyIDs []string, rootCerts []data.
 
 	rootKeys := make([]data.PublicKey, 0, len(privKeys))
 
-	if rootCerts == nil || len(rootCerts) == 0 { // no certificate is provided, generate certs
+	// no certificate is provided, generate certs
+	if rootCerts == nil || len(rootCerts) == 0 {
 		for _, privKey := range privKeys {
-
 			rootKey, err := rootCertKey(r.gun, privKey)
 			if err != nil {
 				return err
@@ -227,23 +227,15 @@ func (r *NotaryRepository) repoInitialize(rootKeyIDs []string, rootCerts []data.
 		logrus.Debug(errMsg)
 		return fmt.Errorf(errMsg)
 
-	} else { // in case when cert is provided externally
-
-		//Check that the cert and key are pairs
-		for i := 0; i < len(rootKeyIDs); i++ {
-			key, _, err := r.CryptoService.GetPrivateKey(rootKeyIDs[i])
-			cert := rootCerts[i]
-			if err != nil {
-				return err
-			}
-			if key.ID() != cert.ID() { // the key and cert does not match
-				errMsg := fmt.Sprintf("Error on repoInitialize: private key id %s does not match public key id %s ", key.ID(), cert.ID())
-				logrus.Debug(errMsg)
-				return fmt.Errorf(errMsg)
-			}
+	} else {
+		match, err := matchKeyIdsWithCerts(*r, rootKeyIDs, rootCerts)
+		if err != nil {
+			return err
+		} else if match {
+			rootKeys = rootCerts
+		} else {
+			//does not match
 		}
-
-		rootKeys = rootCerts
 	}
 
 	rootRole, targetsRole, snapshotRole, timestampRole, err := r.initializeRoles(
@@ -277,6 +269,63 @@ func (r *NotaryRepository) repoInitialize(rootKeyIDs []string, rootCerts []data.
 	}
 
 	return r.saveMetadata(serverManagesSnapshot)
+}
+
+func matchKeyIdsWithCerts(r NotaryRepository, ids []string, certs []data.PublicKey) (bool, error) {
+
+	for i := 0; i < len(ids); i++ {
+		privKey, _, err := r.CryptoService.GetPrivateKey(ids[i])
+		if err != nil {
+			return false, err
+		}
+
+		pubKey := certs[i]
+
+		err = signed.VerifyPublicKeyMatchesPrivateKey(privKey, pubKey)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return true, nil
+
+	//FIXME: This is the old implementation
+	//Check that the cert and key are pairs
+	// return true if they match , false otherwise
+	for i := 0; i < len(ids); i++ {
+		key, _, err := r.CryptoService.GetPrivateKey(ids[i])
+		cert := certs[i]
+
+		if err != nil {
+			return false, err
+		}
+		if key.ID() != cert.ID() { // the key and cert does not match
+			errMsg := fmt.Sprintf("Error on repoInitialize: private key id %s does not match public key id %s ", key.ID(), cert.ID())
+			fmt.Println("cert: " + string(cert.Public()))
+			fmt.Println("cert id: " + string(cert.ID()))
+			fmt.Println("cert algo:" + cert.Algorithm())
+			fmt.Println("key: " + string(key.Public()))
+			fmt.Println("key algo: " + key.Algorithm())
+			pubFromPri := data.PublicKeyFromPrivate(key)
+			fmt.Println("pub from pri, id: " + pubFromPri.ID())
+			fmt.Println("pub from pri, algo: " + pubFromPri.Algorithm())
+			fmt.Println("pub from pri, public: "+string(pubFromPri.Public()), len(pubFromPri.Public()))
+			decriptedPrivKey, err := utils.ParsePEMPrivateKey(key.Public(), "iamcyc93826")
+			if err != nil {
+				fmt.Println(err.Error())
+			} else {
+				fmt.Println("dec id " + decriptedPrivKey.ID())
+				fmt.Println("dec algo " + decriptedPrivKey.Algorithm())
+				fmt.Println("dec pub " + string(decriptedPrivKey.Public()))
+			}
+
+			logrus.Debug(errMsg)
+
+			return false, fmt.Errorf(errMsg)
+		}
+	}
+
+	return true, nil
 }
 
 // Initialize creates a new repository by using rootKey as the root Key for the

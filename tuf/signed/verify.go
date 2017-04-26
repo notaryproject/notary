@@ -1,6 +1,7 @@
 package signed
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"strings"
@@ -105,5 +106,35 @@ func VerifySignature(msg []byte, sig *data.Signature, pk data.PublicKey) error {
 		return fmt.Errorf("signature was invalid")
 	}
 	sig.IsValid = true
+	return nil
+}
+
+// VerifyPublicKeyMatchesPrivateKey checks if the private key and the public keys are valid key pairs
+func VerifyPublicKeyMatchesPrivateKey(privKey data.PrivateKey, pubKey data.PublicKey) error {
+	//original implementation at https://github.com/docker/notary/pull/821/files
+
+	msgLen := 64
+	msg := make([]byte, msgLen)
+	_, err := rand.Read(msg)
+	if err != nil {
+		return fmt.Errorf("failed to generate random test message: %s", err)
+	}
+
+	//sign msg with private key
+	sigBytes, err := privKey.Sign(rand.Reader, msg, nil)
+	if err != nil {
+		return fmt.Errorf("failed to sign test message: %s", err)
+	}
+
+	verifier, ok := Verifiers[privKey.SignatureAlgorithm()]
+	if !ok {
+		return fmt.Errorf("signing method is not supported: %s", privKey.SignatureAlgorithm())
+	}
+
+	err = verifier.Verify(pubKey, sigBytes, msg)
+	if err != nil {
+		return fmt.Errorf("private key did not match public key: %s", err)
+	}
+
 	return nil
 }
