@@ -3,8 +3,10 @@ MAINTAINER David Lawrence "david.lawrence@docker.com"
 
 RUN apk add --update git gcc libc-dev && rm -rf /var/cache/apk/*
 
-# Install SQL DB migration tool
-RUN go get github.com/mattes/migrate
+# Pin to the specific v1 version
+RUN git clone -b v1 https://github.com/mattes/migrate.git /go/src/github.com/mattes/migrate/ && \
+    go get github.com/mattes/migrate && \
+    go build -tags 'mysql' -o /usr/local/bin/migrate github.com/mattes/migrate
 
 ENV NOTARYPKG github.com/docker/notary
 
