@@ -421,14 +421,12 @@ func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// importRootKey imports the root key from the given path and add the key the repo's cryptoService.
-// returns a key id
+// importRootKey imports the root key from path then adds the key to repo
+// returns key ids
 func importRootKey(cmd *cobra.Command, rootKey string, nRepo *notaryclient.NotaryRepository, retriever notary.PassRetriever) ([]string, error) {
 	var rootKeyList []string
 
 	if rootKey != "" {
-
-		// read key from file
 		privKey, err := readKey(data.CanonicalRootRole, rootKey, retriever)
 		if err != nil {
 			return nil, err
@@ -456,8 +454,7 @@ func importRootKey(cmd *cobra.Command, rootKey string, nRepo *notaryclient.Notar
 }
 
 // importRootCert imports the base64 encrypted public certificate corresponding to the root key
-// returns empty slice if --rootcert is not defined or empty
-// (this case should never occurs because specifying a flag w/o argument is not allowed)
+// returns empty slice if path is empty
 func importRootCert(certFilePath string) ([]data.PublicKey, error) {
 	publicKeys := make([]data.PublicKey, 0, 1)
 
@@ -468,18 +465,21 @@ func importRootCert(certFilePath string) ([]data.PublicKey, error) {
 	// read certificate from file
 	certFile, err := os.Open(certFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("Opening file to import as root cert: %v", err)
+		return nil, fmt.Errorf("error when opening certificate file: %v", err)
 	}
 	defer certFile.Close()
 
 	certPEM, err := ioutil.ReadAll(certFile)
 	block, _ := pem.Decode([]byte(certPEM))
 	if block == nil {
-		return nil, err
+		return nil, fmt.Errorf("the provided file does not contain a valid PEM certificate %v", err)
 	}
 
 	// convert the file to data.PublicKey
 	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("Parsing certificate PEM bytes to x509 certificate: %v", err)
+	}
 	publicKeys = append(publicKeys, tufutils.CertToKey(cert))
 
 	return publicKeys, nil
@@ -513,7 +513,6 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// will always return one key by it's current implementation
 	rootKeyIDs, err := importRootKey(cmd, t.rootKey, nRepo, t.retriever)
 	if err != nil {
 		return err
@@ -524,8 +523,12 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// if err = nRepo.Initialize(rootKeyIDs, rootCerts); err != nil {
-	if err = nRepo.InitializeWithCertificate(rootKeyIDs, rootCerts); err != nil {
+	// if key is not defined but cert is, then clear the key to to allow key to be searched in keystore
+	if t.rootKey == "" && t.rootCert != "" {
+		rootKeyIDs = []string{}
+	}
+
+	if err = nRepo.InitializeWithCertificate(rootKeyIDs, rootCerts, nRepo); err != nil {
 		return err
 	}
 

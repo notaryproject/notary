@@ -1,7 +1,6 @@
 package signed
 
 import (
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/go/canonical/json"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
 )
 
 // Various basic signing errors
@@ -109,32 +109,21 @@ func VerifySignature(msg []byte, sig *data.Signature, pk data.PublicKey) error {
 	return nil
 }
 
-// VerifyPublicKeyMatchesPrivateKey checks if the private key and the public keys are valid key pairs
+// VerifyPublicKeyMatchesPrivateKey checks if the private key and the public keys forms valid key pairs.
+// This should work with both ecdsa-x509 certificate PublicKey as well as ecdsa PublicKey
 func VerifyPublicKeyMatchesPrivateKey(privKey data.PrivateKey, pubKey data.PublicKey) error {
-	//original implementation at https://github.com/docker/notary/pull/821/files
+	if pubKey.Algorithm() != privKey.Algorithm() {
+		return fmt.Errorf("public key and private key has different algorithms")
+	}
 
-	msgLen := 64
-	msg := make([]byte, msgLen)
-	_, err := rand.Read(msg)
+	privKeyID := privKey.ID()
+	pubKeyID, err := utils.CanonicalKeyID(pubKey)
+
 	if err != nil {
-		return fmt.Errorf("failed to generate random test message: %s", err)
+		return fmt.Errorf("could not verify key pair: %v", err)
 	}
-
-	//sign msg with private key
-	sigBytes, err := privKey.Sign(rand.Reader, msg, nil)
-	if err != nil {
-		return fmt.Errorf("failed to sign test message: %s", err)
+	if pubKeyID != privKeyID {
+		return fmt.Errorf("private key did not match public key")
 	}
-
-	verifier, ok := Verifiers[privKey.SignatureAlgorithm()]
-	if !ok {
-		return fmt.Errorf("signing method is not supported: %s", privKey.SignatureAlgorithm())
-	}
-
-	err = verifier.Verify(pubKey, sigBytes, msg)
-	if err != nil {
-		return fmt.Errorf("private key did not match public key: %s", err)
-	}
-
 	return nil
 }

@@ -15,7 +15,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	canonicaljson "github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
-
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/cryptoservice"
 	store "github.com/docker/notary/storage"
@@ -159,7 +158,6 @@ func NewTarget(targetName, targetPath string, targetCustom *canonicaljson.RawMes
 }
 
 // rootCertKey generates the corresponding certificate for the private key given the privKey and repo's GUN
-// returns a certificate
 func rootCertKey(gun data.GUN, privKey data.PrivateKey) (data.PublicKey, error) {
 	// Hard-coded policy: the generated certificate expires in 10 years.
 	startTime := time.Now()
@@ -171,18 +169,14 @@ func rootCertKey(gun data.GUN, privKey data.PrivateKey) (data.PublicKey, error) 
 
 	x509PublicKey := utils.CertToKey(cert)
 	if x509PublicKey == nil {
-		return nil, fmt.Errorf("cannot use regenerated certificate: format %d", cert.PublicKeyAlgorithm)
+		return nil, fmt.Errorf("cannot generate public key from private key with id: %v. %v is not a supported type", privKey.ID(), privKey.Algorithm())
 	}
 
 	return x509PublicKey, nil
 }
 
-// repoInitialize initializes the notary repository wit a set of rootkeys, root certificates and roles.
+// repoInitialize initializes the notary repository with a set of rootkeys, root certificates and roles.
 func (r *NotaryRepository) repoInitialize(rootKeyIDs []string, rootCerts []data.PublicKey, serverManagedRoles ...data.RoleName) error {
-	privKeys, err := getAllPrivKeys(rootKeyIDs, r.CryptoService)
-	if err != nil {
-		return err
-	}
 
 	// currently we only support server managing timestamps and snapshots, and
 	// nothing else - timestamps are always managed by the server, and implicit
@@ -211,35 +205,15 @@ func (r *NotaryRepository) repoInitialize(rootKeyIDs []string, rootCerts []data.
 		}
 	}
 
-	rootKeys := make([]data.PublicKey, 0, len(privKeys))
-
-	// no certificate is provided, generate certs
-	if rootCerts == nil || len(rootCerts) == 0 {
-		for _, privKey := range privKeys {
-			rootKey, err := rootCertKey(r.gun, privKey)
-			if err != nil {
-				return err
-			}
-			rootKeys = append(rootKeys, rootKey)
-		}
-	} else if len(rootKeyIDs) != len(rootCerts) { // Raise error if number of keys is different than the number of certs
-		errMsg := fmt.Sprintf("Error on repoInitialize: require matching number of keys and certificates but got %d rootkeys and %d certificates", len(rootKeyIDs), len(rootCerts))
-		logrus.Debug(errMsg)
-		return fmt.Errorf(errMsg)
-
-	} else {
-		match, err := matchKeyIdsWithCerts(*r, rootKeyIDs, rootCerts)
-		if err != nil {
-			return err
-		} else if match {
-			rootKeys = rootCerts
-		} else {
-			//does not match
-		}
+	// gets valid public keys corresponding to the rootKeyIDs from r.crypto
+	publicKeys, err := r.certsOfKeyIDs(rootKeyIDs, rootCerts)
+	if err != nil {
+		return err
 	}
 
+	//initialize repo with public keys
 	rootRole, targetsRole, snapshotRole, timestampRole, err := r.initializeRoles(
-		rootKeys,
+		publicKeys,
 		locallyManagedKeys,
 		remotelyManagedKeys,
 	)
@@ -271,8 +245,48 @@ func (r *NotaryRepository) repoInitialize(rootKeyIDs []string, rootCerts []data.
 	return r.saveMetadata(serverManagesSnapshot)
 }
 
-func matchKeyIdsWithCerts(r NotaryRepository, ids []string, certs []data.PublicKey) (bool, error) {
+// certsOfKeyIDs either confirms that the certs and keys (represented by Key IDs) forms valid, strictly ordered key pairs
+// (eg. keyIDs[0] must match certs[0] and keyIDs[1] must match certs[1] and so on).
+// Or throw error when they mismatch.
+// Or generate certificates from the keys if no certificate is provided
+func (r *NotaryRepository) certsOfKeyIDs(keyIDs []string, certs []data.PublicKey) ([]data.PublicKey, error) {
 
+	publicKeys := make([]data.PublicKey, 0, len(keyIDs))
+	// generate certificates if none are provided
+	if certs == nil || len(certs) == 0 {
+		privKeys, err := getAllPrivKeys(keyIDs, r.CryptoService)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, privKey := range privKeys {
+			rootKey, err := rootCertKey(r.gun, privKey)
+			if err != nil {
+				return nil, err
+			}
+			publicKeys = append(publicKeys, rootKey)
+		}
+
+	} else if len(keyIDs) != len(certs) { //return error if length does not match
+		errMsg := fmt.Sprintf("require matching number of keys and certificates but got %d rootkeys and %d certificates", len(keyIDs), len(certs))
+		logrus.Debug(errMsg)
+		return nil, fmt.Errorf(errMsg)
+
+	} else { // match each cert with corresponding Key ID
+		match, err := matchKeyIdsWithCerts(r, keyIDs, certs)
+		if err != nil {
+			return nil, err
+		} else if match {
+			publicKeys = certs
+		}
+	}
+
+	return publicKeys, nil
+}
+
+// matchKeyIdsWithCerts validates that the private keys (represented by their IDs) and the x509 PublicKeys
+// forms matching key pairs
+func matchKeyIdsWithCerts(r *NotaryRepository, ids []string, certs []data.PublicKey) (bool, error) {
 	for i := 0; i < len(ids); i++ {
 		privKey, _, err := r.CryptoService.GetPrivateKey(ids[i])
 		if err != nil {
@@ -288,44 +302,6 @@ func matchKeyIdsWithCerts(r NotaryRepository, ids []string, certs []data.PublicK
 	}
 
 	return true, nil
-
-	//FIXME: This is the old implementation
-	//Check that the cert and key are pairs
-	// return true if they match , false otherwise
-	for i := 0; i < len(ids); i++ {
-		key, _, err := r.CryptoService.GetPrivateKey(ids[i])
-		cert := certs[i]
-
-		if err != nil {
-			return false, err
-		}
-		if key.ID() != cert.ID() { // the key and cert does not match
-			errMsg := fmt.Sprintf("Error on repoInitialize: private key id %s does not match public key id %s ", key.ID(), cert.ID())
-			fmt.Println("cert: " + string(cert.Public()))
-			fmt.Println("cert id: " + string(cert.ID()))
-			fmt.Println("cert algo:" + cert.Algorithm())
-			fmt.Println("key: " + string(key.Public()))
-			fmt.Println("key algo: " + key.Algorithm())
-			pubFromPri := data.PublicKeyFromPrivate(key)
-			fmt.Println("pub from pri, id: " + pubFromPri.ID())
-			fmt.Println("pub from pri, algo: " + pubFromPri.Algorithm())
-			fmt.Println("pub from pri, public: "+string(pubFromPri.Public()), len(pubFromPri.Public()))
-			decriptedPrivKey, err := utils.ParsePEMPrivateKey(key.Public(), "iamcyc93826")
-			if err != nil {
-				fmt.Println(err.Error())
-			} else {
-				fmt.Println("dec id " + decriptedPrivKey.ID())
-				fmt.Println("dec algo " + decriptedPrivKey.Algorithm())
-				fmt.Println("dec pub " + string(decriptedPrivKey.Public()))
-			}
-
-			logrus.Debug(errMsg)
-
-			return false, fmt.Errorf(errMsg)
-		}
-	}
-
-	return true, nil
 }
 
 // Initialize creates a new repository by using rootKey as the root Key for the
@@ -337,9 +313,46 @@ func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ..
 	return r.repoInitialize(rootKeyIDs, nil, serverManagedRoles...)
 }
 
-//TODO: write tests
+type errKeyNotFound struct{}
+
+func (errKeyNotFound) Error() string {
+	return fmt.Sprintf("cannot find matching private key id")
+}
+
+// keyExistsInList returns the id of the private key in idList that matches the public key
+// otherwise return empty string
+func keyExistsInList(cert data.PublicKey, idList []string) error {
+	pubKeyID, err := utils.CanonicalKeyID(cert)
+	if err != nil {
+		return fmt.Errorf("failed to obtain the public key id from the given certificate: %v", err)
+	}
+
+	for _, id := range idList {
+		if id == pubKeyID {
+			return nil
+		}
+	}
+	return errKeyNotFound{}
+}
+
 // InitializeWithCertificate initializes the repository with root key and their corresponding certificates
-func (r *NotaryRepository) InitializeWithCertificate(rootKeyIDs []string, rootCerts []data.PublicKey, serverManagedRoles ...data.RoleName) error {
+func (r *NotaryRepository) InitializeWithCertificate(rootKeyIDs []string, rootCerts []data.PublicKey,
+	nRepo *NotaryRepository, serverManagedRoles ...data.RoleName) error {
+
+	// If we explicitly pass in certificate(s) but not key, then look keys up using certificate
+	if rootKeyIDs == nil || len(rootKeyIDs) == 0 && rootCerts != nil && len(rootCerts) != 0 {
+
+		rootKeyIDs = []string{}
+		availableRootKeyIDs := nRepo.CryptoService.ListKeys(data.CanonicalRootRole)
+
+		for _, cert := range rootCerts {
+			if err := keyExistsInList(cert, availableRootKeyIDs); err != nil {
+				return fmt.Errorf("error initializing repository with certificate: %v", err)
+			}
+			keyID, _ := utils.CanonicalKeyID(cert)
+			rootKeyIDs = append(rootKeyIDs, keyID)
+		}
+	}
 	return r.repoInitialize(rootKeyIDs, rootCerts, serverManagedRoles...)
 }
 

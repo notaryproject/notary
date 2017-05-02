@@ -227,9 +227,16 @@ func TestVerifyPublicKeyMatchesPrivateKeyHappyCase(t *testing.T) {
 
 func TestVerifyPublicKeyMatchesPrivateKeyFails(t *testing.T) {
 	goodPrivKey, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
 	badPrivKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 	badPubKey := data.PublicKeyFromPrivate(badPrivKey)
 	err = VerifyPublicKeyMatchesPrivateKey(goodPrivKey, badPubKey)
+	require.Error(t, err)
+
+	//witness fail signing
+	badPrivKey2, err := utils.GenerateED25519Key(rand.Reader)
+	require.NoError(t, err)
+	err = VerifyPublicKeyMatchesPrivateKey(badPrivKey2, data.PublicKeyFromPrivate(badPrivKey))
 	require.Error(t, err)
 }

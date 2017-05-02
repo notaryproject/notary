@@ -183,79 +183,129 @@ func TestInitWithRootKey(t *testing.T) {
 	require.Error(t, err, "Init with wrong role should error")
 }
 
-// TestInitWithRootCert test use cases associated with notary init --rootkey --rootcert
 func TestInitWithRootCert(t *testing.T) {
-	// -- setup --
 	setUp(t)
 
-	motoGUN := "motorolasolutions.com/*"
+	// key pairs
+	privStr := `-----BEGIN EC PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: AES-256-CBC,c9ccb4ef1effa1a080030c9c36942e8e
+role: root
 
-	tempDir := tempDirWithConfig(t, "{}")
+3pCHAMGD2QJDr8BAojd01wa4nzhct0Brk6olIAoaL9yRfV5jRguidu1UaoA22Tan
+9zOatIkxIgqkEP+P3+prIipbXJPbr9I9zVdWxhANSEhmQ95jmlk9syi/xeJT2oXB
+6+u84t59l0mRpuAisdC9AGkw7Cz2T5U51lhyCWjLDqE=
+-----END EC PRIVATE KEY-----`
+
+	certStr := `-----BEGIN CERTIFICATE-----
+MIIBWDCB/6ADAgECAhBKKoVsRNJdGsGh6tPWnE4rMAoGCCqGSM49BAMCMBMxETAP
+BgNVBAMTCGRvY2tlci8qMB4XDTE3MDQyODIwMTczMFoXDTI3MDQyNjIwMTczMFow
+EzERMA8GA1UEAxMIZG9ja2VyLyowWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQQ
+6RhA8sX/kWedbPPFzNqOMI+AnWOQV+u0+FQfeNO+k/Uf0LBnKhHEPSwSBuuwLPon
+w+nR0YTdv3lFaM7x9nOUozUwMzAOBgNVHQ8BAf8EBAMCBaAwEwYDVR0lBAwwCgYI
+KwYBBQUHAwMwDAYDVR0TAQH/BAIwADAKBggqhkjOPQQDAgNIADBFAiA+eHPInhLJ
+HgP8nha+UqdYgq8ZCOlhdGTJhSdHd4sCuQIhAPXqQeWhDLA3/Pf8B7G3ZwWpPbZ8
+adLwkjqoeEKMaAXf
+-----END CERTIFICATE-----`
+
+	nonMatchingKeyStr := `-----BEGIN EC PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: AES-256-CBC,fd6e6735232efbc1a851549d12b8203d
+role: root
+
+Z6u+cAZOEmeoieyQHt6Lp8ZmLWPiyGXT0wTkfYMnGxZ+EX+6sBeu9CWgx+3kOCWQ
+qXuLmBjJ4ZwL/lZejeLLefF7jILA0oDLJtNH1L0oP7H/i7DUtNv+7Jvnci986Rx0
+i85wnaTwOgWv8n6q3tavmnIA/v2QqsTpmI+bhwrPNKQ=
+-----END EC PRIVATE KEY-----`
+
+	//set up notary server
+	server := setupServer()
+	defer server.Close()
+
+	//set up temp dir
+	tempDir := tempDirWithConfig(t, `{
+		"trust_pinning" : {
+			"disable_tufu" : false
+		}
+	}`)
 	defer os.RemoveAll(tempDir)
 
-	server := setupServer()
-	defer server.Close()
+	//test tempfile writable
+	tempFile, err := ioutil.TempFile("", "targetfile")
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
 
-	//create encrypted root key
-	privKey, err := utils.GenerateECDSAKey(rand.Reader)
+	gun := "docker/repoName"
+	privKeyFilename := filepath.Join(tempDir, "priv.key")
+	certFilename := filepath.Join(tempDir, "cert.pem")
+	nonMatchingKeyFilename := filepath.Join(tempDir, "nmkey.key")
+
+	//write key and cert to file
+	err = ioutil.WriteFile(privKeyFilename, []byte(privStr), 0644)
+	require.NoError(t, err)
+	err = ioutil.WriteFile(certFilename, []byte(certStr), 0644)
+	require.NoError(t, err)
+	err = ioutil.WriteFile(nonMatchingKeyFilename, []byte(nonMatchingKeyStr), 0644)
 	require.NoError(t, err)
 
-	encrpytedPEMPrivKey, err := utils.EncryptPrivateKey(privKey, data.CanonicalRootRole, data.GUN(motoGUN), testPassphrase)
+	//test init repo without --rootkey and --rootcert
+	output, err := runCommand(t, tempDir,
+		"-s", server.URL,
+		"init", gun+"1",
+		"--rootkey", privKeyFilename,
+		"--rootcert", certFilename)
 	require.NoError(t, err)
-
-	encryptedPEMKeyFilename := filepath.Join(tempDir, "encrypted_key.key")
-	err = ioutil.WriteFile(encryptedPEMKeyFilename, encrpytedPEMPrivKey, 0644)
+	require.Contains(t, output, "Root key found")
+	// === no rootkey specified: look up in keystore ===
+	// this requires the previous test to inject private key in keystore
+	output, err = runCommand(t, tempDir,
+		"-s", server.URL,
+		"init", gun+"2",
+		"--rootcert", certFilename)
 	require.NoError(t, err)
+	require.Contains(t, output, "Root key found")
 
-	// crypService := cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(passphrase.ConstantRetriever(testPassphrase)))
-	// pubKey, err := crypService.Create(data.CanonicalRootRole, motoGUN, data.ECDSAKey)
+	//add a file to repo
+	output, err = runCommand(t, tempDir,
+		"-s", server.URL,
+		"add", gun+"2",
+		"v1",
+		certFilename)
+	require.NoError(t, err)
+	require.Contains(t, output, "staged for next publish")
 
-	//filepathes of certificates used in this test
-	// TODO: move the file to notary/fixture or appropriate places
-	nonMatchingCertFilename := filepath.Join("~/test", "non_matching_cert.pem")
-	nonExistingCertFilename := filepath.Join("~/test", "non_existing_cert.pem")
-	matchingCertFilename := filepath.Join("~/test", "matching_cert.pem")
+	//publish repo
+	output, err = runCommand(t, tempDir,
+		"-s", server.URL,
+		"publish", gun+"2")
+	require.NoError(t, err)
+	require.Contains(t, output, "Successfully published changes")
 
-	res, err := runCommand(t, tempDir, "-s", server.URL, "init", "motorolasolutions.com/hello", "--rootkey")
+	// === test init with no argument to --rootcert ===
+	_, err = runCommand(t, tempDir,
+		"-s", server.URL,
+		"init", gun+"3",
+		"--rootkey", privKeyFilename,
+		"--rootcert")
 	require.Error(t, err)
 
-	//test init repo without --rootkey but with --rootcert
-	res, err = runCommand(t, tempDir, "-s", server.URL, "init", "motorolasolutions.com/hello", "--rootcert", matchingCertFilename)
+	// === test non matching key pairs ===
+	_, err = runCommand(t, tempDir,
+		"-s", server.URL,
+		"init", gun+"4",
+		"--rootkey", nonMatchingKeyFilename,
+		"--rootcert", certFilename)
 	require.Error(t, err)
 
-	//init repo with matching rootcert
-	res, err = runCommand(t, tempDir, "-s", server.URL, "init", "motorolasolutions.com/hello", "--rootkey", encryptedPEMKeyFilename, "--rootcert", matchingCertFilename)
-	require.NoError(t, err)
-
-	//test init repo with nonexisting path to rootcert
-	res, err = runCommand(t, tempDir, "-s", server.URL, "init", "motorolasolutions.com/hello", "--rootkey", encryptedPEMKeyFilename, "--rootcert", nonExistingCertFilename)
+	// === test non existing path ===
+	_, err = runCommand(t, tempDir,
+		"-s", server.URL,
+		"init", gun+"5",
+		"--rootkey", nonMatchingKeyFilename,
+		"--rootcert", "fake/path/to/cert")
 	require.Error(t, err)
 
-	//init repo with non-matching rootcert
-	res, err = runCommand(t, tempDir, "-s", server.URL, "init", "motorolasolutions.com/hello", "--rootkey", encryptedPEMKeyFilename, "--rootcert", nonMatchingCertFilename)
-	require.Error(t, err)
-
-	err = ioutil.WriteFile(filepath.Join(tempDir, "log.txt"), []byte(res), 0644)
-	require.NoError(t, err)
-}
-
-func TestInitOneTest(t *testing.T) {
-	setUp(t)
-
-	// tempDir := tempDirWithConfig(t, "{}")
-	// defer os.RemoveAll(tempDir)
-
-	server := setupServer()
-	defer server.Close()
-
-	//test init repo without --rootkey but with --rootcert
-	_, err := runCommand(t, "/Users/xjqw46/test/wildcard/private", "init",
-		"motorolasolutions.com/hello2",
-		"--rootkey",
-		"/Users/xjqw46/test/wildcard/private/13012c56c9916e348df2731837a1f8dba7839903699f645702ecbedce1960cd7.key",
-		"--rootcert",
-		"/Users/xjqw46/test/wildcard/private/pub.pem")
-	require.NoError(t, err)
 }
 
 // Initializes a repo, adds a target, publishes the target, lists the target,
