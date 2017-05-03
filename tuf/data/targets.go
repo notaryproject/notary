@@ -3,7 +3,6 @@ package data
 import (
 	"errors"
 	"fmt"
-	"path"
 
 	"github.com/docker/go/canonical/json"
 )
@@ -43,7 +42,7 @@ func isValidTargetsStructure(t Targets, roleName RoleName) error {
 	}
 
 	for _, roleObj := range t.Delegations.Roles {
-		if !IsDelegation(roleObj.Name) || path.Dir(roleObj.Name.String()) != roleName.String() {
+		if !IsDelegation(roleObj.Name) {
 			return ErrInvalidMetadata{
 				role: roleName, msg: fmt.Sprintf("delegation role %s invalid", roleObj.Name)}
 		}
