@@ -21,6 +21,7 @@ import (
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
 	notaryclient "github.com/docker/notary/client"
 	"github.com/docker/notary/cryptoservice"
@@ -116,6 +117,7 @@ type tufCommander struct {
 	sha256  string
 	sha512  string
 	rootKey string
+	custom  string
 
 	input  string
 	output string
@@ -155,6 +157,7 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmdTUFAdd := cmdTUFAddTemplate.ToCommand(t.tufAdd)
 	cmdTUFAdd.Flags().StringSliceVarP(&t.roles, "roles", "r", nil, "Delegation roles to add this target to")
 	cmdTUFAdd.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
+	cmdTUFAdd.Flags().StringVar(&t.custom, "custom", "", "Name of the file containing custom data for this target")
 	cmd.AddCommand(cmdTUFAdd)
 
 	cmdTUFRemove := cmdTUFRemoveTemplate.ToCommand(t.tufRemove)
@@ -167,6 +170,7 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmdTUFAddHash.Flags().StringVar(&t.sha256, notary.SHA256, "", "hex encoded sha256 of the target to add")
 	cmdTUFAddHash.Flags().StringVar(&t.sha512, notary.SHA512, "", "hex encoded sha512 of the target to add")
 	cmdTUFAddHash.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
+	cmdTUFAddHash.Flags().StringVar(&t.custom, "custom", "", "Name of the file containing custom data for this target")
 	cmd.AddCommand(cmdTUFAddHash)
 
 	cmdTUFVerify := cmdTUFVerifyTemplate.ToCommand(t.tufVerify)
@@ -249,6 +253,21 @@ func getTargetHashes(t *tufCommander) (data.Hashes, error) {
 	return targetHash, nil
 }
 
+// Open and read a file containing the targetCustom data
+func getTargetCustom(targetCustomFilename string) (json.RawMessage, error) {
+	var nilCustom json.RawMessage
+	targetCustomFile, err := os.Open(targetCustomFilename)
+	if err != nil {
+		return nilCustom, err
+	}
+	defer targetCustomFile.Close()
+	targetCustom, err := ioutil.ReadAll(targetCustomFile)
+	if err != nil {
+		return nilCustom, err
+	}
+	return targetCustom, nil
+}
+
 func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 	if len(args) < 3 || t.sha256 == "" && t.sha512 == "" {
 		cmd.Usage()
@@ -262,6 +281,13 @@ func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 	gun := data.GUN(args[0])
 	targetName := args[1]
 	targetSize := args[2]
+	var targetCustom []byte
+	if t.custom != "" {
+		targetCustom, err = getTargetCustom(t.custom)
+		if err != nil {
+			return err
+		}
+	}
 
 	targetInt64Len, err := strconv.ParseInt(targetSize, 0, 64)
 	if err != nil {
@@ -287,7 +313,7 @@ func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 	}
 
 	// Manually construct the target with the given byte size and hashes
-	target := &notaryclient.Target{Name: targetName, Hashes: targetHashes, Length: targetInt64Len}
+	target := &notaryclient.Target{Name: targetName, Hashes: targetHashes, Length: targetInt64Len, Custom: targetCustom}
 
 	roleNames := data.NewRoleList(t.roles)
 
@@ -321,6 +347,13 @@ func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 	gun := data.GUN(args[0])
 	targetName := args[1]
 	targetPath := args[2]
+	var targetCustom []byte
+	if t.custom != "" {
+		targetCustom, err = getTargetCustom(t.custom)
+		if err != nil {
+			return err
+		}
+	}
 
 	trustPin, err := getTrustPinning(config)
 	if err != nil {
@@ -335,7 +368,7 @@ func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	target, err := notaryclient.NewTarget(targetName, targetPath)
+	target, err := notaryclient.NewTarget(targetName, targetPath, targetCustom)
 	if err != nil {
 		return err
 	}

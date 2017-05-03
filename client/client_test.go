@@ -631,7 +631,13 @@ func testInitRepoPasswordInvalid(t *testing.T, rootType string) {
 
 func addTarget(t *testing.T, repo *NotaryRepository, targetName, targetFile string,
 	roles ...data.RoleName) *Target {
-	target, err := NewTarget(targetName, targetFile)
+	var targetCustom json.RawMessage
+	return addTargetWithCustom(t, repo, targetName, targetFile, targetCustom, roles...)
+}
+
+func addTargetWithCustom(t *testing.T, repo *NotaryRepository, targetName,
+	targetFile string, targetCustom json.RawMessage, roles ...data.RoleName) *Target {
+	target, err := NewTarget(targetName, targetFile, targetCustom)
 	require.NoError(t, err, "error creating target")
 	err = repo.AddTarget(target, roles...)
 	require.NoError(t, err, "error adding target")
@@ -815,7 +821,8 @@ func testAddTargetToSpecifiedInvalidRoles(t *testing.T, clearCache bool) {
 	}
 
 	for _, invalidRole := range invalidRoles {
-		target, err := NewTarget("latest", "../fixtures/intermediate-ca.crt")
+		var targetCustom json.RawMessage
+		target, err := NewTarget("latest", "../fixtures/intermediate-ca.crt", targetCustom)
 		require.NoError(t, err, "error creating target")
 
 		err = repo.AddTarget(target, data.CanonicalTargetsRole, invalidRole)
@@ -877,7 +884,8 @@ func TestAddTargetWithInvalidTarget(t *testing.T) {
 	repo, _ := initializeRepo(t, data.ECDSAKey, "docker.com/notary", ts.URL, false)
 	defer os.RemoveAll(repo.baseDir)
 
-	target, err := NewTarget("latest", "../fixtures/intermediate-ca.crt")
+	var targetCustom json.RawMessage
+	target, err := NewTarget("latest", "../fixtures/intermediate-ca.crt", targetCustom)
 	require.NoError(t, err, "error creating target")
 
 	// Clear the hashes
@@ -889,7 +897,8 @@ func TestAddTargetWithInvalidTarget(t *testing.T) {
 // to be propagated.
 func TestAddTargetErrorWritingChanges(t *testing.T) {
 	testErrorWritingChangefiles(t, func(repo *NotaryRepository) error {
-		target, err := NewTarget("latest", "../fixtures/intermediate-ca.crt")
+		var targetCustom json.RawMessage
+		target, err := NewTarget("latest", "../fixtures/intermediate-ca.crt", targetCustom)
 		require.NoError(t, err, "error creating target")
 		return repo.AddTarget(target, data.CanonicalTargetsRole)
 	})
@@ -1019,6 +1028,7 @@ func TestRemoveTargetErrorWritingChanges(t *testing.T) {
 func TestListTarget(t *testing.T) {
 	testListEmptyTargets(t, data.ECDSAKey)
 	testListTarget(t, data.ECDSAKey)
+	testListTargetWithCustom(t, data.ECDSAKey)
 	testListTargetWithDelegates(t, data.ECDSAKey)
 	if !testing.Short() {
 		testListEmptyTargets(t, data.RSAKey)
@@ -1236,6 +1246,48 @@ func testListTarget(t *testing.T, rootType string) {
 	require.NoError(t, err)
 	require.Equal(t, data.CanonicalTargetsRole, newCurrentTarget.Role)
 	require.True(t, reflect.DeepEqual(*currentTarget, newCurrentTarget.Target), "current target does not match")
+}
+
+func testListTargetWithCustom(t *testing.T, rootType string) {
+	ts, mux, keys := simpleTestServer(t)
+	defer ts.Close()
+
+	repo, _ := initializeRepo(t, rootType, "docker.com/notary", ts.URL, false)
+	defer os.RemoveAll(repo.baseDir)
+
+	// tests need to manually bootstrap timestamp as client doesn't generate it
+	err := repo.tufRepo.InitTimestamp()
+	require.NoError(t, err, "error creating repository: %s", err)
+
+	var targetCustom json.RawMessage
+	err = json.Unmarshal([]byte("\"Lorem ipsum dolor sit\""), &targetCustom)
+	require.NoError(t, err)
+	latestTarget := addTargetWithCustom(t, repo, "latest", "../fixtures/intermediate-ca.crt", targetCustom)
+	require.Equal(t, targetCustom, latestTarget.Custom, "Target created does not contain the expected custom data")
+
+	// Apply the changelist. Normally, this would be done by Publish
+
+	// load the changelist for this repo
+	cl, err := changelist.NewFileChangelist(
+		filepath.Join(repo.baseDir, "tuf", filepath.FromSlash(repo.gun.String()), "changelist"))
+	require.NoError(t, err, "could not open changelist")
+
+	// apply the changelist to the repo
+	err = applyChangelist(repo.tufRepo, nil, cl)
+	require.NoError(t, err, "could not apply changelist")
+
+	fakeServerData(t, repo, mux, keys)
+
+	targets, err := repo.ListTargets(data.CanonicalTargetsRole)
+	require.NoError(t, err)
+
+	require.True(t, reflect.DeepEqual(*latestTarget, targets[0].Target), "latest target does not match")
+
+	// Also test GetTargetByName for a target with custom data
+	newLatestTarget, err := repo.GetTargetByName("latest")
+	require.NoError(t, err)
+	require.Equal(t, data.CanonicalTargetsRole, newLatestTarget.Role)
+	require.True(t, reflect.DeepEqual(*latestTarget, newLatestTarget.Target), "latest target does not match")
 }
 
 func testListTargetWithDelegates(t *testing.T, rootType string) {

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	canonicaljson "github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/cryptoservice"
@@ -128,9 +129,10 @@ func (r *NotaryRepository) GetGUN() data.GUN {
 // Target represents a simplified version of the data TUF operates on, so external
 // applications don't have to depend on TUF data types.
 type Target struct {
-	Name   string      // the name of the target
-	Hashes data.Hashes // the hash of the target
-	Length int64       // the size in bytes of the target
+	Name   string                   // the name of the target
+	Hashes data.Hashes              // the hash of the target
+	Length int64                    // the size in bytes of the target
+	Custom canonicaljson.RawMessage // the custom data provided to describe the file at TARGETPATH
 }
 
 // TargetWithRole represents a Target that exists in a particular role - this is
@@ -141,7 +143,7 @@ type TargetWithRole struct {
 }
 
 // NewTarget is a helper method that returns a Target
-func NewTarget(targetName string, targetPath string) (*Target, error) {
+func NewTarget(targetName, targetPath string, targetCustom canonicaljson.RawMessage) (*Target, error) {
 	b, err := ioutil.ReadFile(targetPath)
 	if err != nil {
 		return nil, err
@@ -152,7 +154,7 @@ func NewTarget(targetName string, targetPath string) (*Target, error) {
 		return nil, err
 	}
 
-	return &Target{Name: targetName, Hashes: meta.Hashes, Length: meta.Length}, nil
+	return &Target{Name: targetName, Hashes: meta.Hashes, Length: meta.Length, Custom: targetCustom}, nil
 }
 
 func rootCertKey(gun data.GUN, privKey data.PrivateKey) (data.PublicKey, error) {
@@ -360,7 +362,14 @@ func (r *NotaryRepository) AddTarget(target *Target, roles ...data.RoleName) err
 	}
 	logrus.Debugf("Adding target \"%s\" with sha256 \"%x\" and size %d bytes.\n", target.Name, target.Hashes["sha256"], target.Length)
 
-	meta := data.FileMeta{Length: target.Length, Hashes: target.Hashes}
+	var customData *canonicaljson.RawMessage
+	if target.Custom != nil {
+		customData = new(canonicaljson.RawMessage)
+		if err := customData.UnmarshalJSON(target.Custom); err != nil {
+			return err
+		}
+	}
+	meta := data.FileMeta{Length: target.Length, Hashes: target.Hashes, Custom: customData}
 	metaJSON, err := json.Marshal(meta)
 	if err != nil {
 		return err
@@ -412,11 +421,16 @@ func (r *NotaryRepository) ListTargets(roles ...data.RoleName) ([]*TargetWithRol
 				if _, ok := targets[targetName]; ok || !validRole.CheckPaths(targetName) {
 					continue
 				}
+				var custom canonicaljson.RawMessage
+				if targetMeta.Custom != nil {
+					custom = *targetMeta.Custom
+				}
 				targets[targetName] = &TargetWithRole{
 					Target: Target{
 						Name:   targetName,
 						Hashes: targetMeta.Hashes,
 						Length: targetMeta.Length,
+						Custom: custom,
 					},
 					Role: validRole.Name,
 				}
@@ -472,7 +486,11 @@ func (r *NotaryRepository) GetTargetByName(name string, roles ...data.RoleName) 
 		}
 		// Check that we didn't error, and that we assigned to our target
 		if err := r.tufRepo.WalkTargets(name, role, getTargetVisitorFunc, skipRoles...); err == nil && foundTarget {
-			return &TargetWithRole{Target: Target{Name: name, Hashes: resultMeta.Hashes, Length: resultMeta.Length}, Role: resultRoleName}, nil
+			var custom canonicaljson.RawMessage
+			if resultMeta.Custom != nil {
+				custom = *resultMeta.Custom
+			}
+			return &TargetWithRole{Target: Target{Name: name, Hashes: resultMeta.Hashes, Length: resultMeta.Length, Custom: custom}, Role: resultRoleName}, nil
 		}
 	}
 	return nil, fmt.Errorf("No trust data for %s", name)
@@ -514,9 +532,13 @@ func (r *NotaryRepository) GetAllTargetMetadataByName(name string) ([]TargetSign
 		}
 
 		for targetName, resultMeta := range targetMetaToAdd {
+			var custom canonicaljson.RawMessage
+			if resultMeta.Custom != nil {
+				custom = *resultMeta.Custom
+			}
 			targetInfo := TargetSignedStruct{
 				Role:       validRole,
-				Target:     Target{Name: targetName, Hashes: resultMeta.Hashes, Length: resultMeta.Length},
+				Target:     Target{Name: targetName, Hashes: resultMeta.Hashes, Length: resultMeta.Length, Custom: custom},
 				Signatures: tgt.Signatures,
 			}
 			targetInfoList = append(targetInfoList, targetInfo)
