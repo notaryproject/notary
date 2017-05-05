@@ -256,12 +256,7 @@ func getTargetHashes(t *tufCommander) (data.Hashes, error) {
 // Open and read a file containing the targetCustom data
 func getTargetCustom(targetCustomFilename string) (json.RawMessage, error) {
 	var nilCustom json.RawMessage
-	targetCustomFile, err := os.Open(targetCustomFilename)
-	if err != nil {
-		return nilCustom, err
-	}
-	defer targetCustomFile.Close()
-	targetCustom, err := ioutil.ReadAll(targetCustomFile)
+	targetCustom, err := ioutil.ReadFile(targetCustomFilename)
 	if err != nil {
 		return nilCustom, err
 	}
