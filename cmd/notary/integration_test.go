@@ -301,7 +301,7 @@ func TestClientTUFInteraction(t *testing.T) {
 	parsedTargets := data.SignedTargets{}
 	err = json.Unmarshal(rawTargets, &parsedTargets)
 	require.NoError(t, err)
-	require.Equal(t, *parsedTargets.Signed.Targets[target2].Custom, customData)
+	require.Equal(t, parsedTargets.Signed.Targets[target2].Custom, customData)
 
 	// trigger a lookup error with < 2 args
 	_, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun")
@@ -647,7 +647,7 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 	parsedTargets := data.SignedTargets{}
 	err = json.Unmarshal(rawTargets, &parsedTargets)
 	require.NoError(t, err)
-	require.Equal(t, *parsedTargets.Signed.Targets[target4].Custom, customData)
+	require.Equal(t, parsedTargets.Signed.Targets[target4].Custom, customData)
 
 	// lookup target and repo - see target
 	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target4)

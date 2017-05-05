@@ -132,7 +132,7 @@ type Target struct {
 	Name   string                   // the name of the target
 	Hashes data.Hashes              // the hash of the target
 	Length int64                    // the size in bytes of the target
-	Custom canonicaljson.RawMessage // the custom data provided to describe the file at TARGETPATH
+	Custom *canonicaljson.RawMessage // the custom data provided to describe the file at TARGETPATH
 }
 
 // TargetWithRole represents a Target that exists in a particular role - this is
@@ -143,7 +143,7 @@ type TargetWithRole struct {
 }
 
 // NewTarget is a helper method that returns a Target
-func NewTarget(targetName, targetPath string, targetCustom canonicaljson.RawMessage) (*Target, error) {
+func NewTarget(targetName, targetPath string, targetCustom *canonicaljson.RawMessage) (*Target, error) {
 	b, err := ioutil.ReadFile(targetPath)
 	if err != nil {
 		return nil, err
@@ -362,14 +362,7 @@ func (r *NotaryRepository) AddTarget(target *Target, roles ...data.RoleName) err
 	}
 	logrus.Debugf("Adding target \"%s\" with sha256 \"%x\" and size %d bytes.\n", target.Name, target.Hashes["sha256"], target.Length)
 
-	var customData *canonicaljson.RawMessage
-	if target.Custom != nil {
-		customData = new(canonicaljson.RawMessage)
-		if err := customData.UnmarshalJSON(target.Custom); err != nil {
-			return err
-		}
-	}
-	meta := data.FileMeta{Length: target.Length, Hashes: target.Hashes, Custom: customData}
+	meta := data.FileMeta{Length: target.Length, Hashes: target.Hashes, Custom: target.Custom}
 	metaJSON, err := json.Marshal(meta)
 	if err != nil {
 		return err
@@ -421,16 +414,12 @@ func (r *NotaryRepository) ListTargets(roles ...data.RoleName) ([]*TargetWithRol
 				if _, ok := targets[targetName]; ok || !validRole.CheckPaths(targetName) {
 					continue
 				}
-				var custom canonicaljson.RawMessage
-				if targetMeta.Custom != nil {
-					custom = *targetMeta.Custom
-				}
 				targets[targetName] = &TargetWithRole{
 					Target: Target{
 						Name:   targetName,
 						Hashes: targetMeta.Hashes,
 						Length: targetMeta.Length,
-						Custom: custom,
+						Custom: targetMeta.Custom,
 					},
 					Role: validRole.Name,
 				}
@@ -486,11 +475,7 @@ func (r *NotaryRepository) GetTargetByName(name string, roles ...data.RoleName) 
 		}
 		// Check that we didn't error, and that we assigned to our target
 		if err := r.tufRepo.WalkTargets(name, role, getTargetVisitorFunc, skipRoles...); err == nil && foundTarget {
-			var custom canonicaljson.RawMessage
-			if resultMeta.Custom != nil {
-				custom = *resultMeta.Custom
-			}
-			return &TargetWithRole{Target: Target{Name: name, Hashes: resultMeta.Hashes, Length: resultMeta.Length, Custom: custom}, Role: resultRoleName}, nil
+			return &TargetWithRole{Target: Target{Name: name, Hashes: resultMeta.Hashes, Length: resultMeta.Length, Custom: resultMeta.Custom}, Role: resultRoleName}, nil
 		}
 	}
 	return nil, fmt.Errorf("No trust data for %s", name)
@@ -532,13 +517,9 @@ func (r *NotaryRepository) GetAllTargetMetadataByName(name string) ([]TargetSign
 		}
 
 		for targetName, resultMeta := range targetMetaToAdd {
-			var custom canonicaljson.RawMessage
-			if resultMeta.Custom != nil {
-				custom = *resultMeta.Custom
-			}
 			targetInfo := TargetSignedStruct{
 				Role:       validRole,
-				Target:     Target{Name: targetName, Hashes: resultMeta.Hashes, Length: resultMeta.Length, Custom: custom},
+				Target:     Target{Name: targetName, Hashes: resultMeta.Hashes, Length: resultMeta.Length, Custom: resultMeta.Custom},
 				Signatures: tgt.Signatures,
 			}
 			targetInfoList = append(targetInfoList, targetInfo)

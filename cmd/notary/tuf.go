@@ -254,12 +254,13 @@ func getTargetHashes(t *tufCommander) (data.Hashes, error) {
 }
 
 // Open and read a file containing the targetCustom data
-func getTargetCustom(targetCustomFilename string) (json.RawMessage, error) {
-	var nilCustom json.RawMessage
-	targetCustom, err := ioutil.ReadFile(targetCustomFilename)
+func getTargetCustom(targetCustomFilename string) (*json.RawMessage, error) {
+	var targetCustom *json.RawMessage
+	rawTargetCustom, err := ioutil.ReadFile(targetCustomFilename)
 	if err != nil {
-		return nilCustom, err
+		return targetCustom, err
 	}
+	json.Unmarshal(rawTargetCustom, targetCustom)
 	return targetCustom, nil
 }
 
@@ -276,7 +277,7 @@ func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 	gun := data.GUN(args[0])
 	targetName := args[1]
 	targetSize := args[2]
-	var targetCustom []byte
+	var targetCustom *json.RawMessage
 	if t.custom != "" {
 		targetCustom, err = getTargetCustom(t.custom)
 		if err != nil {
@@ -342,7 +343,7 @@ func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 	gun := data.GUN(args[0])
 	targetName := args[1]
 	targetPath := args[2]
-	var targetCustom []byte
+	var targetCustom *json.RawMessage
 	if t.custom != "" {
 		targetCustom, err = getTargetCustom(t.custom)
 		if err != nil {
