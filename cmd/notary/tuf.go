@@ -170,7 +170,7 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmdTUFAddHash.Flags().StringVar(&t.sha256, notary.SHA256, "", "hex encoded sha256 of the target to add")
 	cmdTUFAddHash.Flags().StringVar(&t.sha512, notary.SHA512, "", "hex encoded sha512 of the target to add")
 	cmdTUFAddHash.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
-	cmdTUFAddHash.Flags().StringVar(&t.custom, "custom", "", "Name of the file containing custom data for this target")
+	cmdTUFAddHash.Flags().StringVar(&t.custom, "custom", "", "Path to the file containing custom data for this target")
 	cmd.AddCommand(cmdTUFAddHash)
 
 	cmdTUFVerify := cmdTUFVerifyTemplate.ToCommand(t.tufVerify)
