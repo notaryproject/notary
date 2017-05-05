@@ -129,9 +129,9 @@ func (r *NotaryRepository) GetGUN() data.GUN {
 // Target represents a simplified version of the data TUF operates on, so external
 // applications don't have to depend on TUF data types.
 type Target struct {
-	Name   string                   // the name of the target
-	Hashes data.Hashes              // the hash of the target
-	Length int64                    // the size in bytes of the target
+	Name   string                    // the name of the target
+	Hashes data.Hashes               // the hash of the target
+	Length int64                     // the size in bytes of the target
 	Custom *canonicaljson.RawMessage // the custom data provided to describe the file at TARGETPATH
 }
 
