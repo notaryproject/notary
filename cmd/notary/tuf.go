@@ -157,7 +157,7 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 	cmdTUFAdd := cmdTUFAddTemplate.ToCommand(t.tufAdd)
 	cmdTUFAdd.Flags().StringSliceVarP(&t.roles, "roles", "r", nil, "Delegation roles to add this target to")
 	cmdTUFAdd.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
-	cmdTUFAdd.Flags().StringVar(&t.custom, "custom", "", "Name of the file containing custom data for this target")
+	cmdTUFAdd.Flags().StringVar(&t.custom, "custom", "", "Path to the file containing custom data for this target")
 	cmd.AddCommand(cmdTUFAdd)
 
 	cmdTUFRemove := cmdTUFRemoveTemplate.ToCommand(t.tufRemove)
