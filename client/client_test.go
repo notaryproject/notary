@@ -1028,7 +1028,6 @@ func TestRemoveTargetErrorWritingChanges(t *testing.T) {
 func TestListTarget(t *testing.T) {
 	testListEmptyTargets(t, data.ECDSAKey)
 	testListTarget(t, data.ECDSAKey)
-	testListTargetWithCustom(t, data.ECDSAKey)
 	testListTargetWithDelegates(t, data.ECDSAKey)
 	if !testing.Short() {
 		testListEmptyTargets(t, data.RSAKey)
@@ -1202,8 +1201,13 @@ func testListTarget(t *testing.T, rootType string) {
 	// tests need to manually bootstrap timestamp as client doesn't generate it
 	err := repo.tufRepo.InitTimestamp()
 	require.NoError(t, err, "error creating repository: %s", err)
+	var targetCustom json.RawMessage
+	err = json.Unmarshal([]byte("\"Lorem ipsum dolor sit\""), &targetCustom)
+	require.NoError(t, err)
 
-	latestTarget := addTarget(t, repo, "latest", "../fixtures/intermediate-ca.crt")
+	latestTarget := addTargetWithCustom(t, repo, "latest", "../fixtures/intermediate-ca.crt", targetCustom)
+	require.Equal(t, targetCustom, latestTarget.Custom, "Target created does not contain the expected custom data")
+
 	currentTarget := addTarget(t, repo, "current", "../fixtures/intermediate-ca.crt")
 
 	// Apply the changelist. Normally, this would be done by Publish
@@ -1246,48 +1250,6 @@ func testListTarget(t *testing.T, rootType string) {
 	require.NoError(t, err)
 	require.Equal(t, data.CanonicalTargetsRole, newCurrentTarget.Role)
 	require.True(t, reflect.DeepEqual(*currentTarget, newCurrentTarget.Target), "current target does not match")
-}
-
-func testListTargetWithCustom(t *testing.T, rootType string) {
-	ts, mux, keys := simpleTestServer(t)
-	defer ts.Close()
-
-	repo, _ := initializeRepo(t, rootType, "docker.com/notary", ts.URL, false)
-	defer os.RemoveAll(repo.baseDir)
-
-	// tests need to manually bootstrap timestamp as client doesn't generate it
-	err := repo.tufRepo.InitTimestamp()
-	require.NoError(t, err, "error creating repository: %s", err)
-
-	var targetCustom json.RawMessage
-	err = json.Unmarshal([]byte("\"Lorem ipsum dolor sit\""), &targetCustom)
-	require.NoError(t, err)
-	latestTarget := addTargetWithCustom(t, repo, "latest", "../fixtures/intermediate-ca.crt", targetCustom)
-	require.Equal(t, targetCustom, latestTarget.Custom, "Target created does not contain the expected custom data")
-
-	// Apply the changelist. Normally, this would be done by Publish
-
-	// load the changelist for this repo
-	cl, err := changelist.NewFileChangelist(
-		filepath.Join(repo.baseDir, "tuf", filepath.FromSlash(repo.gun.String()), "changelist"))
-	require.NoError(t, err, "could not open changelist")
-
-	// apply the changelist to the repo
-	err = applyChangelist(repo.tufRepo, nil, cl)
-	require.NoError(t, err, "could not apply changelist")
-
-	fakeServerData(t, repo, mux, keys)
-
-	targets, err := repo.ListTargets(data.CanonicalTargetsRole)
-	require.NoError(t, err)
-
-	require.True(t, reflect.DeepEqual(*latestTarget, targets[0].Target), "latest target does not match")
-
-	// Also test GetTargetByName for a target with custom data
-	newLatestTarget, err := repo.GetTargetByName("latest")
-	require.NoError(t, err)
-	require.Equal(t, data.CanonicalTargetsRole, newLatestTarget.Role)
-	require.True(t, reflect.DeepEqual(*latestTarget, newLatestTarget.Target), "latest target does not match")
 }
 
 func testListTargetWithDelegates(t *testing.T, rootType string) {
