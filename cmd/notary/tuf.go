@@ -255,16 +255,16 @@ func getTargetHashes(t *tufCommander) (data.Hashes, error) {
 
 // Open and read a file containing the targetCustom data
 func getTargetCustom(targetCustomFilename string) (*json.RawMessage, error) {
-	var targetCustom json.RawMessage
+	targetCustom := new(json.RawMessage)
 	rawTargetCustom, err := ioutil.ReadFile(targetCustomFilename)
 	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal(rawTargetCustom, &targetCustom)
-	if err != nil {
+
+	if err := targetCustom.UnmarshalJSON(rawTargetCustom); err != nil {
 		return nil, err
 	}
-	return &targetCustom, nil
+	return targetCustom, nil
 }
 
 func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
