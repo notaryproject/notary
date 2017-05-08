@@ -203,7 +203,7 @@ func TestParseSQLStorageDBStore(t *testing.T) {
 
 	expected := Storage{
 		Backend: "mysql",
-		Source:  "username:passord@tcp(hostname:1234)/dbname",
+		Source:  "username:passord@tcp(hostname:1234)/dbname?parseTime=true",
 	}
 
 	store, err := ParseSQLStorage(config)
@@ -333,7 +333,7 @@ func TestParseSQLStorageWithEnvironmentVariables(t *testing.T) {
 
 	expected := Storage{
 		Backend: "mysql",
-		Source:  "username:passord@tcp(hostname:1234)/dbname",
+		Source:  "username:passord@tcp(hostname:1234)/dbname?parseTime=true",
 	}
 
 	store, err := ParseSQLStorage(config)
