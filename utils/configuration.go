@@ -117,7 +117,7 @@ func ParseSQLStorage(configuration *viper.Viper) (*Storage, error) {
 		}
 
 		urlConfig.ParseTime = true
-		store.Source = url_config.FormatDSN()
+		store.Source = urlConfig.FormatDSN()
 	}
 	return &store, nil
 }
