@@ -21,7 +21,7 @@ import (
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/docker/go/canonical/json"
+	canonicaljson "github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
 	notaryclient "github.com/docker/notary/client"
 	"github.com/docker/notary/cryptoservice"
@@ -254,8 +254,8 @@ func getTargetHashes(t *tufCommander) (data.Hashes, error) {
 }
 
 // Open and read a file containing the targetCustom data
-func getTargetCustom(targetCustomFilename string) (*json.RawMessage, error) {
-	targetCustom := new(json.RawMessage)
+func getTargetCustom(targetCustomFilename string) (*canonicaljson.RawMessage, error) {
+	targetCustom := new(canonicaljson.RawMessage)
 	rawTargetCustom, err := ioutil.ReadFile(targetCustomFilename)
 	if err != nil {
 		return nil, err
@@ -280,7 +280,7 @@ func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 	gun := data.GUN(args[0])
 	targetName := args[1]
 	targetSize := args[2]
-	var targetCustom *json.RawMessage
+	var targetCustom *canonicaljson.RawMessage
 	if t.custom != "" {
 		targetCustom, err = getTargetCustom(t.custom)
 		if err != nil {
@@ -346,7 +346,7 @@ func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 	gun := data.GUN(args[0])
 	targetName := args[1]
 	targetPath := args[2]
-	var targetCustom *json.RawMessage
+	var targetCustom *canonicaljson.RawMessage
 	if t.custom != "" {
 		targetCustom, err = getTargetCustom(t.custom)
 		if err != nil {
