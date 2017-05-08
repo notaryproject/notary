@@ -111,9 +111,6 @@ func ParseSQLStorage(configuration *viper.Viper) (*Storage, error) {
 			store.Backend,
 		)
 	case store.Backend == notary.MySQLBackend:
-		// Parse the url into a  config object, and grab the string from it.
-
-		// cfg, err := sql.Open("mysql", store.Source)
 		urlConfig, err := mysql.ParseDSN(store.Source)
 		if err != nil {
 			return nil, err
