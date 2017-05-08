@@ -114,12 +114,12 @@ func ParseSQLStorage(configuration *viper.Viper) (*Storage, error) {
 		// Parse the url into a  config object, and grab the string from it.
 
 		// cfg, err := sql.Open("mysql", store.Source)
-		url_config, err := mysql.ParseDSN(store.Source)
+		urlConfig, err := mysql.ParseDSN(store.Source)
 		if err != nil {
 			return nil, err
 		}
 
-		url_config.ParseTime = true
+		urlConfig.ParseTime = true
 		store.Source = url_config.FormatDSN()
 	}
 	return &store, nil
