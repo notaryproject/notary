@@ -23,8 +23,11 @@ import (
 	"testing"
 	"time"
 
+	"encoding/json"
+
 	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
+	canonicaljson "github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/cryptoservice"
@@ -198,8 +201,9 @@ func TestClientTUFInteraction(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	var (
-		output string
-		target = "sdgkadga"
+		output  string
+		target  = "sdgkadga"
+		target2 = "foobar"
 	)
 	// -- tests --
 
@@ -251,6 +255,62 @@ func TestClientTUFInteraction(t *testing.T) {
 	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
 	require.NoError(t, err)
 	require.False(t, strings.Contains(string(output), target))
+
+	// Test a target with custom data.
+	tempFileForTargetCustom, err := ioutil.TempFile("", "targetCustom")
+	require.NoError(t, err)
+	var customData canonicaljson.RawMessage
+	err = canonicaljson.Unmarshal([]byte("\"Lorem ipsum dolor sit amet, consectetur adipiscing elit\""), &customData)
+	require.NoError(t, err)
+	_, err = tempFileForTargetCustom.Write(customData)
+	require.NoError(t, err)
+	tempFileForTargetCustom.Close()
+	defer os.Remove(tempFileForTargetCustom.Name())
+
+	// add a target
+	_, err = runCommand(t, tempDir, "add", "gun", target2, tempFile.Name(), "--custom", tempFileForTargetCustom.Name())
+	require.NoError(t, err)
+
+	// check status - see target
+	output, err = runCommand(t, tempDir, "status", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, target2)
+
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// check status - no targets
+	output, err = runCommand(t, tempDir, "status", "gun")
+	require.NoError(t, err)
+	require.False(t, strings.Contains(string(output), target2))
+
+	// list repo - see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, target2)
+
+	// Check the file this was written to to inspect metadata
+	cache, err := nstorage.NewFileStore(
+		filepath.Join(tempDir, "tuf", filepath.FromSlash("gun"), "metadata"),
+		"json",
+	)
+	require.NoError(t, err)
+	rawTargets, err := cache.Get("targets")
+	require.NoError(t, err)
+	parsedTargets := data.SignedTargets{}
+	err = json.Unmarshal(rawTargets, &parsedTargets)
+	require.NoError(t, err)
+	require.Equal(t, *parsedTargets.Signed.Targets[target2].Custom, customData)
+
+	// trigger a lookup error with < 2 args
+	_, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun")
+	require.Error(t, err)
+
+	// lookup target and repo - see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target2)
+	require.NoError(t, err)
+	require.Contains(t, output, target2)
 }
 
 func TestClientDeleteTUFInteraction(t *testing.T) {
@@ -422,6 +482,7 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 		target1 = "sdgkadga"
 		target2 = "asdfasdf"
 		target3 = "qwerty"
+		target4 = "foobar"
 	)
 	// -- tests --
 
@@ -541,6 +602,57 @@ func TestClientTUFAddByHashInteraction(t *testing.T) {
 	// publish repo
 	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
 	require.NoError(t, err)
+
+	tempFile, err := ioutil.TempFile("", "targetCustom")
+	require.NoError(t, err)
+	var customData canonicaljson.RawMessage
+	err = canonicaljson.Unmarshal([]byte("\"Lorem ipsum dolor sit amet, consectetur adipiscing elit\""), &customData)
+	require.NoError(t, err)
+	_, err = tempFile.Write(customData)
+	require.NoError(t, err)
+	tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	// add a target by sha512 and custom data
+	_, err = runCommand(t, tempDir, "addhash", "gun", target4, "3", "--sha512", targetSha512Hex, "--custom", tempFile.Name())
+	require.NoError(t, err)
+
+	// check status - see target
+	output, err = runCommand(t, tempDir, "status", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, target4)
+
+	// publish repo
+	_, err = runCommand(t, tempDir, "-s", server.URL, "publish", "gun")
+	require.NoError(t, err)
+
+	// check status - no targets
+	output, err = runCommand(t, tempDir, "status", "gun")
+	require.NoError(t, err)
+	require.False(t, strings.Contains(string(output), target4))
+
+	// list repo - see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "list", "gun")
+	require.NoError(t, err)
+	require.Contains(t, output, target4)
+
+	// Check the file this was written to to inspect metadata
+	cache, err := nstorage.NewFileStore(
+		filepath.Join(tempDir, "tuf", filepath.FromSlash("gun"), "metadata"),
+		"json",
+	)
+	require.NoError(t, err)
+	rawTargets, err := cache.Get("targets")
+	require.NoError(t, err)
+	parsedTargets := data.SignedTargets{}
+	err = json.Unmarshal(rawTargets, &parsedTargets)
+	require.NoError(t, err)
+	require.Equal(t, *parsedTargets.Signed.Targets[target4].Custom, customData)
+
+	// lookup target and repo - see target
+	output, err = runCommand(t, tempDir, "-s", server.URL, "lookup", "gun", target4)
+	require.NoError(t, err)
+	require.Contains(t, output, target4)
 }
 
 // Initialize repo and test delegations commands by adding, listing, and removing delegations

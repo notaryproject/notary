@@ -631,7 +631,13 @@ func testInitRepoPasswordInvalid(t *testing.T, rootType string) {
 
 func addTarget(t *testing.T, repo *NotaryRepository, targetName, targetFile string,
 	roles ...data.RoleName) *Target {
-	target, err := NewTarget(targetName, targetFile)
+	var targetCustom *json.RawMessage
+	return addTargetWithCustom(t, repo, targetName, targetFile, targetCustom, roles...)
+}
+
+func addTargetWithCustom(t *testing.T, repo *NotaryRepository, targetName,
+	targetFile string, targetCustom *json.RawMessage, roles ...data.RoleName) *Target {
+	target, err := NewTarget(targetName, targetFile, targetCustom)
 	require.NoError(t, err, "error creating target")
 	err = repo.AddTarget(target, roles...)
 	require.NoError(t, err, "error adding target")
@@ -815,7 +821,8 @@ func testAddTargetToSpecifiedInvalidRoles(t *testing.T, clearCache bool) {
 	}
 
 	for _, invalidRole := range invalidRoles {
-		target, err := NewTarget("latest", "../fixtures/intermediate-ca.crt")
+		var targetCustom *json.RawMessage
+		target, err := NewTarget("latest", "../fixtures/intermediate-ca.crt", targetCustom)
 		require.NoError(t, err, "error creating target")
 
 		err = repo.AddTarget(target, data.CanonicalTargetsRole, invalidRole)
@@ -877,7 +884,8 @@ func TestAddTargetWithInvalidTarget(t *testing.T) {
 	repo, _ := initializeRepo(t, data.ECDSAKey, "docker.com/notary", ts.URL, false)
 	defer os.RemoveAll(repo.baseDir)
 
-	target, err := NewTarget("latest", "../fixtures/intermediate-ca.crt")
+	var targetCustom *json.RawMessage
+	target, err := NewTarget("latest", "../fixtures/intermediate-ca.crt", targetCustom)
 	require.NoError(t, err, "error creating target")
 
 	// Clear the hashes
@@ -889,7 +897,8 @@ func TestAddTargetWithInvalidTarget(t *testing.T) {
 // to be propagated.
 func TestAddTargetErrorWritingChanges(t *testing.T) {
 	testErrorWritingChangefiles(t, func(repo *NotaryRepository) error {
-		target, err := NewTarget("latest", "../fixtures/intermediate-ca.crt")
+		var targetCustom *json.RawMessage
+		target, err := NewTarget("latest", "../fixtures/intermediate-ca.crt", targetCustom)
 		require.NoError(t, err, "error creating target")
 		return repo.AddTarget(target, data.CanonicalTargetsRole)
 	})
@@ -1192,8 +1201,14 @@ func testListTarget(t *testing.T, rootType string) {
 	// tests need to manually bootstrap timestamp as client doesn't generate it
 	err := repo.tufRepo.InitTimestamp()
 	require.NoError(t, err, "error creating repository: %s", err)
+	var targetCustom json.RawMessage
+	rawTargetCustom := []byte("\"Lorem ipsum dolor sit\"")
+	err = json.Unmarshal(rawTargetCustom, &targetCustom)
+	require.NoError(t, err)
 
-	latestTarget := addTarget(t, repo, "latest", "../fixtures/intermediate-ca.crt")
+	latestTarget := addTargetWithCustom(t, repo, "latest", "../fixtures/intermediate-ca.crt", &targetCustom)
+	require.Equal(t, targetCustom, *latestTarget.Custom, "Target created does not contain the expected custom data")
+
 	currentTarget := addTarget(t, repo, "current", "../fixtures/intermediate-ca.crt")
 
 	// Apply the changelist. Normally, this would be done by Publish
