@@ -192,6 +192,20 @@ func TestParseInvalidSQLStorageNoDBSource(t *testing.T) {
 	}
 }
 
+// If an invalid DB source is provided, an error is returned.
+func TestParseInvalidDBSourceInSQLStorage(t *testing.T) {
+	config := configure(`{
+		"storage": {
+			"backend": "mysql",
+			"db_url": "foobar"
+		}
+	}`)
+	_, err := ParseSQLStorage(config)
+	require.Error(t, err)
+	require.Contains(t, err.Error(),
+		fmt.Sprintf("failed to parse the database source for mysql"))
+}
+
 // A supported backend with DB source will be successfully parsed.
 func TestParseSQLStorageDBStore(t *testing.T) {
 	config := configure(`{

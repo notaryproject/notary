@@ -113,7 +113,9 @@ func ParseSQLStorage(configuration *viper.Viper) (*Storage, error) {
 	case store.Backend == notary.MySQLBackend:
 		urlConfig, err := mysql.ParseDSN(store.Source)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to parse the database source for %s",
+				store.Backend,
+			)
 		}
 
 		urlConfig.ParseTime = true
