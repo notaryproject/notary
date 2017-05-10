@@ -16,13 +16,13 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/go-connections/tlsconfig"
 	canonicaljson "github.com/docker/go/canonical/json"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"github.com/docker/notary"
 	notaryclient "github.com/docker/notary/client"
@@ -125,7 +125,7 @@ type tufCommander struct {
 	sha256       string
 	sha512       string
 	rootKey      string
-	custom  string
+	custom       string
 	privKeyPaths []string
 	certPaths    []string
 
@@ -166,7 +166,7 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 
 	cmdTUFAdd := cmdTUFAddTemplate.ToCommand(t.tufAdd)
 	cmdTUFAdd.Flags().StringSliceVarP(&t.roles, "roles", "r", nil, "Delegation roles to add this target to")
-	cmdTUFAdd.Flags().StringVarP(&t.input, "input", "i", "", "Specific file to add the target to")
+	cmdTUFAdd.Flags().StringVarP(&t.input, "input", "i", "", "Specify an input targets or delegation file to add the target to")
 	cmdTUFAdd.Flags().StringVarP(&t.output, "output", "o", "", "File to output result to. Only used in tandem with --input.")
 	cmdTUFAdd.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
 	cmdTUFAdd.Flags().StringVar(&t.custom, "custom", "", "Path to the file containing custom data for this target")
@@ -181,7 +181,7 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 
 	cmdTUFAddHash := cmdTUFAddHashTemplate.ToCommand(t.tufAddByHash)
 	cmdTUFAddHash.Flags().StringSliceVarP(&t.roles, "roles", "r", nil, "Delegation roles to add this target to")
-	cmdTUFAddHash.Flags().StringVarP(&t.input, "input", "i", "", "Specific file to add the target to")
+	cmdTUFAddHash.Flags().StringVarP(&t.input, "input", "i", "", "Specify an input targets or delegation file to add the target to")
 	cmdTUFAddHash.Flags().StringVarP(&t.output, "output", "o", "", "File to output result to. Only used in tandem with --input.")
 	cmdTUFAddHash.Flags().StringSliceVar(&t.privKeyPaths, "keys", nil, "Private keys to sign with. Only valid if used with the --file flag")
 	cmdTUFAddHash.Flags().StringSliceVar(&t.certPaths, "certs", nil, "Public certificates that match private keys found in the --keys flag, or are in the notary key storage. Only valid if used with the --file flag")
@@ -273,6 +273,9 @@ func getTargetHashes(t *tufCommander) (data.Hashes, error) {
 
 // Open and read a file containing the targetCustom data
 func getTargetCustom(targetCustomFilename string) (*canonicaljson.RawMessage, error) {
+	if targetCustomFilename == "" {
+		return nil, nil
+	}
 	targetCustom := new(canonicaljson.RawMessage)
 	rawTargetCustom, err := ioutil.ReadFile(targetCustomFilename)
 	if err != nil {
@@ -288,22 +291,23 @@ func getTargetCustom(targetCustomFilename string) (*canonicaljson.RawMessage, er
 func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 	if len(args) < 3 || t.sha256 == "" && t.sha512 == "" {
 		cmd.Usage()
-		return fmt.Errorf("Must specify a GUN, target, byte size of target data, and at least one hash")
+		return errors.New("Must specify a GUN, target, byte size of target data, and at least one hash")
 	}
 	config, err := t.configGetter()
 	if err != nil {
 		return err
 	}
 
-	gun := data.GUN(args[0])
-	targetName := args[1]
-	targetSize := args[2]
-	var targetCustom *canonicaljson.RawMessage
-	if t.custom != "" {
-		targetCustom, err = getTargetCustom(t.custom)
-		if err != nil {
-			return err
-		}
+	var (
+		gun          = data.GUN(args[0])
+		targetName   = args[1]
+		targetSize   = args[2]
+		targetCustom *canonicaljson.RawMessage
+	)
+
+	targetCustom, err = getTargetCustom(t.custom)
+	if err != nil {
+		return err
 	}
 
 	targetInt64Len, err := strconv.ParseInt(targetSize, 0, 64)
