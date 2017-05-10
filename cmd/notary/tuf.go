@@ -14,8 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/ssh/terminal"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
@@ -814,7 +812,7 @@ type passwordStore struct {
 
 func (ps passwordStore) Basic(u *url.URL) (string, string) {
 	// if it's not a terminal, don't wait on input
-	if ps.anonymous || !terminal.IsTerminal(int(os.Stdin.Fd())) {
+	if ps.anonymous {
 		return "", ""
 	}
 
