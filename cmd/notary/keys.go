@@ -46,13 +46,14 @@ var cmdKeyGenerateKeyTemplate = usageTemplate{
 	Use:   "generate [ algorithm ]",
 	Short: "Generates a new key with a given algorithm.",
 	Long: "Generates a new key with a given algorithm. If hardware key " +
-		"storage (e.g. a Yubikey) is available, the key will be stored both " +
+		"storage (e.g. a Yubikey) is available, generated root keys will be stored both " +
 		"on hardware and on disk (so that it can be backed up).  Please make " +
 		"sure to back up and then remove this on-key disk immediately" +
 		"afterwards. If a `--output` file name is provided, two files will " +
-		"be written, <output>.pub and <output>.priv, containing the public" +
+		"be written, <output>.pem and <output>-key.pem, containing the public" +
 		"and private keys respectively (the key will not be stored in Notary's " +
-		"key storage). If no `--role` is provided, \"root\" will be assumed.",
+		"key storage, including any connected hardware storage). If no `--role` " +
+		"is provided, \"root\" will be assumed.",
 }
 
 var cmdKeyRemoveTemplate = usageTemplate{
@@ -223,14 +224,14 @@ func (k *keyCommander) keysGenerate(cmd *cobra.Command, args []string) error {
 
 		pubKey, err := cs.Create(data.RoleName(k.generateRole), "", algorithm)
 		if err != nil {
-			return fmt.Errorf("Failed to create a new root key: %v", err)
+			return fmt.Errorf("Failed to create a new %s key: %v", k.generateRole, err)
 		}
 
 		cmd.Printf("Generated new %s %s key with keyID: %s\n", algorithm, k.generateRole, pubKey.ID())
 		return nil
 	}
 
-	// if we had an outfile set, we'll write 2 files with the given name, appending .pub and .priv for the
+	// if we had an outfile set, we'll write 2 files with the given name, appending .pem and -key.pem for the
 	// public and private keys respectively
 	return generateKeyToFile(k.generateRole, algorithm, k.getRetriever(), k.outFile)
 }
@@ -267,8 +268,9 @@ func generateKeyToFile(role, algorithm string, retriever notary.PassRetriever, o
 		return errors.New("no password provided")
 	}
 
-	privFile := strings.Join([]string{outFile, "priv"}, ".")
-	pubFile := strings.Join([]string{outFile, "pub"}, ".")
+	privFileName := strings.Join([]string{outFile, "key"}, "-")
+	privFile := strings.Join([]string{privFileName, "pem"}, ".")
+	pubFile := strings.Join([]string{outFile, "pem"}, ".")
 
 	err = ioutil.WriteFile(privFile, pemPrivKey, notary.PrivNoExecPerms)
 	if err != nil {

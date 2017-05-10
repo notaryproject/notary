@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -30,7 +31,6 @@ import (
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
-	"path/filepath"
 )
 
 var ret = passphrase.ConstantRetriever("pass")
@@ -821,17 +821,20 @@ func TestKeyGeneration(t *testing.T) {
 	assertNumKeys(t, tempDir, 0, 1, false) // key shouldn't be written to store and won't show up in keylist
 
 	// test that we can read the keys we created
-	pub, err := ioutil.ReadFile(filepath.Join(tempDir, "testkeys.pub"))
+	pub, err := ioutil.ReadFile(filepath.Join(tempDir, "testkeys.pem"))
 	require.NoError(t, err)
 	pubK, err := utils.ParsePEMPublicKey(pub)
 	require.NoError(t, err)
 
-	priv, err := ioutil.ReadFile(filepath.Join(tempDir, "testkeys.priv"))
+	priv, err := ioutil.ReadFile(filepath.Join(tempDir, "testkeys-key.pem"))
 	require.NoError(t, err)
 	privK, err := utils.ParsePEMPrivateKey(priv, testPassphrase)
 	require.NoError(t, err)
 
 	// the ID is only generated from the public part of the key so they should be identical
 	require.Equal(t, pubK.ID(), privK.ID())
+
+	_, err = runCommand(t, tempDir, "key", "import", filepath.Join(tempDir, "testkeys-key.pem"))
+	require.NoError(t, err)
 
 }
