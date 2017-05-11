@@ -208,7 +208,7 @@ func TestSignReturnsNoSigs(t *testing.T) {
 }
 
 func TestSignWithX509(t *testing.T) {
-	// generate a key becase we need a cert
+	// generate a key because we need a cert
 	privKey, err := utils.GenerateRSAKey(rand.Reader, 1024)
 	require.NoError(t, err)
 

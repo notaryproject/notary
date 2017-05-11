@@ -83,7 +83,7 @@ func TestKeyOperations(t *testing.T) {
 	require.NoError(t, err)
 
 	// Generate our RSA private key
-	rsaKey, err := GenerateRSAKey(rand.Reader, 512)
+	rsaKey, err := GenerateRSAKey(rand.Reader, 2048)
 	require.NoError(t, err)
 
 	// Encode our ED private key
