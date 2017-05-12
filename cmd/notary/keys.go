@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/docker/notary"
-	notaryclient "github.com/docker/notary/client"
 	"github.com/docker/notary/cryptoservice"
 	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
@@ -218,19 +217,8 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 	gun := data.GUN(args[0])
 	rotateKeyRole := data.RoleName(args[1])
 
-	rt, err := getTransport(config, gun, admin)
-	if err != nil {
-		return err
-	}
-
-	trustPin, err := getTrustPinning(config)
-	if err != nil {
-		return err
-	}
-
-	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config),
-		rt, k.getRetriever(), trustPin)
+	fact := ConfigureRepo(config, k.getRetriever(), true)
+	nRepo, err := fact(gun)
 	if err != nil {
 		return err
 	}
@@ -242,7 +230,7 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		err = nRepo.CryptoService.AddKey(rotateKeyRole, gun, privKey)
+		err = nRepo.CryptoService().AddKey(rotateKeyRole, gun, privKey)
 		if err != nil {
 			return fmt.Errorf("Error importing key: %v", err)
 		}
@@ -259,7 +247,7 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 	}
-	nRepo.LegacyVersions = k.legacyVersions
+	nRepo.SetLegacyVersions(k.legacyVersions)
 	if err := nRepo.RotateKey(rotateKeyRole, k.rotateKeyServerManaged, keyList); err != nil {
 		return err
 	}
