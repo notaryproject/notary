@@ -4,6 +4,7 @@
 # started with TLS enabled.
 set -e
 
+cp /docker-entrypoint-initdb.d/postgresql.conf "$PGDATA"
 cp /docker-entrypoint-initdb.d/pg_hba.conf "$PGDATA"
 cp /docker-entrypoint-initdb.d/server.{crt,key} "$PGDATA"
 cp /docker-entrypoint-initdb.d/root.crt "$PGDATA"
