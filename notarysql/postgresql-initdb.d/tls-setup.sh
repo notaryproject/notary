@@ -4,7 +4,8 @@
 # started with TLS enabled.
 set -e
 
-cp /docker-entrypoint-initdb.d/postgresql.conf "$PGDATA"
+sed -i "s/#ssl = off/ssl = on/" "$PGDATA"/postgresql.conf
+sed -i "s/#ssl_ca_file = ''/ssl_ca_file = 'root.crt'/" "$PGDATA"/postgresql.conf
 cp /docker-entrypoint-initdb.d/pg_hba.conf "$PGDATA"
 cp /docker-entrypoint-initdb.d/server.{crt,key} "$PGDATA"
 cp /docker-entrypoint-initdb.d/root.crt "$PGDATA"
