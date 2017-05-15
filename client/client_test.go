@@ -2,8 +2,10 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -14,15 +16,13 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
 	"github.com/docker/go/canonical/json"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
-
 	"github.com/docker/notary"
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/cryptoservice"
@@ -36,6 +36,7 @@ import (
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/tuf/validation"
+	"github.com/stretchr/testify/require"
 )
 
 const password = "passphrase"
@@ -186,8 +187,7 @@ func initializeRepo(t *testing.T, rootType, gun, url string,
 }
 
 // Creates a new repository and adds a root key.  Returns the repo and key ID.
-func createRepoAndKey(t *testing.T, rootType, tempBaseDir, gun, url string) (
-	*NotaryRepository, *passRoleRecorder, string) {
+func createRepoAndKey(t *testing.T, rootType, tempBaseDir, gun, url string) (*NotaryRepository, *passRoleRecorder, string) {
 
 	rec := newRoleRecorder()
 	repo, err := NewFileCachedNotaryRepository(
@@ -305,124 +305,103 @@ func TestInitRepositoryManagedRolesIncludingTimestamp(t *testing.T) {
 	rec.requireCreated(t, []string{data.CanonicalTargetsRole.String(), data.CanonicalSnapshotRole.String()})
 }
 
-func TestInitRepositoryMultipleRootKeys(t *testing.T) {
-	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	require.NoError(t, err, "failed to create a temporary directory")
-	defer os.RemoveAll(tempBaseDir)
+func TestInitRepositoryWithCerts(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		extraKeys               int    // the number of extra keys in addition the the first key
+		numberOfCerts           int    // initializing with certificates ?
+		expectedError           string // error message
+		requiredSigningRootKeys int
+		unmatchedKeyPair        bool // true when testing unmatched key pairs
+		noKeys                  bool // true when supplying only certificates
+	}{
+		{
+			name:                    "init with multiple root keys",
+			extraKeys:               1,
+			numberOfCerts:           0,
+			requiredSigningRootKeys: 2,
+		},
+		{
+			name:                    "1 key and 1 cert",
+			extraKeys:               0,
+			numberOfCerts:           1,
+			requiredSigningRootKeys: 1,
+		},
+		{
+			name:             "unmatched key pairs: 1 key and 1 cert",
+			extraKeys:        1,
+			numberOfCerts:    2,
+			expectedError:    "should not be able to initialize with non-matching keys",
+			unmatchedKeyPair: true,
+		},
+		{
+			name:          "different number of keys and certs: 2 key, 1 certs",
+			extraKeys:     1,
+			numberOfCerts: 1,
+			expectedError: "should not be able to initialize with different number of keys and certs",
+		},
+		{
+			name:          "testing with 1 cert with its private key in cryptoservice",
+			noKeys:        true,
+			extraKeys:     0,
+			numberOfCerts: 1,
+		},
+	}
 
-	ts, _, _ := simpleTestServer(t)
-	defer ts.Close()
+	gun := "docker.com/notary"
 
-	repo, rec, rootPubKeyID := createRepoAndKey(
-		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
-	rootPubKey2, err := repo.CryptoService.Create(data.CanonicalRootRole, repo.gun, data.ECDSAKey)
-	require.NoError(t, err, "error generating second root key: %s", err)
+	for _, tc := range testCases {
+		// Temporary directory where test files will be created
+		tempBaseDir, err := ioutil.TempDir("", "notary-test-")
+		require.NoError(t, err, "failed to create a temporary directory")
+		defer os.RemoveAll(tempBaseDir)
+		ts, _, _ := simpleTestServer(t)
+		defer ts.Close()
 
-	err = repo.Initialize([]string{rootPubKeyID, rootPubKey2.ID()}, data.CanonicalTimestampRole)
-	require.NoError(t, err)
+		// create repo and first key
+		repo, rec, kid := createRepoAndKey(t, data.ECDSAKey, tempBaseDir, gun, ts.URL)
+		pubKeyIDs := []string{kid}
 
-	// generates the target role, the snapshot role
-	rec.requireCreated(t, []string{data.CanonicalTargetsRole.String(), data.CanonicalSnapshotRole.String()})
+		//create extra key pairs if necessary
+		for i := 0; i < tc.extraKeys; i++ {
+			key, err := repo.CryptoService.Create(data.CanonicalRootRole, repo.gun, data.ECDSAKey)
+			require.NoError(t, err, "error creating %v-th key: %v", i, err)
+			pubKeyIDs = append(pubKeyIDs, key.ID())
+		}
 
-	// has two root keys
-	require.Len(t, repo.tufRepo.Root.Signed.Roles[data.CanonicalRootRole].KeyIDs, 2)
+		// assign pubKeys if necessary
+		var pubKeys []data.PublicKey
+		for i := 0; i < tc.numberOfCerts; i++ {
+			pubKeys = append(pubKeys, repo.CryptoService.GetKey(pubKeyIDs[i]))
+		}
+
+		if !strings.Contains(tc.name, "unmatched key pairs") {
+			iDs := pubKeyIDs[:1+tc.extraKeys] // use only the correct number of root key ids
+
+			if tc.noKeys { // case : 0 keys 1 cert
+				iDs = []string{}
+			}
+
+			err = repo.initialize(iDs, pubKeys, data.CanonicalTimestampRole)
+			if len(iDs) == len(pubKeys) || // case: 2 keys 2 certs
+				(len(iDs) != 0 && len(pubKeys) == 0) || // case: 1 key and 0 cert
+				(len(iDs) == 0 && len(pubKeys) != 0) { // case: 0 keys and 1 cert
+
+				require.NoError(t, err, "initialize returns an error")
+				rec.requireCreated(t, []string{data.CanonicalTargetsRole.String(), data.CanonicalSnapshotRole.String()})
+				require.Len(t, repo.tufRepo.Root.Signed.Roles[data.CanonicalRootRole].KeyIDs, tc.requiredSigningRootKeys)
+				return
+			}
+			// implicit else case: 2 keys 1 cert
+		} else { // unmatched key pairs case
+			err = repo.initialize(pubKeyIDs[1:], pubKeys[:1])
+		}
+		require.Error(t, err, tc.expectedError, tc.name)
+		require.Nil(t, repo.tufRepo)
+	}
 }
 
-// TestInitRepositoryWithRootKeyAndCert tests initializing a repository with root cert specified
-func TestInitRepositoryWithOneRootKeyAndCert(t *testing.T) {
-	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	require.NoError(t, err, "failed to create a temporary directory")
-	defer os.RemoveAll(tempBaseDir)
-
-	ts, _, _ := simpleTestServer(t)
-	defer ts.Close()
-
-	repo, rec, rootPubKeyID := createRepoAndKey(
-		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
-
-	err = repo.repoInitialize([]string{rootPubKeyID}, []data.PublicKey{repo.CryptoService.GetKey(rootPubKeyID)})
-	require.NoError(t, err)
-
-	// generates the target role, the snapshot role
-	rec.requireCreated(t, []string{data.CanonicalTargetsRole.String(), data.CanonicalSnapshotRole.String()})
-
-	// has one root keys
-	require.Len(t, repo.tufRepo.Root.Signed.Roles[data.CanonicalRootRole].KeyIDs, 1)
-}
-
-func TestInitRepositoryWithUnmatchedRootKeyAndCert(t *testing.T) {
-	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	require.NoError(t, err, "failed to create a temporary directory")
-	defer os.RemoveAll(tempBaseDir)
-
-	ts, _, _ := simpleTestServer(t)
-	defer ts.Close()
-
-	repo, _, rootPubKeyID := createRepoAndKey(
-		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
-
-	//create a second key pair that will not be used to init repository
-	rootPubKey2, err := repo.CryptoService.Create(data.CanonicalRootRole, repo.gun, data.ECDSAKey)
-	require.NoError(t, err, "error generating second root key: %s", err)
-	cert2 := repo.CryptoService.GetKey(rootPubKey2.ID())
-
-	err = repo.repoInitialize([]string{rootPubKeyID}, []data.PublicKey{cert2})
-	require.Error(t, err)
-
-	// has no root keys
-	require.Nil(t, repo.tufRepo)
-}
-
-func TestInitRepositoryWithOneRootKeyAndMultipleCert(t *testing.T) {
-	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	require.NoError(t, err, "failed to create a temporary directory")
-	defer os.RemoveAll(tempBaseDir)
-
-	ts, _, _ := simpleTestServer(t)
-	defer ts.Close()
-
-	repo, _, rootPubKeyID := createRepoAndKey(
-		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
-	cert1 := repo.CryptoService.GetKey(rootPubKeyID)
-
-	//create a second key pair
-	rootPubKey2, err := repo.CryptoService.Create(data.CanonicalRootRole, repo.gun, data.ECDSAKey)
-	require.NoError(t, err, "error generating second root key: %s", err)
-	cert2 := repo.CryptoService.GetKey(rootPubKey2.ID())
-
-	err = repo.repoInitialize([]string{rootPubKeyID}, []data.PublicKey{cert2, cert1})
-	require.Error(t, err)
-
-	// has no root keys
-	require.Nil(t, repo.tufRepo)
-}
-
-func TestInitRepositoryWithNoRootKeyAndOneCert(t *testing.T) {
-	// Temporary directory where test files will be created
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	require.NoError(t, err, "failed to create a temporary directory")
-	defer os.RemoveAll(tempBaseDir)
-
-	ts, _, _ := simpleTestServer(t)
-	defer ts.Close()
-
-	repo, _, rootPubKeyID := createRepoAndKey(
-		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
-	cert1 := repo.CryptoService.GetKey(rootPubKeyID)
-
-	err = repo.repoInitialize([]string{}, []data.PublicKey{cert1})
-	require.Error(t, err)
-	fmt.Println(err.Error())
-
-	// has no root keys
-	require.Nil(t, repo.tufRepo)
-}
-
-func TestMatchInvalidKeyIdsWithCerts(t *testing.T) {
+func TestMatchKeyIDsWithPublicKeys(t *testing.T) {
 	// Temporary directory where test files will be created
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory")
@@ -431,11 +410,42 @@ func TestMatchInvalidKeyIdsWithCerts(t *testing.T) {
 	ts, _, _ := simpleTestServer(t, data.CanonicalSnapshotRole.String())
 	defer ts.Close()
 
-	repo, _, rootPubKeyID := createRepoAndKey(
-		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
-	cert1 := repo.CryptoService.GetKey(rootPubKeyID)
-	_, err = matchKeyIdsWithCerts(repo, []string{"fake id"}, []data.PublicKey{cert1})
-	require.Error(t, err)
+	// set up repo and keys
+	repo, _, keyID := createRepoAndKey(t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
+	publicKey := repo.CryptoService.GetKey(keyID)
+	privateKey, _, err := repo.CryptoService.GetPrivateKey(keyID)
+	require.NoError(t, err, "private key should exist in keystore")
+
+	// 1. create a repository and obtain its root key id, use the key id to get the corresponding
+	// public key. Match this public key with a false key . expect an error.
+
+	err = matchKeyIdsWithPubKeys(repo, []string{"fake id"}, []data.PublicKey{publicKey})
+	require.Error(t, err, "the public key should not be matched with the given id.")
+
+	// 2. match a correct public key (non x509) with its corresponding key id
+	err = matchKeyIdsWithPubKeys(repo, []string{publicKey.ID()}, []data.PublicKey{publicKey})
+	require.NoError(t, err, "public key should be matched with its corresponding private key ")
+
+	// 3. match a correct x509 public key with its corresponding private key id
+	// create x509 pubkey: create template -> use template to create a cert in PEM form -> convert to Certificate -> convert to pub key
+	startTime := time.Now()
+	template, err := utils.NewCertificate(data.CanonicalRootRole.String(), startTime, startTime.AddDate(10, 0, 0))
+	require.NoError(t, err, "failed to create the certificate template: %v", err)
+	signer := privateKey.CryptoSigner()
+	certPEM, err := x509.CreateCertificate(rand.Reader, template, template, signer.Public(), signer)
+	require.NoError(t, err, "error when generating certificate with public key %v", err)
+	cert, err := x509.ParseCertificate(certPEM)
+	require.NoError(t, err, "parsing PEM to certificate but encountered an error: %v", err)
+	certKey := utils.CertToKey(cert)
+
+	err = matchKeyIdsWithPubKeys(repo, []string{publicKey.ID()}, []data.PublicKey{certKey})
+	require.NoError(t, err, "public key should be matched with its corresponding private key")
+
+	// 4. match a non matching key pair, expect error
+	pub2, err := repo.CryptoService.Create(data.CanonicalRootRole, "docker.com/notary", data.ECDSAKey)
+	require.NoError(t, err, "error generating root key: %s", err)
+	err = matchKeyIdsWithPubKeys(repo, []string{pub2.ID()}, []data.PublicKey{publicKey})
+	require.Error(t, err, "validating a non-matching key pair should fail but didn't")
 }
 
 // Initializing a new repo fails if unable to get the timestamp key, even if

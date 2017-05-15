@@ -288,7 +288,7 @@ i85wnaTwOgWv8n6q3tavmnIA/v2QqsTpmI+bhwrPNKQ=
 		"init", gun+"3",
 		"--rootkey", privKeyFilename,
 		"--rootcert")
-	require.Error(t, err)
+	require.Error(t, err, "--rootcert requires one or more argument")
 
 	// === test non matching key pairs ===
 	_, err = runCommand(t, tempDir,
@@ -296,7 +296,7 @@ i85wnaTwOgWv8n6q3tavmnIA/v2QqsTpmI+bhwrPNKQ=
 		"init", gun+"4",
 		"--rootkey", nonMatchingKeyFilename,
 		"--rootcert", certFilename)
-	require.Error(t, err)
+	require.Error(t, err, "should not be able to init a repository with mismatched key and cert")
 
 	// === test non existing path ===
 	_, err = runCommand(t, tempDir,
@@ -304,7 +304,7 @@ i85wnaTwOgWv8n6q3tavmnIA/v2QqsTpmI+bhwrPNKQ=
 		"init", gun+"5",
 		"--rootkey", nonMatchingKeyFilename,
 		"--rootcert", "fake/path/to/cert")
-	require.Error(t, err)
+	require.Error(t, err, "should not be able to init a repository with non-existent certificate path")
 
 }
 
