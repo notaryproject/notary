@@ -10,7 +10,7 @@ parent="mn_notary_config"
 
 # Notary server configuration file
 
-This document is for those who are [running their own Notary service](../running_a_service.md) who
+This document is for those who are [running their own Notary service](../running_a_service.md) and
 want to specify custom options.
 
 ## Overview
