@@ -170,7 +170,9 @@ done
 
 # Postgresql keys for testing server/client auth
 
-# TODO: test if cfssl is installed, if not, cleanly exit with a message
+command -v cfssljson  >/dev/null 2>&1 || { 
+    echo >&2 "Installing cfssl tools"; go get -u github.com/cloudflare/cfssl/cmd/...;
+}
 
 # Create a dir to store keys generated temporarily
 mkdir cfssl
