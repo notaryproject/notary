@@ -34,7 +34,7 @@ JSON keys to learn more about the configuration section corresponding to that ke
     "url": "https://my-notary-server.my-private-registry.com",
     "root_ca": "./fixtures/root-ca.crt",
     "tls_client_cert": "./fixtures/secure.example.com.crt",
-    "tls_client_key": "./fixtures/secure.example.com.crt"
+    "tls_client_key": "./fixtures/secure.example.com.key"
   },
   <a href="#trust_pinning-section-optional">"trust_pinning"</a>: {
     "certs": {
@@ -67,7 +67,7 @@ Remote server example:
   "url": "https://my-notary-server.my-private-registry.com",
   "root_ca": "./fixtures/root-ca.crt",
   "tls_client_cert": "./fixtures/secure.example.com.crt",
-  "tls_client_key": "./fixtures/secure.example.com.crt"
+  "tls_client_key": "./fixtures/secure.example.com.key"
 }
 ```
 
