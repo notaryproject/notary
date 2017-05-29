@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -18,6 +17,7 @@ import (
 	"github.com/docker/notary"
 	"github.com/docker/notary/cryptoservice"
 	"github.com/docker/notary/passphrase"
+	signerpassp "github.com/docker/notary/cmd/notary-signer/passphrase"
 	pb "github.com/docker/notary/proto"
 	"github.com/docker/notary/signer"
 	"github.com/docker/notary/signer/api"
@@ -82,20 +82,31 @@ func parseSignerConfig(configFilePath string, doBootstrap bool) (signer.Config, 
 	}, nil
 }
 
-func getEnv(env string) string {
-	v := viper.New()
-	utils.SetupViper(v, envPrefix)
-	return v.GetString(strings.ToUpper(env))
-}
-
 func passphraseRetriever(keyName, alias string, createNew bool, attempts int) (passphrase string, giveup bool, err error) {
-	passphrase = getEnv(alias)
 
-	if passphrase == "" {
-		return "", false, errors.New("expected env variable to not be empty: " + alias)
+	// Construct a default password store and password protector.
+	// When more than one password stores or password protect methods are implemented,
+	// a decision will be made here, based on a config variable, as to which type to construct.
+	var passwordStore signerpassp.PasswordStore = signerpassp.NewDefaultPasswordStore()
+	var passwordProtect signerpassp.PasswordProtector = signerpassp.NewDefaultPasswordProtector()
+
+	// Get the password from the store
+	psswdCipherText, err := passwordStore.GetPassword(alias)
+
+	if err != nil || psswdCipherText == "" {
+		logrus.Fatal("Error retrieving password from password store.")
+		return "", false, errors.New("Error retrieving password from password store.")
 	}
 
-	return passphrase, false, nil
+	// Unwrap the password
+	psswdClear, err := passwordProtect.Decrypt(psswdCipherText);
+
+	if err != nil || psswdClear == "" {
+		logrus.Fatal("Error decrypting the password.")
+		return "", false, errors.New("Error decrypting the password.")
+	}
+
+	return psswdClear, false, nil
 }
 
 // Reads the configuration file for storage setup, and sets up the cryptoservice
