@@ -60,7 +60,7 @@ adLwkjqoeEKMaAXf
 	fakeFile := filepath.Join(dir, "fake.crt")
 	_, err = importRootCert(fakeFile)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "error when opening")
+	require.Contains(t, err.Error(), "error reading")
 
 	//5. test import non-certificate file
 	nonCert := filepath.Join(dir, "noncert.crt")

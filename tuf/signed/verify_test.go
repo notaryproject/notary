@@ -239,4 +239,11 @@ func TestVerifyPublicKeyMatchesPrivateKeyFails(t *testing.T) {
 	require.NoError(t, err)
 	err = VerifyPublicKeyMatchesPrivateKey(badPrivKey2, data.PublicKeyFromPrivate(badPrivKey))
 	require.Error(t, err)
+
+	err = VerifyPublicKeyMatchesPrivateKey(nil, data.PublicKeyFromPrivate(goodPrivKey))
+	require.Error(t, err, "should throw error if pubKey is nil")
+
+	err = VerifyPublicKeyMatchesPrivateKey(goodPrivKey, nil)
+	require.Error(t, err, "should throw error if privKey is nil")
+
 }

@@ -110,16 +110,14 @@ func VerifySignature(msg []byte, sig *data.Signature, pk data.PublicKey) error {
 }
 
 // VerifyPublicKeyMatchesPrivateKey checks if the private key and the public keys forms valid key pairs.
-// This should work with both ecdsa-x509 certificate PublicKey as well as ecdsa PublicKey
+// Supports both x509 certificate PublicKeys and non-certificate PublicKeys
 func VerifyPublicKeyMatchesPrivateKey(privKey data.PrivateKey, pubKey data.PublicKey) error {
 	pubKeyID, err := utils.CanonicalKeyID(pubKey)
-	privKeyID := privKey.ID()
-
 	if err != nil {
 		return fmt.Errorf("could not verify key pair: %v", err)
 	}
-	if pubKeyID != privKeyID {
-		return fmt.Errorf("private key did not match public key")
+	if privKey == nil || pubKeyID != privKey.ID() {
+		return fmt.Errorf("private key is nil or does not match public key")
 	}
 	return nil
 }

@@ -134,9 +134,10 @@ type tufCommander struct {
 }
 
 func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
+	//
 	cmdTUFInit := cmdTUFInitTemplate.ToCommand(t.tufInit)
 	cmdTUFInit.Flags().StringVar(&t.rootKey, "rootkey", "", "Root key to initialize the repository with")
-	cmdTUFInit.Flags().StringVar(&t.rootCert, "rootcert", "", "Root certificate to initialize the repository with")
+	cmdTUFInit.Flags().StringVar(&t.rootCert, "rootcert", "", "Root certificate must match root key if a root key is supplied, otherwise it must match a key present in keystore")
 	cmdTUFInit.Flags().BoolVarP(&t.autoPublish, "publish", "p", false, htAutoPublish)
 	cmd.AddCommand(cmdTUFInit)
 
@@ -453,7 +454,7 @@ func importRootKey(cmd *cobra.Command, rootKey string, nRepo *notaryclient.Notar
 	return []string{}, nil
 }
 
-// importRootCert imports the base64 encrypted public certificate corresponding to the root key
+// importRootCert imports the base64 encoded public certificate corresponding to the root key
 // returns empty slice if path is empty
 func importRootCert(certFilePath string) ([]data.PublicKey, error) {
 	publicKeys := make([]data.PublicKey, 0, 1)
@@ -463,13 +464,10 @@ func importRootCert(certFilePath string) ([]data.PublicKey, error) {
 	}
 
 	// read certificate from file
-	certFile, err := os.Open(certFilePath)
+	certPEM, err := ioutil.ReadFile(certFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("error when opening certificate file: %v", err)
+		return nil, fmt.Errorf("error reading certificate file: %v", err)
 	}
-	defer certFile.Close()
-
-	certPEM, err := ioutil.ReadAll(certFile)
 	block, _ := pem.Decode([]byte(certPEM))
 	if block == nil {
 		return nil, fmt.Errorf("the provided file does not contain a valid PEM certificate %v", err)
@@ -538,13 +536,7 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 // Attempt to read a role key from a file, and return it as a data.PrivateKey
 // If key is for the Root role, it must be encrypted
 func readKey(role data.RoleName, keyFilename string, retriever notary.PassRetriever) (data.PrivateKey, error) {
-	keyFile, err := os.Open(keyFilename)
-	if err != nil {
-		return nil, fmt.Errorf("Opening file to import as a root key: %v", err)
-	}
-	defer keyFile.Close()
-
-	pemBytes, err := ioutil.ReadAll(keyFile)
+	pemBytes, err := ioutil.ReadFile(keyFilename)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading input root key file: %v", err)
 	}

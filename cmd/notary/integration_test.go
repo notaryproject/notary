@@ -225,7 +225,7 @@ i85wnaTwOgWv8n6q3tavmnIA/v2QqsTpmI+bhwrPNKQ=
 	//set up temp dir
 	tempDir := tempDirWithConfig(t, `{
 		"trust_pinning" : {
-			"disable_tufu" : false
+			"disable_tofu" : false
 		}
 	}`)
 	defer os.RemoveAll(tempDir)
