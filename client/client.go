@@ -157,6 +157,7 @@ func NewTarget(targetName, targetPath string, targetCustom *canonicaljson.RawMes
 	return &Target{Name: targetName, Hashes: meta.Hashes, Length: meta.Length, Custom: targetCustom}, nil
 }
 
+// rootCertKey generates the corresponding certificate for the private key given the privKey and repo's GUN
 func rootCertKey(gun data.GUN, privKey data.PrivateKey) (data.PublicKey, error) {
 	// Hard-coded policy: the generated certificate expires in 10 years.
 	startTime := time.Now()
@@ -168,24 +169,14 @@ func rootCertKey(gun data.GUN, privKey data.PrivateKey) (data.PublicKey, error) 
 
 	x509PublicKey := utils.CertToKey(cert)
 	if x509PublicKey == nil {
-		return nil, fmt.Errorf(
-			"cannot use regenerated certificate: format %s", cert.PublicKeyAlgorithm)
+		return nil, fmt.Errorf("cannot generate public key from private key with id: %v and algorithm: %v", privKey.ID(), privKey.Algorithm())
 	}
 
 	return x509PublicKey, nil
 }
 
-// Initialize creates a new repository by using rootKey as the root Key for the
-// TUF repository. The server must be reachable (and is asked to generate a
-// timestamp key and possibly other serverManagedRoles), but the created repository
-// result is only stored on local disk, not published to the server. To do that,
-// use r.Publish() eventually.
-func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ...data.RoleName) error {
-
-	privKeys, err := getAllPrivKeys(rootKeyIDs, r.CryptoService)
-	if err != nil {
-		return err
-	}
+// initialize initializes the notary repository with a set of rootkeys, root certificates and roles.
+func (r *NotaryRepository) initialize(rootKeyIDs []string, rootCerts []data.PublicKey, serverManagedRoles ...data.RoleName) error {
 
 	// currently we only support server managing timestamps and snapshots, and
 	// nothing else - timestamps are always managed by the server, and implicit
@@ -214,17 +205,21 @@ func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ..
 		}
 	}
 
-	rootKeys := make([]data.PublicKey, 0, len(privKeys))
-	for _, privKey := range privKeys {
-		rootKey, err := rootCertKey(r.gun, privKey)
-		if err != nil {
-			return err
-		}
-		rootKeys = append(rootKeys, rootKey)
+	// gets valid public keys corresponding to the rootKeyIDs or generate if necessary
+	var publicKeys []data.PublicKey
+	var err error
+	if len(rootCerts) == 0 {
+		publicKeys, err = r.createNewPublicKeyFromKeyIDs(rootKeyIDs)
+	} else {
+		publicKeys, err = r.publicKeysOfKeyIDs(rootKeyIDs, rootCerts)
+	}
+	if err != nil {
+		return err
 	}
 
+	//initialize repo with public keys
 	rootRole, targetsRole, snapshotRole, timestampRole, err := r.initializeRoles(
-		rootKeys,
+		publicKeys,
 		locallyManagedKeys,
 		remotelyManagedKeys,
 	)
@@ -254,6 +249,111 @@ func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ..
 	}
 
 	return r.saveMetadata(serverManagesSnapshot)
+}
+
+// createNewPublicKeyFromKeyIDs generates a set of public keys corresponding to the given list of
+// key IDs existing in the repository's CryptoService.
+// the public keys returned are ordered to correspond to the keyIDs
+func (r *NotaryRepository) createNewPublicKeyFromKeyIDs(keyIDs []string) ([]data.PublicKey, error) {
+	publicKeys := []data.PublicKey{}
+
+	privKeys, err := getAllPrivKeys(keyIDs, r.CryptoService)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, privKey := range privKeys {
+		rootKey, err := rootCertKey(r.gun, privKey)
+		if err != nil {
+			return nil, err
+		}
+		publicKeys = append(publicKeys, rootKey)
+	}
+	return publicKeys, nil
+}
+
+// publicKeysOfKeyIDs confirms that the public key and private keys (by Key IDs) forms valid, strictly ordered key pairs
+// (eg. keyIDs[0] must match pubKeys[0] and keyIDs[1] must match certs[1] and so on).
+// Or throw error when they mismatch.
+func (r *NotaryRepository) publicKeysOfKeyIDs(keyIDs []string, pubKeys []data.PublicKey) ([]data.PublicKey, error) {
+	if len(keyIDs) != len(pubKeys) {
+		err := fmt.Errorf("require matching number of keyIDs and public keys but got %d IDs and %d public keys", len(keyIDs), len(pubKeys))
+		return nil, err
+	}
+
+	if err := matchKeyIdsWithPubKeys(r, keyIDs, pubKeys); err != nil {
+		return nil, fmt.Errorf("could not obtain public key from IDs: %v", err)
+	}
+	return pubKeys, nil
+}
+
+// matchKeyIdsWithPubKeys validates that the private keys (represented by their IDs) and the public keys
+// forms matching key pairs
+func matchKeyIdsWithPubKeys(r *NotaryRepository, ids []string, pubKeys []data.PublicKey) error {
+	for i := 0; i < len(ids); i++ {
+		privKey, _, err := r.CryptoService.GetPrivateKey(ids[i])
+		if err != nil {
+			return fmt.Errorf("could not get the private key matching id %v: %v", ids[i], err)
+		}
+
+		pubKey := pubKeys[i]
+		err = signed.VerifyPublicKeyMatchesPrivateKey(privKey, pubKey)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Initialize creates a new repository by using rootKey as the root Key for the
+// TUF repository. The server must be reachable (and is asked to generate a
+// timestamp key and possibly other serverManagedRoles), but the created repository
+// result is only stored on local disk, not published to the server. To do that,
+// use r.Publish() eventually.
+func (r *NotaryRepository) Initialize(rootKeyIDs []string, serverManagedRoles ...data.RoleName) error {
+	return r.initialize(rootKeyIDs, nil, serverManagedRoles...)
+}
+
+type errKeyNotFound struct{}
+
+func (errKeyNotFound) Error() string {
+	return fmt.Sprintf("cannot find matching private key id")
+}
+
+// keyExistsInList returns the id of the private key in ids that matches the public key
+// otherwise return empty string
+func keyExistsInList(cert data.PublicKey, ids map[string]bool) error {
+	pubKeyID, err := utils.CanonicalKeyID(cert)
+	if err != nil {
+		return fmt.Errorf("failed to obtain the public key id from the given certificate: %v", err)
+	}
+	if _, ok := ids[pubKeyID]; ok {
+		return nil
+	}
+	return errKeyNotFound{}
+}
+
+// InitializeWithCertificate initializes the repository with root keys and their corresponding certificates
+func (r *NotaryRepository) InitializeWithCertificate(rootKeyIDs []string, rootCerts []data.PublicKey,
+	nRepo *NotaryRepository, serverManagedRoles ...data.RoleName) error {
+
+	// If we explicitly pass in certificate(s) but not key, then look keys up using certificate
+	if len(rootKeyIDs) == 0 && len(rootCerts) != 0 {
+		rootKeyIDs = []string{}
+		availableRootKeyIDs := make(map[string]bool)
+		for _, k := range nRepo.CryptoService.ListKeys(data.CanonicalRootRole) {
+			availableRootKeyIDs[k] = true
+		}
+
+		for _, cert := range rootCerts {
+			if err := keyExistsInList(cert, availableRootKeyIDs); err != nil {
+				return fmt.Errorf("error initializing repository with certificate: %v", err)
+			}
+			keyID, _ := utils.CanonicalKeyID(cert)
+			rootKeyIDs = append(rootKeyIDs, keyID)
+		}
+	}
+	return r.initialize(rootKeyIDs, rootCerts, serverManagedRoles...)
 }
 
 func (r *NotaryRepository) initializeRoles(rootKeys []data.PublicKey, localRoles, remoteRoles []data.RoleName) (
@@ -356,7 +456,6 @@ func addChange(cl changelist.Changelist, c changelist.Change, roles ...data.Role
 // in the repository when the changelist gets applied at publish time.
 // If roles are unspecified, the default role is "targets"
 func (r *NotaryRepository) AddTarget(target *Target, roles ...data.RoleName) error {
-
 	if len(target.Hashes) == 0 {
 		return fmt.Errorf("no hashes specified for target \"%s\"", target.Name)
 	}

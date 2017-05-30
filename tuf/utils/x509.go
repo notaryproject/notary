@@ -26,6 +26,9 @@ import (
 // On regular RSA/ECDSA TUF keys, this is just the key ID.  On X509 RSA/ECDSA
 // TUF keys, this is the key ID of the public key part of the key in the leaf cert
 func CanonicalKeyID(k data.PublicKey) (string, error) {
+	if k == nil {
+		return "", errors.New("public key is nil")
+	}
 	switch k.Algorithm() {
 	case data.ECDSAx509Key, data.RSAx509Key:
 		return X509PublicKeyID(k)
