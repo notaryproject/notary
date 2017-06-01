@@ -254,16 +254,10 @@ func TestBootstrap(t *testing.T) {
 	require.True(t, tb.Booted)
 }
 
-func TestGetEnv(t *testing.T) {
-	os.Setenv("NOTARY_SIGNER_TIMESTAMP", "password")
-	defer os.Unsetenv("NOTARY_SIGNER_TIMESTAMP")
-
-	require.Equal(t, "password", getEnv("timestamp"))
-}
-
 func TestPassphraseRetrieverInvalid(t *testing.T) {
 	_, _, err := passphraseRetriever("fakeKey", "fakeAlias", false, 1)
 	require.Error(t, err)
+	require.Contains(t, err.Error(), "error retrieving passphrase from passphrase store")
 }
 
 // For sanity, make sure we can always parse the sample config

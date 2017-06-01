@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -16,6 +15,7 @@ import (
 	"github.com/docker/distribution/health"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/notary"
+	signerpassp "github.com/docker/notary/cmd/notary-signer/passphrase"
 	"github.com/docker/notary/cryptoservice"
 	"github.com/docker/notary/passphrase"
 	pb "github.com/docker/notary/proto"
@@ -82,20 +82,31 @@ func parseSignerConfig(configFilePath string, doBootstrap bool) (signer.Config, 
 	}, nil
 }
 
-func getEnv(env string) string {
-	v := viper.New()
-	utils.SetupViper(v, envPrefix)
-	return v.GetString(strings.ToUpper(env))
-}
-
 func passphraseRetriever(keyName, alias string, createNew bool, attempts int) (passphrase string, giveup bool, err error) {
-	passphrase = getEnv(alias)
 
-	if passphrase == "" {
-		return "", false, errors.New("expected env variable to not be empty: " + alias)
+	// Construct a default passphrase store and passphrase protector.
+	// When more than one passphrase stores or passphrase protect methods are implemented,
+	// a decision will be made here, based on a config variable, as to which type to construct.
+	var passphraseStore signerpassp.Storage = signerpassp.NewDefaultPassphraseStore()
+	var passphraseProtect signerpassp.Protector = signerpassp.NewDefaultPassphraseProtector()
+
+	// Get the passphrase from the store
+	psswdCipherText, err := passphraseStore.GetPassphrase(alias)
+
+	if err != nil || psswdCipherText == "" {
+		logrus.Error("Error retrieving passphrase from passphrase store.")
+		return "", false, errors.New("error retrieving passphrase from passphrase store")
 	}
 
-	return passphrase, false, nil
+	// Unwrap the passphrase
+	psswdClear, err := passphraseProtect.Decrypt(psswdCipherText)
+
+	if err != nil || psswdClear == "" {
+		logrus.Error("Error decrypting the passphrase.")
+		return "", false, errors.New("error decrypting the passphrase")
+	}
+
+	return psswdClear, false, nil
 }
 
 // Reads the configuration file for storage setup, and sets up the cryptoservice
