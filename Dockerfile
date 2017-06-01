@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
 	&& rm -rf /var/lib/apt/lists/*
 
 RUN useradd -ms /bin/bash notary \
+	&& pip install setuptools --upgrade \
 	&& pip install codecov \
 	&& go get github.com/golang/lint/golint github.com/fzipp/gocyclo github.com/client9/misspell/cmd/misspell github.com/gordonklaus/ineffassign github.com/HewlettPackard/gas
 
