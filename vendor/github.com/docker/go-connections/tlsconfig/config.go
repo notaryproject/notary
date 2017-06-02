@@ -31,7 +31,7 @@ type Options struct {
 	ClientAuth tls.ClientAuthType
 }
 
-// Extra (server-side) accepted CBC cipher suites - will phase out in the future
+// Extra accepted CBC cipher suites - will phase out in the future
 var acceptedCBCCiphers = []uint16{
 	tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
 	tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
@@ -41,24 +41,24 @@ var acceptedCBCCiphers = []uint16{
 	tls.TLS_RSA_WITH_AES_128_CBC_SHA,
 }
 
-// DefaultServerAcceptedCiphers should be uses by code which already has a crypto/tls
+// DefaultAcceptedCiphers should be uses by code which already has a crypto/tls
 // options struct but wants to use a commonly accepted set of TLS cipher suites, with
 // known weak algorithms removed.
-var DefaultServerAcceptedCiphers = append(clientCipherSuites, acceptedCBCCiphers...)
+var DefaultAcceptedCiphers = append(clientCipherSuites, acceptedCBCCiphers...)
 
 // ServerDefault is a secure-enough TLS configuration for the server TLS configuration.
 var ServerDefault = tls.Config{
 	// Avoid fallback to SSL protocols < TLS1.0
 	MinVersion:               tls.VersionTLS10,
 	PreferServerCipherSuites: true,
-	CipherSuites:             DefaultServerAcceptedCiphers,
+	CipherSuites:             DefaultAcceptedCiphers,
 }
 
 // ClientDefault is a secure-enough TLS configuration for the client TLS configuration.
 var ClientDefault = tls.Config{
 	// Prefer TLS1.2 as the client minimum
 	MinVersion:   tls.VersionTLS12,
-	CipherSuites: clientCipherSuites,
+	CipherSuites: DefaultAcceptedCiphers,
 }
 
 // certPool returns an X.509 certificate pool from `caFile`, the certificate file.
