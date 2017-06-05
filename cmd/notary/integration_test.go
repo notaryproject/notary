@@ -1725,12 +1725,12 @@ func TestLogLevelFlags(t *testing.T) {
 	// Test default to fatal
 	n := notaryCommander{}
 	n.setVerbosityLevel()
-	require.Equal(t, "fatal", logrus.GetLevel().String())
+	require.Equal(t, "warning", logrus.GetLevel().String())
 
 	// Test that verbose (-v) sets to error
 	n.verbose = true
 	n.setVerbosityLevel()
-	require.Equal(t, "error", logrus.GetLevel().String())
+	require.Equal(t, "info", logrus.GetLevel().String())
 
 	// Test that debug (-D) sets to debug
 	n.debug = true
