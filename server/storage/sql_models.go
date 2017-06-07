@@ -31,17 +31,19 @@ func (c Channel) TableName() string {
 	return ChannelTableName
 }
 
-// Published is the channel all fully signed, validated metadata lives in
-var Published = Channel{
-	ID:   1,
-	Name: "published",
-}
+var (
+	// Published is the channel all fully signed, validated metadata lives in
+	Published = Channel{
+		ID:   1,
+		Name: "published",
+	}
 
-// Staged is the channel all partially signed metadata lives in
-var Staged = Channel{
-	ID:   2,
-	Name: "staged",
-}
+	// Staged is the channel all partially signed metadata lives in
+	Staged = Channel{
+		ID:   2,
+		Name: "staged",
+	}
+)
 
 // TUFFile represents a TUF file in the database
 type TUFFile struct {

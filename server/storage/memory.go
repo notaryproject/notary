@@ -384,5 +384,5 @@ func entryKey(gun data.GUN, role data.RoleName, channel *Channel) string {
 }
 
 func checksumKey(gun data.GUN) string {
-	return fmt.Sprintf("%s", gun)
+	return gun.String()
 }
