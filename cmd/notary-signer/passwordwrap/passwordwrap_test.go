@@ -20,8 +20,10 @@ func TestDefaultStorageGetPasswordFromCache(t *testing.T) {
 	defer os.Unsetenv("NOTARY_SIGNER_TIMESTAMP")
 
 	passwordStore := NewDefaultPasswordStore()
+
+	//First call to populate the cache and second call to fetch from it
+	passwordStore.GetPassword("timestamp")
 	password, _ := passwordStore.GetPassword("timestamp")
-	password, _ = passwordStore.GetPassword("timestamp")
 	require.Equal(t, "password", password)
 }
 
