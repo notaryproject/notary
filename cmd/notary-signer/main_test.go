@@ -257,7 +257,7 @@ func TestBootstrap(t *testing.T) {
 func TestPassphraseRetrieverInvalid(t *testing.T) {
 	_, _, err := passphraseRetriever("fakeKey", "fakeAlias", false, 1)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "error retrieving passphrase from passphrase store")
+	require.Contains(t, err.Error(), "error retrieving password from password store")
 }
 
 // For sanity, make sure we can always parse the sample config

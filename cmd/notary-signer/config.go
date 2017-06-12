@@ -15,7 +15,7 @@ import (
 	"github.com/docker/distribution/health"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/notary"
-	signerpassp "github.com/docker/notary/cmd/notary-signer/passphrase"
+	"github.com/docker/notary/cmd/notary-signer/passwordwrap"
 	"github.com/docker/notary/cryptoservice"
 	"github.com/docker/notary/passphrase"
 	pb "github.com/docker/notary/proto"
@@ -84,26 +84,26 @@ func parseSignerConfig(configFilePath string, doBootstrap bool) (signer.Config, 
 
 func passphraseRetriever(keyName, alias string, createNew bool, attempts int) (passphrase string, giveup bool, err error) {
 
-	// Construct a default passphrase store and passphrase protector.
-	// When more than one passphrase stores or passphrase protect methods are implemented,
+	// Construct a default password store and password protector.
+	// When more than one password stores or password protect methods are implemented,
 	// a decision will be made here, based on a config variable, as to which type to construct.
-	var passphraseStore signerpassp.Storage = signerpassp.NewDefaultPassphraseStore()
-	var passphraseProtect signerpassp.Protector = signerpassp.NewDefaultPassphraseProtector()
+	var passwordStore passwordwrap.Storage = passwordwrap.NewDefaultPasswordStore()
+	var passwordProtect passwordwrap.Protector = passwordwrap.NewDefaultPasswordProtector()
 
-	// Get the passphrase from the store
-	psswdCipherText, err := passphraseStore.GetPassphrase(alias)
+	// Get the password from the store
+	psswdCipherText, err := passwordStore.GetPassword(alias)
 
 	if err != nil || psswdCipherText == "" {
-		logrus.Error("Error retrieving passphrase from passphrase store.")
-		return "", false, errors.New("error retrieving passphrase from passphrase store")
+		logrus.Error("Error retrieving password from password store.")
+		return "", false, errors.New("error retrieving password from password store")
 	}
 
-	// Unwrap the passphrase
-	psswdClear, err := passphraseProtect.Decrypt(psswdCipherText)
+	// Unwrap the password
+	psswdClear, err := passwordProtect.Decrypt(psswdCipherText)
 
 	if err != nil || psswdClear == "" {
-		logrus.Error("Error decrypting the passphrase.")
-		return "", false, errors.New("error decrypting the passphrase")
+		logrus.Error("Error decrypting the password.")
+		return "", false, errors.New("error decrypting the password")
 	}
 
 	return psswdClear, false, nil
