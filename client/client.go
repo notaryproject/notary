@@ -57,6 +57,8 @@ type NotaryRepository struct {
 // a file cache from the provided repository, local config information and a crypto service.
 // It also retrieves the remote store associated to the base directory under where all the
 // trust files will be stored and the specified GUN.
+//
+// In case of a nil RoundTripper, a default offline store is used instead.
 func NewFileCachedNotaryRepository(baseDir string, gun data.GUN, baseURL string, rt http.RoundTripper,
 	retriever notary.PassRetriever, trustPinning trustpinning.TrustPinConfig) (
 	*NotaryRepository, error) {
