@@ -104,7 +104,9 @@ type HTTPStore struct {
 	roundTrip     http.RoundTripper
 }
 
-// NewHTTPStore initializes a new store against a URL and a number of configuration options
+// NewHTTPStore initializes a new store against a URL and a number of configuration options.
+//
+// In case of a nil `roundTrip`, a default offline store is used instead.
 func NewHTTPStore(baseURL, metaPrefix, metaExtension, keyExtension string, roundTrip http.RoundTripper) (RemoteStore, error) {
 	base, err := url.Parse(baseURL)
 	if err != nil {
