@@ -96,7 +96,8 @@ func NewFileCachedNotaryRepository(baseDir string, gun data.GUN, baseURL string,
 // It takes the base directory under where all the trust files will be stored
 // (This is normally defaults to "~/.notary" or "~/.docker/trust" when enabling
 // docker content trust).
-// It expects an initialized remote store and cache.
+// It expects an initialized cache. In case of a nil remote store, a default
+// offline store is used.
 func NewNotaryRepository(baseDir string, gun data.GUN, baseURL string, remoteStore store.RemoteStore, cache store.MetadataStore,
 	trustPinning trustpinning.TrustPinConfig, cryptoService signed.CryptoService, cl changelist.Changelist) (
 	*NotaryRepository, error) {
@@ -104,6 +105,10 @@ func NewNotaryRepository(baseDir string, gun data.GUN, baseURL string, remoteSto
 	// Repo's remote store is either a valid remote store or an OfflineStore
 	if remoteStore == nil {
 		remoteStore = store.OfflineStore{}
+	}
+
+	if cache == nil {
+		return nil, fmt.Errorf("got an invalid cache (nil metadata store)")
 	}
 
 	nRepo := &NotaryRepository{
