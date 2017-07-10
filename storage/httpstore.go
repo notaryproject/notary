@@ -28,6 +28,13 @@ import (
 	"github.com/docker/notary/tuf/validation"
 )
 
+const (
+	// MaxErrorResponseSize is the maximum size for an error message - 1KiB
+	MaxErrorResponseSize int64 = 1 << 10
+	// MaxKeySize is the maximum size for a stored TUF key - 256KiB
+	MaxKeySize = 256 << 10
+)
+
 // ErrServerUnavailable indicates an error from the server. code allows us to
 // populate the http error we received
 type ErrServerUnavailable struct {
@@ -128,7 +135,8 @@ func NewHTTPStore(baseURL, metaPrefix, metaExtension, keyExtension string, round
 }
 
 func tryUnmarshalError(resp *http.Response, defaultError error) error {
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	b := io.LimitReader(resp.Body, MaxErrorResponseSize)
+	bodyBytes, err := ioutil.ReadAll(b)
 	if err != nil {
 		return defaultError
 	}
@@ -319,7 +327,8 @@ func (s HTTPStore) GetKey(role data.RoleName) ([]byte, error) {
 	if err := translateStatusToError(resp, role.String()+" key"); err != nil {
 		return nil, err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	b := io.LimitReader(resp.Body, MaxKeySize)
+	body, err := ioutil.ReadAll(b)
 	if err != nil {
 		return nil, err
 	}
@@ -344,7 +353,8 @@ func (s HTTPStore) RotateKey(role data.RoleName) ([]byte, error) {
 	if err := translateStatusToError(resp, role.String()+" key"); err != nil {
 		return nil, err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	b := io.LimitReader(resp.Body, MaxKeySize)
+	body, err := ioutil.ReadAll(b)
 	if err != nil {
 		return nil, err
 	}
