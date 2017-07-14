@@ -10,23 +10,23 @@ const (
 	envPrefix = "NOTARY_SIGNER_"
 )
 
-// NewDefaultPasswordStore instantiates a default password store
-func NewDefaultPasswordStore() Storage {
-	return DefaultPasswordStore{
+// NewPassStore instantiates a default password store
+func NewPassStore() Storage {
+	return PassStore{
 		lock:        &sync.RWMutex{},
 		passwdCache: make(map[string]string),
 	}
 }
 
-// DefaultPasswordStore implements a basic password store which just stores and
+// PassStore implements a basic password store which just stores and
 // retrieves password from an environment variable.
-type DefaultPasswordStore struct {
+type PassStore struct {
 	lock        *sync.RWMutex
 	passwdCache map[string]string
 }
 
-// SetPassword stores the clear password in the ENV variable as is in clear text and also caches it.
-func (pw DefaultPasswordStore) SetPassword(alias string, newPassword string) error {
+// Set stores the clear password in the ENV variable as is in clear text and also caches it.
+func (pw PassStore) Set(alias string, newPassword string) error {
 	envVariable := strings.ToUpper(envPrefix + alias)
 	error := os.Setenv(envVariable, newPassword)
 
@@ -39,8 +39,8 @@ func (pw DefaultPasswordStore) SetPassword(alias string, newPassword string) err
 	return error
 }
 
-// GetPassword retrieves the clear password from the cache and if not present, from the ENV variable.
-func (pw DefaultPasswordStore) GetPassword(alias string) (string, error) {
+// Get retrieves the clear password from the cache and if not present, from the ENV variable.
+func (pw PassStore) Get(alias string) (string, error) {
 	//If the password is available in the cache return it
 	pw.lock.RLock()
 	passwd, ok := pw.passwdCache[alias]

@@ -84,29 +84,20 @@ func parseSignerConfig(configFilePath string, doBootstrap bool) (signer.Config, 
 
 func passphraseRetriever(keyName, alias string, createNew bool, attempts int) (passphrase string, giveup bool, err error) {
 
-	// Construct a default password store and password protector.
-	// When more than one password stores or password protect methods are implemented,
-	// a decision will be made here, based on a config variable, as to which type to construct.
-	var passwordStore passwordwrap.Storage = passwordwrap.NewDefaultPasswordStore()
-	var passwordProtect passwordwrap.Protector = passwordwrap.NewDefaultPasswordProtector()
+	// As of now passwordwrap.Storage is constructed here as only the default storage is implemented.
+	// In future, when there are more kinds of Storage implementations like protected, plugin, etc,
+	// it will be injected down as a parameter to passphraseRetriever.
+	var passwordStore passwordwrap.Storage = passwordwrap.NewPassStore()
 
 	// Get the password from the store
-	psswdCipherText, err := passwordStore.GetPassword(alias)
+	psswd, err := passwordStore.Get(alias)
 
-	if err != nil || psswdCipherText == "" {
+	if err != nil || psswd == "" {
 		logrus.Error("Error retrieving password from password store.")
 		return "", false, errors.New("error retrieving password from password store")
 	}
 
-	// Unwrap the password
-	psswdClear, err := passwordProtect.Decrypt(psswdCipherText)
-
-	if err != nil || psswdClear == "" {
-		logrus.Error("Error decrypting the password.")
-		return "", false, errors.New("error decrypting the password")
-	}
-
-	return psswdClear, false, nil
+	return psswd, false, nil
 }
 
 // Reads the configuration file for storage setup, and sets up the cryptoservice
