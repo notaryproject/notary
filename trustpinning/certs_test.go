@@ -2,15 +2,11 @@ package trustpinning_test
 
 import (
 	"bytes"
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
-	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
@@ -74,10 +70,10 @@ func sampleRootData(t *testing.T) *rootData {
 
 func sampleCertChain(t *testing.T) *certChain {
 	if _sampleCertChain == nil {
-		// generate a CA, an intermedate, and a leaf certificate using CFSSL
+		// generate a CA, an intermediate, and a leaf certificate using CFSSL
 		// Create a simple CSR for the CA using the default CA validator and policy
 		req := &csr.CertificateRequest{
-			CN:         "NotaryRoot",
+			CN:         "docker.io/notary/root",
 			KeyRequest: csr.NewBasicKeyRequest(),
 			CA:         &csr.CAConfig{},
 		}
@@ -88,7 +84,7 @@ func sampleCertChain(t *testing.T) *certChain {
 		cert, _ := helpers.ParseCertificatePEM(rootCert)
 		s, _ := local.NewSigner(priv, cert, signer.DefaultSigAlgo(priv), initca.CAPolicy())
 
-		req.CN = "NotaryIntermediate"
+		req.CN = "docker.io/notary/intermediate"
 		intCSR, intKey, _ := csr.ParseRequest(req)
 		intCert, _ := s.Sign(signer.SignRequest{
 			Request: string(intCSR),
@@ -101,7 +97,7 @@ func sampleCertChain(t *testing.T) *certChain {
 			Default: config.DefaultConfig(),
 		})
 		req.CA = nil
-		req.CN = "NotaryLeaf"
+		req.CN = "docker.io/notary/leaf"
 		leafCSR, leafKey, _ := csr.ParseRequest(req)
 		leafCert, _ := s.Sign(signer.SignRequest{
 			Request: string(leafCSR),
@@ -167,6 +163,7 @@ func TestValidateRoot(t *testing.T) {
 	//
 	tufRepo.Root.Signed.Keys[rootKeyID] = data.NewECDSAx509PublicKey([]byte("-----BEGIN CERTIFICATE-----\ninvalid PEM\n-----END CERTIFICATE-----\n"))
 	rootMeta, err = tufRepo.Root.ToSigned()
+	require.NoError(t, err)
 	require.NoError(t, signed.Sign(cs, rootMeta, []data.PublicKey{pubKey}, 1, nil))
 
 	_, err = trustpinning.ValidateRoot(nil, rootMeta, "docker.com/notary", trustpinning.TrustPinConfig{})
@@ -182,7 +179,7 @@ func TestValidateRoot(t *testing.T) {
 	pubKey = data.NewECDSAx509PublicKey(sampleCertChain(t).rootCert)
 	tufRepo.Root.Signed.Keys[pubKey.ID()] = pubKey
 	tufRepo.Root.Signed.Roles[data.CanonicalRootRole].KeyIDs = []string{pubKey.ID()}
-	require.NoError(t, cs.AddKey(data.CanonicalRootRole, "NotaryRoot", sampleCertChain(t).rootKey))
+	require.NoError(t, cs.AddKey(data.CanonicalRootRole, "docker.io/notary/root", sampleCertChain(t).rootKey))
 
 	rootMeta, err = tufRepo.Root.ToSigned()
 	require.NoError(t, err)
@@ -203,14 +200,14 @@ func TestValidateRoot(t *testing.T) {
 		append(append(sampleCertChain(t).intermediateCert, sampleCertChain(t).leafCert...), sampleCertChain(t).rootCert...))
 	tufRepo.Root.Signed.Keys[pubKey.ID()] = pubKey
 	tufRepo.Root.Signed.Roles[data.CanonicalRootRole].KeyIDs = []string{pubKey.ID()}
-	require.NoError(t, cs.AddKey(data.CanonicalRootRole, "NotaryIntermediate", sampleCertChain(t).intermediateKey))
-	require.NoError(t, cs.AddKey(data.CanonicalRootRole, "NotaryLeaf", sampleCertChain(t).leafKey))
+	require.NoError(t, cs.AddKey(data.CanonicalRootRole, "docker.io/notary/intermediate", sampleCertChain(t).intermediateKey))
+	require.NoError(t, cs.AddKey(data.CanonicalRootRole, "docker.io/notary/leaf", sampleCertChain(t).leafKey))
 
 	rootMeta, err = tufRepo.Root.ToSigned()
 	require.NoError(t, err)
 	require.NoError(t, signed.Sign(cs, rootMeta, []data.PublicKey{pubKey}, 1, nil))
 
-	_, err = trustpinning.ValidateRoot(nil, rootMeta, "NotaryIntermediate", trustpinning.TrustPinConfig{})
+	_, err = trustpinning.ValidateRoot(nil, rootMeta, "docker.io/notary/intermediate", trustpinning.TrustPinConfig{})
 	require.Error(t, err, "An error was expected")
 	require.Equal(t, err, &trustpinning.ErrValidationFail{Reason: "unable to retrieve valid leaf certificates"})
 
@@ -226,7 +223,7 @@ func TestValidateRoot(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, signed.Sign(cs, rootMeta, []data.PublicKey{pubKey}, 1, nil))
 
-	_, err = trustpinning.ValidateRoot(nil, rootMeta, "NotaryLeaf", trustpinning.TrustPinConfig{})
+	_, err = trustpinning.ValidateRoot(nil, rootMeta, "docker.io/notary/leaf", trustpinning.TrustPinConfig{})
 	require.NoError(t, err)
 }
 
@@ -258,111 +255,13 @@ func TestValidateRootWithPinnedCert(t *testing.T) {
 
 func TestValidateRootWithPinnedCertAndIntermediates(t *testing.T) {
 	now := time.Now()
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	memStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memStore)
 
-	// generate CA cert
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
-	require.NoError(t, err)
-	caTmpl := x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			CommonName: "notary testing CA",
-		},
-		NotBefore:             now.Add(-time.Hour),
-		NotAfter:              now.Add(time.Hour),
-		KeyUsage:              x509.KeyUsageCertSign,
-		BasicConstraintsValid: true,
-		IsCA:       true,
-		MaxPathLen: 3,
-	}
-	caPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-	_, err = x509.CreateCertificate(
-		rand.Reader,
-		&caTmpl,
-		&caTmpl,
-		caPrivKey.Public(),
-		caPrivKey,
-	)
-	require.NoError(t, err)
+	ecdsax509Key := data.NewECDSAx509PublicKey(append(sampleCertChain(t).leafCert, sampleCertChain(t).intermediateCert...))
+	require.NoError(t, cs.AddKey(data.CanonicalRootRole, "docker.io/notary/leaf", sampleCertChain(t).leafKey))
 
-	// generate intermediate
-	intTmpl := x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			CommonName: "notary testing intermediate",
-		},
-		NotBefore:             now.Add(-time.Hour),
-		NotAfter:              now.Add(time.Hour),
-		KeyUsage:              x509.KeyUsageCertSign,
-		BasicConstraintsValid: true,
-		IsCA:       true,
-		MaxPathLen: 2,
-	}
-	intPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-	intCert, err := x509.CreateCertificate(
-		rand.Reader,
-		&intTmpl,
-		&caTmpl,
-		intPrivKey.Public(),
-		caPrivKey,
-	)
-	require.NoError(t, err)
-
-	// generate leaf
-	serialNumber, err = rand.Int(rand.Reader, serialNumberLimit)
-	require.NoError(t, err)
-	leafTmpl := x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			CommonName: "docker.io/notary/test",
-		},
-		NotBefore: now.Add(-time.Hour),
-		NotAfter:  now.Add(time.Hour),
-
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageCodeSigning},
-		BasicConstraintsValid: true,
-	}
-
-	leafPubKey, err := cs.Create("root", "docker.io/notary/test", data.ECDSAKey)
-	require.NoError(t, err)
-	leafPrivKey, _, err := cs.GetPrivateKey(leafPubKey.ID())
-	require.NoError(t, err)
-	signer := leafPrivKey.CryptoSigner()
-	leafCert, err := x509.CreateCertificate(
-		rand.Reader,
-		&leafTmpl,
-		&intTmpl,
-		signer.Public(),
-		intPrivKey,
-	)
-	require.NoError(t, err)
-
-	rootBundleWriter := bytes.NewBuffer(nil)
-	pem.Encode(
-		rootBundleWriter,
-		&pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: leafCert,
-		},
-	)
-	pem.Encode(
-		rootBundleWriter,
-		&pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: intCert,
-		},
-	)
-
-	rootBundle := rootBundleWriter.Bytes()
-
-	ecdsax509Key := data.NewECDSAx509PublicKey(rootBundle)
-
-	otherKey, err := cs.Create("targets", "docker.io/notary/test", data.ED25519Key)
+	otherKey, err := cs.Create(data.CanonicalTargetsRole, "docker.io/notary/leaf", data.ED25519Key)
 	require.NoError(t, err)
 
 	root := data.SignedRoot{
@@ -414,10 +313,10 @@ func TestValidateRootWithPinnedCertAndIntermediates(t *testing.T) {
 	validatedRoot, err := trustpinning.ValidateRoot(
 		nil,
 		signedRoot,
-		"docker.io/notary/test",
+		"docker.io/notary/leaf",
 		trustpinning.TrustPinConfig{
 			Certs: map[string][]string{
-				"docker.io/notary/test": {ecdsax509Key.ID()},
+				"docker.io/notary/leaf": {ecdsax509Key.ID()},
 			},
 			DisableTOFU: true,
 		},
@@ -434,7 +333,7 @@ func TestValidateRootWithPinnedCertAndIntermediates(t *testing.T) {
 	validatedRoot, err = trustpinning.ValidateRoot(
 		nil,
 		signedRoot,
-		"docker.io/notary/test",
+		"docker.io/notary/leaf",
 		trustpinning.TrustPinConfig{
 			Certs: map[string][]string{
 				"docker.io/notar*": {ecdsax509Key.ID()},
@@ -454,7 +353,7 @@ func TestValidateRootWithPinnedCertAndIntermediates(t *testing.T) {
 	_, err = trustpinning.ValidateRoot(
 		nil,
 		signedRoot,
-		"docker.io/notary/test",
+		"docker.io/notary/leaf",
 		trustpinning.TrustPinConfig{
 			Certs: map[string][]string{
 				"docker.io/notar*": {"badID"},
@@ -468,10 +367,10 @@ func TestValidateRootWithPinnedCertAndIntermediates(t *testing.T) {
 	_, err = trustpinning.ValidateRoot(
 		nil,
 		signedRoot,
-		"docker.io/notary/test",
+		"docker.io/notary/leaf",
 		trustpinning.TrustPinConfig{
 			Certs: map[string][]string{
-				"docker.io/notary/test": {"badID"},
+				"docker.io/notary/leaf": {"badID"},
 				"docker.io/notar*":      {ecdsax509Key.ID()},
 			},
 			DisableTOFU: true,
@@ -483,10 +382,10 @@ func TestValidateRootWithPinnedCertAndIntermediates(t *testing.T) {
 	validatedRoot, err = trustpinning.ValidateRoot(
 		nil,
 		signedRoot,
-		"docker.io/notary/test",
+		"docker.io/notary/leaf",
 		trustpinning.TrustPinConfig{
 			Certs: map[string][]string{
-				"docker.io/notary/test": {ecdsax509Key.ID()},
+				"docker.io/notary/leaf": {ecdsax509Key.ID()},
 				"docker.io/notar*":      {"badID"},
 			},
 			DisableTOFU: true,
@@ -1269,111 +1168,24 @@ func TestCheckingCertExpiry(t *testing.T) {
 
 func TestValidateRootWithExpiredIntermediate(t *testing.T) {
 	now := time.Now()
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	memStore := trustmanager.NewKeyMemoryStore(passphraseRetriever)
 	cs := cryptoservice.NewCryptoService(memStore)
 
-	// generate CA cert
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
-	require.NoError(t, err)
-	caTmpl := x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			CommonName: "notary testing CA",
-		},
-		NotBefore:             now.Add(-time.Hour),
-		NotAfter:              now.Add(time.Hour),
-		KeyUsage:              x509.KeyUsageCertSign,
-		BasicConstraintsValid: true,
-		IsCA:       true,
-		MaxPathLen: 3,
-	}
-	caPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-	_, err = x509.CreateCertificate(
-		rand.Reader,
-		&caTmpl,
-		&caTmpl,
-		caPrivKey.Public(),
-		caPrivKey,
-	)
+	rootCert, err := helpers.ParseCertificatePEM(sampleCertChain(t).rootCert)
 	require.NoError(t, err)
 
-	// generate expired intermediate
-	intTmpl := x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			CommonName: "EXPIRED notary testing intermediate",
-		},
-		NotBefore:             now.Add(-2 * notary.Year),
-		NotAfter:              now.Add(-notary.Year),
-		KeyUsage:              x509.KeyUsageCertSign,
-		BasicConstraintsValid: true,
-		IsCA:       true,
-		MaxPathLen: 2,
-	}
-	intPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	expTemplate, err := helpers.ParseCertificatePEM(sampleCertChain(t).intermediateCert)
 	require.NoError(t, err)
-	intCert, err := x509.CreateCertificate(
-		rand.Reader,
-		&intTmpl,
-		&caTmpl,
-		intPrivKey.Public(),
-		caPrivKey,
-	)
+	expTemplate.NotBefore = now.Add(-2 * notary.Year)
+	expTemplate.NotAfter = now.Add(-notary.Year)
+	expiredIntermediate, err := x509.CreateCertificate(rand.Reader, expTemplate, rootCert,
+		sampleCertChain(t).rootKey.CryptoSigner().Public(), sampleCertChain(t).rootKey.CryptoSigner())
 	require.NoError(t, err)
 
-	// generate leaf
-	serialNumber, err = rand.Int(rand.Reader, serialNumberLimit)
-	require.NoError(t, err)
-	leafTmpl := x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			CommonName: "docker.io/notary/test",
-		},
-		NotBefore: now.Add(-time.Hour),
-		NotAfter:  now.Add(time.Hour),
+	ecdsax509Key := data.NewECDSAx509PublicKey(append(sampleCertChain(t).leafCert, expiredIntermediate...))
+	require.NoError(t, cs.AddKey(data.CanonicalRootRole, "docker.io/notary/leaf", sampleCertChain(t).leafKey))
 
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageCodeSigning},
-		BasicConstraintsValid: true,
-	}
-
-	leafPubKey, err := cs.Create("root", "docker.io/notary/test", data.ECDSAKey)
-	require.NoError(t, err)
-	leafPrivKey, _, err := cs.GetPrivateKey(leafPubKey.ID())
-	require.NoError(t, err)
-	signer := leafPrivKey.CryptoSigner()
-	leafCert, err := x509.CreateCertificate(
-		rand.Reader,
-		&leafTmpl,
-		&intTmpl,
-		signer.Public(),
-		intPrivKey,
-	)
-	require.NoError(t, err)
-
-	rootBundleWriter := bytes.NewBuffer(nil)
-	pem.Encode(
-		rootBundleWriter,
-		&pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: leafCert,
-		},
-	)
-	pem.Encode(
-		rootBundleWriter,
-		&pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: intCert,
-		},
-	)
-
-	rootBundle := rootBundleWriter.Bytes()
-
-	ecdsax509Key := data.NewECDSAx509PublicKey(rootBundle)
-
-	otherKey, err := cs.Create("targets", "docker.io/notary/test", data.ED25519Key)
+	otherKey, err := cs.Create(data.CanonicalTargetsRole, "docker.io/notary/leaf", data.ED25519Key)
 	require.NoError(t, err)
 
 	root := data.SignedRoot{
@@ -1422,7 +1234,7 @@ func TestValidateRootWithExpiredIntermediate(t *testing.T) {
 	_, err = trustpinning.ValidateRoot(
 		nil,
 		signedRoot,
-		"docker.io/notary/test",
+		"docker.io/notary/leaf",
 		trustpinning.TrustPinConfig{},
 	)
 	require.Error(t, err, "failed to invalidate expired intermediate certificate")
