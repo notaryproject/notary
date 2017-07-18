@@ -162,6 +162,20 @@ func (se *structEncoder) encode(v reflect.Value) interface{} {
 			encField = getReferenceField(f, v, encField)
 		}
 
+		if f.compound {
+			compoundField, ok := m[f.name].([]interface{})
+			if !ok {
+				compoundField = make([]interface{}, f.compoundIndex+1)
+			} else if len(compoundField) < f.compoundIndex+1 {
+				tmp := make([]interface{}, f.compoundIndex+1)
+				copy(tmp, compoundField)
+				compoundField = tmp
+			}
+
+			compoundField[f.compoundIndex] = encField
+			encField = compoundField
+		}
+
 		m[f.name] = encField
 	}
 
@@ -300,6 +314,9 @@ func (ae *arrayEncoder) encode(v reflect.Value) interface{} {
 }
 
 func newArrayEncoder(t reflect.Type) encoderFunc {
+	if t.Elem().Kind() == reflect.Uint8 {
+		return encodeByteArray
+	}
 	enc := &arrayEncoder{typeEncoder(t.Elem())}
 	return enc.encode
 }
@@ -365,6 +382,22 @@ func encodeByteSlice(v reflect.Value) interface{} {
 	var b []byte
 	if !v.IsNil() {
 		b = v.Bytes()
+	}
+
+	dst := make([]byte, base64.StdEncoding.EncodedLen(len(b)))
+	base64.StdEncoding.Encode(dst, b)
+
+	return map[string]interface{}{
+		"$reql_type$": "BINARY",
+		"data":        string(dst),
+	}
+}
+
+// Encode a byte array to the BINARY RQL type
+func encodeByteArray(v reflect.Value) interface{} {
+	b := make([]byte, v.Len())
+	for i := 0; i < v.Len(); i++ {
+		b[i] = v.Index(i).Interface().(byte)
 	}
 
 	dst := make([]byte, base64.StdEncoding.EncodedLen(len(b)))

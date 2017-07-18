@@ -14,6 +14,14 @@ type decoderFunc func(dv reflect.Value, sv reflect.Value)
 // Decode decodes map[string]interface{} into a struct. The first parameter
 // must be a pointer.
 func Decode(dst interface{}, src interface{}) (err error) {
+	return decode(dst, src, true)
+}
+
+func Merge(dst interface{}, src interface{}) (err error) {
+	return decode(dst, src, false)
+}
+
+func decode(dst interface{}, src interface{}, blank bool) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(runtime.Error); ok {
@@ -46,17 +54,18 @@ func Decode(dst interface{}, src interface{}) (err error) {
 		}
 	}
 
-	decode(dv, sv)
+	decodeValue(dv, sv, blank)
 	return nil
 }
 
-// decode decodes the source value into the destination value
-func decode(dv, sv reflect.Value) {
-	valueDecoder(dv, sv)(dv, sv)
+// decodeValue decodes the source value into the destination value
+func decodeValue(dv, sv reflect.Value, blank bool) {
+	valueDecoder(dv, sv, blank)(dv, sv)
 }
 
 type decoderCacheKey struct {
 	dt, st reflect.Type
+	blank  bool
 }
 
 var decoderCache struct {
@@ -64,22 +73,24 @@ var decoderCache struct {
 	m map[decoderCacheKey]decoderFunc
 }
 
-func valueDecoder(dv, sv reflect.Value) decoderFunc {
+func valueDecoder(dv, sv reflect.Value, blank bool) decoderFunc {
 	if !sv.IsValid() {
 		return invalidValueDecoder
 	}
 
 	if dv.IsValid() {
 		dv = indirect(dv, false)
-		dv.Set(reflect.Zero(dv.Type()))
+		if blank {
+			dv.Set(reflect.Zero(dv.Type()))
+		}
 	}
 
-	return typeDecoder(dv.Type(), sv.Type())
+	return typeDecoder(dv.Type(), sv.Type(), blank)
 }
 
-func typeDecoder(dt, st reflect.Type) decoderFunc {
+func typeDecoder(dt, st reflect.Type, blank bool) decoderFunc {
 	decoderCache.RLock()
-	f := decoderCache.m[decoderCacheKey{dt, st}]
+	f := decoderCache.m[decoderCacheKey{dt, st, blank}]
 	decoderCache.RUnlock()
 	if f != nil {
 		return f
@@ -92,7 +103,7 @@ func typeDecoder(dt, st reflect.Type) decoderFunc {
 	decoderCache.Lock()
 	var wg sync.WaitGroup
 	wg.Add(1)
-	decoderCache.m[decoderCacheKey{dt, st}] = func(dv, sv reflect.Value) {
+	decoderCache.m[decoderCacheKey{dt, st, blank}] = func(dv, sv reflect.Value) {
 		wg.Wait()
 		f(dv, sv)
 	}
@@ -100,10 +111,10 @@ func typeDecoder(dt, st reflect.Type) decoderFunc {
 
 	// Compute fields without lock.
 	// Might duplicate effort but won't hold other computations back.
-	f = newTypeDecoder(dt, st)
+	f = newTypeDecoder(dt, st, blank)
 	wg.Done()
 	decoderCache.Lock()
-	decoderCache.m[decoderCacheKey{dt, st}] = f
+	decoderCache.m[decoderCacheKey{dt, st, blank}] = f
 	decoderCache.Unlock()
 	return f
 }
