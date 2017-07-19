@@ -162,7 +162,7 @@ func SignAndSerialize(tufRepo *tuf.Repo) (map[data.RoleName][]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		metaBytes, err := json.MarshalCanonical(signedThing)
+		metaBytes, err := json.Marshal(signedThing)
 		if err != nil {
 			return nil, err
 		}
