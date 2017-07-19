@@ -111,7 +111,7 @@ func TestInitWithRootKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// if the key has a root role, AddKey sets the gun to "" so we have done the same here
-	encryptedPEMPrivKey, err := utils.EncryptPrivateKey(privKey, data.CanonicalRootRole, "", testPassphrase)
+	encryptedPEMPrivKey, err := utils.ConvertPrivateKeyToPKCS8(privKey, data.CanonicalRootRole, "", testPassphrase)
 	require.NoError(t, err)
 	encryptedPEMKeyFilename := filepath.Join(tempDir, "encrypted_key.key")
 	err = ioutil.WriteFile(encryptedPEMKeyFilename, encryptedPEMPrivKey, 0644)
@@ -146,7 +146,7 @@ func TestInitWithRootKey(t *testing.T) {
 	// check error if unencrypted PEM used
 	unencryptedPrivKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	unencryptedPEMPrivKey, err := utils.KeyToPEM(unencryptedPrivKey, data.CanonicalRootRole, "")
+	unencryptedPEMPrivKey, err := utils.ConvertPrivateKeyToPKCS8(unencryptedPrivKey, data.CanonicalRootRole, "", "")
 	require.NoError(t, err)
 	unencryptedPEMKeyFilename := filepath.Join(tempDir, "unencrypted_key.key")
 	err = ioutil.WriteFile(unencryptedPEMKeyFilename, unencryptedPEMPrivKey, 0644)
@@ -161,7 +161,7 @@ func TestInitWithRootKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// Blank gun name since it is a root key
-	badPassPEMPrivKey, err := utils.EncryptPrivateKey(badPassPrivKey, data.CanonicalRootRole, "", "bad_pass")
+	badPassPEMPrivKey, err := utils.ConvertPrivateKeyToPKCS8(badPassPrivKey, data.CanonicalRootRole, "", "bad_pass")
 	require.NoError(t, err)
 	badPassPEMKeyFilename := filepath.Join(tempDir, "badpass_key.key")
 	err = ioutil.WriteFile(badPassPEMKeyFilename, badPassPEMPrivKey, 0644)
@@ -173,7 +173,7 @@ func TestInitWithRootKey(t *testing.T) {
 	// check error if wrong role specified
 	snapshotPrivKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	snapshotPEMPrivKey, err := utils.KeyToPEM(snapshotPrivKey, data.CanonicalSnapshotRole, "gun2")
+	snapshotPEMPrivKey, err := utils.ConvertPrivateKeyToPKCS8(snapshotPrivKey, data.CanonicalSnapshotRole, "gun2", "")
 	require.NoError(t, err)
 	snapshotPEMKeyFilename := filepath.Join(tempDir, "snapshot_key.key")
 	err = ioutil.WriteFile(snapshotPEMKeyFilename, snapshotPEMPrivKey, 0644)
@@ -1150,9 +1150,9 @@ func TestClientDelegationsPublishing(t *testing.T) {
 	tempFile.Close()
 	defer os.Remove(tempFile.Name())
 
-	privKeyBytesNoRole, err := utils.KeyToPEM(privKey, "", "")
+	privKeyBytesNoRole, err := utils.ConvertPrivateKeyToPKCS8(privKey, "", "", "")
 	require.NoError(t, err)
-	privKeyBytesWithRole, err := utils.KeyToPEM(privKey, "user", "")
+	privKeyBytesWithRole, err := utils.ConvertPrivateKeyToPKCS8(privKey, "user", "", "")
 	require.NoError(t, err)
 
 	// Set up targets for publishing
@@ -1582,7 +1582,7 @@ func TestKeyRotation(t *testing.T) {
 	// create encrypted root keys
 	rootPrivKey1, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	encryptedPEMPrivKey1, err := utils.EncryptPrivateKey(rootPrivKey1, data.CanonicalRootRole, "", testPassphrase)
+	encryptedPEMPrivKey1, err := utils.ConvertPrivateKeyToPKCS8(rootPrivKey1, data.CanonicalRootRole, "", testPassphrase)
 	require.NoError(t, err)
 	encryptedPEMKeyFilename1 := filepath.Join(tempDir, "encrypted_key.key")
 	err = ioutil.WriteFile(encryptedPEMKeyFilename1, encryptedPEMPrivKey1, 0644)
@@ -1590,7 +1590,7 @@ func TestKeyRotation(t *testing.T) {
 
 	rootPrivKey2, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
-	encryptedPEMPrivKey2, err := utils.EncryptPrivateKey(rootPrivKey2, data.CanonicalRootRole, "", testPassphrase)
+	encryptedPEMPrivKey2, err := utils.ConvertPrivateKeyToPKCS8(rootPrivKey2, data.CanonicalRootRole, "", testPassphrase)
 	require.NoError(t, err)
 	encryptedPEMKeyFilename2 := filepath.Join(tempDir, "encrypted_key2.key")
 	err = ioutil.WriteFile(encryptedPEMKeyFilename2, encryptedPEMPrivKey2, 0644)
@@ -1663,7 +1663,7 @@ func TestKeyRotationNonRoot(t *testing.T) {
 	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
-	pemBytes, err := utils.EncryptPrivateKey(privKey, data.CanonicalTargetsRole, "", testPassphrase)
+	pemBytes, err := utils.ConvertPrivateKeyToPKCS8(privKey, data.CanonicalTargetsRole, "", testPassphrase)
 	require.NoError(t, err)
 
 	nBytes, err := tempFile.Write(pemBytes)
@@ -1678,7 +1678,7 @@ func TestKeyRotationNonRoot(t *testing.T) {
 	privKey2, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
-	pemBytes2, err := utils.KeyToPEM(privKey2, data.CanonicalTargetsRole, "")
+	pemBytes2, err := utils.ConvertPrivateKeyToPKCS8(privKey2, data.CanonicalTargetsRole, "", "")
 	require.NoError(t, err)
 
 	nBytes2, err := tempFile2.Write(pemBytes2)
@@ -2506,7 +2506,7 @@ func TestClientKeyImport(t *testing.T) {
 	privKey, err := utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
-	pemBytes, err := utils.EncryptPrivateKey(privKey, data.CanonicalRootRole, "", "")
+	pemBytes, err := utils.ConvertPrivateKeyToPKCS8(privKey, data.CanonicalRootRole, "", "")
 	require.NoError(t, err)
 
 	nBytes, err := tempFile.Write(pemBytes)
@@ -2534,7 +2534,7 @@ func TestClientKeyImport(t *testing.T) {
 	privKey, err = utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
-	pemBytes, err = utils.EncryptPrivateKey(privKey, "", "", "")
+	pemBytes, err = utils.ConvertPrivateKeyToPKCS8(privKey, "", "", "")
 	require.NoError(t, err)
 
 	nBytes, err = tempFile2.Write(pemBytes)
@@ -2560,7 +2560,7 @@ func TestClientKeyImport(t *testing.T) {
 	privKey, err = utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
-	pemBytes, err = utils.EncryptPrivateKey(privKey, "", "", "")
+	pemBytes, err = utils.ConvertPrivateKeyToPKCS8(privKey, "", "", "")
 	require.NoError(t, err)
 
 	nBytes, err = tempFile3.Write(pemBytes)
@@ -2590,7 +2590,7 @@ func TestClientKeyImport(t *testing.T) {
 	privKey, err = utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
-	pemBytes, err = utils.EncryptPrivateKey(privKey, "", "", "")
+	pemBytes, err = utils.ConvertPrivateKeyToPKCS8(privKey, "", "", "")
 	require.NoError(t, err)
 
 	nBytes, err = tempFile4.Write(pemBytes)
@@ -2621,7 +2621,7 @@ func TestClientKeyImport(t *testing.T) {
 	privKey, err = utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
-	pemBytes, err = utils.EncryptPrivateKey(privKey, "", "", "")
+	pemBytes, err = utils.ConvertPrivateKeyToPKCS8(privKey, "", "", "")
 	require.NoError(t, err)
 
 	nBytes, err = tempFile5.Write(pemBytes)
@@ -2652,7 +2652,7 @@ func TestClientKeyImport(t *testing.T) {
 	privKey, err = utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
-	pemBytes, err = utils.EncryptPrivateKey(privKey, data.CanonicalRootRole, "", testPassphrase)
+	pemBytes, err = utils.ConvertPrivateKeyToPKCS8(privKey, data.CanonicalRootRole, "", testPassphrase)
 	require.NoError(t, err)
 
 	nBytes, err = tempFile6.Write(pemBytes)
@@ -2678,7 +2678,7 @@ func TestClientKeyImport(t *testing.T) {
 	privKey, err = utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
-	pemBytes, err = utils.EncryptPrivateKey(privKey, "", "", "")
+	pemBytes, err = utils.ConvertPrivateKeyToPKCS8(privKey, "", "", "")
 	require.NoError(t, err)
 
 	nBytes, err = tempFile7.Write(pemBytes)
@@ -2708,7 +2708,7 @@ func TestClientKeyImport(t *testing.T) {
 	privKey, err = utils.GenerateECDSAKey(rand.Reader)
 	require.NoError(t, err)
 
-	pemBytes, err = utils.EncryptPrivateKey(privKey, data.CanonicalSnapshotRole, "", "")
+	pemBytes, err = utils.ConvertPrivateKeyToPKCS8(privKey, data.CanonicalSnapshotRole, "", "")
 	require.NoError(t, err)
 
 	nBytes, err = tempFile8.Write(pemBytes)
@@ -2752,7 +2752,7 @@ func TestAddDelImportKeyPublishFlow(t *testing.T) {
 	keyFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
 	defer os.Remove(keyFile.Name())
-	pemBytes, err := utils.EncryptPrivateKey(privKey, "", "", "")
+	pemBytes, err := utils.ConvertPrivateKeyToPKCS8(privKey, "", "", "")
 	require.NoError(t, err)
 	nBytes, err := keyFile.Write(pemBytes)
 	require.NoError(t, err)
@@ -3005,7 +3005,7 @@ func TestDelegationKeyImportExport(t *testing.T) {
 	defer os.Remove(keyFile.Name())
 	privKey, err := utils.GenerateRSAKey(rand.Reader, 2048)
 	require.NoError(t, err)
-	pemBytes, err := utils.EncryptPrivateKey(privKey, "", "", "")
+	pemBytes, err := utils.ConvertPrivateKeyToPKCS8(privKey, "", "", "")
 	require.NoError(t, err)
 	nBytes, err := keyFile.Write(pemBytes)
 	require.NoError(t, err)

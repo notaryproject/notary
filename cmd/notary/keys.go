@@ -260,7 +260,7 @@ func generateKeyToFile(role, algorithm string, retriever notary.PassRetriever, o
 	}
 
 	if chosenPassphrase != "" {
-		pemPrivKey, err = tufutils.EncryptPrivateKey(privKey, data.RoleName(role), "", chosenPassphrase)
+		pemPrivKey, err = tufutils.ConvertPrivateKeyToPKCS8(privKey, data.RoleName(role), "", chosenPassphrase)
 		if err != nil {
 			return err
 		}
