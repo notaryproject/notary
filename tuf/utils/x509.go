@@ -554,8 +554,8 @@ func CertBundleToKey(leafCert *x509.Certificate, intCerts []*x509.Certificate) (
 	return newKey, nil
 }
 
-// NewCertificate returns an X509 Certificate following a template, given a GUN and validity interval.
-func NewCertificate(gun string, startTime, endTime time.Time) (*x509.Certificate, error) {
+// NewCertificate returns an X509 Certificate following a template, given a Common Name and validity interval.
+func NewCertificate(commonName string, startTime, endTime time.Time) (*x509.Certificate, error) {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
@@ -566,7 +566,7 @@ func NewCertificate(gun string, startTime, endTime time.Time) (*x509.Certificate
 	return &x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
-			CommonName: gun,
+			CommonName: commonName,
 		},
 		NotBefore: startTime,
 		NotAfter:  endTime,
