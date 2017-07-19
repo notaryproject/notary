@@ -8,14 +8,14 @@ import (
 )
 
 // newTypeDecoder constructs an decoderFunc for a type.
-func newTypeDecoder(dt, st reflect.Type) decoderFunc {
+func newTypeDecoder(dt, st reflect.Type, blank bool) decoderFunc {
 	if reflect.PtrTo(dt).Implements(unmarshalerType) ||
 		dt.Implements(unmarshalerType) {
 		return unmarshalerDecoder
 	}
 
 	if st.Kind() == reflect.Interface {
-		return interfaceAsTypeDecoder
+		return newInterfaceAsTypeDecoder(blank)
 	}
 
 	switch dt.Kind() {
@@ -101,7 +101,7 @@ func newTypeDecoder(dt, st reflect.Type) decoderFunc {
 
 		return interfaceDecoder
 	case reflect.Ptr:
-		return newPtrDecoder(dt, st)
+		return newPtrDecoder(dt, st, blank)
 	case reflect.Map:
 		if st.AssignableTo(dt) {
 			return interfaceDecoder
@@ -109,7 +109,7 @@ func newTypeDecoder(dt, st reflect.Type) decoderFunc {
 
 		switch st.Kind() {
 		case reflect.Map:
-			return newMapAsMapDecoder(dt, st)
+			return newMapAsMapDecoder(dt, st, blank)
 		default:
 			return decodeTypeError
 		}
@@ -124,7 +124,7 @@ func newTypeDecoder(dt, st reflect.Type) decoderFunc {
 				return newDecodeTypeError(fmt.Errorf("map needs string keys"))
 			}
 
-			return newMapAsStructDecoder(dt, st)
+			return newMapAsStructDecoder(dt, st, blank)
 		default:
 			return decodeTypeError
 		}
@@ -184,12 +184,15 @@ func interfaceDecoder(dv, sv reflect.Value) {
 	dv.Set(sv)
 }
 
-func interfaceAsTypeDecoder(dv, sv reflect.Value) {
-	if !sv.IsNil() {
-		dv = indirect(dv, false)
-		dv.Set(reflect.Zero(dv.Type()))
-
-		decode(dv, sv.Elem())
+func newInterfaceAsTypeDecoder(blank bool) decoderFunc {
+	return func(dv, sv reflect.Value) {
+		if !sv.IsNil() {
+			dv = indirect(dv, false)
+			if blank {
+				dv.Set(reflect.Zero(dv.Type()))
+			}
+			decodeValue(dv, sv.Elem(), blank)
+		}
 	}
 }
 
@@ -203,8 +206,8 @@ func (d *ptrDecoder) decode(dv, sv reflect.Value) {
 	dv.Set(v)
 }
 
-func newPtrDecoder(dt, st reflect.Type) decoderFunc {
-	dec := &ptrDecoder{typeDecoder(dt.Elem(), st)}
+func newPtrDecoder(dt, st reflect.Type, blank bool) decoderFunc {
+	dec := &ptrDecoder{typeDecoder(dt.Elem(), st, blank)}
 
 	return dec.decode
 }
@@ -371,10 +374,6 @@ func (d *sliceDecoder) decode(dv, sv reflect.Value) {
 }
 
 func newSliceDecoder(dt, st reflect.Type) decoderFunc {
-	// Byte slices get special treatment; arrays don't.
-	// if t.Elem().Kind() == reflect.Uint8 {
-	// 	return decodeByteSlice
-	// }
 	dec := &sliceDecoder{newArrayDecoder(dt, st)}
 	return dec.decode
 }
@@ -427,7 +426,7 @@ func (d *arrayDecoder) decode(dv, sv reflect.Value) {
 }
 
 func newArrayDecoder(dt, st reflect.Type) decoderFunc {
-	dec := &arrayDecoder{typeDecoder(dt.Elem(), st.Elem())}
+	dec := &arrayDecoder{typeDecoder(dt.Elem(), st.Elem(), true)}
 	return dec.decode
 }
 
@@ -435,11 +434,14 @@ func newArrayDecoder(dt, st reflect.Type) decoderFunc {
 
 type mapAsMapDecoder struct {
 	keyDec, elemDec decoderFunc
+	blank           bool
 }
 
 func (d *mapAsMapDecoder) decode(dv, sv reflect.Value) {
 	dt := dv.Type()
-	dv.Set(reflect.MakeMap(reflect.MapOf(dt.Key(), dt.Elem())))
+	if d.blank {
+		dv.Set(reflect.MakeMap(reflect.MapOf(dt.Key(), dt.Elem())))
+	}
 
 	var mapKey reflect.Value
 	var mapElem reflect.Value
@@ -472,58 +474,82 @@ func (d *mapAsMapDecoder) decode(dv, sv reflect.Value) {
 	}
 }
 
-func newMapAsMapDecoder(dt, st reflect.Type) decoderFunc {
-	d := &mapAsMapDecoder{typeDecoder(dt.Key(), st.Key()), typeDecoder(dt.Elem(), st.Elem())}
+func newMapAsMapDecoder(dt, st reflect.Type, blank bool) decoderFunc {
+	d := &mapAsMapDecoder{typeDecoder(dt.Key(), st.Key(), blank), typeDecoder(dt.Elem(), st.Elem(), blank), blank}
 	return d.decode
 }
 
 type mapAsStructDecoder struct {
 	fields    []field
 	fieldDecs []decoderFunc
+	blank     bool
 }
 
 func (d *mapAsStructDecoder) decode(dv, sv reflect.Value) {
 	for _, kv := range sv.MapKeys() {
 		var f *field
+		var compoundFields = []*field{}
 		var fieldDec decoderFunc
 		key := []byte(kv.String())
 		for i := range d.fields {
 			ff := &d.fields[i]
 			ffd := d.fieldDecs[i]
+
 			if bytes.Equal(ff.nameBytes, key) {
 				f = ff
 				fieldDec = ffd
-				break
+				if ff.compound {
+					compoundFields = append(compoundFields, ff)
+				}
 			}
 			if f == nil && ff.equalFold(ff.nameBytes, key) {
 				f = ff
 				fieldDec = ffd
+				if ff.compound {
+					compoundFields = append(compoundFields, ff)
+				}
 			}
 		}
 
-		if f == nil {
-			continue
+		if len(compoundFields) > 0 {
+			for _, compoundField := range compoundFields {
+				dElemVal := fieldByIndex(dv, compoundField.index)
+				sElemVal := sv.MapIndex(kv)
+
+				if sElemVal.Kind() == reflect.Interface {
+					sElemVal = sElemVal.Elem()
+				}
+				sElemVal = sElemVal.Index(compoundField.compoundIndex)
+				fieldDec = typeDecoder(dElemVal.Type(), sElemVal.Type(), d.blank)
+
+				if !sElemVal.IsValid() || !dElemVal.CanSet() {
+					continue
+				}
+
+				fieldDec(dElemVal, sElemVal)
+			}
+		} else if f != nil {
+			dElemVal := fieldByIndex(dv, f.index)
+			sElemVal := sv.MapIndex(kv)
+
+			if !sElemVal.IsValid() || !dElemVal.CanSet() {
+				continue
+			}
+
+			fieldDec(dElemVal, sElemVal)
 		}
-
-		dElemVal := fieldByIndex(dv, f.index)
-		sElemVal := sv.MapIndex(kv)
-
-		if !sElemVal.IsValid() || !dElemVal.CanSet() {
-			continue
-		}
-
-		fieldDec(dElemVal, sElemVal)
 	}
 }
 
-func newMapAsStructDecoder(dt, st reflect.Type) decoderFunc {
+func newMapAsStructDecoder(dt, st reflect.Type, blank bool) decoderFunc {
 	fields := cachedTypeFields(dt)
 	se := &mapAsStructDecoder{
 		fields:    fields,
 		fieldDecs: make([]decoderFunc, len(fields)),
+		blank:     blank,
 	}
 	for i, f := range fields {
-		se.fieldDecs[i] = typeDecoder(typeByIndex(dt, f.index), st.Elem())
+		se.fieldDecs[i] = typeDecoder(typeByIndex(dt, f.index), st.Elem(), blank)
 	}
 	return se.decode
 }

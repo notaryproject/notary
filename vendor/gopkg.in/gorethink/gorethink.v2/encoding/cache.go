@@ -15,13 +15,15 @@ type field struct {
 	nameBytes []byte // []byte(name)
 	equalFold func(s, t []byte) bool
 
-	tag       bool
-	index     []int
-	typ       reflect.Type
-	omitEmpty bool
-	quoted    bool
-	reference bool
-	refName   string
+	tag           bool
+	index         []int
+	typ           reflect.Type
+	omitEmpty     bool
+	quoted        bool
+	reference     bool
+	refName       string
+	compound      bool
+	compoundIndex int
 }
 
 func fillField(f field) field {
@@ -112,6 +114,7 @@ func typeFields(t reflect.Type) []field {
 					continue
 				}
 				name, opts := parseTag(tag)
+				name, compoundIndex, isCompound := parseCompoundIndex(name)
 				if !isValidTag(name) {
 					name = ""
 				}
@@ -121,6 +124,7 @@ func typeFields(t reflect.Type) []field {
 				if !isValidTag(ref) {
 					ref = ""
 				}
+
 				index := make([]int, len(f.index)+1)
 				copy(index, f.index)
 				index[len(f.index)] = i
@@ -138,13 +142,15 @@ func typeFields(t reflect.Type) []field {
 						name = sf.Name
 					}
 					fields = append(fields, fillField(field{
-						name:      name,
-						tag:       tagged,
-						index:     index,
-						typ:       ft,
-						omitEmpty: opts.Contains("omitempty"),
-						reference: opts.Contains("reference"),
-						refName:   ref,
+						name:          name,
+						tag:           tagged,
+						index:         index,
+						typ:           ft,
+						omitEmpty:     opts.Contains("omitempty"),
+						reference:     opts.Contains("reference"),
+						refName:       ref,
+						compound:      isCompound,
+						compoundIndex: compoundIndex,
 					}))
 					if count[f.typ] > 1 {
 						// If there were multiple instances, add a second,
@@ -178,12 +184,15 @@ func typeFields(t reflect.Type) []field {
 		// One iteration per name.
 		// Find the sequence of fields with the name of this first field.
 		fi := fields[i]
-		name := fi.name
 		for advance = 1; i+advance < len(fields); advance++ {
 			fj := fields[i+advance]
-			if fj.name != name {
+			if fj.name != fi.name {
 				break
 			}
+			if fi.compound && fj.compound && fi.compoundIndex != fj.compoundIndex {
+				break
+			}
+
 		}
 		if advance == 1 { // Only one field with this name
 			out = append(out, fi)

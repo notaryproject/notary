@@ -4,6 +4,7 @@ package encoding
 
 import (
 	"reflect"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -47,6 +48,18 @@ func parseTag(tag string) (string, tagOptions) {
 		return tag[:idx], tagOptions(tag[idx+1:])
 	}
 	return tag, tagOptions("")
+}
+
+func parseCompoundIndex(tag string) (string, int, bool) {
+	lIdx := strings.Index(tag, "[")
+	rIdx := strings.Index(tag, "]")
+	if lIdx > 1 && rIdx > lIdx+1 {
+		if elemIndex_, err := strconv.ParseInt(tag[lIdx+1:rIdx], 10, 64); err == nil {
+			return tag[:lIdx], int(elemIndex_), true
+		}
+	}
+
+	return tag, 0, false
 }
 
 func isValidTag(s string) bool {
