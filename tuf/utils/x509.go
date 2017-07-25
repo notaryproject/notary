@@ -85,12 +85,9 @@ func X509PublicKeyID(certPubKey data.PublicKey) (string, error) {
 	return key.ID(), nil
 }
 
-// ParsePEMPrivateKey returns a data.PrivateKey from a PEM encoded private key. It
-// only supports RSA (PKCS#1) and attempts to decrypt using the passphrase, if encrypted.
-func ParsePEMPrivateKey(pemBytes []byte, passphrase string) (data.PrivateKey, error) {
-	block, _ := pem.Decode(pemBytes)
-	if block == nil {
-		return nil, errors.New("no valid private key found")
+func parseLegacyPrivateKey(block *pem.Block, passphrase string) (data.PrivateKey, error) {
+	if notary.FIPSEnabled() {
+		return nil, fmt.Errorf("%s not supported in FIPS mode", block.Type)
 	}
 
 	var privKeyBytes []byte
@@ -140,6 +137,28 @@ func ParsePEMPrivateKey(pemBytes []byte, passphrase string) (data.PrivateKey, er
 
 		return tufECDSAPrivateKey, nil
 
+	default:
+		return nil, fmt.Errorf("unsupported key type %q", block.Type)
+	}
+}
+
+// ParsePEMPrivateKey returns a data.PrivateKey from a PEM encoded private key. It
+// supports PKCS#8 as well as RSA/ECDSA (PKCS#1) only in non-FIPS mode and
+// attempts to decrypt using the passphrase, if encrypted.
+func ParsePEMPrivateKey(pemBytes []byte, passphrase string) (data.PrivateKey, error) {
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		return nil, errors.New("no valid private key found")
+	}
+
+	switch block.Type {
+	case "RSA PRIVATE KEY", "EC PRIVATE KEY", "ED25519 PRIVATE KEY":
+		return parseLegacyPrivateKey(block, passphrase)
+	case "ENCRYPTED PRIVATE KEY", "PRIVATE KEY":
+		if passphrase == "" {
+			return ParsePKCS8ToTufKey(block.Bytes, nil)
+		}
+		return ParsePKCS8ToTufKey(block.Bytes, []byte(passphrase))
 	default:
 		return nil, fmt.Errorf("unsupported key type %q", block.Type)
 	}
@@ -431,75 +450,54 @@ func ED25519ToPrivateKey(privKeyBytes []byte) (data.PrivateKey, error) {
 	return data.NewED25519PrivateKey(*pubKey, privKeyBytes)
 }
 
-func blockType(k data.PrivateKey) (string, error) {
-	switch k.Algorithm() {
-	case data.RSAKey, data.RSAx509Key:
-		return "RSA PRIVATE KEY", nil
-	case data.ECDSAKey, data.ECDSAx509Key:
-		return "EC PRIVATE KEY", nil
-	case data.ED25519Key:
-		return "ED25519 PRIVATE KEY", nil
-	default:
-		return "", fmt.Errorf("algorithm %s not supported", k.Algorithm())
+// ExtractPrivateKeyAttributes extracts role and gun values from private key bytes
+func ExtractPrivateKeyAttributes(pemBytes []byte) (data.RoleName, data.GUN, error) {
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		return "", "", errors.New("PEM block is empty")
 	}
+
+	switch block.Type {
+	case "RSA PRIVATE KEY", "EC PRIVATE KEY", "ED25519 PRIVATE KEY":
+		if notary.FIPSEnabled() {
+			return "", "", fmt.Errorf("%s not supported in FIPS mode", block.Type)
+		}
+	case "PRIVATE KEY", "ENCRYPTED PRIVATE KEY":
+		// do nothing for PKCS#8 keys
+	default:
+		return "", "", errors.New("unknown key format")
+	}
+	return data.RoleName(block.Headers["role"]), data.GUN(block.Headers["gun"]), nil
 }
 
-// KeyToPEM returns a PEM encoded key from a Private Key
-func KeyToPEM(privKey data.PrivateKey, role data.RoleName, gun data.GUN) ([]byte, error) {
-	bt, err := blockType(privKey)
+// ConvertPrivateKeyToPKCS8 converts a data.PrivateKey to PKCS#8 Format
+func ConvertPrivateKeyToPKCS8(key data.PrivateKey, role data.RoleName, gun data.GUN, passphrase string) ([]byte, error) {
+	var (
+		err       error
+		der       []byte
+		blockType = "PRIVATE KEY"
+	)
+
+	if passphrase == "" {
+		der, err = ConvertTUFKeyToPKCS8(key, nil)
+	} else {
+		blockType = "ENCRYPTED PRIVATE KEY"
+		der, err = ConvertTUFKeyToPKCS8(key, []byte(passphrase))
+	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to convert to PKCS8 key")
 	}
 
-	headers := map[string]string{}
+	headers := make(map[string]string)
 	if role != "" {
 		headers["role"] = role.String()
 	}
+
 	if gun != "" {
 		headers["gun"] = gun.String()
 	}
 
-	block := &pem.Block{
-		Type:    bt,
-		Headers: headers,
-		Bytes:   privKey.Private(),
-	}
-
-	return pem.EncodeToMemory(block), nil
-}
-
-// EncryptPrivateKey returns an encrypted PEM key given a Privatekey
-// and a passphrase
-func EncryptPrivateKey(key data.PrivateKey, role data.RoleName, gun data.GUN, passphrase string) ([]byte, error) {
-	bt, err := blockType(key)
-	if err != nil {
-		return nil, err
-	}
-
-	password := []byte(passphrase)
-	cipherType := x509.PEMCipherAES256
-
-	encryptedPEMBlock, err := x509.EncryptPEMBlock(rand.Reader,
-		bt,
-		key.Private(),
-		password,
-		cipherType)
-	if err != nil {
-		return nil, err
-	}
-
-	if encryptedPEMBlock.Headers == nil {
-		return nil, fmt.Errorf("unable to encrypt key - invalid PEM file produced")
-	}
-
-	if role != "" {
-		encryptedPEMBlock.Headers["role"] = role.String()
-	}
-	if gun != "" {
-		encryptedPEMBlock.Headers["gun"] = gun.String()
-	}
-
-	return pem.EncodeToMemory(encryptedPEMBlock), nil
+	return pem.EncodeToMemory(&pem.Block{Bytes: der, Type: blockType, Headers: headers}), nil
 }
 
 // CertToKey transforms a single input certificate into its corresponding

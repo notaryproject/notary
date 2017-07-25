@@ -1,12 +1,13 @@
 package cryptoservice
 
 import (
-	"fmt"
-
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"fmt"
+
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/notary"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
@@ -143,9 +144,12 @@ func CheckRootKeyIsEncrypted(pemBytes []byte) error {
 		return ErrNoValidPrivateKey
 	}
 
-	if !x509.IsEncryptedPEMBlock(block) {
-		return ErrRootKeyNotEncrypted
+	if block.Type == "ENCRYPTED PRIVATE KEY" {
+		return nil
+	}
+	if !notary.FIPSEnabled() && x509.IsEncryptedPEMBlock(block) {
+		return nil
 	}
 
-	return nil
+	return ErrRootKeyNotEncrypted
 }
