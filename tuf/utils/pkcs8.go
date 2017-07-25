@@ -226,6 +226,7 @@ func ParsePKCS8ToTufKey(der []byte, password []byte) (data.PrivateKey, error) {
 		mode := cipher.NewCBCDecrypter(block, iv)
 		mode.CryptBlocks(encryptedKey, encryptedKey)
 
+		// no need to explicitly remove padding, as ASN.1 unmarshalling will automatically discard it
 		key, err := parsePKCS8ToTufKey(encryptedKey)
 		if err != nil {
 			return nil, errors.New("pkcs8: incorrect password")
