@@ -851,6 +851,16 @@ type passwordStore struct {
 	anonymous bool
 }
 
+func getUsername(input chan string) {
+	in := bufio.NewReader(os.Stdin)
+	result, err := in.ReadString('\n')
+	if err != nil {
+		logrus.Errorf("error processing username input: %s", err)
+		input <- ""
+	}
+	input <- result
+}
+
 func (ps passwordStore) Basic(u *url.URL) (string, string) {
 	// if it's not a terminal, don't wait on input
 	if ps.anonymous {
@@ -858,15 +868,20 @@ func (ps passwordStore) Basic(u *url.URL) (string, string) {
 	}
 
 	stdin := bufio.NewReader(os.Stdin)
+	input := make(chan string, 1)
 	fmt.Fprintf(os.Stdout, "Enter username: ")
-
-	userIn, err := stdin.ReadBytes('\n')
-	if err != nil {
-		logrus.Errorf("error processing username input: %s", err)
+	go getUsername(input)
+	var username string
+	select {
+	case i := <-input:
+		username = strings.TrimSpace(i)
+		if username == "" {
+			return "", ""
+		}
+	case <-time.After(30 * time.Second):
+		logrus.Error("timeout when retrieving username input")
 		return "", ""
 	}
-
-	username := strings.TrimSpace(string(userIn))
 
 	fmt.Fprintf(os.Stdout, "Enter password: ")
 	passphrase, err := passphrase.GetPassphrase(stdin)
