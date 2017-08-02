@@ -324,7 +324,7 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		err = nRepo.CryptoService.AddKey(rotateKeyRole, gun, privKey)
+		err = nRepo.CryptoService().AddKey(rotateKeyRole, gun, privKey)
 		if err != nil {
 			return fmt.Errorf("Error importing key: %v", err)
 		}
