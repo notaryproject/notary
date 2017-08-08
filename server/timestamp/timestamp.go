@@ -11,7 +11,7 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/notary/server/snapshot"
 	"github.com/docker/notary/server/storage"
 )

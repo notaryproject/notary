@@ -8,7 +8,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/notary/utils"
 	"github.com/docker/notary/version"
 	_ "github.com/go-sql-driver/mysql"

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/notary"
 	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustpinning"

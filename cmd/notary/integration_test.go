@@ -25,7 +25,7 @@ import (
 
 	"encoding/json"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
 	canonicaljson "github.com/docker/go/canonical/json"
 	"github.com/docker/notary"

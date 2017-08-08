@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/distribution/health"
 	_ "github.com/docker/distribution/registry/auth/htpasswd"
 	_ "github.com/docker/distribution/registry/auth/token"

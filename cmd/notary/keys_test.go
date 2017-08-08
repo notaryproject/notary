@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
