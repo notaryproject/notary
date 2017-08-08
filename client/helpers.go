@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/notary/client/changelist"
 	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/tuf"

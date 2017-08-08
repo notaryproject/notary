@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
 )

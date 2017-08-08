@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/distribution/health"
 	"github.com/docker/notary/server"
 	"github.com/docker/notary/utils"

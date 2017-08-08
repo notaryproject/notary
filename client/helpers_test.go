@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/storage"
 	"github.com/docker/notary/tuf/data"

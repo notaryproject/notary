@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/notary/tuf/data"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"

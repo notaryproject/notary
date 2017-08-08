@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/utils"

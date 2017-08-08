@@ -3,7 +3,7 @@ package snapshot
 import (
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/docker/go/canonical/json"
 	"github.com/docker/notary/server/storage"
