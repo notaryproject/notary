@@ -10,10 +10,51 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func getRSAKey() (data.PrivateKey, error) {
+	raw := []byte(`-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEAtKGse3BcxXAp5OkLGYq0HfDcCvgag3R/9e8pHUGsJhkSZFrn
+ZWAsAVFKSYaYItf1D/g3izqVDMtMpXZ1chNzaRysnbrb/q7JTbiGzXo9FcshyUc9
+tcB60wFbvsXE2LaxZcKNxLYXbOvf+tdg/P07oPG24fzYI4+rbZ1wyoORbT1ys33Z
+hHyifFvO7rbe69y3HG+xbp7yWYAR4e8Nw9jX8/9sGslAV9vEXOdNL3qlcgsYRGDU
+DsUJsnWaMzjstvUxb8mVf9KG2W039ucgaXgBW/jeP3F1VSYFKLd03LvuJ8Ir5E0s
+cWjwTd59nm0XbbRI3KiBGnAgrJ4iK07HrUkpDQIDAQABAoIBAHfr1k1lfdH+83Fs
+XtgoRAiUviHyMfgQQlwO2eb4kMgCYTmLOJEPVmfRhlZmK18GrUZa7tVaoVYLKum3
+SaXg0AB67wcQ5bmiZTdaSPTmMOPlJpsw1wFxtpmcD0MKnfOa5w++KMzub4L63or0
+rwmHPi1ODLLgYMbLPW7a1eU9kDFLOnx3RRy9a29hQXxGsRYetrIbKmeDi6c+ndQ8
+I5YWObcixxl5GP6CTnEugV7wd2JmXuQRGFdopUwQESCD9VkxDSevQBSPoyZKHxGy
+/d3jf0VNlvwsxhD3ybhw8jTN/cmm2LWmP4jylG7iG7YRPVaW/0s39IZ9DnNDwgWB
+03Yk2gECgYEA44jcSI5kXOrbBGDdV+wTUoL24Zoc0URX33F15UIOQuQsypaFoRJ6
+J23JWEZN99aquuo1+0BBSfiumbpLwSwfXi0nL3oTzS9eOp1HS7AwFGd/OHdpdMsC
+w2eInRwCh4GrEf508GXo+tSL2NS8+MFVAG2/SjEf06SroQ/rQ87Qm0ECgYEAyzqr
+6YvbAnRBy5GgQlTgxR9r0U8N7lM9g2Tk8uGvYI8zu/Tgia4diHAwK1ymKbl3lf95
+3NcHR+ffwOO+nnfFCvmCYXs4ggRCkeopv19bsCLkfnTBNTxPFh6lyLEnn3C+rcCe
+ZAkKLrm8BHGviPIgn0aElMQAbhJxTWfClw/VVs0CgYAlDhfZ1R6xJypN9zx04iRv
+bpaoPQHubrPk1sR9dpl9+Uz2HTdb+PddznpY3vI5p4Mcd6Ic7eT0GATPUlCeAAKH
+wtC74aSx6MHux8hhoiriV8yXNJM/CwTDL+xGsdYTnWFvx8HhmKctmknAIT05QbsH
+G9hoS8HEJPAyhbYpz9eXQQKBgQCftPXQTPXJUe86uLBGMEmK34xtKkD6XzPiA/Hf
+5PdbXG39cQzbZZcT14YjLWXvOC8AE4qCwACaw1+VR+ROyDRy0W1iieD4W7ysymYQ
+XDHDk0gZEEudOE22RlNmCcHnjERsawiN+ISl/5P/sg+OASkdwd8CwZzM43VirP3A
+lNLEqQKBgHqj85n8ew23SR0GX0W1PgowaCHHD1p81y2afs1x7H9R1PNuQsTXKnpf
+vMiG7Oxakj4WDC5M5KsHWqchqKDycT+J1BfLI58Sf2qo6vtaV+4DARNgzcG/WB4b
+VnpsczK/1aUH7iBexuF0YqdPQwzpSvrY0XZcgCFQ52JDn3vjblhX
+-----END RSA PRIVATE KEY-----`)
+	block, _ := pem.Decode(raw)
+	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	privKey, err := RSAToPrivateKey(key)
+	if err != nil {
+		return nil, err
+	}
+	return privKey, nil
+}
+
 func TestConvertTUFKeyToPKCS8(t *testing.T) {
 	keys := []data.PrivateKey{}
 
-	rsaKey, err := GenerateRSAKey(rand.Reader, 2048)
+	rsaKey, err := getRSAKey()
 	require.NoError(t, err)
 	keys = append(keys, rsaKey)
 

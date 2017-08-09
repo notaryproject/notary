@@ -34,6 +34,7 @@ import (
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
+	testutils "github.com/docker/notary/tuf/testutils/keys"
 	"github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/tuf/validation"
 	"github.com/stretchr/testify/require"
@@ -194,7 +195,7 @@ func createRepoAndKey(t *testing.T, rootType, tempBaseDir, gun, url string) (*No
 		tempBaseDir, data.GUN(gun), url, http.DefaultTransport, rec.retriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
-	rootPubKey, err := repo.CryptoService.Create(data.CanonicalRootRole, repo.gun, rootType)
+	rootPubKey, err := testutils.CreateOrAddKey(repo.CryptoService, data.CanonicalRootRole, repo.gun, rootType)
 	require.NoError(t, err, "error generating root key: %s", err)
 
 	rec.requireCreated(t, []string{data.CanonicalRootRole.String()},
@@ -699,7 +700,8 @@ func testInitRepoAttemptsExceeded(t *testing.T, rootType string) {
 	retriever := passphrase.ConstantRetriever("password")
 	repo, err := NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
-	rootPubKey, err := repo.CryptoService.Create(data.CanonicalRootRole, repo.gun, rootType)
+
+	rootPubKey, err := testutils.CreateOrAddKey(repo.CryptoService, data.CanonicalRootRole, repo.gun, rootType)
 	require.NoError(t, err, "error generating root key: %s", err)
 
 	retriever = passphrase.ConstantRetriever("incorrect password")
@@ -737,7 +739,8 @@ func testInitRepoPasswordInvalid(t *testing.T, rootType string) {
 	retriever := passphrase.ConstantRetriever("password")
 	repo, err := NewFileCachedNotaryRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
-	rootPubKey, err := repo.CryptoService.Create(data.CanonicalRootRole, repo.gun, rootType)
+
+	rootPubKey, err := testutils.CreateOrAddKey(repo.CryptoService, data.CanonicalRootRole, repo.gun, rootType)
 	require.NoError(t, err, "error generating root key: %s", err)
 
 	// repo.CryptoService’s FileKeyStore caches the unlocked private key, so to test
@@ -1387,7 +1390,7 @@ func testListTargetWithDelegates(t *testing.T, rootType string) {
 	currentTarget := addTarget(t, repo, "current", "../fixtures/intermediate-ca.crt")
 
 	// setup delegated targets/level1 role
-	k, err := repo.CryptoService.Create("targets/level1", repo.gun, rootType)
+	k, err := testutils.CreateOrAddKey(repo.CryptoService, "targets/level1", repo.gun, rootType)
 	require.NoError(t, err)
 	err = repo.tufRepo.UpdateDelegationKeys("targets/level1", []data.PublicKey{k}, []string{}, 1)
 	require.NoError(t, err)
@@ -1397,7 +1400,7 @@ func testListTargetWithDelegates(t *testing.T, rootType string) {
 	otherTarget := addTarget(t, repo, "other", "../fixtures/root-ca.crt", "targets/level1")
 
 	// setup delegated targets/level2 role
-	k, err = repo.CryptoService.Create("targets/level2", repo.gun, rootType)
+	k, err = testutils.CreateOrAddKey(repo.CryptoService, "targets/level2", repo.gun, rootType)
 	require.NoError(t, err)
 	err = repo.tufRepo.UpdateDelegationKeys("targets/level2", []data.PublicKey{k}, []string{}, 1)
 	require.NoError(t, err)
@@ -1429,7 +1432,7 @@ func testListTargetWithDelegates(t *testing.T, rootType string) {
 
 	// setup delegated targets/level1/level2 role separately, which can only modify paths prefixed with "level2"
 	// This is done separately due to target shadowing
-	k, err = repo.CryptoService.Create("targets/level1/level2", repo.gun, rootType)
+	k, err = testutils.CreateOrAddKey(repo.CryptoService, "targets/level1/level2", repo.gun, rootType)
 	require.NoError(t, err)
 	err = repo.tufRepo.UpdateDelegationKeys("targets/level1/level2", []data.PublicKey{k}, []string{}, 1)
 	require.NoError(t, err)

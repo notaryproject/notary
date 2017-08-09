@@ -37,6 +37,7 @@ import (
 	nstorage "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	testutils "github.com/docker/notary/tuf/testutils/keys"
 	"github.com/docker/notary/tuf/utils"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
@@ -2073,7 +2074,7 @@ func generateCertPrivKeyPair(t *testing.T, gun, keyAlgorithm string) (*x509.Cert
 	case data.ECDSAKey:
 		privKey, err = utils.GenerateECDSAKey(rand.Reader)
 	case data.RSAKey:
-		privKey, err = utils.GenerateRSAKey(rand.Reader, 4096)
+		privKey, err = testutils.GetRSAKey(4096)
 	default:
 		err = fmt.Errorf("invalid key algorithm provided: %s", keyAlgorithm)
 	}
@@ -2741,7 +2742,7 @@ func TestAddDelImportKeyPublishFlow(t *testing.T) {
 	tempFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
 
-	privKey, err := utils.GenerateRSAKey(rand.Reader, 2048)
+	privKey, err := testutils.GetRSAKey(2048)
 	require.NoError(t, err)
 	startTime := time.Now()
 	endTime := startTime.AddDate(10, 0, 0)
@@ -3003,7 +3004,7 @@ func TestDelegationKeyImportExport(t *testing.T) {
 	keyFile, err := ioutil.TempFile("", "pemfile")
 	require.NoError(t, err)
 	defer os.Remove(keyFile.Name())
-	privKey, err := utils.GenerateRSAKey(rand.Reader, 2048)
+	privKey, err := testutils.GetRSAKey(2048)
 	require.NoError(t, err)
 	pemBytes, err := utils.ConvertPrivateKeyToPKCS8(privKey, "", "", "")
 	require.NoError(t, err)
