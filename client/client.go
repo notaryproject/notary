@@ -584,7 +584,7 @@ func (r *NotaryRepository) GetTargetByName(name string, roles ...data.RoleName) 
 			return &TargetWithRole{Target: Target{Name: name, Hashes: resultMeta.Hashes, Length: resultMeta.Length, Custom: resultMeta.Custom}, Role: resultRoleName}, nil
 		}
 	}
-	return nil, fmt.Errorf("No trust data for %s", name)
+	return nil, ErrNoSuchTarget(name)
 
 }
 
@@ -593,6 +593,13 @@ type TargetSignedStruct struct {
 	Role       data.DelegationRole
 	Target     Target
 	Signatures []data.Signature
+}
+
+//ErrNoSuchTarget is returned when no valid trust data is found.
+type ErrNoSuchTarget string
+
+func (f ErrNoSuchTarget) Error() string {
+	return fmt.Sprintf("No valid trust data for %s", string(f))
 }
 
 // GetAllTargetMetadataByName searches the entire delegation role tree to find the specified target by name for all
@@ -639,7 +646,7 @@ func (r *NotaryRepository) GetAllTargetMetadataByName(name string) ([]TargetSign
 		return nil, err
 	}
 	if len(targetInfoList) == 0 {
-		return nil, fmt.Errorf("No valid trust data for %s", name)
+		return nil, ErrNoSuchTarget(name)
 	}
 	return targetInfoList, nil
 }
