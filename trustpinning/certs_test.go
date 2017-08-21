@@ -1062,13 +1062,15 @@ func TestParsePEMPublicKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// can parse RSA PEM
-	rsaPubKey, err := cs.Create("root", "docker.io/notary/test2", data.RSAKey)
-	require.NoError(t, err)
-	rsaPemBytes := pem.EncodeToMemory(&pem.Block{
-		Type:    "PUBLIC KEY",
-		Headers: nil,
-		Bytes:   rsaPubKey.Public(),
-	})
+	rsaPemBytes := []byte(`-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7HQxZ0fDsxPTFIABQXNX
+i9b25AZWtBoR+k8myrrI0cb08ISoB2NBpYwDbxhxLvjN1OpjFzCOjbmK+sD2zCkt
+Rxg1Z9NimY4J/p9uWF2EcRklmCqdHJ2KW7QD3j5uy7e7KsSyLPcsMtIrRYVtk2Z8
+oGKEOQUsTudXoH0W9lVtBNgQi0S3FiuesRXKc0jDsZRXxtQUB0MzzRJ8zjgZbuKw
+6XBlfidMEo3E10jQk8lrV1iio0xpkYuW+sbfefgNDyGBoSpsSG9Kh0sDHCyRteCm
+zKJV1ck/b6x3x7eLNtsAErkJfp6aNKcvGrXMUgB/pZTaC4lpfxKq4s3+zY6sgabr
+jwIDAQAB
+-----END PUBLIC KEY-----`)
 	_, err = utils.ParsePEMPublicKey(rsaPemBytes)
 	require.NoError(t, err)
 

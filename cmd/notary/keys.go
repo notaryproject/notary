@@ -202,11 +202,10 @@ func (k *keyCommander) keysGenerate(cmd *cobra.Command, args []string) error {
 
 	allowedCiphers := map[string]bool{
 		data.ECDSAKey: true,
-		data.RSAKey:   true,
 	}
 
 	if !allowedCiphers[strings.ToLower(algorithm)] {
-		return fmt.Errorf("Algorithm not allowed, possible values are: RSA, ECDSA")
+		return fmt.Errorf("Algorithm not allowed, possible values are: ECDSA")
 	}
 
 	config, err := k.configGetter()
