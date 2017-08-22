@@ -166,7 +166,7 @@ func (db *SQLStorage) UpdateMany(gun data.GUN, updates []MetaUpdate) error {
 }
 
 func (db *SQLStorage) writeChangefeed(tx *gorm.DB, gun data.GUN, version int, checksum string) error {
-	c := &Change{
+	c := &SQLChange{
 		GUN:      gun.String(),
 		Version:  version,
 		SHA256:   checksum,
@@ -244,7 +244,7 @@ func (db *SQLStorage) Delete(gun data.GUN) error {
 		if res.RowsAffected == 0 {
 			return nil
 		}
-		c := &Change{
+		c := &SQLChange{
 			GUN:      gun.String(),
 			Category: changeCategoryDeletion,
 		}
