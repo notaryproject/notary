@@ -278,13 +278,16 @@ func (rdb RethinkDB) GetVersion(gun data.GUN, role data.RoleName, version int) (
 // Delete removes all metadata for a given GUN.  It does not return an
 // error if no metadata exists for the given GUN.
 func (rdb RethinkDB) Delete(gun data.GUN) error {
-	_, err := gorethink.DB(rdb.dbName).Table(RDBTUFFile{}.TableName()).GetAllByIndex(
+	resp, err := gorethink.DB(rdb.dbName).Table(RDBTUFFile{}.TableName()).GetAllByIndex(
 		"gun", gun.String(),
 	).Delete().RunWrite(rdb.sess)
 	if err != nil {
 		return fmt.Errorf("unable to delete %s from database: %s", gun.String(), err.Error())
 	}
-	return rdb.writeChange(gun.String(), 0, "", changeCategoryDeletion)
+	if resp.Deleted > 0 {
+		return rdb.writeChange(gun.String(), 0, "", changeCategoryDeletion)
+	}
+	return nil
 }
 
 // deleteByTSChecksum removes all metadata by a timestamp checksum, used for rolling back a "transaction"
@@ -347,7 +350,6 @@ func (rdb RethinkDB) GetChanges(changeID string, pageSize int, filterName string
 		max                 = []interface{}{gorethink.Now().Sub(blackoutTime), gorethink.MaxVal}
 		min                 = []interface{}{gorethink.MinVal, gorethink.MinVal}
 		order               gorethink.OrderByOpts
-		changes             = make([]Change, 0, pageSize)
 		reversed            bool
 	)
 	if filterName != "" {
@@ -382,6 +384,8 @@ func (rdb RethinkDB) GetChanges(changeID string, pageSize int, filterName string
 		pageSize = pageSize * -1
 	}
 
+	changes := make([]Change, 0, pageSize)
+
 	res, err := gorethink.DB(rdb.dbName).
 		Table(Change{}.TableName()).
 		OrderBy(order).
@@ -398,12 +402,14 @@ func (rdb RethinkDB) GetChanges(changeID string, pageSize int, filterName string
 	}
 	defer res.Close()
 
-	if reversed {
-		// results are currently newest to oldest, should be oldest to newest
-		for i, j := 0, len(changes)-1; i < j; i, j = i+1, j-1 {
-			changes[i], changes[j] = changes[j], changes[i]
+	defer func() {
+		if reversed {
+			// results are currently newest to oldest, should be oldest to newest
+			for i, j := 0, len(changes)-1; i < j; i, j = i+1, j-1 {
+				changes[i], changes[j] = changes[j], changes[i]
+			}
 		}
-	}
+	}()
 
 	return changes, res.All(&changes)
 }
