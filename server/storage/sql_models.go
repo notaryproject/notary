@@ -34,7 +34,7 @@ func (g TUFFile) TableName() string {
 
 // SQLChange defines the the fields required for an object in the changefeed
 type SQLChange struct {
-	ID        uint `gorm:"primary_key" sql:";not null" json:",string"`
+	ID        uint `gorm:"primary_key" sql:"not null" json:",string"`
 	CreatedAt time.Time
 	GUN       string `gorm:"column:gun" sql:"type:varchar(255);not null"`
 	Version   int    `sql:"not null"`

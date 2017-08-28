@@ -14,6 +14,11 @@ import (
 	"gopkg.in/dancannon/gorethink.v3"
 )
 
+// RethinkDB has eventual consistency. This represents a 60 second blackout
+// period of the most recent changes in the changefeed which will not be
+// returned while the eventual consistency works itself out.
+// It's a var not a const so that the tests can turn it down to zero rather
+// than have to include a sleep.
 var blackoutTime = 60
 
 // RDBTUFFile is a TUF file record
@@ -35,12 +40,12 @@ func (r RDBTUFFile) TableName() string {
 
 // Change defines the the fields required for an object in the changefeed
 type Change struct {
-	ID        string    `gorethink:"id,omitempty"`
+	ID        string    `gorethink:"id,omitempty" gorm:"primary_key" sql:"not null"`
 	CreatedAt time.Time `gorethink:"created_at"`
-	GUN       string    `gorethink:"gun"`
-	Version   int       `gorethink:"version"`
-	SHA256    string    `gorethink:"sha256"`
-	Category  string    `gorethink:"category"`
+	GUN       string    `gorethink:"gun" gorm:"column:gun" sql:"type:varchar(255);not null"`
+	Version   int       `gorethink:"version" sql:"not null"`
+	SHA256    string    `gorethink:"sha256" gorm:"column:sha256" sql:"type:varchar(64);"`
+	Category  string    `gorethink:"category" sql:"type:varchar(20);not null;"`
 }
 
 // TableName sets a specific table name for Changefeed
@@ -342,7 +347,8 @@ func (rdb RethinkDB) writeChange(gun string, version int, sha256, category strin
 	return err
 }
 
-// GetChanges is not implemented for RethinkDB
+// GetChanges returns up to pageSize changes starting from changeID. It uses the
+// blackout to account for RethinkDB's eventual consistency model
 func (rdb RethinkDB) GetChanges(changeID string, pageSize int, filterName string) ([]Change, error) {
 	var (
 		lower, upper, bound []interface{}
@@ -386,8 +392,15 @@ func (rdb RethinkDB) GetChanges(changeID string, pageSize int, filterName string
 
 	changes := make([]Change, 0, pageSize)
 
+	// Between returns a slice of results from the rethinkdb table.
+	// The results are ordered using BetweenOpts.Index, which will
+	// default to the index of the immediately preceding OrderBy.
+	// The lower and upper are the start and end points for the slice
+	// and the Left/RightBound values determine whether the lower and
+	// upper values are included in the result per normal set semantics
+	// of "open" and "closed"
 	res, err := gorethink.DB(rdb.dbName).
-		Table(Change{}.TableName()).
+		Table(Change{}.TableName(), gorethink.TableOpts{ReadMode: "majority"}).
 		OrderBy(order).
 		Between(
 			lower,
@@ -414,10 +427,12 @@ func (rdb RethinkDB) GetChanges(changeID string, pageSize int, filterName string
 	return changes, res.All(&changes)
 }
 
+// bound creates the correct boundary based in the index that should be used for
+// querying the changefeed.
 func (rdb RethinkDB) bound(changeID, filterName string) ([]interface{}, string) {
-	term := gorethink.DB(rdb.dbName).Table(Change{}.TableName()).Get(changeID).Field("created_at")
+	createdAtTerm := gorethink.DB(rdb.dbName).Table(Change{}.TableName()).Get(changeID).Field("created_at")
 	if filterName != "" {
-		return []interface{}{filterName, term, changeID}, "rdb_gun_created_at_id"
+		return []interface{}{filterName, createdAtTerm, changeID}, "rdb_gun_created_at_id"
 	}
-	return []interface{}{term, changeID}, "rdb_created_at_id"
+	return []interface{}{createdAtTerm, changeID}, "rdb_created_at_id"
 }

@@ -386,14 +386,6 @@ func testGetChanges(t *testing.T, s MetaStore) {
 	require.NoError(t, err)
 	require.Len(t, c, 0)
 
-	//c, err = s.GetChanges(full[7].ID, -4, "")
-	//require.NoError(t, err)
-	//require.Len(t, c, 4)
-	//for i := 0; i < 4; i++ {
-	//	require.Equal(t, "busybox", c[i].GUN)
-	//	require.Equal(t, i+1, c[i].Version)
-	//}
-
 	c, err = s.GetChanges(full[6].ID, -4, "")
 	require.NoError(t, err)
 	require.Len(t, c, 4)
@@ -437,6 +429,17 @@ func testGetChanges(t *testing.T, s MetaStore) {
 	require.NoError(t, err)
 	require.Equal(t, before, after)
 
+	_, err1 := s.GetChanges("1000", 0, "")
+	_, err2 := s.GetChanges("doesn't exist", 0, "")
+	if _, ok := s.(RethinkDB); ok {
+		require.Error(t, err1)
+		require.Error(t, err2)
+	} else {
+		require.NoError(t, err1)
+		require.Error(t, err2)
+		require.IsType(t, ErrBadQuery{}, err2)
+	}
+
 	// do a deletion and check is shows up.
 	require.NoError(t, s.Delete("alpine"))
 	c, err = s.GetChanges("-1", -1, "")
@@ -453,4 +456,5 @@ func testGetChanges(t *testing.T, s MetaStore) {
 	require.Len(t, c, 2)
 	require.NotEqual(t, changeCategoryDeletion, c[0].Category)
 	require.NotEqual(t, "alpine", c[0].GUN)
+
 }

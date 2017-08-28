@@ -224,7 +224,7 @@ func (st *MemStorage) GetChanges(changeID string, records int, filterName string
 	} else {
 		id, err = strconv.ParseInt(changeID, 10, 32)
 		if err != nil {
-			return nil, err
+			return nil, ErrBadQuery{msg: fmt.Sprintf("change ID expected to be integer, provided ID was: %d", changeID)}
 		}
 	}
 	var (
