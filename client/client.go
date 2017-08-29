@@ -1059,7 +1059,7 @@ func (r *NotaryRepository) Update(forWrite bool) error {
 //
 // Returns a TUFClient for the remote server, which may not be actually
 // operational (if the URL is invalid but a root.json is cached).
-func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*TUFClient, error) {
+func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*tufClient, error) {
 	minVersion := 1
 	// the old root on disk should not be validated against any trust pinning configuration
 	// because if we have an old root, it itself is the thing that pins trust
@@ -1126,7 +1126,7 @@ func (r *NotaryRepository) bootstrapClient(checkInitialized bool) (*TUFClient, e
 		return nil, ErrRepoNotInitialized{}
 	}
 
-	return NewTUFClient(oldBuilder, newBuilder, remote, r.cache), nil
+	return newTufClient(oldBuilder, newBuilder, remote, r.cache), nil
 }
 
 // RotateKey removes all existing keys associated with the role. If no keys are
