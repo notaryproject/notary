@@ -501,7 +501,7 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 		rootKeyIDs = []string{}
 	}
 
-	if err = nRepo.InitializeWithCertificate(rootKeyIDs, rootCerts, nRepo); err != nil {
+	if err = nRepo.InitializeWithCertificate(rootKeyIDs, rootCerts); err != nil {
 		return err
 	}
 

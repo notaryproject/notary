@@ -347,13 +347,13 @@ func keyExistsInList(cert data.PublicKey, ids map[string]bool) error {
 
 // InitializeWithCertificate initializes the repository with root keys and their corresponding certificates
 func (r *NotaryRepository) InitializeWithCertificate(rootKeyIDs []string, rootCerts []data.PublicKey,
-	nRepo *NotaryRepository, serverManagedRoles ...data.RoleName) error {
+	serverManagedRoles ...data.RoleName) error {
 
 	// If we explicitly pass in certificate(s) but not key, then look keys up using certificate
 	if len(rootKeyIDs) == 0 && len(rootCerts) != 0 {
 		rootKeyIDs = []string{}
 		availableRootKeyIDs := make(map[string]bool)
-		for _, k := range nRepo.CryptoService().ListKeys(data.CanonicalRootRole) {
+		for _, k := range r.CryptoService().ListKeys(data.CanonicalRootRole) {
 			availableRootKeyIDs[k] = true
 		}
 
