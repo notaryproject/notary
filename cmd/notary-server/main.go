@@ -9,11 +9,11 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/health"
 	"github.com/docker/notary/server"
 	"github.com/docker/notary/utils"
 	"github.com/docker/notary/version"
+	"github.com/sirupsen/logrus"
 )
 
 // DebugAddress is the debug server address to listen on

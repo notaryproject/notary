@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/cloudflare/cfssl/config"
 	"github.com/cloudflare/cfssl/csr"
 	"github.com/cloudflare/cfssl/helpers"
@@ -28,6 +27,7 @@ import (
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/testutils"
 	"github.com/docker/notary/tuf/utils"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
 

@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
@@ -31,6 +30,7 @@ import (
 	"github.com/docker/notary/tuf/data"
 	tufutils "github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/utils"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
