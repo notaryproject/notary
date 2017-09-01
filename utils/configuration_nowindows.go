@@ -7,7 +7,7 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // LogLevelSignalHandle will increase/decrease the logging level via the signal we get.

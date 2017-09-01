@@ -16,10 +16,10 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/agl/ed25519"
 	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/data"
+	"github.com/sirupsen/logrus"
 )
 
 // CanonicalKeyID returns the ID of the public bytes version of a TUF key.

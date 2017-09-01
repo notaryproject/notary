@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
 	"github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
@@ -36,6 +35,7 @@ import (
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/tuf/validation"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
 

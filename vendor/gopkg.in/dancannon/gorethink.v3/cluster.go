@@ -7,9 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/cenk/backoff"
-	"github.com/hailocab/go-hostpool"
+	"github.com/sirupsen/logrus"
 )
 
 // A Cluster represents a connection to a RethinkDB cluster, a cluster is created

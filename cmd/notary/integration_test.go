@@ -25,7 +25,6 @@ import (
 
 	"encoding/json"
 
-	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
 	canonicaljson "github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
@@ -38,6 +37,7 @@ import (
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
