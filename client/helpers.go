@@ -6,8 +6,12 @@ import (
 	"net/http"
 	"time"
 
+	"path/filepath"
+
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/notary"
 	"github.com/docker/notary/client/changelist"
+	"github.com/docker/notary/cryptoservice"
 	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/tuf"
 	"github.com/docker/notary/tuf/data"
@@ -303,4 +307,46 @@ func getAllPrivKeys(rootKeyIDs []string, cryptoService signed.CryptoService) ([]
 	}
 
 	return privKeys, nil
+}
+
+// FileStoreOpts creates the neccessary repository create options to use a local file store for metadata/crypto keys/change list
+// You can use this it so:
+// 	opts, _ := FileStoreOpts("./some_dir", "some/globally/unique/name", passwordFunc)
+// 	NewNotaryRepository(gun, opts...)
+func FileStoreOpts(baseDir, gun string, retriever notary.PassRetriever) ([]RepositoryOpt, error) {
+	cache, err := store.NewFileStore(
+		filepath.Join(baseDir, tufDir, filepath.FromSlash(gun), "metadata"),
+		"json",
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	keyStores, err := getKeyStores(baseDir, retriever)
+	if err != nil {
+		return nil, err
+	}
+	cryptoService := cryptoservice.NewCryptoService(keyStores...)
+
+	cl, err := changelist.NewFileChangelist(filepath.Join(
+		filepath.Join(baseDir, tufDir, filepath.FromSlash(gun), "changelist"),
+	))
+	if err != nil {
+		return nil, err
+	}
+	return []RepositoryOpt{WithMetadataStore(cache), WithCryptoService(cryptoService), WithChangeList(cl)}, nil
+}
+
+// HTTPStoreOpt sets up a repository create option to use the HTTP store as a remote store
+// You can use it like so:
+//
+// 	opt, _ := HTTPStoreOpt(url, gun, roundTripper)
+// 	NewNotaryRepository(gun, opt)
+func HTTPStoreOpt(baseURL, gun string, rt http.RoundTripper) (RepositoryOpt, error) {
+	remoteStore, err := getRemoteStore(baseURL, data.GUN(gun), rt)
+	if err != nil {
+		// baseURL is syntactically invalid
+		return nil, err
+	}
+	return WithRemoteStore(remoteStore), nil
 }
