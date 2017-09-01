@@ -18,6 +18,7 @@ import (
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/cryptoservice"
 	store "github.com/docker/notary/storage"
+	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf"
 	"github.com/docker/notary/tuf/data"
@@ -48,9 +49,80 @@ type NotaryRepository struct {
 	CryptoService  signed.CryptoService
 	tufRepo        *tuf.Repo
 	invalid        *tuf.Repo // known data that was parsable but deemed invalid
-	roundTrip      http.RoundTripper
 	trustPinning   trustpinning.TrustPinConfig
 	LegacyVersions int // number of versions back to fetch roots to sign with
+}
+
+type RepositoryOpt func(*NotaryRepository)
+
+// WithCryptoService sets the crypto service to use instead of the default in-memory service
+// when creating a new repository
+func WithCryptoService(s signed.CryptoService) RepositoryOpt {
+	return func(r *NotaryRepository) {
+		r.CryptoService = s
+	}
+}
+
+// WithMetadataStore sets the metadata store to use instead of the default in-memory store
+// when creating a new repository
+func WithMetadataStore(metadataStore store.MetadataStore) RepositoryOpt {
+	return func(r *NotaryRepository) {
+		r.cache = metadataStore
+	}
+}
+
+// WithRemoteStore sets the remote store to use instead of the default in-memory store
+// when creating a new repository
+func WithRemoteStore(remote store.RemoteStore) RepositoryOpt {
+	return func(r *NotaryRepository) {
+		r.remoteStore = remote
+	}
+}
+
+// WithChangeList sets the changelist to use instead of the default in-memory changelist
+// when creating a new repository
+func WithChangeList(cl changelist.Changelist) RepositoryOpt {
+	return func(r *NotaryRepository) {
+		r.changelist = cl
+	}
+}
+
+// WithChangeList sets the trust pinning config to use instead of the default config
+// when creating a new repository
+func WithTrustPinning(tp trustpinning.TrustPinConfig) RepositoryOpt {
+	return func(r *NotaryRepository) {
+		r.trustPinning = tp
+	}
+}
+
+// NewNotaryRepository is the base method that returns a new notary repository.
+// Use RepositoryOpt functinal options to customize the repository with your own settings.
+// Anything not specified will use a default value.
+//
+// Defaults:
+// - ChangeList, CyptoService, and Metadata store, uses an in-memory store
+// - Remotestore, uses an offline store
+func NewNotaryRepository(gun, notaryURL string, opts ...RepositoryOpt) *NotaryRepository {
+	repo := &NotaryRepository{gun: data.GUN(gun), baseURL: notaryURL}
+	for _, o := range opts {
+		o(repo)
+	}
+
+	if repo.changelist == nil {
+		repo.changelist = changelist.NewMemChangelist()
+	}
+	if repo.cache == nil {
+		repo.cache = store.NewMemoryStore(make(map[data.RoleName][]byte))
+	}
+
+	if repo.remoteStore == nil {
+		repo.remoteStore = store.OfflineStore{}
+	}
+	if repo.CryptoService == nil {
+		repo.CryptoService = cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(nil))
+	}
+
+	return repo
 }
 
 // NewFileCachedNotaryRepository is a wrapper for NewNotaryRepository that initializes
@@ -63,69 +135,17 @@ func NewFileCachedNotaryRepository(baseDir string, gun data.GUN, baseURL string,
 	retriever notary.PassRetriever, trustPinning trustpinning.TrustPinConfig) (
 	*NotaryRepository, error) {
 
-	cache, err := store.NewFileStore(
-		filepath.Join(baseDir, tufDir, filepath.FromSlash(gun.String()), "metadata"),
-		"json",
-	)
+	localStoreOpts, err := FileStoreOpts(baseDir, string(gun), retriever)
 	if err != nil {
 		return nil, err
 	}
-
-	keyStores, err := getKeyStores(baseDir, retriever)
+	remoteStoreOpt, err := HTTPStoreOpt(baseURL, string(gun), rt)
 	if err != nil {
 		return nil, err
 	}
+	opts := append(localStoreOpts, []RepositoryOpt{remoteStoreOpt, WithTrustPinning(trustPinning)}...)
 
-	cryptoService := cryptoservice.NewCryptoService(keyStores...)
-
-	remoteStore, err := getRemoteStore(baseURL, gun, rt)
-	if err != nil {
-		// baseURL is syntactically invalid
-		return nil, err
-	}
-
-	cl, err := changelist.NewFileChangelist(filepath.Join(
-		filepath.Join(baseDir, tufDir, filepath.FromSlash(gun.String()), "changelist"),
-	))
-	if err != nil {
-		return nil, err
-	}
-
-	return NewNotaryRepository(baseDir, gun, baseURL, remoteStore, cache, trustPinning, cryptoService, cl)
-}
-
-// NewNotaryRepository is the base method that returns a new notary repository.
-// It takes the base directory under where all the trust files will be stored
-// (This is normally defaults to "~/.notary" or "~/.docker/trust" when enabling
-// docker content trust).
-// It expects an initialized cache. In case of a nil remote store, a default
-// offline store is used.
-func NewNotaryRepository(baseDir string, gun data.GUN, baseURL string, remoteStore store.RemoteStore, cache store.MetadataStore,
-	trustPinning trustpinning.TrustPinConfig, cryptoService signed.CryptoService, cl changelist.Changelist) (
-	*NotaryRepository, error) {
-
-	// Repo's remote store is either a valid remote store or an OfflineStore
-	if remoteStore == nil {
-		remoteStore = store.OfflineStore{}
-	}
-
-	if cache == nil {
-		return nil, fmt.Errorf("got an invalid cache (nil metadata store)")
-	}
-
-	nRepo := &NotaryRepository{
-		gun:            gun,
-		baseURL:        baseURL,
-		baseDir:        baseDir,
-		changelist:     cl,
-		cache:          cache,
-		remoteStore:    remoteStore,
-		CryptoService:  cryptoService,
-		trustPinning:   trustPinning,
-		LegacyVersions: 0, // By default, don't sign with legacy roles
-	}
-
-	return nRepo, nil
+	return NewNotaryRepository(string(gun), baseURL, opts...), nil
 }
 
 // GetGUN is a getter for the GUN object from a NotaryRepository
