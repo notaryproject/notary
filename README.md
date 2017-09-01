@@ -39,6 +39,38 @@ Our last security audit was on July 31, 2015 by NCC ([results](docs/resources/nc
 
 Any security vulnerabilities can be reported to security@docker.com.
 
+### Comparative Analysis to other signing systems
+
+#### Features 
+
+Signing Mechanism | Provenance | Delegation | Key Rotation | Freshness | Thresholds
+--- | --- | --- | --- | --- | ---
+TUF | ✔ | ✔ | ✔ | ✔ | ✔  
+Notary | ✔ | ✔ | ✔ | ✔ | Partial
+Traditional Package Signing | ✔ | ❌  | ❌  | ❌  | ❌  
+rkt trust | ✔ | ❌  | ❌  | ❌  | ❌  
+Red Hat Container Image Signing | ✔ | ❌  | ❌  | ❌  | ❌  
+YUM | ✔ | ❌  | ❌  | ❌  | ❌  
+APT | ✔ | ❌  | ❌  | ❌  | ❌  
+PyPI | ✔ | ❌  | ❌  | ❌  | ❌  
+GPG | ✔ | ❌  | ❌  | ❌  | ❌  
+No Signing | Partial (TLS) | ❌  | ❌  | ❌  | ❌  
+
+#### Protection from attacks
+
+Signing Mechanism | Arbitrary Installation | Endless Data | Extraneous Dependencies | Fast Forward | Indefinite Freeze | Malicious Mirror | Mix-and-Match | Rollback | Slow Retrieval | Key Compromise | Wrong Installation
+--- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- 
+TUF | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ 
+Notary | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ 
+Traditional Package Signing | ✔ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌     
+rkt trust | ✔ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ 
+Red Hat Container Image Signing | ✔ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ 
+YUM | ✔ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ 
+APT | ✔ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ 
+PyPI | ✔ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ 
+GPG | ✔ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ 
+No Signing | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ 
+
 # Getting started with the Notary CLI
 
 Please get the Notary Client CLI binary from [the official releases page](https://github.com/docker/notary/releases) or you can [build one yourself](#building-notary).
