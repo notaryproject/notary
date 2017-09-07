@@ -1,11 +1,11 @@
 package data
 
 import (
+	"fmt"
 	"path"
 	"strings"
 	"testing"
 
-	"fmt"
 	"github.com/stretchr/testify/require"
 )
 

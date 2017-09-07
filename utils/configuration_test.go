@@ -10,10 +10,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/utils"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )

@@ -9,12 +9,13 @@ import (
 
 	"crypto/tls"
 	"crypto/x509"
-	"github.com/docker/notary/storage"
-	"github.com/docker/notary/trustmanager"
-	"google.golang.org/grpc/credentials"
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
+
+	"github.com/docker/notary/storage"
+	"github.com/docker/notary/trustmanager"
+	"google.golang.org/grpc/credentials"
 )
 
 type TestError struct{}

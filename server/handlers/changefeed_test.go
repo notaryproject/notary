@@ -4,10 +4,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
 	"github.com/docker/notary"
 	"github.com/docker/notary/server/storage"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
 

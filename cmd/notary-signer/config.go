@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/health"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/notary"
@@ -29,6 +28,7 @@ import (
 	"github.com/docker/notary/tuf/signed"
 	tufutils "github.com/docker/notary/tuf/utils"
 	"github.com/docker/notary/utils"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	ghealth "google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -124,9 +124,10 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, d
 			return nil, err
 		}
 		tlsOpts := tlsconfig.Options{
-			CAFile:   storeConfig.CA,
-			CertFile: storeConfig.Cert,
-			KeyFile:  storeConfig.Key,
+			CAFile:             storeConfig.CA,
+			CertFile:           storeConfig.Cert,
+			KeyFile:            storeConfig.Key,
+			ExclusiveRootPools: true,
 		}
 		if doBootstrap {
 			sess, err = rethinkdb.AdminConnection(tlsOpts, storeConfig.Source)

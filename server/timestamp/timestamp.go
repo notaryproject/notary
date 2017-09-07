@@ -11,9 +11,9 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary/server/snapshot"
 	"github.com/docker/notary/server/storage"
+	"github.com/sirupsen/logrus"
 )
 
 // GetOrCreateTimestampKey returns the timestamp key for the gun. It uses the store to
