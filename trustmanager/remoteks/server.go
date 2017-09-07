@@ -1,8 +1,8 @@
 package remoteks
 
 import (
-	"github.com/Sirupsen/logrus"
 	google_protobuf "github.com/golang/protobuf/ptypes/empty"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 
 	"github.com/docker/notary/trustmanager"

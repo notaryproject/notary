@@ -11,10 +11,10 @@ import (
 	"strings"
 
 	bugsnag_hook "github.com/Shopify/logrus-bugsnag"
-	"github.com/Sirupsen/logrus"
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/go-sql-driver/mysql"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
 	"github.com/docker/notary"
