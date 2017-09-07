@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cenk/backoff"
+	"github.com/hailocab/go-hostpool"
 	"github.com/sirupsen/logrus"
 )
 

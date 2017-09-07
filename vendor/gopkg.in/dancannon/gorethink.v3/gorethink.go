@@ -5,7 +5,6 @@ import (
 	"reflect"
 
 	"github.com/sirupsen/logrus"
-
 	"gopkg.in/gorethink/gorethink.v2/encoding"
 )
 
