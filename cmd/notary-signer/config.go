@@ -124,9 +124,10 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, d
 			return nil, err
 		}
 		tlsOpts := tlsconfig.Options{
-			CAFile:   storeConfig.CA,
-			CertFile: storeConfig.Cert,
-			KeyFile:  storeConfig.Key,
+			CAFile:             storeConfig.CA,
+			CertFile:           storeConfig.Cert,
+			KeyFile:            storeConfig.Key,
+			ExclusiveRootPools: true,
 		}
 		if doBootstrap {
 			sess, err = rethinkdb.AdminConnection(tlsOpts, storeConfig.Source)

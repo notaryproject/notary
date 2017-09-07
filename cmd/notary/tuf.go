@@ -938,6 +938,7 @@ func getTransport(config *viper.Viper, gun data.GUN, permission httpAccess) (htt
 		InsecureSkipVerify: insecureSkipVerify,
 		CertFile:           clientCert,
 		KeyFile:            clientKey,
+		ExclusiveRootPools: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to configure TLS: %s", err.Error())

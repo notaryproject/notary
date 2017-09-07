@@ -55,9 +55,10 @@ func GetPathRelativeToConfig(configuration *viper.Viper, key string) string {
 func ParseServerTLS(configuration *viper.Viper, tlsRequired bool) (*tls.Config, error) {
 	//  unmarshalling into objects does not seem to pick up env vars
 	tlsOpts := tlsconfig.Options{
-		CertFile: GetPathRelativeToConfig(configuration, "server.tls_cert_file"),
-		KeyFile:  GetPathRelativeToConfig(configuration, "server.tls_key_file"),
-		CAFile:   GetPathRelativeToConfig(configuration, "server.client_ca_file"),
+		CertFile:           GetPathRelativeToConfig(configuration, "server.tls_cert_file"),
+		KeyFile:            GetPathRelativeToConfig(configuration, "server.tls_key_file"),
+		CAFile:             GetPathRelativeToConfig(configuration, "server.client_ca_file"),
+		ExclusiveRootPools: true,
 	}
 	if tlsOpts.CAFile != "" {
 		tlsOpts.ClientAuth = tls.RequireAndVerifyClientCert

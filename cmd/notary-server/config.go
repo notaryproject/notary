@@ -67,9 +67,10 @@ func grpcTLS(configuration *viper.Viper) (*tls.Config, error) {
 	}
 
 	tlsConfig, err := tlsconfig.Client(tlsconfig.Options{
-		CAFile:   rootCA,
-		CertFile: clientCert,
-		KeyFile:  clientKey,
+		CAFile:             rootCA,
+		CertFile:           clientCert,
+		KeyFile:            clientKey,
+		ExclusiveRootPools: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf(
@@ -106,9 +107,10 @@ func getStore(configuration *viper.Viper, hRegister healthRegister, doBootstrap 
 			return nil, err
 		}
 		tlsOpts := tlsconfig.Options{
-			CAFile:   storeConfig.CA,
-			CertFile: storeConfig.Cert,
-			KeyFile:  storeConfig.Key,
+			CAFile:             storeConfig.CA,
+			CertFile:           storeConfig.Cert,
+			KeyFile:            storeConfig.Key,
+			ExclusiveRootPools: true,
 		}
 		if doBootstrap {
 			sess, err = rethinkdb.AdminConnection(tlsOpts, storeConfig.Source)

@@ -20,7 +20,7 @@ import (
 	"gopkg.in/dancannon/gorethink.v3"
 )
 
-var tlsOpts = tlsconfig.Options{InsecureSkipVerify: true}
+var tlsOpts = tlsconfig.Options{InsecureSkipVerify: true, ExclusiveRootPools: true}
 var rdbNow = time.Date(2016, 12, 31, 1, 1, 1, 0, time.UTC)
 
 func rethinkSessionSetup(t *testing.T) (*gorethink.Session, string) {
