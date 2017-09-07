@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/health"
 	_ "github.com/docker/distribution/registry/auth/htpasswd"
 	_ "github.com/docker/distribution/registry/auth/token"
@@ -23,6 +22,7 @@ import (
 	"github.com/docker/notary/utils"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"golang.org/x/net/context"
 	"gopkg.in/dancannon/gorethink.v3"
@@ -67,9 +67,10 @@ func grpcTLS(configuration *viper.Viper) (*tls.Config, error) {
 	}
 
 	tlsConfig, err := tlsconfig.Client(tlsconfig.Options{
-		CAFile:   rootCA,
-		CertFile: clientCert,
-		KeyFile:  clientKey,
+		CAFile:             rootCA,
+		CertFile:           clientCert,
+		KeyFile:            clientKey,
+		ExclusiveRootPools: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf(
@@ -106,9 +107,10 @@ func getStore(configuration *viper.Viper, hRegister healthRegister, doBootstrap 
 			return nil, err
 		}
 		tlsOpts := tlsconfig.Options{
-			CAFile:   storeConfig.CA,
-			CertFile: storeConfig.Cert,
-			KeyFile:  storeConfig.Key,
+			CAFile:             storeConfig.CA,
+			CertFile:           storeConfig.Cert,
+			KeyFile:            storeConfig.Key,
+			ExclusiveRootPools: true,
 		}
 		if doBootstrap {
 			sess, err = rethinkdb.AdminConnection(tlsOpts, storeConfig.Source)

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/health"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/auth"
@@ -18,6 +17,7 @@ import (
 	"github.com/docker/notary/utils"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 

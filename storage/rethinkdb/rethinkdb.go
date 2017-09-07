@@ -3,8 +3,8 @@ package rethinkdb
 import (
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/dancannon/gorethink.v3"
 )
 

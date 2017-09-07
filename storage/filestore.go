@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
+	"github.com/sirupsen/logrus"
 )
 
 // NewFileStore creates a fully configurable file store

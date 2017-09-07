@@ -9,10 +9,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary"
 	tufdata "github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
+	"github.com/sirupsen/logrus"
 )
 
 // Exporter is a simple interface for the two functions we need from the Storage interface
