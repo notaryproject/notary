@@ -337,13 +337,13 @@ func setUpRepo(t *testing.T, tempBaseDir string, gun data.GUN, ret notary.PassRe
 		tempBaseDir, gun, ts.URL, http.DefaultTransport, ret, trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
-	rootPubKey, err := repo.CryptoService().Create(data.CanonicalRootRole, "", data.ECDSAKey)
+	rootPubKey, err := repo.GetCryptoService().Create(data.CanonicalRootRole, "", data.ECDSAKey)
 	require.NoError(t, err, "error generating root key: %s", err)
 
 	err = repo.Initialize([]string{rootPubKey.ID()})
 	require.NoError(t, err)
 
-	return ts, repo.CryptoService().ListAllKeys()
+	return ts, repo.GetCryptoService().ListAllKeys()
 }
 
 // The command line uses NotaryRepository's RotateKey - this is just testing
@@ -383,7 +383,7 @@ func TestRotateKeyRemoteServerManagesKey(t *testing.T) {
 		require.NoError(t, err, "unable to get changelist: %v", err)
 		require.Len(t, cl.List(), 0, "expected the changes to have been published")
 
-		finalKeys := repo.CryptoService().ListAllKeys()
+		finalKeys := repo.GetCryptoService().ListAllKeys()
 		// no keys have been created, since a remote key was specified
 		if role == data.CanonicalSnapshotRole.String() {
 			require.Len(t, finalKeys, 2)
@@ -438,7 +438,7 @@ func TestRotateKeyBothKeys(t *testing.T) {
 	require.Len(t, cl.List(), 0)
 
 	// two new keys have been created, and the old keys should still be gone
-	newKeys := repo.CryptoService().ListAllKeys()
+	newKeys := repo.GetCryptoService().ListAllKeys()
 	// there should be 3 keys - snapshot, targets, and root
 	require.Len(t, newKeys, 3)
 
@@ -499,7 +499,7 @@ func TestRotateKeyRootIsInteractive(t *testing.T) {
 	require.NoError(t, err, "error creating repo: %s", err)
 
 	// There should still just be one root key (and one targets and one snapshot)
-	allKeys := repo.CryptoService().ListAllKeys()
+	allKeys := repo.GetCryptoService().ListAllKeys()
 	require.Len(t, allKeys, 3)
 }
 

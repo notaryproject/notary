@@ -41,7 +41,7 @@ type Repository interface {
 	// Key Operations
 	RotateKey(role data.RoleName, serverManagesKey bool, keyList []string) error
 
-	CryptoService() signed.CryptoService
+	GetCryptoService() signed.CryptoService
 	SetLegacyVersions(int)
 	GetGUN() data.GUN
 }

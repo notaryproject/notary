@@ -418,13 +418,13 @@ func importRootKey(cmd *cobra.Command, rootKey string, nRepo notaryclient.Reposi
 			return nil, err
 		}
 		// add root key to repo
-		err = nRepo.CryptoService().AddKey(data.CanonicalRootRole, "", privKey)
+		err = nRepo.GetCryptoService().AddKey(data.CanonicalRootRole, "", privKey)
 		if err != nil {
 			return nil, fmt.Errorf("Error importing key: %v", err)
 		}
 		rootKeyList = []string{privKey.ID()}
 	} else {
-		rootKeyList = nRepo.CryptoService().ListKeys(data.CanonicalRootRole)
+		rootKeyList = nRepo.GetCryptoService().ListKeys(data.CanonicalRootRole)
 	}
 
 	if len(rootKeyList) > 0 {
