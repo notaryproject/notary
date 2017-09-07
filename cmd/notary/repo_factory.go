@@ -31,7 +31,7 @@ func ConfigureRepo(v *viper.Viper, retriever notary.PassRetriever, onlineOperati
 				return nil, err
 			}
 		}
-		return client.NewFileCachedNotaryRepository(
+		return client.NewFileCachedRepository(
 			v.GetString("trust_dir"),
 			gun,
 			getRemoteTrustServer(v),

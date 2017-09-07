@@ -3,10 +3,9 @@ package remoteks
 import (
 	"testing"
 
+	"github.com/docker/notary/storage"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
-
-	"github.com/docker/notary/storage"
 )
 
 func TestNewGRPCStorage(t *testing.T) {
