@@ -1,8 +1,9 @@
 package trustpinning
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestWildcardMatch(t *testing.T) {

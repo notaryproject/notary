@@ -282,10 +282,11 @@ func TestConfigFileTLSCannotBeRelativeToCWD(t *testing.T) {
 	m := &recordingMetaStore{MemStorage: *storage.NewMemStorage()}
 	s := httptest.NewUnstartedServer(setupServerHandler(m))
 	s.TLS, err = tlsconfig.Server(tlsconfig.Options{
-		CertFile:   "../../fixtures/notary-server.crt",
-		KeyFile:    "../../fixtures/notary-server.key",
-		CAFile:     "../../fixtures/root-ca.crt",
-		ClientAuth: tls.RequireAndVerifyClientCert,
+		CertFile:           "../../fixtures/notary-server.crt",
+		KeyFile:            "../../fixtures/notary-server.key",
+		CAFile:             "../../fixtures/root-ca.crt",
+		ClientAuth:         tls.RequireAndVerifyClientCert,
+		ExclusiveRootPools: true,
 	})
 	require.NoError(t, err)
 	s.StartTLS()
@@ -326,10 +327,11 @@ func TestConfigFileTLSCanBeRelativeToConfigOrAbsolute(t *testing.T) {
 	m := &recordingMetaStore{MemStorage: *storage.NewMemStorage()}
 	s := httptest.NewUnstartedServer(setupServerHandler(m))
 	s.TLS, err = tlsconfig.Server(tlsconfig.Options{
-		CertFile:   "../../fixtures/notary-server.crt",
-		KeyFile:    "../../fixtures/notary-server.key",
-		CAFile:     "../../fixtures/root-ca.crt",
-		ClientAuth: tls.RequireAndVerifyClientCert,
+		CertFile:           "../../fixtures/notary-server.crt",
+		KeyFile:            "../../fixtures/notary-server.key",
+		CAFile:             "../../fixtures/root-ca.crt",
+		ClientAuth:         tls.RequireAndVerifyClientCert,
+		ExclusiveRootPools: true,
 	})
 	require.NoError(t, err)
 	s.StartTLS()
@@ -380,10 +382,11 @@ func TestConfigFileOverridenByCmdLineFlags(t *testing.T) {
 	m := &recordingMetaStore{MemStorage: *storage.NewMemStorage()}
 	s := httptest.NewUnstartedServer(setupServerHandler(m))
 	s.TLS, err = tlsconfig.Server(tlsconfig.Options{
-		CertFile:   "../../fixtures/notary-server.crt",
-		KeyFile:    "../../fixtures/notary-server.key",
-		CAFile:     "../../fixtures/root-ca.crt",
-		ClientAuth: tls.RequireAndVerifyClientCert,
+		CertFile:           "../../fixtures/notary-server.crt",
+		KeyFile:            "../../fixtures/notary-server.key",
+		CAFile:             "../../fixtures/root-ca.crt",
+		ClientAuth:         tls.RequireAndVerifyClientCert,
+		ExclusiveRootPools: true,
 	})
 	require.NoError(t, err)
 	s.StartTLS()

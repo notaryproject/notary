@@ -11,10 +11,10 @@ import (
 	"strings"
 
 	bugsnag_hook "github.com/Shopify/logrus-bugsnag"
-	"github.com/Sirupsen/logrus"
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/go-sql-driver/mysql"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
 	"github.com/docker/notary"
@@ -55,9 +55,10 @@ func GetPathRelativeToConfig(configuration *viper.Viper, key string) string {
 func ParseServerTLS(configuration *viper.Viper, tlsRequired bool) (*tls.Config, error) {
 	//  unmarshalling into objects does not seem to pick up env vars
 	tlsOpts := tlsconfig.Options{
-		CertFile: GetPathRelativeToConfig(configuration, "server.tls_cert_file"),
-		KeyFile:  GetPathRelativeToConfig(configuration, "server.tls_key_file"),
-		CAFile:   GetPathRelativeToConfig(configuration, "server.client_ca_file"),
+		CertFile:           GetPathRelativeToConfig(configuration, "server.tls_cert_file"),
+		KeyFile:            GetPathRelativeToConfig(configuration, "server.tls_key_file"),
+		CAFile:             GetPathRelativeToConfig(configuration, "server.client_ca_file"),
+		ExclusiveRootPools: true,
 	}
 	if tlsOpts.CAFile != "" {
 		tlsOpts.ClientAuth = tls.RequireAndVerifyClientCert
