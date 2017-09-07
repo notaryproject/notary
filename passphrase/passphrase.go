@@ -4,6 +4,7 @@ package passphrase
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -204,6 +205,11 @@ func GetPassphrase(in *bufio.Reader) ([]byte, error) {
 		passphrase, err = terminal.ReadPassword(int(os.Stdin.Fd()))
 	} else {
 		passphrase, err = in.ReadBytes('\n')
+
+		// solves issues with scripting notary on Windows. Also valid per NIST
+		// guidelines that permit stripping all whitespace, not just leading
+		// and trailing.
+		passphrase = bytes.Trim(passphrase, "\r\n")
 	}
 
 	return passphrase, err
