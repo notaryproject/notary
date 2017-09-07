@@ -63,7 +63,7 @@ func (f *FilesystemStore) moveKeyTo0Dot4Location(file string) {
 	fileDir = strings.TrimPrefix(fileDir, notary.RootKeysSubdir)
 	fileDir = strings.TrimPrefix(fileDir, notary.NonRootKeysSubdir)
 	if fileDir != "" {
-		block.Headers["gun"] = fileDir[1:]
+		block.Headers["gun"] = filepath.ToSlash(fileDir[1:])
 	}
 	if strings.Contains(keyID, "_") {
 		role := strings.Split(keyID, "_")[1]
