@@ -22,7 +22,7 @@ import (
 
 // Once a fixture is read in, ensure that it's valid by making sure the expiry
 // times of all the metadata and certificates is > 10 years ahead
-func requireValidFixture(t *testing.T, notaryRepo *NotaryRepository) {
+func requireValidFixture(t *testing.T, notaryRepo *repository) {
 	tenYearsInFuture := time.Now().AddDate(10, 0, 0)
 	require.True(t, notaryRepo.tufRepo.Root.Signed.Expires.After(tenYearsInFuture))
 	require.True(t, notaryRepo.tufRepo.Snapshot.Signed.Expires.After(tenYearsInFuture))
@@ -90,7 +90,7 @@ func Test0Dot1Migration(t *testing.T) {
 	ts := fullTestServer(t)
 	defer ts.Close()
 
-	_, err = NewFileCachedNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
+	_, err = NewFileCachedRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
@@ -138,7 +138,7 @@ func Test0Dot3Migration(t *testing.T) {
 	ts := fullTestServer(t)
 	defer ts.Close()
 
-	_, err = NewFileCachedNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
+	_, err = NewFileCachedRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
@@ -197,9 +197,10 @@ func Test0Dot1RepoFormat(t *testing.T) {
 	ts := fullTestServer(t)
 	defer ts.Close()
 
-	repo, err := NewFileCachedNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
+	r, err := NewFileCachedRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
+	repo := r.(*repository)
 
 	// targets should have 1 target, and it should be readable offline
 	targets, err := repo.ListTargets()
@@ -260,9 +261,10 @@ func Test0Dot3RepoFormat(t *testing.T) {
 	ts := fullTestServer(t)
 	defer ts.Close()
 
-	repo, err := NewFileCachedNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
+	r, err := NewFileCachedRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
+	repo := r.(*repository)
 
 	// targets should have 1 target, and it should be readable offline
 	targets, err := repo.ListTargets()
@@ -326,9 +328,10 @@ func TestDownloading0Dot1RepoFormat(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(repoDir)
 
-	repo, err := NewFileCachedNotaryRepository(repoDir, gun, ts.URL, http.DefaultTransport,
+	r, err := NewFileCachedRepository(repoDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
+	repo := r.(*repository)
 
 	err = repo.Update(true)
 	require.NoError(t, err, "error updating repo: %s", err)
@@ -351,9 +354,10 @@ func TestDownloading0Dot3RepoFormat(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(repoDir)
 
-	repo, err := NewFileCachedNotaryRepository(repoDir, gun, ts.URL, http.DefaultTransport,
+	r, err := NewFileCachedRepository(repoDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
+	repo := r.(*repository)
 
 	err = repo.Update(true)
 	require.NoError(t, err, "error updating repo: %s", err)

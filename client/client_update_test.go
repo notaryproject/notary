@@ -26,15 +26,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newBlankRepo(t *testing.T, url string) *NotaryRepository {
+func newBlankRepo(t *testing.T, url string) *repository {
 	// Temporary directory where test files will be created
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
 
-	repo, err := NewFileCachedNotaryRepository(tempBaseDir, "docker.com/notary", url,
+	r, err := NewFileCachedRepository(tempBaseDir, "docker.com/notary", url,
 		http.DefaultTransport, passphrase.ConstantRetriever("pass"), trustpinning.TrustPinConfig{})
 	require.NoError(t, err)
-	return repo
+	return r.(*repository)
 }
 
 var metadataDelegations = []data.RoleName{"targets/a", "targets/a/b", "targets/b", "targets/a/b/c", "targets/b/c"}
@@ -207,9 +207,10 @@ func TestUpdateInOfflineMode(t *testing.T) {
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
 	defer os.RemoveAll(tempBaseDir)
 
-	offlineRepo, err := NewFileCachedNotaryRepository(tempBaseDir, "docker.com/notary", "https://nope",
+	or, err := NewFileCachedRepository(tempBaseDir, "docker.com/notary", "https://nope",
 		nil, passphrase.ConstantRetriever("pass"), trustpinning.TrustPinConfig{})
 	require.NoError(t, err)
+	offlineRepo := or.(*repository)
 	err = offlineRepo.Update(false)
 	require.Error(t, err)
 	require.IsType(t, store.ErrOffline{}, err)
@@ -403,7 +404,7 @@ type updateOpts struct {
 	forWrite         bool          // whether the update is for writing or not (force check remote root.json)
 	role             data.RoleName // the role to mess up on the server
 
-	checkRepo func(*NotaryRepository, *testutils.MetadataSwizzler) // a callback that can examine the repo at the end
+	checkRepo func(*repository, *testutils.MetadataSwizzler) // a callback that can examine the repo at the end
 }
 
 // If there's no local cache, we go immediately to check the remote server for
@@ -1171,8 +1172,8 @@ func TestUpdateNonRootRemoteCorruptedCanUseLocalCache(t *testing.T) {
 
 // requires that a delegation role and its descendants were not accepted as a valid part of the
 // TUF repo, but everything else was
-func checkBadDelegationRoleSkipped(t *testing.T, delgRoleName string) func(*NotaryRepository, *testutils.MetadataSwizzler) {
-	return func(repo *NotaryRepository, s *testutils.MetadataSwizzler) {
+func checkBadDelegationRoleSkipped(t *testing.T, delgRoleName string) func(*repository, *testutils.MetadataSwizzler) {
+	return func(repo *repository, s *testutils.MetadataSwizzler) {
 		for _, roleName := range s.Roles {
 			if roleName != data.CanonicalTargetsRole && !data.IsDelegation(roleName) {
 				continue

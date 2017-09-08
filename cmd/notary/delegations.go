@@ -103,7 +103,7 @@ func (d *delegationCommander) delegationPurgeKeys(cmd *cobra.Command, args []str
 		return err
 	}
 
-	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
+	nRepo, err := notaryclient.NewFileCachedRepository(
 		config.GetString("trust_dir"),
 		gun,
 		getRemoteTrustServer(config),
@@ -153,7 +153,7 @@ func (d *delegationCommander) delegationsList(cmd *cobra.Command, args []string)
 	}
 
 	// initialize repo with transport to get latest state of the world before listing delegations
-	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
+	nRepo, err := notaryclient.NewFileCachedRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, d.retriever, trustPin)
 	if err != nil {
 		return err
@@ -184,7 +184,7 @@ func (d *delegationCommander) delegationRemove(cmd *cobra.Command, args []string
 
 	// no online operations are performed by add so the transport argument
 	// should be nil
-	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
+	nRepo, err := notaryclient.NewFileCachedRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, d.retriever, trustPin)
 	if err != nil {
 		return err
@@ -314,7 +314,7 @@ func (d *delegationCommander) delegationAdd(cmd *cobra.Command, args []string) e
 
 	// no online operations are performed by add so the transport argument
 	// should be nil
-	nRepo, err := notaryclient.NewFileCachedNotaryRepository(
+	nRepo, err := notaryclient.NewFileCachedRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, d.retriever, trustPin)
 	if err != nil {
 		return err
