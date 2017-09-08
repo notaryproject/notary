@@ -198,9 +198,7 @@ class Tester(object):
             targets1)
 
         self.client.run(
-            ["verify", self.repo_name, "basic_repo_test", "-i", tempfile, "-q"], self.dir,
-            # skip username/password since this is an offline operation
-            username_passwd=())
+            ["verify", self.repo_name, "basic_repo_test", "-i", tempfile, "-q"], self.dir)
 
         changes = self.client.changefeed(gun=self.repo_name)
         assert changes["count"] == 1
