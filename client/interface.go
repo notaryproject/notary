@@ -12,6 +12,7 @@ type Repository interface {
 	Initialize(rootKeyIDs []string, serverManagedRoles ...data.RoleName) error
 	InitializeWithCertificate(rootKeyIDs []string, rootCerts []data.PublicKey, serverManagedRoles ...data.RoleName) error
 	Publish() error
+	Update(forWrite bool) error
 
 	// Target Operations
 	AddTarget(target *Target, roles ...data.RoleName) error
