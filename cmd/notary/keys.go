@@ -98,6 +98,8 @@ type keyCommander struct {
 	exportGUNs    []string
 	exportKeyIDs  []string
 	outFile       string
+
+	autoConfirm bool
 }
 
 func (k *keyCommander) GetCommand() *cobra.Command {
@@ -130,6 +132,7 @@ func (k *keyCommander) GetCommand() *cobra.Command {
 		nil,
 		"New key(s) to rotate to. If not specified, one will be generated.",
 	)
+	cmdRotateKey.Flags().BoolVarP(&k.autoConfirm, "yes", "y", false, "skip confirmation dialog when rotating root role")
 	cmd.AddCommand(cmdRotateKey)
 
 	cmdKeysImport := cmdKeyImportTemplate.ToCommand(k.importKeys)
@@ -331,7 +334,7 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 		keyList = append(keyList, privKey.ID())
 	}
 
-	if rotateKeyRole == data.CanonicalRootRole {
+	if !k.autoConfirm && rotateKeyRole == data.CanonicalRootRole {
 		cmd.Print("Warning: you are about to rotate your root key.\n\n" +
 			"You must use your old key to sign this root rotation.\n" +
 			"Are you sure you want to proceed?  (yes/no)  ")
