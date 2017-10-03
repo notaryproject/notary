@@ -228,8 +228,5 @@ func loadFromStore(gun data.GUN, roleName data.RoleName, builder tuf.RepoBuilder
 	if err != nil {
 		return err
 	}
-	if err := builder.Load(roleName, metaJSON, 1, true); err != nil {
-		return err
-	}
-	return nil
+	return builder.Load(roleName, metaJSON, 1, true)
 }
