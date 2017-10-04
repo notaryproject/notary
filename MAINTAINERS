@@ -13,7 +13,6 @@
 		people = [
 			"cyli",
 			"diogomonica",
-			"dmcgowan",
 			"endophage",
 			"ecordell",
 			"hukeping",
@@ -38,11 +37,6 @@
 	Name = "Diogo Monica"
 	Email = "diogo@docker.com"
 	GitHub = "diogomonica"
-
-	[people.dmcgowan]
-	Name = "Derek McGowan"
-	Email = "derek@docker.com"
-	GitHub = "dmcgowan"
 
 	[people.endophage]
 	Name = "David Lawrence"
