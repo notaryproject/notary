@@ -1,4 +1,5 @@
-# Notary
+<img src="docs/images/notary-blk.svg" alt="Notary" width="400px"/>
+
 [![Circle CI](https://circleci.com/gh/docker/notary/tree/master.svg?style=shield)](https://circleci.com/gh/docker/notary/tree/master) [![CodeCov](https://codecov.io/github/docker/notary/coverage.svg?branch=master)](https://codecov.io/github/docker/notary) [![GoReportCard](https://goreportcard.com/badge/docker/notary)](https://goreportcard.com/report/github.com/docker/notary)
 
 The Notary project comprises a [server](cmd/notary-server) and a [client](cmd/notary) for running and interacting
