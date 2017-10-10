@@ -71,7 +71,7 @@ var cmdKeyPasswdTemplate = usageTemplate{
 var cmdKeyImportTemplate = usageTemplate{
 	Use:   "import pemfile [ pemfile ... ]",
 	Short: "Imports all keys from all provided .pem files",
-	Long:  "Imports all keys from all provided .pem files by reading each PEM block from the file and writing that block to a unique object in the local keystore. A Yubikey will be the prefferred import location for root keys if present.",
+	Long:  "Imports all keys from all provided .pem files by reading each PEM block from the file and writing that block to a unique object in the local keystore. A Yubikey will be the preferred import location for root keys if present.",
 }
 
 var cmdKeyExportTemplate = usageTemplate{
@@ -91,6 +91,8 @@ type keyCommander struct {
 	rotateKeyFiles         []string
 	legacyVersions         int
 	input                  io.Reader
+	rootCert               []string
+	autoConfirm            bool
 
 	importRole    string
 	generateRole  string
@@ -130,6 +132,8 @@ func (k *keyCommander) GetCommand() *cobra.Command {
 		nil,
 		"New key(s) to rotate to. If not specified, one will be generated.",
 	)
+	cmdRotateKey.Flags().StringSliceVar(&k.rootCert, "rootcert", nil, "Public key(s) to rotate to, potentially corresponding to private key(s)")
+	cmdRotateKey.Flags().BoolVarP(&k.autoConfirm, "yes", "y", false, "Auto-confirm rotating root role")
 	cmd.AddCommand(cmdRotateKey)
 
 	cmdKeysImport := cmdKeyImportTemplate.ToCommand(k.importKeys)
@@ -317,21 +321,7 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var keyList []string
-
-	for _, keyFile := range k.rotateKeyFiles {
-		privKey, err := readKey(rotateKeyRole, keyFile, k.getRetriever())
-		if err != nil {
-			return err
-		}
-		err = nRepo.GetCryptoService().AddKey(rotateKeyRole, gun, privKey)
-		if err != nil {
-			return fmt.Errorf("Error importing key: %v", err)
-		}
-		keyList = append(keyList, privKey.ID())
-	}
-
-	if rotateKeyRole == data.CanonicalRootRole {
+	if !k.autoConfirm && rotateKeyRole == data.CanonicalRootRole {
 		cmd.Print("Warning: you are about to rotate your root key.\n\n" +
 			"You must use your old key to sign this root rotation.\n" +
 			"Are you sure you want to proceed?  (yes/no)  ")
@@ -341,11 +331,75 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 	}
+
+	retriver := k.getRetriever()
+	keyList, err := preparePrivateKeyListForRotation(k.rotateKeyFiles, gun, rotateKeyRole, &nRepo, &retriver)
+	if err != nil {
+		return err
+	}
+
+	certList, err := preparePubKeyListForRotation(rotateKeyRole, k.rootCert)
+	if err != nil {
+		return err
+	}
+
 	nRepo.SetLegacyVersions(k.legacyVersions)
-	if err := nRepo.RotateKey(rotateKeyRole, k.rotateKeyServerManaged, keyList); err != nil {
+	if err := nRepo.RotateKeyWithCert(rotateKeyRole, k.rotateKeyServerManaged, keyList, certList); err != nil {
 		return err
 	}
 	cmd.Printf("Successfully rotated %s key for repository %s\n", rotateKeyRole, gun)
+	return nil
+}
+
+// given a list of path to private keys, import them to the crypto service and return a list of key IDs
+func preparePrivateKeyListForRotation(rotateKeyFiles []string, gun data.GUN, role data.RoleName,
+	repo *notaryclient.Repository, retriver *notary.PassRetriever) (keyList []string, err error) {
+
+	crypto := (*repo).GetCryptoService()
+	for _, keyFile := range rotateKeyFiles {
+		privKey, err := readKey(role, keyFile, *retriver)
+		if err != nil {
+			return nil, err
+		}
+		err = crypto.AddKey(role, gun, privKey)
+		if err != nil {
+			return nil, fmt.Errorf("Error importing key: %v", err)
+		}
+		keyList = append(keyList, privKey.ID())
+	}
+
+	return
+}
+
+// given a list of path to certificates, return a list of public keys
+func preparePubKeyListForRotation(role data.RoleName, pubKeys []string) (certList data.KeyList, err error) {
+	if role == data.CanonicalRootRole {
+		for _, c := range pubKeys {
+			crt, err := importRootCert(c)
+			if err != nil {
+				return nil, err
+			}
+			certList = append(certList, crt[0])
+		}
+	}
+	return
+}
+
+// checkRootCert validates the cli flags argument.
+// cases result in no err:
+// 1. 0 key 0 cert
+// 2. n keys m cert
+// 3. n keys 0 cert
+// 4. n cert (stored key)
+func checkRootCert(k *keyCommander, rotateKeyRole data.RoleName) error {
+	if len(k.rootCert) != 0 {
+		//role is not "root" then error
+		if rotateKeyRole != data.CanonicalRootRole {
+			return fmt.Errorf("error: importing certificate is only supported for root role")
+		} else if len(k.rotateKeyFiles) != 0 && len(k.rootCert) < len(k.rotateKeyFiles) {
+			return fmt.Errorf("error: each key must have a matching certificate but received %v keys and %v certificates", len(k.rotateKeyFiles), len(k.rootCert))
+		}
+	}
 	return nil
 }
 

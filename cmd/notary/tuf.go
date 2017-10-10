@@ -410,8 +410,8 @@ func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
 // importRootKey imports the root key from path then adds the key to repo
 // returns key ids
 func importRootKey(cmd *cobra.Command, rootKey string, nRepo notaryclient.Repository, retriever notary.PassRetriever) ([]string, error) {
-	var rootKeyList []string
 
+	rootKeyList := nRepo.GetCryptoService().ListKeys(data.CanonicalRootRole)
 	if rootKey != "" {
 		privKey, err := readKey(data.CanonicalRootRole, rootKey, retriever)
 		if err != nil {
@@ -423,8 +423,6 @@ func importRootKey(cmd *cobra.Command, rootKey string, nRepo notaryclient.Reposi
 			return nil, fmt.Errorf("Error importing key: %v", err)
 		}
 		rootKeyList = []string{privKey.ID()}
-	} else {
-		rootKeyList = nRepo.GetCryptoService().ListKeys(data.CanonicalRootRole)
 	}
 
 	if len(rootKeyList) > 0 {
@@ -443,10 +441,6 @@ func importRootKey(cmd *cobra.Command, rootKey string, nRepo notaryclient.Reposi
 // returns empty slice if path is empty
 func importRootCert(certFilePath string) ([]data.PublicKey, error) {
 	publicKeys := make([]data.PublicKey, 0, 1)
-
-	if certFilePath == "" {
-		return publicKeys, nil
-	}
 
 	// read certificate from file
 	certPEM, err := ioutil.ReadFile(certFilePath)
@@ -491,9 +485,12 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	rootCerts, err := importRootCert(t.rootCert)
-	if err != nil {
-		return err
+	var rootCerts []data.PublicKey
+	if t.rootCert != "" {
+		rootCerts, err = importRootCert(t.rootCert)
+		if err != nil {
+			return err
+		}
 	}
 
 	// if key is not defined but cert is, then clear the key to to allow key to be searched in keystore
