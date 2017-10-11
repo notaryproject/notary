@@ -1425,15 +1425,27 @@ func assertNumKeys(t *testing.T, tempDir string, numRoot, numSigning int,
 	root, signing := getUniqueKeys(t, tempDir)
 	require.Len(t, root, numRoot, msg...)
 	require.Len(t, signing, numSigning, msg...)
+
+	// Root key will be stored both locally and on HSM when initializing a repository with HSM.
+	// All subsequent actions will only create root key on HSM if aviliable.
+	// This variable keeps record of any initial root key on both HSM and in FS.
+	// It can be set to true only once and fails the test if more than 1 root key exit
+	// on FS and in HSM.
+	rootKeyOnHSMAndOnDisk := false
 	for _, rootKeyID := range root {
 		_, err := os.Stat(filepath.Join(
 			tempDir, notary.PrivDir, rootKeyID+".key"))
 		// os.IsExist checks to see if the error is because a file already
 		// exists, and hence it isn't actually the right function to use here
-		require.Equal(t, rootOnDisk, !os.IsNotExist(err), msg...)
-
-		// this function is declared is in the build-tagged setup files
-		verifyRootKeyOnHardware(t, rootKeyID)
+		isExist := !os.IsNotExist(err)
+		if isExist && !rootKeyOnHSMAndOnDisk {
+			// this function is declared is in the build-tagged setup files
+			verifyRootKeyOnHardware(t, rootKeyID)
+			rootKeyOnHSMAndOnDisk = true
+		} else {
+			require.Equal(t, rootOnDisk, isExist, msg...)
+			verifyRootKeyOnHardware(t, rootKeyID)
+		}
 	}
 	return root, signing
 }
@@ -1750,7 +1762,7 @@ func TestRootKeyRotationWithCert(t *testing.T) {
 	nonMatchingKey, cert2 := nonMatchingKeyPairFilenames(t, tempDir)
 
 	// starts out with no keys
-	assertNumKeys(t, tempDir, 0, 0, true)
+	assertNumKeys(t, tempDir, 0, 0, !rootOnHardware())
 
 	// initialize a repo, should have signing keys and no new root key
 	out, err := runCommand(t, tempDir, "-s", server.URL, "init", gun)
@@ -1762,7 +1774,7 @@ func TestRootKeyRotationWithCert(t *testing.T) {
 	privKey2, _ := genKeyPairFN(t, tempDir, "credentials2", data.GUN(gun))
 	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "import", privKey2)
 	require.NoError(t, err, "importing key failed")
-	assertNumKeys(t, tempDir, 2, 2, true, out)
+	assertNumKeys(t, tempDir, 2, 2, !rootOnHardware(), out)
 
 	// confirm 2 root keys and 2 signing keys are present. Do not make assumption where the root keys are located.
 	// this is because keys are either imported into yubikey or to disk if yubikey is not present
