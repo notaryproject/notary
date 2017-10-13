@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -307,4 +308,31 @@ func TestPasswordStore(t *testing.T) {
 		ps.SetRefreshToken(myurl, "someService", "token") // doesn't return an error, just want to make sure no state changes
 		require.Equal(t, "", ps.RefreshToken(myurl, "someService"))
 	}
+}
+
+func TestPasswordStoreWithEnvvar(t *testing.T) {
+	myurl, err := url.Parse("https://docker.io")
+	require.NoError(t, err)
+
+	ps := passwordStore{}
+
+	creds := base64.StdEncoding.EncodeToString([]byte("me:mypassword"))
+	os.Setenv("NOTARY_AUTH", creds)
+
+	username, passwd := ps.Basic(myurl)
+	require.Equal(t, "me", username)
+	require.Equal(t, "mypassword", passwd)
+
+	creds = base64.StdEncoding.EncodeToString([]byte(":mypassword"))
+	os.Setenv("NOTARY_AUTH", creds)
+
+	username, passwd = ps.Basic(myurl)
+	require.Equal(t, "", username)
+	require.Equal(t, "", passwd)
+
+	os.Setenv("NOTARY_AUTH", "not-base64-encoded")
+
+	username, passwd = ps.Basic(myurl)
+	require.Equal(t, "", username)
+	require.Equal(t, "", passwd)
 }
