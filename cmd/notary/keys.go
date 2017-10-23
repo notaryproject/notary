@@ -21,7 +21,6 @@ import (
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	tufutils "github.com/docker/notary/tuf/utils"
-	"github.com/docker/notary/utils"
 )
 
 var cmdKeyTemplate = usageTemplate{
@@ -524,7 +523,7 @@ func (k *keyCommander) importKeys(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		defer from.Close()
-		if err = utils.ImportKeys(from, importers, k.importRole, k.keysImportGUN, k.getRetriever()); err != nil {
+		if err = trustmanager.ImportKeys(from, importers, k.importRole, k.keysImportGUN, k.getRetriever()); err != nil {
 			return err
 		}
 	}
@@ -566,15 +565,15 @@ func (k *keyCommander) exportKeys(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("Only the --gun or --key flag may be provided, not a mix of the two flags")
 		}
 		for _, gun := range k.exportGUNs {
-			return utils.ExportKeysByGUN(out, fileStore, gun)
+			return trustmanager.ExportKeysByGUN(out, fileStore, gun)
 		}
 	} else if len(k.exportKeyIDs) > 0 {
-		return utils.ExportKeysByID(out, fileStore, k.exportKeyIDs)
+		return trustmanager.ExportKeysByID(out, fileStore, k.exportKeyIDs)
 	}
 	// export everything
 	keys := fileStore.ListFiles()
 	for _, k := range keys {
-		err := utils.ExportKeys(out, fileStore, k)
+		err := trustmanager.ExportKeys(out, fileStore, k)
 		if err != nil {
 			return err
 		}

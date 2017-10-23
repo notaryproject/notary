@@ -7,16 +7,15 @@ import (
 	store "github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustmanager/yubikey"
-	"github.com/docker/notary/utils"
 )
 
 func getYubiStore(fileKeyStore trustmanager.KeyStore, ret notary.PassRetriever) (*yubikey.YubiStore, error) {
 	return yubikey.NewYubiStore(fileKeyStore, ret)
 }
 
-func getImporters(baseDir string, ret notary.PassRetriever) ([]utils.Importer, error) {
+func getImporters(baseDir string, ret notary.PassRetriever) ([]trustmanager.Importer, error) {
 
-	var importers []utils.Importer
+	var importers []trustmanager.Importer
 	if yubikey.IsAccessible() {
 		yubiStore, err := getYubiStore(nil, ret)
 		if err == nil {

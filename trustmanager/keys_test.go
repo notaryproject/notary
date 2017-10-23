@@ -1,4 +1,4 @@
-package utils
+package trustmanager
 
 import (
 	"bytes"
@@ -15,16 +15,6 @@ import (
 	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
 )
-
-const cannedPassphrase = "passphrase"
-
-var passphraseRetriever = func(keyID string, alias string, createNew bool, numAttempts int) (string, bool, error) {
-	if numAttempts > 5 {
-		giveup := true
-		return "", giveup, errors.New("passPhraseRetriever failed after too many requests")
-	}
-	return cannedPassphrase, false, nil
-}
 
 type TestImportStore struct {
 	data map[string][]byte
