@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/distribution/health"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/notary"
+	"github.com/docker/notary/cmd/notary-signer/passwordwrap"
 	"github.com/docker/notary/cryptoservice"
 	"github.com/docker/notary/passphrase"
 	pb "github.com/docker/notary/proto"
@@ -82,20 +82,22 @@ func parseSignerConfig(configFilePath string, doBootstrap bool) (signer.Config, 
 	}, nil
 }
 
-func getEnv(env string) string {
-	v := viper.New()
-	utils.SetupViper(v, envPrefix)
-	return v.GetString(strings.ToUpper(env))
-}
-
 func passphraseRetriever(keyName, alias string, createNew bool, attempts int) (passphrase string, giveup bool, err error) {
-	passphrase = getEnv(alias)
 
-	if passphrase == "" {
-		return "", false, errors.New("expected env variable to not be empty: " + alias)
+	// As of now passwordwrap.Storage is constructed here as only the default storage is implemented.
+	// In future, when there are more kinds of Storage implementations like protected, plugin, etc,
+	// it will be injected down as a parameter to passphraseRetriever.
+	var passwordStore passwordwrap.Storage = passwordwrap.NewPassStore()
+
+	// Get the password from the store
+	psswd, err := passwordStore.Get(alias)
+
+	if err != nil || psswd == "" {
+		logrus.Error("Error retrieving password from password store.")
+		return "", false, errors.New("error retrieving password from password store")
 	}
 
-	return passphrase, false, nil
+	return psswd, false, nil
 }
 
 // Reads the configuration file for storage setup, and sets up the cryptoservice
