@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
@@ -782,6 +783,30 @@ func getUsername(input chan string) {
 func (ps passwordStore) Basic(u *url.URL) (string, string) {
 	// if it's not a terminal, don't wait on input
 	if ps.anonymous {
+		return "", ""
+	}
+
+	auth := os.Getenv("NOTARY_AUTH")
+	if auth != "" {
+		dec, err := base64.StdEncoding.DecodeString(auth)
+		if err != nil {
+			logrus.Error("Could not base64-decode authentication string")
+			return "", ""
+		}
+		plain := string(dec)
+
+		i := strings.Index(plain, ":")
+		if i == 0 {
+			logrus.Error("Authentication string with zero-legnth username")
+			return "", ""
+		} else if i > -1 {
+			username := plain[:i]
+			password := plain[i+1:]
+			password = strings.TrimSpace(password)
+			return username, password
+		}
+
+		logrus.Error("Malformatted authentication string; format must be <username>:<password>")
 		return "", ""
 	}
 
