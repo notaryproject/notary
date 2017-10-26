@@ -2,10 +2,20 @@
 
 [![Circle CI](https://circleci.com/gh/docker/notary/tree/master.svg?style=shield)](https://circleci.com/gh/docker/notary/tree/master) [![CodeCov](https://codecov.io/github/docker/notary/coverage.svg?branch=master)](https://codecov.io/github/docker/notary) [![GoReportCard](https://goreportcard.com/badge/docker/notary)](https://goreportcard.com/report/github.com/docker/notary)
 
+# Notice
+
+The Notary project has officially been accepted in to the Cloud Native Computing Foundation (CNCF).
+It has moved to https://github.com/theupdateframework/notary. Any downstream consumers should update
+their Go imports to use this new location, which will be the canonical location going forward.
+
+We have moved the repo in GitHub, which will allow existing importers to continue using the old
+location via GitHub's redirect.
+
+# Overview
+
 The Notary project comprises a [server](cmd/notary-server) and a [client](cmd/notary) for running and interacting
 with trusted collections.  Please see the [service architecture](docs/service_architecture.md) documentation
 for more information.
-
 
 Notary aims to make the internet more secure by making it easy for people to
 publish and verify content. We often rely on TLS to secure our communications
