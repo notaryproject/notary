@@ -1291,23 +1291,9 @@ func (r *repository) pubKeyListForRotation(role data.RoleName, serverManaged boo
 // merging the pubKeys with the public keys of the private keys
 func (r *repository) pubKeyListFromPrivAndPubKeys(privKIDs []string, pubKeys data.KeyList) (pubKeyList data.KeyList, err error) {
 
-	// if pubKeys are not provided, generate pubKeyList from provided private keys
-	if len(pubKeys) == 0 {
-		pubKeyList = make(data.KeyList, 0, len(privKIDs))
-
-		for _, keyID := range privKIDs {
-			pubKey := r.GetCryptoService().GetKey(keyID)
-			if pubKey == nil {
-				return nil, fmt.Errorf("unable to find key: %s", keyID)
-			}
-			pubKeyList = append(pubKeyList, pubKey)
-		}
-		return pubKeyList, nil
-	}
-
-	// Convert to certs (for root keys)
+	// Obtain a list of public keys corresponding to privKIDs and merge the list with pubKeys to
+	// Obtain a combined list of public keys
 	pubKeyIDs := make(map[string]bool)
-	// list pubKeys
 	for _, k := range pubKeys {
 		kid, err := utils.CanonicalKeyID(k)
 		fmt.Println("key id : " + kid)
@@ -1319,7 +1305,7 @@ func (r *repository) pubKeyListFromPrivAndPubKeys(privKIDs []string, pubKeys dat
 	}
 
 	for _, id := range privKIDs {
-		if exist := pubKeyIDs[id]; !exist {
+		if !pubKeyIDs[id] {
 			pubKey := r.GetCryptoService().GetKey(id)
 			if pubKey == nil {
 				return nil, fmt.Errorf("unable to find key: %s", id)
