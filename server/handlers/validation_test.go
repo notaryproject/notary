@@ -8,14 +8,14 @@ import (
 
 	"github.com/docker/go/canonical/json"
 
-	"github.com/docker/notary/server/storage"
-	"github.com/docker/notary/trustpinning"
-	"github.com/docker/notary/tuf"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/testutils"
-	"github.com/docker/notary/tuf/validation"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/server/storage"
+	"github.com/theupdateframework/notary/trustpinning"
+	"github.com/theupdateframework/notary/tuf"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/testutils"
+	"github.com/theupdateframework/notary/tuf/validation"
 )
 
 // this is a fake storage that serves errors

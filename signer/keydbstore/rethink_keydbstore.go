@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/storage/rethinkdb"
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/tuf/data"
 	jose "github.com/dvsekhvalnov/jose2go"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/storage/rethinkdb"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/tuf/data"
 	"gopkg.in/dancannon/gorethink.v3"
 )
 

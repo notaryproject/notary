@@ -48,7 +48,7 @@ import (
 
 	"golang.org/x/crypto/pbkdf2"
 
-	"github.com/docker/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 // Copy from crypto/x509

@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/docker/go/canonical/json"
-	"github.com/docker/notary"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 func TestRoleNoKeys(t *testing.T) {

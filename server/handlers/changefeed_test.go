@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	ctxu "github.com/docker/distribution/context"
-	"github.com/docker/notary"
-	"github.com/docker/notary/server/storage"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/server/storage"
 )
 
 type changefeedArgs struct {

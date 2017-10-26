@@ -3,8 +3,8 @@ package signed
 import (
 	"testing"
 
-	"github.com/docker/notary/tuf/data"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 // ListKeys only returns the keys for that role

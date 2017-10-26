@@ -7,14 +7,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/passphrase"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/version"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/passphrase"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/version"
 )
 
 const (

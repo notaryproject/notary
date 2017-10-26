@@ -3,7 +3,7 @@ PREFIX?=$(shell pwd)
 
 # Populate version variables
 # Add to compile time flags
-NOTARY_PKG := github.com/docker/notary
+NOTARY_PKG := github.com/theupdateframework/notary
 NOTARY_VERSION := $(shell cat NOTARY_VERSION)
 GITCOMMIT := $(shell git rev-parse --short HEAD)
 GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
@@ -15,7 +15,7 @@ GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
 GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
 GOOSES = darwin linux windows
 NOTARY_BUILDTAGS ?= pkcs11
-NOTARYDIR := /go/src/github.com/docker/notary
+NOTARYDIR := /go/src/github.com/theupdateframework/notary
 
 GO_VERSION := $(shell go version | grep "1\.[7-9]\(\.[0-9]+\)*\|devel")
 # check to make sure we have the right version. development versions of Go are
@@ -164,7 +164,7 @@ ci: override TESTOPTS = -race
 # Codecov knows how to merge multiple coverage files, so covmerge is not needed
 ci: gen-cover
 
-yubikey-tests: override PKGS = github.com/docker/notary/cmd/notary github.com/docker/notary/trustmanager/yubikey
+yubikey-tests: override PKGS = github.com/theupdateframework/notary/cmd/notary github.com/theupdateframework/notary/trustmanager/yubikey
 yubikey-tests: ci
 
 covmerge:

@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
 	"github.com/dvsekhvalnov/jose2go"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
 )
 
 // not to the nanosecond scale because mysql timestamps ignore nanoseconds

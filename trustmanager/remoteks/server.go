@@ -5,7 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 
-	"github.com/docker/notary/trustmanager"
+	"github.com/theupdateframework/notary/trustmanager"
 )
 
 // GRPCStorage is an implementer of the GRPC storage server. It passes through

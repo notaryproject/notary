@@ -8,16 +8,16 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/signer"
-	"github.com/docker/notary/signer/keydbstore"
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/testutils"
 	"github.com/jinzhu/gorm"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/signer"
+	"github.com/theupdateframework/notary/signer/keydbstore"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/testutils"
 )
 
 const (

@@ -5,12 +5,12 @@ package main
 import (
 	"testing"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/passphrase"
-	"github.com/docker/notary/trustmanager/yubikey"
-	"github.com/docker/notary/tuf/data"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/passphrase"
+	"github.com/theupdateframework/notary/trustmanager/yubikey"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 var _retriever notary.PassRetriever

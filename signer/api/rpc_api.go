@@ -5,15 +5,15 @@ import (
 	"fmt"
 
 	ctxu "github.com/docker/distribution/context"
-	"github.com/docker/notary/signer"
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/tuf/data"
+	"github.com/theupdateframework/notary/signer"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/tuf/data"
 	"golang.org/x/net/context"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
-	pb "github.com/docker/notary/proto"
+	pb "github.com/theupdateframework/notary/proto"
 )
 
 //KeyManagementServer implements the KeyManagementServer grpc interface

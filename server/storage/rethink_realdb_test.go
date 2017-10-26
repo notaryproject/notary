@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/docker/notary/storage/rethinkdb"
-	"github.com/docker/notary/tuf/data"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/storage/rethinkdb"
+	"github.com/theupdateframework/notary/tuf/data"
 	"gopkg.in/dancannon/gorethink.v3"
 )
 

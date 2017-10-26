@@ -8,12 +8,11 @@ case $CIRCLE_NODE_INDEX in
    ;;
 2) SKIPENVCHECK=1 make TESTDB=mysql testdb
    SKIPENVCHECK=1 make TESTDB=mysql integration
-   SKIPENVCHECK=1 make cross  # just trying not to exceed 5 builders
+   SKIPENVCHECK=1 make cross  # just trying not to exceed 4 builders
+   docker run --rm -e NOTARY_BUILDTAGS=pkcs11 notary_client make lint
    ;;
 3) SKIPENVCHECK=1 make TESTDB=rethink testdb
    SKIPENVCHECK=1 make TESTDB=rethink integration
-   ;;
-4) docker run --rm -e NOTARY_BUILDTAGS=pkcs11 notary_client make lint
    SKIPENVCHECK=1 make TESTDB=postgresql testdb
    SKIPENVCHECK=1 make TESTDB=postgresql integration
    ;;

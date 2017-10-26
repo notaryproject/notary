@@ -6,7 +6,7 @@ RUN apk add --update git gcc libc-dev && rm -rf /var/cache/apk/*
 # Pin to the specific v3.0.0 version
 RUN go get -tags 'mysql postgres file' github.com/mattes/migrate/cli && mv /go/bin/cli /go/bin/migrate
 
-ENV NOTARYPKG github.com/docker/notary
+ENV NOTARYPKG github.com/theupdateframework/notary
 
 # Copy the local repo to the expected go path
 COPY . /go/src/${NOTARYPKG}

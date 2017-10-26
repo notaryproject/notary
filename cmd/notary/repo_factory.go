@@ -5,9 +5,9 @@ import (
 
 	"net/http"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/client"
-	"github.com/docker/notary/tuf/data"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/client"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 const remoteConfigField = "api"

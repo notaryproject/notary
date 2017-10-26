@@ -12,10 +12,10 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/registry/client/auth"
-	"github.com/docker/notary/tuf/data"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 // TestImportRootCert does the following

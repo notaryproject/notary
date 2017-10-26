@@ -1,6 +1,6 @@
 package changelist
 
-import "github.com/docker/notary/tuf/data"
+import "github.com/theupdateframework/notary/tuf/data"
 
 // Changelist is the interface for all TUF change lists
 type Changelist interface {

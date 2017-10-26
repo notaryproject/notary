@@ -4,12 +4,12 @@ import (
 	"fmt"
 
 	"github.com/docker/go/canonical/json"
-	"github.com/docker/notary"
+	"github.com/theupdateframework/notary"
 
-	"github.com/docker/notary/trustpinning"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/utils"
+	"github.com/theupdateframework/notary/trustpinning"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 // ErrBuildDone is returned when any functions are called on RepoBuilder, and it

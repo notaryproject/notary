@@ -5,9 +5,9 @@ package client
 import (
 	"fmt"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/trustmanager/yubikey"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/trustmanager/yubikey"
 )
 
 func getKeyStores(baseDir string, retriever notary.PassRetriever) ([]trustmanager.KeyStore, error) {

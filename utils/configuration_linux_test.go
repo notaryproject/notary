@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/notary"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary"
 )
 
 func testSetSignalTrap(t *testing.T) {

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/docker/notary/client"
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/tuf/data"
+	"github.com/theupdateframework/notary/client"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 const (

@@ -11,8 +11,8 @@ import (
 	"math/big"
 
 	"github.com/agl/ed25519"
-	"github.com/docker/notary/tuf/data"
 	"github.com/sirupsen/logrus"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 const (

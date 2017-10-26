@@ -6,8 +6,8 @@ import (
 	"encoding/pem"
 	"testing"
 
-	"github.com/docker/notary/tuf/data"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 func getRSAKey() (data.PrivateKey, error) {

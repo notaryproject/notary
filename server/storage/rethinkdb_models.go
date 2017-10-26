@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"github.com/docker/notary/storage/rethinkdb"
+	"github.com/theupdateframework/notary/storage/rethinkdb"
 )
 
 // These consts are the index names we've defined for RethinkDB

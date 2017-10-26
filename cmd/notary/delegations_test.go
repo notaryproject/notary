@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/notary/cryptoservice"
-	testutils "github.com/docker/notary/tuf/testutils/keys"
-	"github.com/docker/notary/tuf/utils"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/cryptoservice"
+	testutils "github.com/theupdateframework/notary/tuf/testutils/keys"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 func setup(trustDir string) *delegationCommander {

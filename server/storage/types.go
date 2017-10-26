@@ -1,6 +1,6 @@
 package storage
 
-import "github.com/docker/notary/tuf/data"
+import "github.com/theupdateframework/notary/tuf/data"
 
 // MetaUpdate packages up the fields required to update a TUF record
 type MetaUpdate struct {

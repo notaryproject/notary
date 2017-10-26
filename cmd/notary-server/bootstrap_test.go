@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/tuf/testutils"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/tuf/testutils"
 )
 
 func TestBootstrap(t *testing.T) {

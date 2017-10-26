@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/docker/notary/trustmanager"
+	"github.com/theupdateframework/notary/trustmanager"
 )
 
 // DefaultTimeout is the time a request will block waiting for a response

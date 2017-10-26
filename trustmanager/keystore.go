@@ -6,11 +6,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/notary"
-	store "github.com/docker/notary/storage"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/utils"
 	"github.com/sirupsen/logrus"
+	"github.com/theupdateframework/notary"
+	store "github.com/theupdateframework/notary/storage"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 type keyInfoMap map[string]KeyInfo

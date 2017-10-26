@@ -8,9 +8,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/docker/notary/storage/rethinkdb"
-	"github.com/docker/notary/tuf/data"
 	"github.com/sirupsen/logrus"
+	"github.com/theupdateframework/notary/storage/rethinkdb"
+	"github.com/theupdateframework/notary/tuf/data"
 	"gopkg.in/dancannon/gorethink.v3"
 )
 
