@@ -8,11 +8,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/storage"
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/trustmanager/remoteks"
-	"github.com/docker/notary/utils"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/storage"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/trustmanager/remoteks"
+	"github.com/theupdateframework/notary/utils"
 )
 
 func parseConfig(path string) (*viper.Viper, error) {

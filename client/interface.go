@@ -1,9 +1,9 @@
 package client
 
 import (
-	"github.com/docker/notary/client/changelist"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
+	"github.com/theupdateframework/notary/client/changelist"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
 )
 
 // Repository represents the set of options that must be supported over a TUF repo.

@@ -33,7 +33,7 @@ freshness of your content.
 
 You can download precompiled notary binary for 64 bit Linux or Mac OS X from the
 Notary repository's
-<a href="https://github.com/docker/notary/releases" target="_blank">releases page on
+<a href="https://github.com/theupdateframework/notary/releases" target="_blank">releases page on
 GitHub</a>. Windows is not officially
 supported, but if you are a developer and Windows user, we would appreciate any
 insight you can provide regarding issues.
@@ -65,7 +65,7 @@ tell the client which repository server it should communicate with.
 
 The official Docker Hub Notary servers are located at
 `https://notary.docker.io`. If you would like to use your own Notary server,
-it is important to use the same or a newer <a href="https://github.com/docker/notary/releases">Notary version</a>
+it is important to use the same or a newer <a href="https://github.com/theupdateframework/notary/releases">Notary version</a>
 as the client for feature compatibility (ex: client version 0.2, server/signer version >= 0.2).
 Additionally, Notary stores your own signing keys,
 and a cache of previously downloaded trust metadata in a directory, provided

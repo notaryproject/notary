@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 func constRetriever(string, string, bool, int) (string, bool, error) {

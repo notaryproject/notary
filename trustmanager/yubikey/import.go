@@ -6,10 +6,10 @@ import (
 	"encoding/pem"
 	"errors"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/utils"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 // YubiImport is a wrapper around the YubiStore that allows us to import private

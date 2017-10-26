@@ -7,16 +7,16 @@ import (
 	"time"
 
 	"github.com/docker/go/canonical/json"
-	"github.com/docker/notary/cryptoservice"
-	"github.com/docker/notary/passphrase"
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/cryptoservice"
+	"github.com/theupdateframework/notary/passphrase"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/utils"
 
-	"github.com/docker/notary/tuf"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/testutils/keys"
+	"github.com/theupdateframework/notary/tuf"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/testutils/keys"
 )
 
 // CreateKey creates a new key inside the cryptoservice for the given role and gun,

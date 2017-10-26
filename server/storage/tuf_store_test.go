@@ -3,9 +3,9 @@ package storage
 import (
 	"testing"
 
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/testutils"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/testutils"
 )
 
 // Produce a series of tufMeta objects and updates given a TUF repo

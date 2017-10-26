@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/utils"
 	"github.com/sirupsen/logrus"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 const wildcard = "*"

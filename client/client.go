@@ -17,9 +17,9 @@ Use this package by creating a new repository object and calling methods on it.
 		"github.com/docker/distribution/registry/client/auth"
 		"github.com/docker/distribution/registry/client/auth/challenge"
 		"github.com/docker/distribution/registry/client/transport"
-		notary "github.com/docker/notary/client"
-		"github.com/docker/notary/trustpinning"
-		"github.com/docker/notary/tuf/data"
+		notary "github.com/theupdateframework/notary/client"
+		"github.com/theupdateframework/notary/trustpinning"
+		"github.com/theupdateframework/notary/tuf/data"
 	)
 
 	func main() {
@@ -98,16 +98,16 @@ import (
 	"time"
 
 	canonicaljson "github.com/docker/go/canonical/json"
-	"github.com/docker/notary"
-	"github.com/docker/notary/client/changelist"
-	"github.com/docker/notary/cryptoservice"
-	store "github.com/docker/notary/storage"
-	"github.com/docker/notary/trustpinning"
-	"github.com/docker/notary/tuf"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/utils"
 	"github.com/sirupsen/logrus"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/client/changelist"
+	"github.com/theupdateframework/notary/cryptoservice"
+	store "github.com/theupdateframework/notary/storage"
+	"github.com/theupdateframework/notary/trustpinning"
+	"github.com/theupdateframework/notary/tuf"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 const (

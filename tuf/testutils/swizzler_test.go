@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	store "github.com/docker/notary/storage"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
 	"github.com/stretchr/testify/require"
+	store "github.com/theupdateframework/notary/storage"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
 )
 
 // creates a new swizzler with 3 delegation targets (and only 2 metadata files

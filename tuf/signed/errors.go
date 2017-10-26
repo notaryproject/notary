@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 // ErrInsufficientSignatures - can not create enough signatures on a piece of

@@ -17,7 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
-	"github.com/docker/notary"
+	"github.com/theupdateframework/notary"
 )
 
 // Storage is a configuration about what storage backend a server should use

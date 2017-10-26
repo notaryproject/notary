@@ -17,7 +17,7 @@ RUN useradd -ms /bin/bash notary \
 	&& pip install codecov \
 	&& go get github.com/golang/lint/golint github.com/fzipp/gocyclo github.com/client9/misspell/cmd/misspell github.com/gordonklaus/ineffassign github.com/HewlettPackard/gas
 
-ENV NOTARYDIR /go/src/github.com/docker/notary
+ENV NOTARYDIR /go/src/github.com/theupdateframework/notary
 
 COPY . ${NOTARYDIR}
 RUN chmod -R a+rw /go && chmod 0600 ${NOTARYDIR}/fixtures/database/*

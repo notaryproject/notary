@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/notary/client/changelist"
-	"github.com/docker/notary/storage"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/testutils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/client/changelist"
+	"github.com/theupdateframework/notary/storage"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/testutils"
 )
 
 func TestApplyTargetsChange(t *testing.T) {

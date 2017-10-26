@@ -3,8 +3,8 @@ package keydbstore
 import (
 	"sync"
 
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
 )
 
 type cachedKeyService struct {

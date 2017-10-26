@@ -12,15 +12,15 @@ import (
 	"time"
 
 	"github.com/docker/distribution/health"
-	"github.com/docker/notary"
-	"github.com/docker/notary/server/storage"
-	"github.com/docker/notary/signer/client"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/utils"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/server/storage"
+	"github.com/theupdateframework/notary/signer/client"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/utils"
 )
 
 const (

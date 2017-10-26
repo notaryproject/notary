@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/docker/go/canonical/json"
-	"github.com/docker/notary"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary"
 )
 
 func TestGenerateFileMetaDefault(t *testing.T) {

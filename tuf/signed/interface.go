@@ -1,6 +1,6 @@
 package signed
 
-import "github.com/docker/notary/tuf/data"
+import "github.com/theupdateframework/notary/tuf/data"
 
 // KeyService provides management of keys locally. It will never
 // accept or provide private keys. Communication between the KeyService

@@ -8,7 +8,7 @@ python docker-integration-test.py
 
 This assumes that your docker directory is in $GOPATH/src/github.com/docker/docker
 and your notary directory, irrespective of where this script is located, is
-at $GOPATH/src/github.com/docker/notary.
+at $GOPATH/src/github.com/theupdateframework/notary.
 """
 from __future__ import print_function
 import os
@@ -31,7 +31,7 @@ def from_gopath(gopkg):
 
 
 DOCKER_DIR = from_gopath("github.com/docker/docker")
-NOTARY_DIR = from_gopath("github.com/docker/notary")
+NOTARY_DIR = from_gopath("github.com/theupdateframework/notary")
 
 
 def fake_vendor():
@@ -40,7 +40,7 @@ def fake_vendor():
     vendor directory - also appending several lines into the Dockerfile because
     it pulls down notary from github and builds the binaries
     """
-    docker_notary_relpath = "vendor/src/github.com/docker/notary"
+    docker_notary_relpath = "vendor/src/github.com/theupdateframework/notary"
     docker_notary_abspath = os.path.join(DOCKER_DIR, docker_notary_relpath)
 
     print("copying notary ({0}) into {1}".format(NOTARY_DIR, docker_notary_abspath))
@@ -66,8 +66,8 @@ def fake_vendor():
     dockerfile_addition = ("\n"
         "RUN set -x && "
         "export GO15VENDOREXPERIMENT=1 && "
-        "go build -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server &&"
-        "go build -o /usr/local/bin/notary github.com/docker/notary/cmd/notary")
+        "go build -o /usr/local/bin/notary-server github.com/theupdateframework/notary/cmd/notary-server &&"
+        "go build -o /usr/local/bin/notary github.com/theupdateframework/notary/cmd/notary")
 
     with open(os.path.join(DOCKER_DIR, "Dockerfile")) as dockerfile:
         text = dockerfile.read()
@@ -106,7 +106,7 @@ if __name__ == "__main__":
               .format(os.getenv("GOPATH")))
         sys.exit(1)
     if NOTARY_DIR == "":
-        print("ERROR: Could not find github.com/docker/notary in your GOPATH='{0}'"
+        print("ERROR: Could not find github.com/theupdateframework/notary in your GOPATH='{0}'"
               .format(os.getenv("GOPATH")))
         sys.exit(1)
     fake_vendor()

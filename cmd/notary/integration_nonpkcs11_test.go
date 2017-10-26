@@ -5,9 +5,9 @@ package main
 import (
 	"testing"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/passphrase"
 	"github.com/spf13/cobra"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/passphrase"
 )
 
 func init() {

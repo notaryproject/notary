@@ -12,9 +12,9 @@ import (
 	"net"
 	"time"
 
-	"github.com/docker/notary"
-	pb "github.com/docker/notary/proto"
-	"github.com/docker/notary/tuf/data"
+	"github.com/theupdateframework/notary"
+	pb "github.com/theupdateframework/notary/proto"
+	"github.com/theupdateframework/notary/tuf/data"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

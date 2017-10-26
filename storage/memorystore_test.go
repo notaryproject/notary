@@ -4,9 +4,9 @@ import (
 	"crypto/sha256"
 	"testing"
 
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 func TestMemoryStoreMetadataOperations(t *testing.T) {

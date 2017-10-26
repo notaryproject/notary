@@ -12,13 +12,13 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/cryptoservice"
-	"github.com/docker/notary/passphrase"
-	store "github.com/docker/notary/storage"
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/trustmanager/yubikey"
-	"github.com/docker/notary/tuf/data"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/cryptoservice"
+	"github.com/theupdateframework/notary/passphrase"
+	store "github.com/theupdateframework/notary/storage"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/trustmanager/yubikey"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 func TestImportWithYubikey(t *testing.T) {

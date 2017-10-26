@@ -8,11 +8,11 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/docker/notary/utils"
-	"github.com/docker/notary/version"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
+	"github.com/theupdateframework/notary/utils"
+	"github.com/theupdateframework/notary/version"
 )
 
 const (

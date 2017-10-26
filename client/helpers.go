@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/docker/notary/client/changelist"
-	store "github.com/docker/notary/storage"
-	"github.com/docker/notary/tuf"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/utils"
 	"github.com/sirupsen/logrus"
+	"github.com/theupdateframework/notary/client/changelist"
+	store "github.com/theupdateframework/notary/storage"
+	"github.com/theupdateframework/notary/tuf"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 // Use this to initialize remote HTTPStores from the config settings

@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/storage"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/storage"
 )
 
 func TestParseConfigError(t *testing.T) {

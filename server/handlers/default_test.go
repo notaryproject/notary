@@ -15,15 +15,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/server/errors"
-	"github.com/docker/notary/server/storage"
-	store "github.com/docker/notary/storage"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/testutils"
-	"github.com/docker/notary/tuf/validation"
-	"github.com/docker/notary/utils"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/server/errors"
+	"github.com/theupdateframework/notary/server/storage"
+	store "github.com/theupdateframework/notary/storage"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/testutils"
+	"github.com/theupdateframework/notary/tuf/validation"
+	"github.com/theupdateframework/notary/utils"
 )
 
 type handlerState struct {

@@ -3,10 +3,10 @@
 package main
 
 import (
-	"github.com/docker/notary"
-	store "github.com/docker/notary/storage"
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/trustmanager/yubikey"
+	"github.com/theupdateframework/notary"
+	store "github.com/theupdateframework/notary/storage"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/trustmanager/yubikey"
 )
 
 func getYubiStore(fileKeyStore trustmanager.KeyStore, ret notary.PassRetriever) (*yubikey.YubiStore, error) {

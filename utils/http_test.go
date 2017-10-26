@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 
-	"github.com/docker/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/signed"
 )
 
 func MockContextHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {

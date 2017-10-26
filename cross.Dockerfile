@@ -28,7 +28,7 @@ RUN set -x \
 	&& UNATTENDED=yes OSX_VERSION_MIN=10.6 ${OSXCROSS_PATH}/build.sh > /dev/null
 ENV PATH /osxcross/target/bin:$PATH
 
-ENV NOTARYDIR /go/src/github.com/docker/notary
+ENV NOTARYDIR /go/src/github.com/theupdateframework/notary
 
 COPY . ${NOTARYDIR}
 RUN chmod -R a+rw /go

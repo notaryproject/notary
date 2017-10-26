@@ -16,7 +16,7 @@ case ${db} in
   postgresql*)
     db="postgresql"
     dbContainerOpts="--name postgresql_tests postgresql -l"
-    DBURL="postgres://server@postgresql_tests:5432/notaryserver?sslmode=verify-ca&sslrootcert=/go/src/github.com/docker/notary/fixtures/database/ca.pem&sslcert=/go/src/github.com/docker/notary/fixtures/database/notary-server.pem&sslkey=/go/src/github.com/docker/notary/fixtures/database/notary-server-key.pem"
+    DBURL="postgres://server@postgresql_tests:5432/notaryserver?sslmode=verify-ca&sslrootcert=/go/src/github.com/theupdateframework/notary/fixtures/database/ca.pem&sslcert=/go/src/github.com/theupdateframework/notary/fixtures/database/notary-server.pem&sslkey=/go/src/github.com/theupdateframework/notary/fixtures/database/notary-server-key.pem"
     ;;
   *)
     echo "Usage: $0 (mysql|rethink)"
@@ -57,5 +57,5 @@ trap cleanup SIGINT SIGTERM EXIT
 docker-compose -p "${project}_${db}" -f "${composeFile}" run --no-deps -d ${dbContainerOpts}
 docker-compose -p "${project}_${db}" -f "${composeFile}" run --no-deps \
     -e NOTARY_BUILDTAGS="${db}db" -e DBURL="${DBURL}" \
-    -e PKGS="github.com/docker/notary/server/storage github.com/docker/notary/signer/keydbstore" \
+    -e PKGS="github.com/theupdateframework/notary/server/storage github.com/theupdateframework/notary/signer/keydbstore" \
     client bash -c "${clientCmd}"

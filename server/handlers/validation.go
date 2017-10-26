@@ -7,13 +7,13 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/docker/go/canonical/json"
-	"github.com/docker/notary/server/storage"
-	"github.com/docker/notary/trustpinning"
-	"github.com/docker/notary/tuf"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/utils"
-	"github.com/docker/notary/tuf/validation"
+	"github.com/theupdateframework/notary/server/storage"
+	"github.com/theupdateframework/notary/trustpinning"
+	"github.com/theupdateframework/notary/tuf"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/utils"
+	"github.com/theupdateframework/notary/tuf/validation"
 )
 
 // validateUpload checks that the updates being pushed

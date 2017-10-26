@@ -11,8 +11,8 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/tuf/signed"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/tuf/signed"
 )
 
 // ContextHandler defines an alternate HTTP handler interface which takes in

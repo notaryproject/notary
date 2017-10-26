@@ -3,7 +3,7 @@ package storage
 import (
 	"time"
 
-	"github.com/docker/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 // KeyStore provides a minimal interface for managing key persistence

@@ -13,15 +13,15 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/server/errors"
-	"github.com/docker/notary/server/snapshot"
-	"github.com/docker/notary/server/storage"
-	"github.com/docker/notary/server/timestamp"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/validation"
-	"github.com/docker/notary/utils"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/server/errors"
+	"github.com/theupdateframework/notary/server/snapshot"
+	"github.com/theupdateframework/notary/server/storage"
+	"github.com/theupdateframework/notary/server/timestamp"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/validation"
+	"github.com/theupdateframework/notary/utils"
 )
 
 // MainHandler is the default handler for the server

@@ -3,8 +3,8 @@ package remoteks
 import (
 	"testing"
 
-	"github.com/docker/notary/storage"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/storage"
 	"golang.org/x/net/context"
 )
 

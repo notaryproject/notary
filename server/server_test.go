@@ -14,15 +14,15 @@ import (
 	"testing"
 
 	_ "github.com/docker/distribution/registry/auth/silly"
-	"github.com/docker/notary"
-	"github.com/docker/notary/server/storage"
-	store "github.com/docker/notary/storage"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/testutils"
-	tufutils "github.com/docker/notary/tuf/utils"
-	"github.com/docker/notary/utils"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/server/storage"
+	store "github.com/theupdateframework/notary/storage"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/testutils"
+	tufutils "github.com/theupdateframework/notary/tuf/utils"
+	"github.com/theupdateframework/notary/utils"
 	"golang.org/x/net/context"
 )
 

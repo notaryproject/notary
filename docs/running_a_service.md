@@ -21,10 +21,10 @@ and [Docker Compose](https://docs.docker.com/compose/overview/).
 
 The quickest way to spin up a full Notary service for testing and development
 purposes is to use the Docker compose file in the
-<a href="https://github.com/docker/notary" target="_blank">Notary project</a>.
+<a href="https://github.com/theupdateframework/notary" target="_blank">Notary project</a>.
 
 ```plain
-$ git clone https://github.com/docker/notary.git
+$ git clone https://github.com/theupdateframework/notary.git
 $ cd notary
 $ docker-compose up
 ```
@@ -51,7 +51,7 @@ To connect using the Notary Client CLI, please see [Getting Started](getting_sta
 documentation. Please note that the version of Notary server and signer
 should be greater than or equal to that of the Notary Client CLI to ensure feature compatibility,
 i.e. if you are using Notary Client CLI 0.2, ensure you are using a server and signer tagged with
-an equal or higher version than 0.2 from the <a href="https://github.com/docker/notary/releases">releases page</a>.
+an equal or higher version than 0.2 from the <a href="https://github.com/theupdateframework/notary/releases">releases page</a>.
 
 The self-signed certificate's subject name and subject alternative names are
 `notary-server`, `notaryserver`, and `localhost`, so if your Docker host is not

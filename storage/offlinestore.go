@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"github.com/docker/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 // ErrOffline is used to indicate we are operating offline
