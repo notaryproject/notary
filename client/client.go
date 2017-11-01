@@ -97,6 +97,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/cloudflare/cfssl/log"
 	canonicaljson "github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
 	"github.com/docker/notary/client/changelist"
@@ -1223,7 +1224,7 @@ func (r *repository) bootstrapClient(checkInitialized bool) (*tufClient, error) 
 // These changes are staged in a changelist until publish is called.
 func (r *repository) rotateKey(role data.RoleName, serverManagesKey bool, keyList []string, certs []data.PublicKey) error {
 	if len(certs) > 0 && role != data.CanonicalRootRole {
-		return fmt.Errorf("rotate with certificate only support root role")
+		return fmt.Errorf("rotate with certificate only supports root role")
 	}
 	if err := checkRotationInput(role, serverManagesKey); err != nil {
 		return err
@@ -1293,19 +1294,19 @@ func (r *repository) pubKeyListFromPrivAndPubKeys(privKIDs []string, pubKeys dat
 
 	// Obtain a list of public keys corresponding to privKIDs and merge the list with pubKeys to
 	// Obtain a combined list of public keys
-	pubKeyIDs := make(map[string]bool)
+	pubKeyIDs := make(map[string]struct{})
 	for _, k := range pubKeys {
 		kid, err := utils.CanonicalKeyID(k)
-		fmt.Println("key id : " + kid)
+		log.Debug("obtained public key ID %s for rotation", kid)
 		if err != nil {
 			return nil, fmt.Errorf("public key is invalid, %v", err)
 		}
-		pubKeyIDs[kid] = true
+		pubKeyIDs[kid] = struct{}{}
 		pubKeyList = append(pubKeyList, k)
 	}
 
 	for _, id := range privKIDs {
-		if !pubKeyIDs[id] {
+		if _, ok := pubKeyIDs[id]; !ok {
 			pubKey := r.GetCryptoService().GetKey(id)
 			if pubKey == nil {
 				return nil, fmt.Errorf("unable to find key: %s", id)
@@ -1327,10 +1328,10 @@ func (r *repository) pubKeysToCerts(role data.RoleName, pubKeyList data.KeyList)
 		if !utils.IsX509Key(pubKey) {
 			privKey, loadedRole, err := r.GetCryptoService().GetPrivateKey(pubKey.ID())
 			if err != nil {
-				return nil, fmt.Errorf("error converting public key with id %v to private key: %v", pubKey.ID(), err)
+				return nil, fmt.Errorf("error retrieving private key for corresponding public key with ID %s: %v", pubKey.ID(), err)
 			}
 			if loadedRole != role {
-				return nil, fmt.Errorf("attempted to load root key but given %s key instead", loadedRole)
+				return nil, fmt.Errorf("attempted to load %s key but given %s key instead", role, loadedRole)
 			}
 			pubKey, err = rootCertKey(r.gun, privKey)
 			if err != nil {
@@ -1392,7 +1393,7 @@ func DeleteTrustData(baseDir string, gun data.GUN, URL string, rt http.RoundTrip
 	if deleteRemote {
 		remote, err := getRemoteStore(URL, gun, rt)
 		if err != nil {
-			logrus.Error("unable to instantiate a remote store: %v", err)
+			log.Errorf("unable to instantiate a remote store: %v", err)
 			return err
 		}
 		if err := remote.RemoveAll(); err != nil {

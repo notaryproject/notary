@@ -397,7 +397,7 @@ func checkRootCert(k *keyCommander, rotateKeyRole data.RoleName) error {
 		if rotateKeyRole != data.CanonicalRootRole {
 			return fmt.Errorf("error: importing certificate is only supported for root role")
 		} else if len(k.rotateKeyFiles) != 0 && len(k.rootCert) < len(k.rotateKeyFiles) {
-			return fmt.Errorf("error: each key must have a matching certificate but received %v keys and %v certificates", len(k.rotateKeyFiles), len(k.rootCert))
+			return fmt.Errorf("error: each key must have a matching certificate but received %d keys and %d certificates", len(k.rotateKeyFiles), len(k.rootCert))
 		}
 	}
 	return nil
