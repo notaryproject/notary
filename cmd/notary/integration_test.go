@@ -2663,7 +2663,7 @@ func TestClientKeyImport(t *testing.T) {
 
 	// import the key
 	_, err = runCommand(t, tempDir, "key", "import", tempFile6.Name())
-	require.NoError(t, err)
+	require.EqualError(t, err, "failed to import all keys: invalid key pem block")
 
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk
@@ -2720,7 +2720,7 @@ func TestClientKeyImport(t *testing.T) {
 
 	// import the key
 	_, err = runCommand(t, tempDir, "key", "import", tempFile8.Name())
-	require.NoError(t, err)
+	require.EqualError(t, err, "failed to import all keys: invalid key pem block")
 
 	// if there is hardware available, root will only be on hardware, and not
 	// on disk

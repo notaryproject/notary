@@ -830,11 +830,9 @@ func TestKeyGeneration(t *testing.T) {
 	require.NoError(t, err)
 	privK, err := utils.ParsePEMPrivateKey(priv, testPassphrase)
 	require.NoError(t, err)
-
 	// the ID is only generated from the public part of the key so they should be identical
 	require.Equal(t, pubK.ID(), privK.ID())
 
 	_, err = runCommand(t, tempDir, "key", "import", filepath.Join(tempDir, "testkeys-key.pem"))
-	require.NoError(t, err)
-
+	require.EqualError(t, err, "failed to import all keys: invalid key pem block")
 }
