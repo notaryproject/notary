@@ -15,7 +15,7 @@ location via GitHub's redirect.
 # Overview
 
 The Notary project comprises a [server](cmd/notary-server) and a [client](cmd/notary) for running and interacting
-with trusted collections.  Please see the [service architecture](docs/service_architecture.md) documentation
+with trusted collections. See the [service architecture](docs/service_architecture.md) documentation
 for more information.
 
 Notary aims to make the internet more secure by making it easy for people to
@@ -45,26 +45,26 @@ Notary is based on [The Update Framework](https://www.theupdateframework.com/), 
 
 ## Security
 
-Please see our [service architecture docs](docs/service_architecture.md#threat-model) for more information about our threat model, which details the varying survivability and severities for key compromise as well as mitigations.
+See Notary's [service architecture docs](docs/service_architecture.md#threat-model) for more information about our threat model, which details the varying survivability and severities for key compromise as well as mitigations.
 
-Our last security audit was on July 31, 2015 by NCC ([results](docs/resources/ncc_docker_notary_audit_2015_07_31.pdf)).
+Notary's last security audit was on July 31, 2015 by NCC ([results](docs/resources/ncc_docker_notary_audit_2015_07_31.pdf)).
 
 Any security vulnerabilities can be reported to security@docker.com.
 
 # Getting started with the Notary CLI
 
-Please get the Notary Client CLI binary from [the official releases page](https://github.com/theupdateframework/notary/releases) or you can [build one yourself](#building-notary).
+Get the Notary Client CLI binary from [the official releases page](https://github.com/theupdateframework/notary/releases) or you can [build one yourself](#building-notary).
 The version of Notary server and signer should be greater than or equal to Notary CLI's version to ensure feature compatibility (ex: CLI version 0.2, server/signer version >= 0.2), and all official releases are associated with GitHub tags.
 
-To use the Notary CLI with Docker hub images, please have a look at our
+To use the Notary CLI with Docker hub images, have a look at Notary's
 [getting started docs](docs/getting_started.md).
 
-For more advanced usage, please see the
+For more advanced usage, see the
 [advanced usage docs](docs/advanced_usage.md).
 
 To use the CLI against a local Notary server rather than against Docker Hub:
 
-1. Please ensure that you have [docker and docker-compose](http://docs.docker.com/compose/install/) installed.
+1. Ensure that you have [docker and docker-compose](http://docs.docker.com/compose/install/) installed.
 1. `git clone https://github.com/theupdateframework/notary.git` and from the cloned repository path,
     start up a local Notary server and signer and copy the config file and testing certs to your
     local notary config directory:
@@ -90,7 +90,7 @@ to use `notary` with Docker images.
 
 ## Building Notary
 
-Note that our [latest stable release](https://github.com/theupdateframework/notary/releases) is at the head of the
+Note that Notary's [latest stable release](https://github.com/theupdateframework/notary/releases) is at the head of the
 [releases branch](https://github.com/theupdateframework/notary/tree/releases).  The master branch is the development
 branch and contains features for the next release.
 
@@ -110,11 +110,11 @@ Notary is checked out to the `src` directory in your `GOPATH`. For example:
 $GOPATH/
     src/
         github.com/
-            docker/
+            theupdateframework/
                 notary/
 ```
 
-To build the server and signer, please run `docker-compose build`.
+To build the server and signer, run `docker-compose build`.
 
 
 ## License
