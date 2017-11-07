@@ -1,13 +1,15 @@
 package client
 
 import (
-	"errors"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"reflect"
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/theupdateframework/notary"
 	store "github.com/theupdateframework/notary/storage"
 	"github.com/theupdateframework/notary/trustpinning"
 	"github.com/theupdateframework/notary/tuf"
@@ -16,7 +18,14 @@ import (
 )
 
 // Diff represents the difference between two versions of the same repo
-type Diff struct {}
+type Diff struct {
+	TargetsAdded   []TargetSignedStruct
+	TargetsRemoved []TargetSignedStruct
+	TargetsUpdated []TargetSignedStruct
+	RolesAdded     []data.Role
+	RolesRemoved   []data.Role
+	RolesUpdated   []data.Role
+}
 
 // NewDiff returns the different between two versions of the same TUF repo
 func NewDiff(gun data.GUN, baseURL string, rt http.RoundTripper, hash1, hash2 string) (Diff, error) {
@@ -25,7 +34,7 @@ func NewDiff(gun data.GUN, baseURL string, rt http.RoundTripper, hash1, hash2 st
 		// baseURL is syntactically invalid
 		return Diff{}, err
 	}
-	
+
 	first, err := setupClient(gun, hash1, remoteStore)
 	if err != nil {
 		return Diff{}, err
@@ -36,17 +45,20 @@ func NewDiff(gun data.GUN, baseURL string, rt http.RoundTripper, hash1, hash2 st
 	}
 
 	// download the relevant versions of the repos now that we have the bootstrapping
-	// setup. 
+	// setup.
 	// N.B. lower case update will fail out immediately rather than attempting
 	//      to download a newer root
+	logrus.Debug("starting updates")
 	err = first.update()
 	if err != nil {
 		return Diff{}, errors.New("failed to download repo version " + hash1)
 	}
+	logrus.Debug("succeeded updating first")
 	err = second.update()
 	if err != nil {
 		return Diff{}, errors.New("failed to download repo version " + hash2)
 	}
+	logrus.Debug("succeeded updated second")
 
 	repoFirst, _, err := first.newBuilder.Finish()
 	repoSecond, _, err := second.newBuilder.Finish()
@@ -77,7 +89,133 @@ func setupClient(gun data.GUN, tsHash string, remote store.RemoteStore) (*tufCli
 }
 
 func diff(first, second *tuf.Repo) (Diff, error) {
-	return Diff{}, nil
+	res := Diff{}
+	err := diffTargets(&res, first, second)
+	if err != nil {
+		return res, err
+	}
+	err = diffRoles(&res, first, second)
+	return res, err
+}
+
+func diffRoles(res *Diff, first, second *tuf.Repo) error {
+	firstRoles := first.GetAllLoadedRoles()
+	lookupTable := make(map[string]*data.Role)
+	for _, role := range firstRoles {
+		lookupTable[role.Name.String()] = role
+	}
+	secondRoles := second.GetAllLoadedRoles()
+	for _, role := range secondRoles {
+		found, ok := lookupTable[role.Name.String()]
+		if !ok {
+			res.RolesAdded = append(res.RolesAdded, *role)
+			continue
+		}
+		delete(lookupTable, role.Name.String())
+		if !equivalentRoles(role, found) {
+			res.RolesUpdated = append(res.RolesUpdated, *role)
+		}
+	}
+	for _, role := range lookupTable {
+		res.RolesRemoved = append(res.RolesRemoved, *role)
+	}
+	return nil
+}
+
+func equivalentRoles(first, second *data.Role) bool {
+	paths := make(map[string]struct{})
+	for _, path := range first.Paths {
+		paths[path] = struct{}{}
+	}
+	for _, path := range second.Paths {
+		if _, ok := paths[path]; ok {
+			delete(paths, path)
+		}
+	}
+	if len(paths) > 0 {
+		return false
+	}
+
+	keyIDs := make(map[string]struct{})
+	for _, kid := range first.KeyIDs {
+		keyIDs[kid] = struct{}{}
+	}
+	for _, kid := range second.KeyIDs {
+		if _, ok := keyIDs[kid]; ok {
+			delete(keyIDs, kid)
+		}
+	}
+	if len(keyIDs) > 0 {
+		return false
+	}
+
+	if first.Threshold != second.Threshold {
+		return false
+	}
+	return true
+}
+
+func diffTargets(res *Diff, first, second *tuf.Repo) error {
+	logrus.Debugf("getting meta for first")
+	firstTgts, err := getAllTargetMetadataByName(*first, "")
+	if err != nil {
+		if _, ok := err.(ErrNoSuchTarget); !ok {
+			return err
+		}
+	}
+	// we'll take firstTgts and create a lookup table of map[role name][target name]TargetSignedStruct
+	// then we'll iterate secondTgts and look up each target by role and name to identify if it
+	// exists in one but not the other, or has been updated
+	lookupTable := make(map[string]map[string]TargetSignedStruct)
+	for _, tgt := range firstTgts {
+		roleName := tgt.Role.BaseRole.Name.String()
+		if lookupTable[roleName] == nil {
+			lookupTable[roleName] = make(map[string]TargetSignedStruct)
+		}
+		lookupTable[roleName][tgt.Target.Name] = tgt
+	}
+
+	logrus.Debugf("getting meta for second")
+	secondTgts, err := getAllTargetMetadataByName(*second, "")
+	if err != nil {
+		if _, ok := err.(ErrNoSuchTarget); !ok {
+			return err
+		}
+	}
+	for _, tgt := range secondTgts {
+		roleName := tgt.Role.BaseRole.Name.String()
+		role, ok := lookupTable[roleName]
+		if !ok {
+			res.TargetsAdded = append(res.TargetsAdded, tgt)
+			continue
+		}
+		found, ok := role[tgt.Target.Name]
+		if !ok {
+			res.TargetsAdded = append(res.TargetsAdded, tgt)
+			continue
+		}
+		// delete from the lookup table because we found it. Anything left in the
+		// lookup table at the end is a removed target
+		delete(role, tgt.Target.Name)
+
+		if !equivalentTargets(tgt.Target, found.Target) {
+			res.TargetsUpdated = append(res.TargetsUpdated, tgt)
+		}
+	}
+
+	for _, role := range lookupTable {
+		for _, tgt := range role {
+			res.TargetsRemoved = append(res.TargetsRemoved, tgt)
+		}
+	}
+
+	return nil
+}
+
+func equivalentTargets(first, second Target) bool {
+	return first.Name != second.Name ||
+		first.Length != second.Length ||
+		!reflect.DeepEqual(first.Hashes, second.Hashes)
 }
 
 // walk ts -> snap -> root.
@@ -89,7 +227,7 @@ func findRoot(tsChecksum []byte, remote store.RemoteStore) ([]byte, error) {
 		tsChecksum,
 	)
 
-	raw, err := remote.GetSized(consistentTSName, 0)
+	raw, err := remote.GetSized(consistentTSName, notary.MaxTimestampSize)
 	if err != nil {
 		logrus.Debugf("error downloading %s: %s", consistentTSName, err)
 		return nil, err
@@ -102,7 +240,7 @@ func findRoot(tsChecksum []byte, remote store.RemoteStore) ([]byte, error) {
 		return nil, err
 	}
 
-	snapshotMeta := ts.Signed.Meta[data.CanonicalSnapshotRole.String()] 
+	snapshotMeta := ts.Signed.Meta[data.CanonicalSnapshotRole.String()]
 	consistentSnapshotName := utils.ConsistentName(
 		data.CanonicalSnapshotRole.String(),
 		snapshotMeta.Hashes["sha256"],
@@ -120,7 +258,7 @@ func findRoot(tsChecksum []byte, remote store.RemoteStore) ([]byte, error) {
 		return nil, err
 	}
 
-	rootMeta := snap.Signed.Meta[data.CanonicalRootRole.String()] 
+	rootMeta := snap.Signed.Meta[data.CanonicalRootRole.String()]
 	consistentRootName := utils.ConsistentName(
 		data.CanonicalRootRole.String(),
 		rootMeta.Hashes["sha256"],

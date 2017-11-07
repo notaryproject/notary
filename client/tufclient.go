@@ -180,7 +180,7 @@ func (c *tufClient) updateRootVersions(fromVersion, toVersion int) error {
 func (c *tufClient) downloadTimestamp() error {
 	logrus.Debug("Loading timestamp...")
 	var (
-		role = data.CanonicalTimestampRole
+		role           = data.CanonicalTimestampRole
 		consistentInfo tuf.ConsistentInfo
 	)
 
@@ -191,6 +191,7 @@ func (c *tufClient) downloadTimestamp() error {
 				Hashes: data.Hashes{
 					"sha256": c.tsChecksum,
 				},
+				Length: notary.MaxTimestampSize,
 			},
 		)
 	} else {

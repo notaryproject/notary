@@ -4,33 +4,31 @@ import (
 	"bufio"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
-	"fmt"
-	"time"
 	"path"
+	"strings"
+	"time"
 
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/go-connections/tlsconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/docker/go-connections/tlsconfig"
 
-	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/client"
 	"github.com/theupdateframework/notary/passphrase"
 	"github.com/theupdateframework/notary/trustpinning"
+	"github.com/theupdateframework/notary/tuf/data"
 	"github.com/theupdateframework/notary/utils"
-	"github.com/theupdateframework/notary/client"
 )
 
 func (n *notaryCommander) Diff(cmd *cobra.Command, args []string) {
-	cmd.Println("Running diff on", "gun")
-
 	if len(args) < 3 {
 		cmd.Usage()
 		logrus.Fatalf("Must specify a GUN and two timestamp hashes")
@@ -58,9 +56,8 @@ func (n *notaryCommander) Diff(cmd *cobra.Command, args []string) {
 	if err != nil {
 		logrus.Fatalf(err.Error())
 	}
-	cmd.Println(out)
+	cmd.Println(string(out))
 }
-
 
 type passwordStore struct {
 	anonymous bool
