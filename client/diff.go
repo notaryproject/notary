@@ -21,10 +21,24 @@ import (
 type Diff struct {
 	TargetsAdded   []TargetSignedStruct
 	TargetsRemoved []TargetSignedStruct
-	TargetsUpdated []TargetSignedStruct
+	TargetsUpdated []TargetUpdateDiff
 	RolesAdded     []data.Role
 	RolesRemoved   []data.Role
-	RolesUpdated   []data.Role
+	RolesUpdated   []RoleUpdateDiff
+}
+
+// TargetUpdateDiff records a Target entry that changed by referencing
+// the Before and After versions of the TargetSignedStruct
+type TargetUpdateDiff struct {
+	Before TargetSignedStruct
+	After TargetSignedStruct
+}
+
+// RoleUpdateDiff records a Role entry that changed by referencing
+// the Before and After versions of the Role
+type RoleUpdateDiff struct {
+	Before data.Role
+	After data.Role
 }
 
 // NewDiff returns the different between two versions of the same TUF repo
@@ -122,7 +136,13 @@ func diffRoles(res *Diff, first, second *tuf.Repo) error {
 		}
 		delete(lookupTable, role.Name.String())
 		if !equivalentRoles(role, found) {
-			res.RolesUpdated = append(res.RolesUpdated, *role)
+			res.RolesUpdated = append(
+				res.RolesUpdated, 
+				RoleUpdateDiff{
+					Before: *found,
+					After: *role,
+				},
+			)
 		}
 	}
 	for _, role := range lookupTable {
@@ -214,7 +234,13 @@ func diffTargets(res *Diff, first, second *tuf.Repo) error {
 		delete(role, tgt.Target.Name)
 
 		if !equivalentTargets(tgt.Target, found.Target) {
-			res.TargetsUpdated = append(res.TargetsUpdated, tgt)
+			res.TargetsUpdated = append(
+				res.TargetsUpdated, 
+				TargetUpdateDiff{
+					Before: found,
+					After: tgt,
+				},
+			)
 		}
 	}
 
