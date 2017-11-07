@@ -61,7 +61,13 @@ func NewDiff(gun data.GUN, baseURL string, rt http.RoundTripper, hash1, hash2 st
 	logrus.Debug("succeeded updated second")
 
 	repoFirst, _, err := first.newBuilder.Finish()
+	if err != nil {
+		return Diff{}, err
+	}
 	repoSecond, _, err := second.newBuilder.Finish()
+	if err != nil {
+		return Diff{}, err
+	}
 
 	return diff(repoFirst, repoSecond)
 }
@@ -73,6 +79,9 @@ func setupClient(gun data.GUN, tsHash string, remote store.RemoteStore) (*tufCli
 	}
 
 	root, err := findRoot(hashBytes, remote)
+	if err != nil {
+		return nil, err
+	}
 
 	oldBuilder := tuf.NewRepoBuilder(gun, nil, trustpinning.TrustPinConfig{})
 	if err := oldBuilder.Load(data.CanonicalRootRole, root, 0, true); err != nil {
@@ -122,6 +131,12 @@ func diffRoles(res *Diff, first, second *tuf.Repo) error {
 	return nil
 }
 
+// equivalentRoles returns that two roles are equivalent if:
+// - the paths match
+// - the key IDs match
+// - the threshold matches
+// note: signatures and versions are deliberately not checked
+// as equivalent roles can have varying values
 func equivalentRoles(first, second *data.Role) bool {
 	paths := make(map[string]struct{})
 	for _, path := range first.Paths {
@@ -219,7 +234,7 @@ func equivalentTargets(first, second Target) bool {
 }
 
 // walk ts -> snap -> root.
-// TODO: verify checksums. Other verification will be done when we
+// Verifies content checksums, other verification will be done when we
 // eventually call tufClient.update()
 func findRoot(tsChecksum []byte, remote store.RemoteStore) ([]byte, error) {
 	consistentTSName := utils.ConsistentName(
@@ -230,6 +245,9 @@ func findRoot(tsChecksum []byte, remote store.RemoteStore) ([]byte, error) {
 	raw, err := remote.GetSized(consistentTSName, notary.MaxTimestampSize)
 	if err != nil {
 		logrus.Debugf("error downloading %s: %s", consistentTSName, err)
+		return nil, err
+	}
+	if err := data.CheckHashes(raw, data.CanonicalTimestampRole.String(), data.Hashes{notary.SHA256: tsChecksum}); err != nil {
 		return nil, err
 	}
 
@@ -243,11 +261,14 @@ func findRoot(tsChecksum []byte, remote store.RemoteStore) ([]byte, error) {
 	snapshotMeta := ts.Signed.Meta[data.CanonicalSnapshotRole.String()]
 	consistentSnapshotName := utils.ConsistentName(
 		data.CanonicalSnapshotRole.String(),
-		snapshotMeta.Hashes["sha256"],
+		snapshotMeta.Hashes[notary.SHA256],
 	)
 	raw, err = remote.GetSized(consistentSnapshotName, snapshotMeta.Length)
 	if err != nil {
 		logrus.Debugf("error downloading %s: %s", consistentSnapshotName, err)
+		return nil, err
+	}
+	if err := data.CheckHashes(raw, data.CanonicalSnapshotRole.String(), snapshotMeta.Hashes); err != nil {
 		return nil, err
 	}
 
@@ -266,6 +287,9 @@ func findRoot(tsChecksum []byte, remote store.RemoteStore) ([]byte, error) {
 	raw, err = remote.GetSized(consistentRootName, rootMeta.Length)
 	if err != nil {
 		logrus.Debugf("error downloading %s: %s", consistentRootName, err)
+		return nil, err
+	}
+	if err := data.CheckHashes(raw, data.CanonicalRootRole.String(), rootMeta.Hashes); err != nil {
 		return nil, err
 	}
 
