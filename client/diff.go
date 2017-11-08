@@ -31,14 +31,14 @@ type Diff struct {
 // the Before and After versions of the TargetSignedStruct
 type TargetUpdateDiff struct {
 	Before TargetSignedStruct
-	After TargetSignedStruct
+	After  TargetSignedStruct
 }
 
 // RoleUpdateDiff records a Role entry that changed by referencing
 // the Before and After versions of the Role
 type RoleUpdateDiff struct {
 	Before data.Role
-	After data.Role
+	After  data.Role
 }
 
 // NewDiff returns the different between two versions of the same TUF repo
@@ -137,10 +137,10 @@ func diffRoles(res *Diff, first, second *tuf.Repo) error {
 		delete(lookupTable, role.Name.String())
 		if !equivalentRoles(role, found) {
 			res.RolesUpdated = append(
-				res.RolesUpdated, 
+				res.RolesUpdated,
 				RoleUpdateDiff{
 					Before: *found,
-					After: *role,
+					After:  *role,
 				},
 			)
 		}
@@ -235,10 +235,10 @@ func diffTargets(res *Diff, first, second *tuf.Repo) error {
 
 		if !equivalentTargets(tgt.Target, found.Target) {
 			res.TargetsUpdated = append(
-				res.TargetsUpdated, 
+				res.TargetsUpdated,
 				TargetUpdateDiff{
 					Before: found,
-					After: tgt,
+					After:  tgt,
 				},
 			)
 		}
