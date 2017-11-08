@@ -97,7 +97,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/cloudflare/cfssl/log"
 	canonicaljson "github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
 	"github.com/docker/notary/client/changelist"
@@ -1297,7 +1296,7 @@ func (r *repository) pubKeyListFromPrivAndPubKeys(privKIDs []string, pubKeys dat
 	pubKeyIDs := make(map[string]struct{})
 	for _, k := range pubKeys {
 		kid, err := utils.CanonicalKeyID(k)
-		log.Debug("obtained public key ID %s for rotation", kid)
+		logrus.Debug("obtained public key ID %s for rotation", kid)
 		if err != nil {
 			return nil, fmt.Errorf("public key is invalid, %v", err)
 		}
@@ -1393,7 +1392,7 @@ func DeleteTrustData(baseDir string, gun data.GUN, URL string, rt http.RoundTrip
 	if deleteRemote {
 		remote, err := getRemoteStore(URL, gun, rt)
 		if err != nil {
-			log.Errorf("unable to instantiate a remote store: %v", err)
+			logrus.Errorf("unable to instantiate a remote store: %v", err)
 			return err
 		}
 		if err := remote.RemoveAll(); err != nil {
