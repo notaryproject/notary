@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -14,6 +15,9 @@ import (
 type diffCommander struct {
 	// these need to be set
 	configGetter func() (*viper.Viper, error)
+
+	// optional output file
+	outFile string
 }
 
 var cmdDiffTemplate = usageTemplate{
@@ -23,7 +27,16 @@ var cmdDiffTemplate = usageTemplate{
 }
 
 func (d *diffCommander) AddToCommand(cmd *cobra.Command) {
-	cmd.AddCommand(cmdDiffTemplate.ToCommand(d.diff))
+	cmdDiff := cmdDiffTemplate.ToCommand(d.diff)
+	cmdDiff.Flags().StringVarP(
+		&d.outFile,
+		"output",
+		"o",
+		"",
+		"Filepath to write diff output to",
+	)
+
+	cmd.AddCommand(cmdDiff)
 }
 
 func (d *diffCommander) diff(cmd *cobra.Command, args []string) error {
@@ -53,6 +66,9 @@ func (d *diffCommander) diff(cmd *cobra.Command, args []string) error {
 	out, err := json.Marshal(diff)
 	if err != nil {
 		return err
+	}
+	if d.outFile != "" {
+		return ioutil.WriteFile(d.outFile, out, 0644)
 	}
 	cmd.Println(string(out))
 	return nil
