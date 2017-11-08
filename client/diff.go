@@ -3,10 +3,10 @@ package client
 import (
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"reflect"
 
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
 	"github.com/theupdateframework/notary"
@@ -62,17 +62,17 @@ func NewDiff(gun data.GUN, baseURL string, rt http.RoundTripper, hash1, hash2 st
 	// setup.
 	// N.B. lower case update will fail out immediately rather than attempting
 	//      to download a newer root
-	logrus.Debug("starting updates")
+	logrus.Debug("starting updates for repository diff between %s and %s", hash1, hash2)
 	err = first.update()
 	if err != nil {
-		return Diff{}, errors.New("failed to download repo version " + hash1)
+		return Diff{}, errors.Wrapf(err, "failed to download repo at version \"%s\"", hash1)
 	}
-	logrus.Debug("succeeded updating first")
+	logrus.Debugf("succeeded updating first repository snapshot at %s", hash1)
 	err = second.update()
 	if err != nil {
-		return Diff{}, errors.New("failed to download repo version " + hash2)
+		return Diff{}, errors.Wrapf(err, "failed to download repo at version \"%s\"", hash2)
 	}
-	logrus.Debug("succeeded updated second")
+	logrus.Debug("succeeded updating second repository snapshot at %s", hash2)
 
 	repoFirst, _, err := first.newBuilder.Finish()
 	if err != nil {
@@ -89,7 +89,7 @@ func NewDiff(gun data.GUN, baseURL string, rt http.RoundTripper, hash1, hash2 st
 func setupClient(gun data.GUN, tsHash string, remote store.RemoteStore) (*tufClient, error) {
 	hashBytes, err := hex.DecodeString(tsHash)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "could not decode valid hash from hex string \"%s\"", tsHash)
 	}
 
 	root, err := findRoot(hashBytes, remote)
