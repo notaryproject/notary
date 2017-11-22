@@ -770,9 +770,8 @@ type passwordStore struct {
 	anonymous bool
 }
 
-func getUsername(input chan string) {
-	in := bufio.NewReader(os.Stdin)
-	result, err := in.ReadString('\n')
+func getUsername(input chan string, buf *bufio.Reader) {
+	result, err := buf.ReadString('\n')
 	if err != nil {
 		logrus.Errorf("error processing username input: %s", err)
 		input <- ""
@@ -813,7 +812,7 @@ func (ps passwordStore) Basic(u *url.URL) (string, string) {
 	stdin := bufio.NewReader(os.Stdin)
 	input := make(chan string, 1)
 	fmt.Fprintf(os.Stdout, "Enter username: ")
-	go getUsername(input)
+	go getUsername(input, stdin)
 	var username string
 	select {
 	case i := <-input:

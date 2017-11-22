@@ -165,5 +165,5 @@ func TestGetPassphrase(t *testing.T) {
 	stdin := bufio.NewReader(&in)
 	passphrase, err := GetPassphrase(stdin)
 	require.NoError(t, err)
-	require.Equal(t, string(passphrase), "passphrase\n")
+	require.Equal(t, "passphrase", string(passphrase))
 }
