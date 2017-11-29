@@ -431,10 +431,14 @@ func testGetChanges(t *testing.T, s MetaStore) {
 
 	_, err1 := s.GetChanges("1000", 0, "")
 	_, err2 := s.GetChanges("doesn't exist", 0, "")
-	if _, ok := s.(RethinkDB); ok {
+	switch s.(type) {
+	case RethinkDB:
 		require.Error(t, err1)
 		require.Error(t, err2)
-	} else {
+	case CouchDB:
+		require.Error(t, err1)
+		require.Error(t, err2)
+	default:
 		require.NoError(t, err1)
 		require.Error(t, err2)
 		require.IsType(t, ErrBadQuery{}, err2)
