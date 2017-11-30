@@ -1,0 +1,22 @@
+package: github.com/go-kivik/couchdb
+ignore:
+- github.com/gopherjs/gopherjs
+import:
+- package: github.com/flimzy/kivik
+  version: ^1.6.0
+  subpackages:
+  - driver
+  - errors
+- package: github.com/pkg/errors
+  version: ^0.8.0
+- package: golang.org/x/net
+  subpackages:
+  - publicsuffix
+- package: github.com/flimzy/diff
+  version: ^0.1.2
+- package: github.com/go-kivik/kiviktest
+  version: ^1.1.0
+  subpackages:
+  - kt
+- package: github.com/flimzy/testy
+  version: ^0.0.4

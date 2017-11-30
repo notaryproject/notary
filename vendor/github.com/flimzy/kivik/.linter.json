@@ -1,0 +1,7 @@
+{
+    "Enable":   ["vet", "vetshadow", "gotype", "deadcode", "gocyclo", "golint", "varcheck", "structcheck", "aligncheck", "errcheck", "ineffassign", "unconvert", "goconst", "gosimple", "staticcheck", "gas", "misspell", "gofmt" ],
+    "Exclude":  ["Errors unhandled\\..*\\(gas\\)"],
+    "Vendor":   true,
+    "Test":     true,
+    "Deadline": "60s"
+}

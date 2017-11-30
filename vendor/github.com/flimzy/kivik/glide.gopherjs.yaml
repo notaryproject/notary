@@ -1,0 +1,9 @@
+package: github.com/flimzy/kivik
+ignore:
+- github.com/gopherjs/gopherjs
+import:
+- package: github.com/gopherjs/jsbuiltin
+- package: github.com/imdario/mergo
+  version: ~0.2.2
+- package: github.com/go-kivik/pouchdb
+  version: master

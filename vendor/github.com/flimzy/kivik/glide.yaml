@@ -1,0 +1,15 @@
+package: github.com/flimzy/kivik
+ignore:
+- github.com/gopherjs/gopherjs
+- github.com/gopherjs/jsbuiltin
+import:
+- package: github.com/pkg/errors
+  version: ~0.8.0
+- package: github.com/go-kivik/kiviktest
+  subpackages:
+  - kt
+testimport:
+- package: github.com/flimzy/testy
+  version: ~0.0.1
+- package: github.com/flimzy/diff
+  version: ~0.1.2
