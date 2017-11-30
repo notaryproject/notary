@@ -1,0 +1,17 @@
+{
+	"server": {
+		"grpc_addr": ":7899",
+		"tls_cert_file": "./notary-signer.crt",
+		"tls_key_file": "./notary-signer.key",
+		"client_ca_file": "./notary-server.crt"
+	},
+	"logging": {
+		"level": "debug"
+	},
+	"storage": {
+		"backend": "couchdb",
+		"db_url": "https://signer:signerpass@cdb-01.cdb:6984",
+		"database": "notarysigner",
+		"tls_ca_file": "./couchdb/ca.pem"
+	}
+}
