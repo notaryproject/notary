@@ -15,5 +15,7 @@ case $CIRCLE_NODE_INDEX in
    SKIPENVCHECK=1 make TESTDB=rethink integration
    SKIPENVCHECK=1 make TESTDB=postgresql testdb
    SKIPENVCHECK=1 make TESTDB=postgresql integration
+   SKIPENVCHECK=1 make TESTDB=couch testdb
+   SKIPENVCHECK=1 make TESTDB=couch integration
    ;;
 esac

@@ -12,6 +12,8 @@ import (
 	_ "github.com/docker/distribution/registry/auth/htpasswd"
 	_ "github.com/docker/distribution/registry/auth/token"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/flimzy/kivik"
+	_ "github.com/go-kivik/couchdb"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
@@ -20,6 +22,7 @@ import (
 	"github.com/theupdateframework/notary/server"
 	"github.com/theupdateframework/notary/server/storage"
 	"github.com/theupdateframework/notary/signer/client"
+	"github.com/theupdateframework/notary/storage/couchdb"
 	"github.com/theupdateframework/notary/storage/rethinkdb"
 	"github.com/theupdateframework/notary/tuf/data"
 	"github.com/theupdateframework/notary/tuf/signed"
@@ -121,6 +124,29 @@ func getStore(configuration *viper.Viper, hRegister healthRegister, doBootstrap 
 			return nil, fmt.Errorf("Error starting %s driver: %s", backend, err.Error())
 		}
 		s := storage.NewRethinkDBStorage(storeConfig.DBName, storeConfig.Username, storeConfig.Password, sess)
+		store = *storage.NewTUFMetaStorage(s)
+		hRegister("DB operational", 10*time.Second, s.CheckHealth)
+	case notary.CouchDBBackend:
+		var client *kivik.Client
+		storeConfig, err := utils.ParseCouchDBStorage(configuration)
+		if err != nil {
+			return nil, err
+		}
+		tlsOpts := tlsconfig.Options{
+			CAFile:             storeConfig.CA,
+			CertFile:           storeConfig.Cert,
+			KeyFile:            storeConfig.Key,
+			ExclusiveRootPools: true,
+		}
+		if doBootstrap {
+			client, err = couchdb.AdminConnection(tlsOpts, storeConfig.Source)
+		} else {
+			client, err = couchdb.UserConnection(tlsOpts, storeConfig.Source, storeConfig.Username, storeConfig.Password)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("Error starting %s driver: %s", backend, err.Error())
+		}
+		s := storage.NewCouchDBStorage(storeConfig.DBName, storeConfig.Username, storeConfig.Password, client)
 		store = *storage.NewTUFMetaStorage(s)
 		hRegister("DB operational", 10*time.Second, s.CheckHealth)
 	default:

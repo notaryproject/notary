@@ -139,6 +139,45 @@ func TestSetupCryptoServicesRethinkDBStoreConnectionFails(t *testing.T) {
 	require.Contains(t, err.Error(), "no such host")
 }
 
+// If a default alias is not provided to a couchdb backend, an error is returned.
+func TestSetupCryptoServicesCouchDBStoreNoDefaultAlias(t *testing.T) {
+	_, err := setUpCryptoservices(
+		configure(fmt.Sprintf(
+			`{"storage": {
+				"backend": "%s",
+				"db_url": "https://signer:password@host:1234",
+				"tls_ca_file": "/tls/ca.pem",
+				"client_cert_file": "/tls/cert.pem",
+				"client_key_file": "/tls/key.pem",
+				"database": "couchdbtest"
+				}
+			}`,
+			notary.CouchDBBackend)),
+		[]string{notary.CouchDBBackend}, false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "must provide a default alias for the key DB")
+}
+
+func TestSetupCryptoServicesCouchDBStoreConnectionFails(t *testing.T) {
+	// We don't have a couch instance up, so the Connection() call will fail
+	_, err := setUpCryptoservices(
+		configure(fmt.Sprintf(
+			`{"storage": {
+				"backend": "%s",
+				"db_url": "https://signer:password@host:1234",
+				"tls_ca_file": "../../fixtures/couchdb/ca.pem",
+				"client_cert_file": "../../fixtures/couchdb/cert.pem",
+				"client_key_file": "../../fixtures/couchdb/key.pem",
+				"database": "couchdbtest"
+				},
+				"default_alias": "timestamp"
+			}`,
+			notary.CouchDBBackend)),
+		[]string{notary.CouchDBBackend}, false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no such host")
+}
+
 // If a default alias *is* provided to a valid DB backend, a valid
 // CryptoService is returned.  (This depends on ParseStorage, which is tested
 // separately, so this doesn't test all the possible cases of storage
@@ -219,9 +258,9 @@ func TestSetupCryptoServicesInvalidStore(t *testing.T) {
 	config := configure(fmt.Sprintf(`{"storage": {"backend": "%s"}}`,
 		"invalid_backend"))
 	_, err := setUpCryptoservices(config,
-		[]string{notary.SQLiteBackend, notary.MemoryBackend, notary.RethinkDBBackend}, false)
+		[]string{notary.SQLiteBackend, notary.MemoryBackend, notary.RethinkDBBackend, notary.CouchDBBackend}, false)
 	require.Error(t, err)
-	require.Equal(t, err.Error(), fmt.Sprintf("%s is not an allowed backend, must be one of: %s", "invalid_backend", []string{notary.SQLiteBackend, notary.MemoryBackend, notary.RethinkDBBackend}))
+	require.Equal(t, err.Error(), fmt.Sprintf("%s is not an allowed backend, must be one of: %s", "invalid_backend", []string{notary.SQLiteBackend, notary.MemoryBackend, notary.RethinkDBBackend, notary.CouchDBBackend}))
 }
 
 func TestSetupGRPCServerInvalidAddress(t *testing.T) {
