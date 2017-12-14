@@ -98,6 +98,42 @@ func passphraseRetriever(keyName, alias string, createNew bool, attempts int) (p
 	return passphrase, false, nil
 }
 
+func setUpRethinkCryptoservices(configuration *viper.Viper, doBootstrap bool, backend string) (signed.CryptoService, error) {
+	var sess *gorethink.Session
+	storeConfig, err := utils.ParseRethinkDBStorage(configuration)
+	if err != nil {
+		return nil, err
+	}
+	defaultAlias, err := getDefaultAlias(configuration)
+	if err != nil {
+		return nil, err
+	}
+	tlsOpts := tlsconfig.Options{
+		CAFile:             storeConfig.CA,
+		CertFile:           storeConfig.Cert,
+		KeyFile:            storeConfig.Key,
+		ExclusiveRootPools: true,
+	}
+	if doBootstrap {
+		sess, err = rethinkdb.AdminConnection(tlsOpts, storeConfig.Source)
+	} else {
+		sess, err = rethinkdb.UserConnection(tlsOpts, storeConfig.Source, storeConfig.Username, storeConfig.Password)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("Error starting %s driver: %s", backend, err.Error())
+	}
+	s := keydbstore.NewRethinkDBKeyStore(storeConfig.DBName, storeConfig.Username, storeConfig.Password, passphraseRetriever, defaultAlias, sess)
+	health.RegisterPeriodicFunc("DB operational", time.Minute, s.CheckHealth)
+
+	var keyService signed.CryptoService
+	if doBootstrap {
+		keyService = s
+	} else {
+		keyService = keydbstore.NewCachedKeyService(s)
+	}
+	return keyService, nil
+}
+
 // Reads the configuration file for storage setup, and sets up the cryptoservice
 // mapping
 func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, doBootstrap bool) (
@@ -109,41 +145,16 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, d
 	}
 
 	var keyService signed.CryptoService
+	var err error
+
 	switch backend {
 	case notary.MemoryBackend:
 		keyService = cryptoservice.NewCryptoService(trustmanager.NewKeyMemoryStore(
 			passphrase.ConstantRetriever("memory-db-ignore")))
 	case notary.RethinkDBBackend:
-		var sess *gorethink.Session
-		storeConfig, err := utils.ParseRethinkDBStorage(configuration)
+		keyService, err = setUpRethinkCryptoservices(configuration, doBootstrap, backend)
 		if err != nil {
 			return nil, err
-		}
-		defaultAlias, err := getDefaultAlias(configuration)
-		if err != nil {
-			return nil, err
-		}
-		tlsOpts := tlsconfig.Options{
-			CAFile:             storeConfig.CA,
-			CertFile:           storeConfig.Cert,
-			KeyFile:            storeConfig.Key,
-			ExclusiveRootPools: true,
-		}
-		if doBootstrap {
-			sess, err = rethinkdb.AdminConnection(tlsOpts, storeConfig.Source)
-		} else {
-			sess, err = rethinkdb.UserConnection(tlsOpts, storeConfig.Source, storeConfig.Username, storeConfig.Password)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("Error starting %s driver: %s", backend, err.Error())
-		}
-		s := keydbstore.NewRethinkDBKeyStore(storeConfig.DBName, storeConfig.Username, storeConfig.Password, passphraseRetriever, defaultAlias, sess)
-		health.RegisterPeriodicFunc("DB operational", time.Minute, s.CheckHealth)
-
-		if doBootstrap {
-			keyService = s
-		} else {
-			keyService = keydbstore.NewCachedKeyService(s)
 		}
 	case notary.MySQLBackend, notary.SQLiteBackend, notary.PostgresBackend:
 		storeConfig, err := utils.ParseSQLStorage(configuration)
