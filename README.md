@@ -108,7 +108,8 @@ Set [```GOPATH```](https://golang.org/doc/code.html#GOPATH). Then, run:
 
 ```bash
 $ go get github.com/theupdateframework/notary
-$ go install github.com/theupdateframework/notary/cmd/notary
+# build with pcks11 support by default to support yubikey
+$ go install -tags pkcs11 github.com/theupdateframework/notary/cmd/notary
 $ notary
 ```
 
