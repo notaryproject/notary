@@ -415,7 +415,7 @@ def run():
         repo_name = uuid4().hex
 
     print("building a new client binary")
-    call(['go', 'build', '-o', binary(), 'github.com/docker/notary/cmd/notary'])
+    call(['go', 'build', '-o', binary(), 'github.com/theupdateframework/notary/cmd/notary'])
     print('---')
 
     username_passwd = ()
