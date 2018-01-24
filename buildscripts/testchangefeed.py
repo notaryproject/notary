@@ -63,7 +63,7 @@ def parse_args(args=None):
         help="Notary Server to connect to - defaults to https://notary-server:4443")
     parser.add_argument(
         '-u', '--username', dest="username", type=str, required=True,
-        help="Username to use to log into the Notary Server (you will be asked for the password")
+        help="Username to use to log into the Notary Server")
     parser.add_argument(
         '-p', '--password', dest="password", type=str, required=True,
         help="Password to use to log into the Notary Server")
