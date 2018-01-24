@@ -64,9 +64,12 @@ def parse_args(args=None):
     parser.add_argument(
         '-u', '--username', dest="username", type=str, required=True,
         help="Username to use to log into the Notary Server (you will be asked for the password")
+    parser.add_argument(
+        '-p', '--password', dest="password", type=str, required=True,
+        help="Password to use to log into the Notary Server")
     parsed = parser.parse_args(args)
 
-    return parsed.reponame, parsed.server.rstrip('/'), parsed.username
+    return parsed.reponame, parsed.server.rstrip('/'), parsed.username, parsed.password
 
 def cleanup(*paths):
     """
@@ -407,7 +410,7 @@ def run():
     """
     Run the client tests
     """
-    repo_name, server, username = parse_args()
+    repo_name, server, username, password = parse_args()
     if not repo_name:
         repo_name = uuid4().hex
 
@@ -418,7 +421,6 @@ def run():
     username_passwd = ()
     if username is not None and username.strip():
         username = username.strip()
-        password = getpass("password to server for user {0}: ".format(username))
         username_passwd = (username, password.strip("\r\n"))
 
     ca_file_path = get_dtr_ca(server)
