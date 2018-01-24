@@ -46,10 +46,11 @@ def parse_args(args=None):
 
             When running against Docker Hub, suggest usage like:
 
-                python buildscripts/testclient.py \\
+                python buildscripts/testchangefeed.py \\
                     -s https://notary.docker.io \\
                     -r docker.io/username/reponame \\
                     -u username
+                    -p password
 
             Note that especially for Docker Hub, the repo has to have been already
          
