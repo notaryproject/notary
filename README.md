@@ -97,21 +97,20 @@ branch and contains features for the next release.
 Prerequisites:
 
 - Go >= 1.7.1
-- [godep](https://github.com/tools/godep) installed
+    - Fedora: `dnf install golang`
 - libtool development headers installed
     - Ubuntu: `apt-get install libltdl-dev`
     - CentOS/RedHat: `yum install libtool-ltdl-devel`
+    - Fedora: `dnf install libtool-ltdl-devel`
     - Mac OS ([Homebrew](http://brew.sh/)): `brew install libtool`
 
-Run `make client`, which creates the Notary Client CLI binary at `bin/notary`.
-Note that `make client` assumes a standard Go directory structure, in which
-Notary is checked out to the `src` directory in your `GOPATH`. For example:
-```
-$GOPATH/
-    src/
-        github.com/
-            theupdateframework/
-                notary/
+Set [```GOPATH```](https://golang.org/doc/code.html#GOPATH). Then, run:
+
+```bash
+$ go get github.com/theupdateframework/notary
+# build with pcks11 support by default to support yubikey
+$ go install -tags pkcs11 github.com/theupdateframework/notary/cmd/notary
+$ notary
 ```
 
 To build the server and signer, run `docker-compose build`.
