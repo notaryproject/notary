@@ -559,7 +559,7 @@ func (t *tufCommander) tufList(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	prettyPrintTargets(targetList, cmd.Out())
+	prettyPrintTargets(targetList, cmd.OutOrStdout())
 	return nil
 }
 
@@ -622,7 +622,7 @@ func (t *tufCommander) tufStatus(cmd *cobra.Command, args []string) error {
 	cmd.Printf("Unpublished changes for %s:\n\n", gun)
 	tw := initTabWriter(
 		[]string{"#", "ACTION", "SCOPE", "TYPE", "PATH"},
-		cmd.Out(),
+		cmd.OutOrStdout(),
 	)
 	for i, ch := range cl.List() {
 		fmt.Fprintf(

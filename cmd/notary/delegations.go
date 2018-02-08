@@ -165,7 +165,7 @@ func (d *delegationCommander) delegationsList(cmd *cobra.Command, args []string)
 	}
 
 	cmd.Println("")
-	prettyPrintRoles(delegationRoles, cmd.Out(), "delegations")
+	prettyPrintRoles(delegationRoles, cmd.OutOrStdout(), "delegations")
 	cmd.Println("")
 	return nil
 }
