@@ -1,8 +1,9 @@
-FROM golang:1.8.4
+FROM golang:1.9.4
 
 RUN apt-get update && apt-get install -y \
 	curl \
 	clang \
+	file \
 	libltdl-dev \
 	libsqlite3-dev \
 	patch \
@@ -19,7 +20,7 @@ RUN useradd -ms /bin/bash notary \
 
 # Configure the container for OSX cross compilation
 ENV OSX_SDK MacOSX10.11.sdk
-ENV OSX_CROSS_COMMIT 8aa9b71a394905e6c5f4b59e2b97b87a004658a4
+ENV OSX_CROSS_COMMIT 1a1733a773fe26e7b6c93b16fbf9341f22fac831
 RUN set -x \
 	&& export OSXCROSS_PATH="/osxcross" \
 	&& git clone https://github.com/tpoechtrager/osxcross.git $OSXCROSS_PATH \

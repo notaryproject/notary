@@ -1,4 +1,4 @@
-FROM golang:1.7.3-alpine
+FROM golang:1.9.4-alpine
 MAINTAINER David Lawrence "david.lawrence@docker.com"
 
 ENV NOTARYPKG github.com/theupdateframework/notary
