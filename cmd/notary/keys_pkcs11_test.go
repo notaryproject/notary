@@ -17,12 +17,15 @@ import (
 	"github.com/theupdateframework/notary/passphrase"
 	store "github.com/theupdateframework/notary/storage"
 	"github.com/theupdateframework/notary/trustmanager"
-	"github.com/theupdateframework/notary/trustmanager/yubikey"
+	"github.com/theupdateframework/notary/trustmanager/pkcs11/common"
+	"github.com/theupdateframework/notary/trustmanager/pkcs11/yubikey"
 	"github.com/theupdateframework/notary/tuf/data"
 )
 
 func TestImportWithYubikey(t *testing.T) {
-	if !yubikey.IsAccessible() {
+
+	common.SetKeyStore(yubikey.NewKeyStore())
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	setUp(t)
@@ -74,7 +77,7 @@ func TestImportWithYubikey(t *testing.T) {
 	err = k.importKeys(&cobra.Command{}, []string{file})
 	require.NoError(t, err)
 
-	yks, err := yubikey.NewYubiStore(nil, k.getRetriever())
+	yks, err := common.NewHardwareStore(nil, k.getRetriever())
 	require.NoError(t, err)
 	_, _, err = yks.GetKey(bID)
 	require.NoError(t, err)
@@ -95,7 +98,7 @@ func TestImportWithYubikey(t *testing.T) {
 }
 
 func TestGetImporters(t *testing.T) {
-	if !yubikey.IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")

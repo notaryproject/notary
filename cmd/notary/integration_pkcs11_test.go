@@ -9,7 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/theupdateframework/notary"
 	"github.com/theupdateframework/notary/passphrase"
-	"github.com/theupdateframework/notary/trustmanager/yubikey"
+	"github.com/theupdateframework/notary/trustmanager/pkcs11/common"
+	"github.com/theupdateframework/notary/trustmanager/pkcs11/yubikey"
 	"github.com/theupdateframework/notary/tuf/data"
 )
 
@@ -17,7 +18,6 @@ var _retriever notary.PassRetriever
 
 func init() {
 	yubikey.SetYubikeyKeyMode(yubikey.KeymodeNone)
-
 	regRetriver := passphrase.PromptRetriever()
 	_retriever := func(k, a string, c bool, n int) (string, bool, error) {
 		if k == "Yubikey" {
@@ -27,7 +27,7 @@ func init() {
 	}
 
 	// best effort at removing keys here, so nil is fine
-	s, err := yubikey.NewYubiStore(nil, _retriever)
+	s, err := common.NewHardwareStore(nil, _retriever)
 	if err != nil {
 		for k := range s.ListKeys() {
 			s.RemoveKey(k)
@@ -42,12 +42,12 @@ func init() {
 	}
 }
 
-var rootOnHardware = yubikey.IsAccessible
+var rootOnHardware = common.IsAccessible
 
 // Per-test set up deletes all keys on the yubikey
 func setUp(t *testing.T) {
 	//we're just removing keys here, so nil is fine
-	s, err := yubikey.NewYubiStore(nil, _retriever)
+	s, err := common.NewHardwareStore(nil, _retriever)
 	require.NoError(t, err)
 	for k := range s.ListKeys() {
 		err := s.RemoveKey(k)
@@ -60,9 +60,9 @@ func setUp(t *testing.T) {
 // on disk
 func verifyRootKeyOnHardware(t *testing.T, rootKeyID string) {
 	// do not bother verifying if there is no yubikey available
-	if yubikey.IsAccessible() {
+	if common.IsAccessible() {
 		// //we're just getting keys here, so nil is fine
-		s, err := yubikey.NewYubiStore(nil, _retriever)
+		s, err := common.NewHardwareStore(nil, _retriever)
 		require.NoError(t, err)
 		privKey, role, err := s.GetKey(rootKeyID)
 		require.NoError(t, err)
