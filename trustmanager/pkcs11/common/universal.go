@@ -21,14 +21,16 @@ var (
 	hardwareKeyStore HardwareSpecificStore
 )
 
+// SetKeyStore sets up the to be used keystore
 func SetKeyStore(ks HardwareSpecificStore) {
 	hardwareKeyStore = ks
 	hardwareName = hardwareKeyStore.Name()
 }
 
-// IPKCS11 is an interface for wrapping github.com/miekg/pkcs11
+// Pkcs11LibLoader defines IPKCS11 which is an interface for wrapping github.com/miekg/pkcs11
 type Pkcs11LibLoader func(module string) IPKCS11Ctx
 
+// DefaultLoader returns pkcs11 witha given module
 func DefaultLoader(module string) IPKCS11Ctx {
 	return pkcs11.New(module)
 }
@@ -59,13 +61,14 @@ type IPKCS11Ctx interface {
 
 //Common Functions and Structs that may be used by different PKCS11 Implementations
 
+// HardwareSlot defines and connects the keyrole, slotid and keyid
 type HardwareSlot struct {
 	Role   data.RoleName
 	SlotID []byte
 	KeyID  string
 }
 
-// An error indicating that the HSM is not present (as opposed to failing),
+// ErrHSMNotPresent is an error indicating that the HSM is not present (as opposed to failing),
 // i.e. that we can confidently claim that the key is not stored in the HSM
 // without notifying the user about a missing or failing HSM.
 type ErrHSMNotPresent struct {
@@ -76,6 +79,7 @@ func (err ErrHSMNotPresent) Error() string {
 	return err.Err
 }
 
+// HardwareSpecificStore is an interface that defines all the functions, a hardwarespecific keystore needs to implement to work with pkcs11
 type HardwareSpecificStore interface {
 	Name() string
 	AddECDSAKey(IPKCS11Ctx, pkcs11.SessionHandle, data.PrivateKey, HardwareSlot, notary.PassRetriever, data.RoleName) error
@@ -158,6 +162,7 @@ func FinalizeAndDestroy(ctx IPKCS11Ctx) {
 	ctx.Destroy()
 }
 
+// BuildKeyMap maps all the keys of a slot according to its info
 func BuildKeyMap(keys map[string]HardwareSlot) map[string]trustmanager.KeyInfo {
 	res := make(map[string]trustmanager.KeyInfo)
 	for k, v := range keys {
@@ -166,8 +171,8 @@ func BuildKeyMap(keys map[string]HardwareSlot) map[string]trustmanager.KeyInfo {
 	return res
 }
 
-// If a byte array is less than the number of bytes specified by
-// ecdsaPrivateKeySize, left-zero-pad the byte array until
+// EnsurePrivateKeySize checks if a byte array is less than the number of bytes specified by
+// ecdsaPrivateKeySize. If, left-zero-pad the byte array until
 // it is the required size.
 func EnsurePrivateKeySize(payload []byte) []byte {
 	final := payload
