@@ -5,7 +5,6 @@ package common
 import (
 	"crypto"
 	"crypto/x509"
-	"errors"
 	"fmt"
 	"io"
 
@@ -15,6 +14,7 @@ import (
 )
 
 const (
+	// SigAttempts defines maximum attempts to sign an artifact before aborting
 	SigAttempts = 5
 )
 
@@ -31,7 +31,7 @@ type hardwareSigner struct {
 	HardwarePrivateKey
 }
 
-// NewHwrdwarePrivateKey returns a HwardwarePrivateKey, which implements the data.PrivateKey
+// NewHardwarePrivateKey returns a HwardwarePrivateKey, which implements the data.PrivateKey
 // interface except that the private material is inaccessible
 func NewHardwarePrivateKey(slot HardwareSlot, pubKey data.ECDSAPublicKey, passRetriever notary.PassRetriever) *HardwarePrivateKey {
 	return &HardwarePrivateKey{
@@ -43,8 +43,8 @@ func NewHardwarePrivateKey(slot HardwareSlot, pubKey data.ECDSAPublicKey, passRe
 }
 
 // Public is a required method of the crypto.Signer interface
-func (ys *hardwareSigner) Public() crypto.PublicKey {
-	publicKey, err := x509.ParsePKIXPublicKey(ys.HardwarePrivateKey.Public())
+func (hs *hardwareSigner) Public() crypto.PublicKey {
+	publicKey, err := x509.ParsePKIXPublicKey(hs.HardwarePrivateKey.Public())
 	if err != nil {
 		return nil
 	}
@@ -52,11 +52,12 @@ func (ys *hardwareSigner) Public() crypto.PublicKey {
 	return publicKey
 }
 
+// SetLibLoader sets up the pkcs library for further usage
 func (hpk *HardwarePrivateKey) SetLibLoader(loader Pkcs11LibLoader) {
 	hpk.libLoader = loader
 }
 
-// CryptoSigner returns a crypto.Signer tha wraps the HardwarePrivateKey. Needed for
+// CryptoSigner returns a crypto.Signer that wraps the HardwarePrivateKey. Needed for
 // Certificate generation only
 func (hpk *HardwarePrivateKey) CryptoSigner() crypto.Signer {
 	return &hardwareSigner{HardwarePrivateKey: *hpk}
@@ -69,7 +70,7 @@ func (hpk *HardwarePrivateKey) Private() []byte {
 
 // SignatureAlgorithm returns which algorithm this key uses to sign - currently
 // hardcoded to ECDSA
-func (y HardwarePrivateKey) SignatureAlgorithm() data.SigAlgorithm {
+func (hpk HardwarePrivateKey) SignatureAlgorithm() data.SigAlgorithm {
 	return data.ECDSASignature
 }
 
@@ -92,5 +93,5 @@ func (hpk *HardwarePrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.Sign
 			return sig, nil
 		}
 	}
-	return nil, errors.New(fmt.Sprintln("failed to generate signature on %s", hardwareName))
+	return nil, fmt.Errorf("failed to generate signature on %s", hardwareName)
 }

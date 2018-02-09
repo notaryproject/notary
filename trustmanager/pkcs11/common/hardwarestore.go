@@ -12,6 +12,8 @@ import (
 	"github.com/theupdateframework/notary/tuf/data"
 )
 
+// HardwareStore defines a datastructure with the corresponding pkcs11 library,
+// all keys inside, the given passretirever and the backup store in the filesystem
 type HardwareStore struct {
 	PassRetriever notary.PassRetriever
 	Keys          map[string]HardwareSlot
@@ -38,6 +40,7 @@ func (s HardwareStore) Name() string {
 	return hardwareName
 }
 
+// SetLibLoader sets up the libloader for further usage
 func (s *HardwareStore) SetLibLoader(loader Pkcs11LibLoader) {
 	s.LibLoader = loader
 }
@@ -114,7 +117,6 @@ func (s *HardwareStore) addKey(keyID string, role data.RoleName, privKey data.Pr
 		SlotID: slot,
 		KeyID:  keyID,
 	}
-	//err = hardwareKeyStore.AddECDSAKey(ctx, session, privKey, slot, s.PassRetriever, role)
 	err = hardwareKeyStore.AddECDSAKey(ctx, session, privKey, key, s.PassRetriever, role)
 	if err == nil {
 		s.Keys[privKey.ID()] = key

@@ -83,10 +83,12 @@ var touchDoneCallback = func() {
 }
 var pkcs11Lib string
 
-type keyStore struct {
+// KeyStore is the hardwarespecific keystore implementing all functions
+type KeyStore struct {
 }
 
-func NewKeyStore() *keyStore {
+// NewKeyStore looks up all possible filepaths for the yubikey library and if it finds one, sets it up for further usage
+func NewKeyStore() *KeyStore {
 	if possiblePkcs11Libs != nil {
 		for _, loc := range possiblePkcs11Libs {
 			_, err := os.Stat(loc)
@@ -98,15 +100,16 @@ func NewKeyStore() *keyStore {
 			}
 		}
 	}
-	return &keyStore{}
+	return &KeyStore{}
 }
 
-func (ks *keyStore) Name() string {
+//Name returns the hardwarestores name
+func (ks *KeyStore) Name() string {
 	return name
 }
 
-// addECDSAKey adds a key to the yubikey
-func (ks *keyStore) AddECDSAKey(
+// AddECDSAKey adds a key to the yubikey
+func (ks *KeyStore) AddECDSAKey(
 	ctx common.IPKCS11Ctx,
 	session pkcs11.SessionHandle,
 	privKey data.PrivateKey,
@@ -170,7 +173,8 @@ func (ks *keyStore) AddECDSAKey(
 	return nil
 }
 
-func (ks *keyStore) GetECDSAKey(ctx common.IPKCS11Ctx, session pkcs11.SessionHandle, hwslot common.HardwareSlot, _ notary.PassRetriever) (*data.ECDSAPublicKey, data.RoleName, error) {
+//GetECDSAKey gets a key by id from the yubikey store
+func (ks *KeyStore) GetECDSAKey(ctx common.IPKCS11Ctx, session pkcs11.SessionHandle, hwslot common.HardwareSlot, _ notary.PassRetriever) (*data.ECDSAPublicKey, data.RoleName, error) {
 	findTemplate := []*pkcs11.Attribute{
 		pkcs11.NewAttribute(pkcs11.CKA_TOKEN, true),
 		pkcs11.NewAttribute(pkcs11.CKA_ID, hwslot.SlotID),
@@ -227,8 +231,8 @@ func (ks *keyStore) GetECDSAKey(ctx common.IPKCS11Ctx, session pkcs11.SessionHan
 	return data.NewECDSAPublicKey(pubBytes), data.CanonicalRootRole, nil
 }
 
-// sign returns a signature for a given signature request
-func (ks *keyStore) Sign(ctx common.IPKCS11Ctx, session pkcs11.SessionHandle, hwslot common.HardwareSlot, passRetriever notary.PassRetriever, payload []byte) ([]byte, error) {
+// Sign returns a signature for a given signature request
+func (ks *KeyStore) Sign(ctx common.IPKCS11Ctx, session pkcs11.SessionHandle, hwslot common.HardwareSlot, passRetriever notary.PassRetriever, payload []byte) ([]byte, error) {
 	err := common.Login(ctx, session, passRetriever, pkcs11.CKU_USER, UserPin, name)
 	if err != nil {
 		return nil, fmt.Errorf("error logging in: %v", err)
@@ -287,7 +291,8 @@ func (ks *keyStore) Sign(ctx common.IPKCS11Ctx, session pkcs11.SessionHandle, hw
 	return sig[:], nil
 }
 
-func (ks *keyStore) HardwareRemoveKey(ctx common.IPKCS11Ctx, session pkcs11.SessionHandle, hwslot common.HardwareSlot, passRetriever notary.PassRetriever, keyID string) error {
+// HardwareRemoveKey removes the Key with a specified ID from the yubikey store
+func (ks *KeyStore) HardwareRemoveKey(ctx common.IPKCS11Ctx, session pkcs11.SessionHandle, hwslot common.HardwareSlot, passRetriever notary.PassRetriever, keyID string) error {
 	err := common.Login(ctx, session, passRetriever, pkcs11.CKU_SO, SOUserPin, name)
 	if err != nil {
 		return err
@@ -328,7 +333,8 @@ func (ks *keyStore) HardwareRemoveKey(ctx common.IPKCS11Ctx, session pkcs11.Sess
 	return nil
 }
 
-func (ks *keyStore) HardwareListKeys(ctx common.IPKCS11Ctx, session pkcs11.SessionHandle) (keys map[string]common.HardwareSlot, err error) {
+//HardwareListKeys lists all available Keys stored by yubikey
+func (ks *KeyStore) HardwareListKeys(ctx common.IPKCS11Ctx, session pkcs11.SessionHandle) (keys map[string]common.HardwareSlot, err error) {
 	keys = make(map[string]common.HardwareSlot)
 
 	attrTemplate := []*pkcs11.Attribute{
@@ -401,7 +407,7 @@ func (ks *keyStore) HardwareListKeys(ctx common.IPKCS11Ctx, session pkcs11.Sessi
 	return
 }
 
-func (ks *keyStore) listObjects(ctx common.IPKCS11Ctx, session pkcs11.SessionHandle) ([]pkcs11.ObjectHandle, error) {
+func (ks *KeyStore) listObjects(ctx common.IPKCS11Ctx, session pkcs11.SessionHandle) ([]pkcs11.ObjectHandle, error) {
 	findTemplate := []*pkcs11.Attribute{
 		pkcs11.NewAttribute(pkcs11.CKA_TOKEN, true),
 		pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_CERTIFICATE),
@@ -437,7 +443,8 @@ func (ks *keyStore) listObjects(ctx common.IPKCS11Ctx, session pkcs11.SessionHan
 	return objs, nil
 }
 
-func (ks *keyStore) GetNextEmptySlot(ctx common.IPKCS11Ctx, session pkcs11.SessionHandle) ([]byte, error) {
+//GetNextEmptySlot returns the first empty slot found by yubikey to store a key
+func (ks *KeyStore) GetNextEmptySlot(ctx common.IPKCS11Ctx, session pkcs11.SessionHandle) ([]byte, error) {
 	findTemplate := []*pkcs11.Attribute{
 		pkcs11.NewAttribute(pkcs11.CKA_TOKEN, true),
 	}
@@ -507,8 +514,7 @@ func (ks *keyStore) GetNextEmptySlot(ctx common.IPKCS11Ctx, session pkcs11.Sessi
 }
 
 // SetupHSMEnv is a method that depends on the existences
-
-func (ks *keyStore) SetupHSMEnv(libLoader common.Pkcs11LibLoader) (
+func (ks *KeyStore) SetupHSMEnv(libLoader common.Pkcs11LibLoader) (
 	common.IPKCS11Ctx, pkcs11.SessionHandle, error) {
 
 	if pkcs11Lib == "" {

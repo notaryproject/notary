@@ -10,10 +10,6 @@ import (
 	"github.com/theupdateframework/notary/trustmanager/pkcs11/common"
 )
 
-func init() {
-	pkcs11.Setup()
-}
-
 func getHardwareStore(fileKeyStore trustmanager.KeyStore, ret notary.PassRetriever) (*common.HardwareStore, error) {
 	return common.NewHardwareStore(fileKeyStore, ret)
 }
