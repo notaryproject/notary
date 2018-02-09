@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/theupdateframework/notary/passphrase"
 	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/trustmanager/pkcs11/common"
 	"github.com/theupdateframework/notary/tuf/data"
 	"github.com/theupdateframework/notary/tuf/utils"
 )
@@ -21,40 +22,17 @@ var ret = passphrase.ConstantRetriever("passphrase")
 
 // create a new store for clearing out keys, because we don't want to pollute
 // any cache
+func init() {
+	common.SetKeyStore(NewKeyStore())
+}
+
 func clearAllKeys(t *testing.T) {
-	store, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
-	require.NoError(t, err)
+	store, _ := common.NewHardwareStore(trustmanager.NewKeyMemoryStore(ret), ret)
 
 	for k := range store.ListKeys() {
 		err := store.RemoveKey(k)
 		require.NoError(t, err)
 	}
-}
-
-func TestEnsurePrivateKeySizePassesThroughRightSizeArrays(t *testing.T) {
-	fullByteArray := make([]byte, ecdsaPrivateKeySize)
-	for i := range fullByteArray {
-		fullByteArray[i] = byte(1)
-	}
-
-	result := ensurePrivateKeySize(fullByteArray)
-	require.True(t, reflect.DeepEqual(fullByteArray, result))
-}
-
-// The pad32Byte helper function left zero-pads byte arrays that are less than
-// ecdsaPrivateKeySize bytes
-func TestEnsurePrivateKeySizePadsLessThanRequiredSizeArrays(t *testing.T) {
-	shortByteArray := make([]byte, ecdsaPrivateKeySize/2)
-	for i := range shortByteArray {
-		shortByteArray[i] = byte(1)
-	}
-
-	expected := append(
-		make([]byte, ecdsaPrivateKeySize-ecdsaPrivateKeySize/2),
-		shortByteArray...)
-
-	result := ensurePrivateKeySize(shortByteArray)
-	require.True(t, reflect.DeepEqual(expected, result))
 }
 
 func testAddKey(t *testing.T, store trustmanager.KeyStore) (data.PrivateKey, error) {
@@ -79,7 +57,7 @@ func addMaxKeys(t *testing.T, store trustmanager.KeyStore) []string {
 // We can add keys enough times to fill up all the slots in the Yubikey.
 // They are backed up, and we can then list them and get the keys.
 func TestYubiAddKeysAndRetrieve(t *testing.T) {
-	if !IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	clearAllKeys(t)
@@ -91,13 +69,13 @@ func TestYubiAddKeysAndRetrieve(t *testing.T) {
 
 	// create 4 keys on the original store
 	backup := trustmanager.NewKeyMemoryStore(ret)
-	store, err := NewYubiStore(backup, ret)
+	store, err := common.NewHardwareStore(backup, ret)
 	require.NoError(t, err)
 	keys := addMaxKeys(t, store)
 
 	// create a new store, since we want to be sure the original store's cache
 	// is not masking any issues
-	cleanStore, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
+	cleanStore, err := common.NewHardwareStore(trustmanager.NewKeyMemoryStore(ret), ret)
 	require.NoError(t, err)
 
 	// All 4 keys should be in the original store, in the clean store (which
@@ -119,7 +97,7 @@ func TestYubiAddKeysAndRetrieve(t *testing.T) {
 
 // Test that we can successfully keys enough times to fill up all the slots in the Yubikey, even without a backup store
 func TestYubiAddKeysWithoutBackup(t *testing.T) {
-	if !IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	clearAllKeys(t)
@@ -130,13 +108,13 @@ func TestYubiAddKeysWithoutBackup(t *testing.T) {
 	}()
 
 	// create 4 keys on the original store
-	store, err := NewYubiStore(nil, ret)
+	store, err := common.NewHardwareStore(nil, ret)
 	require.NoError(t, err)
 	keys := addMaxKeys(t, store)
 
 	// create a new store, since we want to be sure the original store's cache
 	// is not masking any issues
-	cleanStore, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
+	cleanStore, err := common.NewHardwareStore(trustmanager.NewKeyMemoryStore(ret), ret)
 	require.NoError(t, err)
 
 	// All 4 keys should be in the original store, in the clean store (which
@@ -158,7 +136,7 @@ func TestYubiAddKeysWithoutBackup(t *testing.T) {
 
 // We can't add a key if there are no more slots
 func TestYubiAddKeyFailureIfNoMoreSlots(t *testing.T) {
-	if !IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	clearAllKeys(t)
@@ -170,7 +148,7 @@ func TestYubiAddKeyFailureIfNoMoreSlots(t *testing.T) {
 
 	// create 4 keys on the original store
 	backup := trustmanager.NewKeyMemoryStore(ret)
-	store, err := NewYubiStore(backup, ret)
+	store, err := common.NewHardwareStore(backup, ret)
 	require.NoError(t, err)
 	addMaxKeys(t, store)
 
@@ -180,7 +158,7 @@ func TestYubiAddKeyFailureIfNoMoreSlots(t *testing.T) {
 
 	// create a new store, since we want to be sure the original store's cache
 	// is not masking any issues
-	cleanStore, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
+	cleanStore, err := common.NewHardwareStore(trustmanager.NewKeyMemoryStore(ret), ret)
 	require.NoError(t, err)
 
 	// The key should not be in the original store, in the new clean store, or
@@ -198,7 +176,7 @@ func TestYubiAddKeyFailureIfNoMoreSlots(t *testing.T) {
 // If some random key in the middle was removed, adding a key will work (keys
 // do not have to be deleted/added in order)
 func TestYubiAddKeyCanAddToMiddleSlot(t *testing.T) {
-	if !IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	clearAllKeys(t)
@@ -210,7 +188,7 @@ func TestYubiAddKeyCanAddToMiddleSlot(t *testing.T) {
 
 	// create 4 keys on the original store
 	backup := trustmanager.NewKeyMemoryStore(ret)
-	store, err := NewYubiStore(backup, ret)
+	store, err := common.NewHardwareStore(backup, ret)
 	require.NoError(t, err)
 	keys := addMaxKeys(t, store)
 
@@ -224,7 +202,7 @@ func TestYubiAddKeyCanAddToMiddleSlot(t *testing.T) {
 
 	// create a new store, since we want to be sure the original store's cache
 	// is not masking any issues
-	cleanStore, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
+	cleanStore, err := common.NewHardwareStore(trustmanager.NewKeyMemoryStore(ret), ret)
 	require.NoError(t, err)
 
 	// The new key should be in the original store, in the new clean store, and
@@ -263,7 +241,7 @@ func (s *nonworkingBackup) AddKey(keyInfo trustmanager.KeyInfo, privKey data.Pri
 // be removed from the Yubikey too because otherwise there is no way for
 // the user to later get a backup of the key.
 func TestYubiAddKeyRollsBackIfCannotBackup(t *testing.T) {
-	if !IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	clearAllKeys(t)
@@ -276,12 +254,12 @@ func TestYubiAddKeyRollsBackIfCannotBackup(t *testing.T) {
 	backup := &nonworkingBackup{
 		GenericKeyStore: *trustmanager.NewKeyMemoryStore(ret),
 	}
-	store, err := NewYubiStore(backup, ret)
+	store, err := common.NewHardwareStore(backup, ret)
 	require.NoError(t, err)
 
 	_, err = testAddKey(t, store)
 	require.Error(t, err)
-	require.IsType(t, ErrBackupFailed{}, err)
+	require.IsType(t, common.ErrBackupFailed{}, err)
 
 	// there should be no keys on the yubikey
 	require.Len(t, cleanListKeys(t), 0)
@@ -290,7 +268,7 @@ func TestYubiAddKeyRollsBackIfCannotBackup(t *testing.T) {
 // If, when adding a key to the Yubikey, and it already exists, we succeed
 // without adding it to the backup store.
 func TestYubiAddDuplicateKeySucceedsButDoesNotBackup(t *testing.T) {
-	if !IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	clearAllKeys(t)
@@ -300,14 +278,14 @@ func TestYubiAddDuplicateKeySucceedsButDoesNotBackup(t *testing.T) {
 		SetYubikeyKeyMode(KeymodeTouch | KeymodePinOnce)
 	}()
 
-	origStore, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
+	origStore, err := common.NewHardwareStore(trustmanager.NewKeyMemoryStore(ret), ret)
 	require.NoError(t, err)
 
 	key, err := testAddKey(t, origStore)
 	require.NoError(t, err)
 
 	backup := trustmanager.NewKeyMemoryStore(ret)
-	cleanStore, err := NewYubiStore(backup, ret)
+	cleanStore, err := common.NewHardwareStore(backup, ret)
 	require.NoError(t, err)
 	require.Len(t, cleanStore.ListKeys(), 1)
 
@@ -322,7 +300,7 @@ func TestYubiAddDuplicateKeySucceedsButDoesNotBackup(t *testing.T) {
 
 // RemoveKey removes a key from the yubikey, but not from the backup store.
 func TestYubiRemoveKey(t *testing.T) {
-	if !IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	clearAllKeys(t)
@@ -333,7 +311,7 @@ func TestYubiRemoveKey(t *testing.T) {
 	}()
 
 	backup := trustmanager.NewKeyMemoryStore(ret)
-	store, err := NewYubiStore(backup, ret)
+	store, err := common.NewHardwareStore(backup, ret)
 	require.NoError(t, err)
 
 	key, err := testAddKey(t, store)
@@ -349,11 +327,11 @@ func TestYubiRemoveKey(t *testing.T) {
 
 	// create a new store, since we want to be sure the original store's cache
 	// is not masking any issues
-	cleanStore, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
+	cleanStore, err := common.NewHardwareStore(trustmanager.NewKeyMemoryStore(ret), ret)
 	require.NoError(t, err)
 
 	// key is not in either the original store or the clean store
-	for _, store := range []*YubiStore{store, cleanStore} {
+	for _, store := range []*common.HardwareStore{store, cleanStore} {
 		_, _, err := store.GetKey(key.ID())
 		require.Error(t, err)
 	}
@@ -362,7 +340,7 @@ func TestYubiRemoveKey(t *testing.T) {
 // If there are keys in the backup store but no keys in the Yubikey,
 // listing and getting cannot access the keys in the backup store
 func TestYubiListAndGetKeysIgnoresBackup(t *testing.T) {
-	if !IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	clearAllKeys(t)
@@ -376,7 +354,7 @@ func TestYubiListAndGetKeysIgnoresBackup(t *testing.T) {
 	key, err := testAddKey(t, backup)
 	require.NoError(t, err)
 
-	store, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
+	store, err := common.NewHardwareStore(trustmanager.NewKeyMemoryStore(ret), ret)
 	require.NoError(t, err)
 	require.Len(t, store.ListKeys(), 0)
 	_, _, err = store.GetKey(key.ID())
@@ -387,7 +365,7 @@ func TestYubiListAndGetKeysIgnoresBackup(t *testing.T) {
 // specifically that you cannot get the private bytes out.  Assume we can
 // sign something.
 func TestYubiKeyAndSign(t *testing.T) {
-	if !IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	clearAllKeys(t)
@@ -397,7 +375,7 @@ func TestYubiKeyAndSign(t *testing.T) {
 		SetYubikeyKeyMode(KeymodeTouch | KeymodePinOnce)
 	}()
 
-	store, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
+	store, err := common.NewHardwareStore(trustmanager.NewKeyMemoryStore(ret), ret)
 	require.NoError(t, err)
 
 	ecdsaPrivateKey, err := testAddKey(t, store)
@@ -421,14 +399,14 @@ func TestYubiKeyAndSign(t *testing.T) {
 // ----- Negative tests that use stubbed pkcs11 for error injection -----
 
 type pkcs11Stubbable interface {
-	setLibLoader(pkcs11LibLoader)
+	SetLibLoader(common.Pkcs11LibLoader)
 }
 
 var setupErrors = []string{"Initialize", "GetSlotList", "OpenSession"}
 
 // Create a new store, so that we avoid any cache issues, and list keys
 func cleanListKeys(t *testing.T) map[string]trustmanager.KeyInfo {
-	cleanStore, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
+	cleanStore, err := common.NewHardwareStore(trustmanager.NewKeyMemoryStore(ret), ret)
 	require.NoError(t, err)
 	return cleanStore.ListKeys()
 }
@@ -436,9 +414,9 @@ func cleanListKeys(t *testing.T) map[string]trustmanager.KeyInfo {
 // If an error occurs during login, which only some functions do, the function
 // under test will clean up after itself
 func testYubiFunctionCleansUpOnLoginError(t *testing.T, toStub pkcs11Stubbable,
-	functionUnderTest func() error) {
 
-	toStub.setLibLoader(func(string) IPKCS11Ctx {
+	functionUnderTest func() error) {
+	toStub.SetLibLoader(func(string) common.IPKCS11Ctx {
 		return NewStubCtx(map[string]bool{"Login": true})
 	})
 
@@ -449,20 +427,22 @@ func testYubiFunctionCleansUpOnLoginError(t *testing.T, toStub pkcs11Stubbable,
 
 	// Set Up another time, to ensure we weren't left in a bad state
 	// by the previous runs
-	ctx, session, err := SetupHSMEnv(pkcs11Lib, defaultLoader)
+
+	store := NewKeyStore()
+	ctx, session, err := store.SetupHSMEnv(common.DefaultLoader)
 	require.NoError(t, err)
-	cleanup(ctx, session)
+	common.Cleanup(ctx, session)
 }
 
 // If one of the specified pkcs11 functions errors, the function under test
 // will clean up after itself
 func testYubiFunctionCleansUpOnSpecifiedErrors(t *testing.T,
+
 	toStub pkcs11Stubbable, functionUnderTest func() error,
 	dependentFunctions []string, functionShouldError bool) {
-
 	for _, methodName := range dependentFunctions {
 
-		toStub.setLibLoader(func(string) IPKCS11Ctx {
+		toStub.SetLibLoader(func(string) common.IPKCS11Ctx {
 			return NewStubCtx(
 				map[string]bool{methodName: true})
 		})
@@ -480,13 +460,14 @@ func testYubiFunctionCleansUpOnSpecifiedErrors(t *testing.T,
 
 	// Set Up another time, to ensure we weren't left in a bad state
 	// by the previous runs
-	ctx, session, err := SetupHSMEnv(pkcs11Lib, defaultLoader)
+	store := NewKeyStore()
+	ctx, session, err := store.SetupHSMEnv(common.DefaultLoader)
 	require.NoError(t, err)
-	cleanup(ctx, session)
+	common.Cleanup(ctx, session)
 }
 
 func TestYubiAddKeyCleansUpOnError(t *testing.T) {
-	if !IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	clearAllKeys(t)
@@ -497,7 +478,7 @@ func TestYubiAddKeyCleansUpOnError(t *testing.T) {
 	}()
 
 	backup := trustmanager.NewKeyMemoryStore(ret)
-	store, err := NewYubiStore(backup, ret)
+	store, err := common.NewHardwareStore(backup, ret)
 	require.NoError(t, err)
 
 	var _addkey = func() error {
@@ -521,7 +502,7 @@ func TestYubiAddKeyCleansUpOnError(t *testing.T) {
 	require.Len(t, backup.ListKeys(), 0)
 	require.Len(t, cleanListKeys(t), 0)
 
-	// Logout should not cause a function failure - it s a cleanup failure,
+	// Logout should not cause a function failure - it s a common.Cleanup failure,
 	// which shouldn't break anything, and it should clean up after itself.
 	// The key should be added to both stores
 	testYubiFunctionCleansUpOnSpecifiedErrors(t, store, _addkey,
@@ -550,7 +531,7 @@ func TestYubiAddKeyCleansUpOnError(t *testing.T) {
 }
 
 func TestYubiGetKeyCleansUpOnError(t *testing.T) {
-	if !IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	clearAllKeys(t)
@@ -560,7 +541,7 @@ func TestYubiGetKeyCleansUpOnError(t *testing.T) {
 		SetYubikeyKeyMode(KeymodeTouch | KeymodePinOnce)
 	}()
 
-	store, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
+	store, err := common.NewHardwareStore(trustmanager.NewKeyMemoryStore(ret), ret)
 	require.NoError(t, err)
 	key, err := testAddKey(t, store)
 	require.NoError(t, err)
@@ -582,7 +563,7 @@ func TestYubiGetKeyCleansUpOnError(t *testing.T) {
 }
 
 func TestYubiRemoveKeyCleansUpOnError(t *testing.T) {
-	if !IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	clearAllKeys(t)
@@ -592,7 +573,7 @@ func TestYubiRemoveKeyCleansUpOnError(t *testing.T) {
 		SetYubikeyKeyMode(KeymodeTouch | KeymodePinOnce)
 	}()
 
-	store, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
+	store, err := common.NewHardwareStore(trustmanager.NewKeyMemoryStore(ret), ret)
 	require.NoError(t, err)
 	key, err := testAddKey(t, store)
 	require.NoError(t, err)
@@ -603,7 +584,7 @@ func TestYubiRemoveKeyCleansUpOnError(t *testing.T) {
 	// RemoveKey just succeeds if we can't set up the yubikey
 	testYubiFunctionCleansUpOnSpecifiedErrors(t, store, _removekey, setupErrors, false)
 	// all the PKCS11 functions RemoveKey depends on that aren't the login/logout
-	// or setup/cleanup
+	// or setup/common.Cleanup
 	testYubiFunctionCleansUpOnSpecifiedErrors(t, store, _removekey,
 		[]string{
 			"FindObjectsInit",
@@ -625,7 +606,7 @@ func TestYubiRemoveKeyCleansUpOnError(t *testing.T) {
 }
 
 func TestYubiListKeyCleansUpOnError(t *testing.T) {
-	if !IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	clearAllKeys(t)
@@ -635,13 +616,14 @@ func TestYubiListKeyCleansUpOnError(t *testing.T) {
 		SetYubikeyKeyMode(KeymodeTouch | KeymodePinOnce)
 	}()
 
-	// Do not call NewYubiStore, because it list keys immediately to
+	// Do not call common.NewHardwareStore, because it list keys immediately to
 	// build the cache.
-	store := &YubiStore{
-		passRetriever: ret,
-		keys:          make(map[string]yubiSlot),
-		backupStore:   trustmanager.NewKeyMemoryStore(ret),
-		libLoader:     defaultLoader,
+
+	store := &common.HardwareStore{
+		PassRetriever: ret,
+		Keys:          make(map[string]common.HardwareSlot),
+		BackupStore:   trustmanager.NewKeyMemoryStore(ret),
+		LibLoader:     common.DefaultLoader,
 	}
 
 	var _listkeys = func() error {
@@ -662,7 +644,7 @@ func TestYubiListKeyCleansUpOnError(t *testing.T) {
 }
 
 func TestYubiSignCleansUpOnError(t *testing.T) {
-	if !IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	clearAllKeys(t)
@@ -672,7 +654,7 @@ func TestYubiSignCleansUpOnError(t *testing.T) {
 		SetYubikeyKeyMode(KeymodeTouch | KeymodePinOnce)
 	}()
 
-	store, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
+	store, err := common.NewHardwareStore(trustmanager.NewKeyMemoryStore(ret), ret)
 	require.NoError(t, err)
 
 	key, err := testAddKey(t, store)
@@ -681,7 +663,7 @@ func TestYubiSignCleansUpOnError(t *testing.T) {
 	privKey, _, err := store.GetKey(key.ID())
 	require.NoError(t, err)
 
-	yubiPrivateKey, ok := privKey.(*YubiPrivateKey)
+	yubiPrivateKey, ok := privKey.(*common.HardwarePrivateKey)
 	require.True(t, ok)
 
 	var _sign = func() error {
@@ -709,7 +691,7 @@ func TestYubiSignCleansUpOnError(t *testing.T) {
 // If Sign gives us an invalid signature, we retry until successful up to
 // a maximum of 5 times.
 func TestYubiRetrySignUntilSuccess(t *testing.T) {
-	if !IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	clearAllKeys(t)
@@ -719,7 +701,7 @@ func TestYubiRetrySignUntilSuccess(t *testing.T) {
 		SetYubikeyKeyMode(KeymodeTouch | KeymodePinOnce)
 	}()
 
-	store, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
+	store, err := common.NewHardwareStore(trustmanager.NewKeyMemoryStore(ret), ret)
 	require.NoError(t, err)
 
 	key, err := testAddKey(t, store)
@@ -732,7 +714,7 @@ func TestYubiRetrySignUntilSuccess(t *testing.T) {
 	privKey, _, err := store.GetKey(key.ID())
 	require.NoError(t, err)
 
-	yubiPrivateKey, ok := privKey.(*YubiPrivateKey)
+	yubiPrivateKey, ok := privKey.(*common.HardwarePrivateKey)
 	require.True(t, ok)
 
 	badSigner := &SignInvalidSigCtx{
@@ -741,7 +723,7 @@ func TestYubiRetrySignUntilSuccess(t *testing.T) {
 		failNum: 2,
 	}
 
-	yubiPrivateKey.setLibLoader(func(string) IPKCS11Ctx { return badSigner })
+	yubiPrivateKey.SetLibLoader(func(string) common.IPKCS11Ctx { return badSigner })
 
 	sig, err := yubiPrivateKey.Sign(rand.Reader, message, nil)
 	require.NoError(t, err)
@@ -754,7 +736,7 @@ func TestYubiRetrySignUntilSuccess(t *testing.T) {
 // If Sign gives us an invalid signature, we retry until up to a maximum of 5
 // times, and if it's still invalid, fail.
 func TestYubiRetrySignUntilFail(t *testing.T) {
-	if !IsAccessible() {
+	if !common.IsAccessible() {
 		t.Skip("Must have Yubikey access.")
 	}
 	clearAllKeys(t)
@@ -764,7 +746,7 @@ func TestYubiRetrySignUntilFail(t *testing.T) {
 		SetYubikeyKeyMode(KeymodeTouch | KeymodePinOnce)
 	}()
 
-	store, err := NewYubiStore(trustmanager.NewKeyMemoryStore(ret), ret)
+	store, err := common.NewHardwareStore(trustmanager.NewKeyMemoryStore(ret), ret)
 	require.NoError(t, err)
 
 	key, err := testAddKey(t, store)
@@ -777,22 +759,22 @@ func TestYubiRetrySignUntilFail(t *testing.T) {
 	privKey, _, err := store.GetKey(key.ID())
 	require.NoError(t, err)
 
-	yubiPrivateKey, ok := privKey.(*YubiPrivateKey)
+	yubiPrivateKey, ok := privKey.(*common.HardwarePrivateKey)
 	require.True(t, ok)
 
 	badSigner := &SignInvalidSigCtx{
 		Ctx:     *pkcs11.New(pkcs11Lib),
 		goodSig: goodSig,
-		failNum: sigAttempts + 1,
+		failNum: common.SigAttempts + 1,
 	}
 
-	yubiPrivateKey.setLibLoader(func(string) IPKCS11Ctx { return badSigner })
+	yubiPrivateKey.SetLibLoader(func(string) common.IPKCS11Ctx { return badSigner })
 
 	_, err = yubiPrivateKey.Sign(rand.Reader, message, nil)
 	require.Error(t, err)
 	// because the SignInvalidSigCtx returns the good signature, we can just
 	// deep equal instead of verifying
-	require.Equal(t, sigAttempts, badSigner.signCalls)
+	require.Equal(t, common.SigAttempts, badSigner.signCalls)
 }
 
 // -----  Stubbed pkcs11 for testing error conditions ------
@@ -820,12 +802,12 @@ const (
 )
 
 type StubCtx struct {
-	ctx                IPKCS11Ctx
+	ctx                common.IPKCS11Ctx
 	functionShouldFail map[string]bool
 }
 
 func NewStubCtx(functionShouldFail map[string]bool) *StubCtx {
-	realCtx := defaultLoader(pkcs11Lib)
+	realCtx := common.DefaultLoader(pkcs11Lib)
 	return &StubCtx{
 		ctx:                realCtx,
 		functionShouldFail: functionShouldFail,
@@ -868,6 +850,27 @@ func (s *StubCtx) GetSlotList(tokenPresent bool) ([]uint, error) {
 	}
 	return s.ctx.GetSlotList(tokenPresent)
 }
+func (s *StubCtx) GetMechanismList(slotID uint) ([]*pkcs11.Mechanism, error) {
+	err := s.checkErr("GetMechanismList")
+	if err != nil {
+		return nil, err
+	}
+	return s.ctx.GetMechanismList(slotID)
+}
+func (s *StubCtx) GetTokenInfo(slotID uint) (pkcs11.TokenInfo, error) {
+	err := s.checkErr("GetTokenList")
+	if err != nil {
+		return pkcs11.TokenInfo{}, err
+	}
+	return s.ctx.GetTokenInfo(slotID)
+}
+func (s *StubCtx) GetInfo() (pkcs11.Info, error) {
+	err := s.checkErr("GetInfo")
+	if err != nil {
+		return pkcs11.Info{}, err
+	}
+	return s.ctx.GetInfo()
+}
 
 func (s *StubCtx) OpenSession(slotID uint, flags uint) (pkcs11.SessionHandle, error) {
 	err := s.checkErr("OpenSession")
@@ -902,6 +905,7 @@ func (s *StubCtx) Logout(sh pkcs11.SessionHandle) error {
 }
 
 func (s *StubCtx) CreateObject(sh pkcs11.SessionHandle, temp []*pkcs11.Attribute) (
+
 	pkcs11.ObjectHandle, error) {
 	err := s.checkErr("CreateObject")
 	if err != nil {
@@ -919,6 +923,7 @@ func (s *StubCtx) DestroyObject(sh pkcs11.SessionHandle, oh pkcs11.ObjectHandle)
 }
 
 func (s *StubCtx) GetAttributeValue(sh pkcs11.SessionHandle, o pkcs11.ObjectHandle,
+
 	a []*pkcs11.Attribute) ([]*pkcs11.Attribute, error) {
 	err := s.checkErr("GetAttributeValue")
 	if err != nil {
@@ -936,6 +941,7 @@ func (s *StubCtx) FindObjectsInit(sh pkcs11.SessionHandle, temp []*pkcs11.Attrib
 }
 
 func (s *StubCtx) FindObjects(sh pkcs11.SessionHandle, max int) (
+
 	[]pkcs11.ObjectHandle, bool, error) {
 	err := s.checkErr("FindObjects")
 	if err != nil {

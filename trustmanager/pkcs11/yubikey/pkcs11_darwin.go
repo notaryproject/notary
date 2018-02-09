@@ -7,3 +7,4 @@ var possiblePkcs11Libs = []string{
 	"/usr/local/docker/lib/libykcs11.dylib",
 	"/usr/local/docker-experimental/lib/libykcs11.dylib",
 }
+var possibleOckLibs = nil
