@@ -482,7 +482,7 @@ func (k *keyCommander) keyPassphraseChange(cmd *cobra.Command, args []string) er
 	var addingKeyStore trustmanager.KeyStore
 	switch foundKeyStore.Name() {
 	case "yubikey":
-		addingKeyStore, err = getYubiStore(nil, passChangeRetriever)
+		addingKeyStore, err = getHardwareStore(nil, passChangeRetriever)
 		keyInfo = trustmanager.KeyInfo{Role: data.CanonicalRootRole}
 	default:
 		addingKeyStore, err = trustmanager.NewKeyFileStore(config.GetString("trust_dir"), passChangeRetriever)
@@ -596,17 +596,21 @@ func (k *keyCommander) getKeyStores(
 	ks := []trustmanager.KeyStore{fileKeyStore}
 
 	if withHardware {
-		var yubiStore trustmanager.KeyStore
+		var hardwareErr error
+		var hardwareStore trustmanager.KeyStore
 		if hardwareBackup {
-			yubiStore, err = getYubiStore(fileKeyStore, retriever)
+			hardwareStore, hardwareErr = getHardwareStore(fileKeyStore, retriever)
 		} else {
-			yubiStore, err = getYubiStore(nil, retriever)
+			hardwareStore, hardwareErr = getHardwareStore(nil, retriever)
+
 		}
-		if err == nil && yubiStore != nil {
+		if hardwareErr == nil && hardwareStore != nil {
 			// Note that the order is important, since we want to prioritize
-			// the yubikey store
-			ks = []trustmanager.KeyStore{yubiStore, fileKeyStore}
+			// the hardware store
+			ks = []trustmanager.KeyStore{hardwareStore, fileKeyStore}
+			return ks, nil
 		}
+
 	}
 
 	return ks, nil

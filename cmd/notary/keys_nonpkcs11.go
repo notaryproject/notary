@@ -10,7 +10,7 @@ import (
 	"github.com/theupdateframework/notary/trustmanager"
 )
 
-func getYubiStore(fileKeyStore trustmanager.KeyStore, ret notary.PassRetriever) (trustmanager.KeyStore, error) {
+func getHardwareStore(fileKeyStore trustmanager.KeyStore, ret notary.PassRetriever) (trustmanager.KeyStore, error) {
 	return nil, errors.New("Not built with hardware support")
 }
 

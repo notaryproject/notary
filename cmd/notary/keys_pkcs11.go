@@ -6,22 +6,26 @@ import (
 	"github.com/theupdateframework/notary"
 	store "github.com/theupdateframework/notary/storage"
 	"github.com/theupdateframework/notary/trustmanager"
-	"github.com/theupdateframework/notary/trustmanager/yubikey"
+	"github.com/theupdateframework/notary/trustmanager/pkcs11"
+	"github.com/theupdateframework/notary/trustmanager/pkcs11/common"
 )
 
-func getYubiStore(fileKeyStore trustmanager.KeyStore, ret notary.PassRetriever) (*yubikey.YubiStore, error) {
-	return yubikey.NewYubiStore(fileKeyStore, ret)
+func init() {
+	pkcs11.Setup()
+}
+
+func getHardwareStore(fileKeyStore trustmanager.KeyStore, ret notary.PassRetriever) (*common.HardwareStore, error) {
+	return common.NewHardwareStore(fileKeyStore, ret)
 }
 
 func getImporters(baseDir string, ret notary.PassRetriever) ([]trustmanager.Importer, error) {
-
 	var importers []trustmanager.Importer
-	if yubikey.IsAccessible() {
-		yubiStore, err := getYubiStore(nil, ret)
+	if common.IsAccessible() {
+		yubiStore, err := getHardwareStore(nil, ret)
 		if err == nil {
 			importers = append(
 				importers,
-				yubikey.NewImporter(yubiStore, ret),
+				pkcs11.NewImporter(yubiStore, ret),
 			)
 		}
 	}
