@@ -154,7 +154,7 @@ func NewFileCachedRepository(baseDir string, gun data.GUN, baseURL string, rt ht
 		return nil, err
 	}
 
-	keyStores, err := getKeyStores(baseDir, retriever)
+	keyStores, err := GetKeyStores(baseDir, retriever,true)
 	if err != nil {
 		return nil, err
 	}

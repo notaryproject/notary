@@ -171,7 +171,7 @@ func (k *keyCommander) keysList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	ks, err := k.getKeyStores(config, true, false)
+	ks, err := notaryclient.GetKeyStores(config.GetString("trust_dir"), k.getRetriever(), false)
 	if err != nil {
 		return err
 	}
@@ -214,7 +214,7 @@ func (k *keyCommander) keysGenerate(cmd *cobra.Command, args []string) error {
 
 	// if no outFile is provided, use the known key stores
 	if k.outFile == "" {
-		ks, err := k.getKeyStores(config, true, true)
+		ks, err := notaryclient.GetKeyStores(config.GetString("trust_dir"), k.getRetriever(), true)
 		if err != nil {
 			return err
 		}
@@ -422,7 +422,7 @@ func (k *keyCommander) keyRemove(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	ks, err := k.getKeyStores(config, true, false)
+	ks, err := notaryclient.GetKeyStores(config.GetString("trust_dir"), k.getRetriever(), false)
 	if err != nil {
 		return err
 	}
@@ -449,7 +449,7 @@ func (k *keyCommander) keyPassphraseChange(cmd *cobra.Command, args []string) er
 	if err != nil {
 		return err
 	}
-	ks, err := k.getKeyStores(config, true, false)
+	ks, err := notaryclient.GetKeyStores(config.GetString("trust_dir"), k.getRetriever(), false)
 	if err != nil {
 		return err
 	}
@@ -579,35 +579,4 @@ func (k *keyCommander) exportKeys(cmd *cobra.Command, args []string) error {
 		}
 	}
 	return nil
-}
-
-func (k *keyCommander) getKeyStores(
-	config *viper.Viper, withHardware, hardwareBackup bool) ([]trustmanager.KeyStore, error) {
-
-	retriever := k.getRetriever()
-
-	directory := config.GetString("trust_dir")
-	fileKeyStore, err := trustmanager.NewKeyFileStore(directory, retriever)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"Failed to create private key store in directory: %s", directory)
-	}
-
-	ks := []trustmanager.KeyStore{fileKeyStore}
-
-	if withHardware {
-		var yubiStore trustmanager.KeyStore
-		if hardwareBackup {
-			yubiStore, err = getYubiStore(fileKeyStore, retriever)
-		} else {
-			yubiStore, err = getYubiStore(nil, retriever)
-		}
-		if err == nil && yubiStore != nil {
-			// Note that the order is important, since we want to prioritize
-			// the yubikey store
-			ks = []trustmanager.KeyStore{yubiStore, fileKeyStore}
-		}
-	}
-
-	return ks, nil
 }
