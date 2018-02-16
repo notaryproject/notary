@@ -30,7 +30,7 @@ Use this package by creating a new repository object and calling methods on it.
 
 		server := "https://notary.docker.io"
 		image := "docker.io/library/alpine"
-		repo, err := notary.NewFileCachedNotaryRepository(
+		repo, err := notary.NewFileCachedRepository(
 			rootDir,
 			data.GUN(image),
 			server,
