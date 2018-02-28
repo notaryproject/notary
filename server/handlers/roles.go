@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"strconv"
 	"time"
 
 	"golang.org/x/net/context"
@@ -9,21 +10,29 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/server/errors"
-	"github.com/docker/notary/server/storage"
-	"github.com/docker/notary/server/timestamp"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/server/errors"
+	"github.com/theupdateframework/notary/server/storage"
+	"github.com/theupdateframework/notary/server/timestamp"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
 )
 
-func getRole(ctx context.Context, store storage.MetaStore, gun, role, checksum string) (*time.Time, []byte, error) {
+func getRole(ctx context.Context, store storage.MetaStore, gun data.GUN, role data.RoleName, checksum, version string) (*time.Time, []byte, error) {
 	var (
 		lastModified *time.Time
 		out          []byte
 		err          error
 	)
-	if checksum == "" {
+	if checksum != "" {
+		lastModified, out, err = store.GetChecksum(gun, role, checksum)
+	} else if version != "" {
+		v, vErr := strconv.Atoi(version)
+		if vErr != nil {
+			return nil, nil, errors.ErrMetadataNotFound.WithDetail(vErr)
+		}
+		lastModified, out, err = store.GetVersion(gun, role, v)
+	} else {
 		// the timestamp and snapshot might be server signed so are
 		// handled specially
 		switch role {
@@ -31,8 +40,7 @@ func getRole(ctx context.Context, store storage.MetaStore, gun, role, checksum s
 			return getMaybeServerSigned(ctx, store, gun, role)
 		}
 		lastModified, out, err = store.GetCurrent(gun, role)
-	} else {
-		lastModified, out, err = store.GetChecksum(gun, role, checksum)
+
 	}
 
 	if err != nil {
@@ -53,7 +61,7 @@ func getRole(ctx context.Context, store storage.MetaStore, gun, role, checksum s
 // the timestamp and snapshot, based on the keys held by the server, a new one
 // might be generated and signed due to expiry of the previous one or updates
 // to other roles.
-func getMaybeServerSigned(ctx context.Context, store storage.MetaStore, gun, role string) (*time.Time, []byte, error) {
+func getMaybeServerSigned(ctx context.Context, store storage.MetaStore, gun data.GUN, role data.RoleName) (*time.Time, []byte, error) {
 	cryptoServiceVal := ctx.Value(notary.CtxKeyCryptoSvc)
 	cryptoService, ok := cryptoServiceVal.(signed.CryptoService)
 	if !ok {
@@ -66,7 +74,7 @@ func getMaybeServerSigned(ctx context.Context, store storage.MetaStore, gun, rol
 		err          error
 	)
 	if role != data.CanonicalTimestampRole && role != data.CanonicalSnapshotRole {
-		return nil, nil, fmt.Errorf("role %s cannot be server signed", role)
+		return nil, nil, fmt.Errorf("role %s cannot be server signed", role.String())
 	}
 	lastModified, out, err = timestamp.GetOrCreateTimestamp(gun, store, cryptoService)
 	if err != nil {
@@ -88,9 +96,9 @@ func getMaybeServerSigned(ctx context.Context, store storage.MetaStore, gun, rol
 		if err != nil || snapshotChecksums == nil {
 			return nil, nil, fmt.Errorf("could not retrieve latest snapshot checksum")
 		}
-		if snapshotSha256Bytes, ok := snapshotChecksums.Hashes[notary.SHA256]; ok {
-			snapshotSha256Hex := hex.EncodeToString(snapshotSha256Bytes[:])
-			return store.GetChecksum(gun, role, snapshotSha256Hex)
+		if snapshotSHA256Bytes, ok := snapshotChecksums.Hashes[notary.SHA256]; ok {
+			snapshotSHA256Hex := hex.EncodeToString(snapshotSHA256Bytes[:])
+			return store.GetChecksum(gun, role, snapshotSHA256Hex)
 		}
 		return nil, nil, fmt.Errorf("could not retrieve sha256 snapshot checksum")
 	}

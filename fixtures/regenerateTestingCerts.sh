@@ -99,6 +99,30 @@ cat "intermediate-ca.crt" >> "notary-signer.crt"
 
 rm "notary-signer.cnf" "notary-signer.csr"
 
+# Then generate notary-escrow
+# Use the existing notary-escrow key
+openssl req -new -key "notary-escrow.key" -out "notary-escrow.csr" -sha256 \
+        -subj '/C=US/ST=CA/L=San Francisco/O=Docker/CN=notary-escrow'
+
+cat > "notary-escrow.cnf" <<EOL
+[notary_escrow]
+authorityKeyIdentifier=keyid,issuer
+basicConstraints = critical,CA:FALSE
+extendedKeyUsage=serverAuth,clientAuth
+keyUsage = critical, digitalSignature, keyEncipherment
+subjectAltName = DNS:notary-escrow, DNS:notaryescrow, DNS:localhost, IP:127.0.0.1
+subjectKeyIdentifier=hash
+EOL
+
+openssl x509 -req -days 750 -in "notary-escrow.csr" -sha256 \
+        -CA "intermediate-ca.crt" -CAkey "intermediate-ca.key"  -CAcreateserial \
+        -out "notary-escrow.crt" -extfile "notary-escrow.cnf" -extensions notary_escrow
+# append the intermediate cert to this one to make it a proper bundle
+cat "intermediate-ca.crt" >> "notary-escrow.crt"
+
+rm "notary-escrow.cnf" "notary-escrow.csr"
+
+
 # Then generate secure.example.com
 # Use the existing secure.example.com key
 openssl req -new -key "secure.example.com.key" -out "secure.example.com.csr" -sha256 \
@@ -143,3 +167,49 @@ EOL
 
         rm "${selfsigned}.cnf" "${selfsigned}.csr" "${selfsigned}.key"
 done
+
+# Postgresql keys for testing server/client auth
+
+command -v cfssljson  >/dev/null 2>&1 || { 
+    echo >&2 "Installing cfssl tools"; go get -u github.com/cloudflare/cfssl/cmd/...;
+}
+
+# Create a dir to store keys generated temporarily
+mkdir cfssl
+cd cfssl
+
+# Generate CA and certificates
+
+echo '{"CN": "Test Notary CA","key":{"algo":"rsa","size":2048}}' | cfssl gencert -initca - | cfssljson -bare ca -
+
+echo '{"signing":{"default":{"expiry":"43800h"},"profiles":{"server":{"expiry":"43800h", "usages":["signing","key encipherment","server auth"]},"client":{"expiry":"43800h", "usages":["signing","key encipherment","client auth"]}}}}' > ca-config.json
+
+echo '{"CN":"database","hosts":["postgresql","mysql"],"key":{"algo":"rsa","size":2048}}' > server.json
+
+# Generate server cert and private key
+cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=server server.json | cfssljson -bare server
+
+# Generate client certificate (notary server)
+echo '{"CN":"server","hosts":[""],"key":{"algo":"rsa","size":2048}}' > notary-server.json
+
+cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=client notary-server.json | cfssljson -bare notary-server
+
+# Generate client certificate (notary notary-signer)
+echo '{"CN":"signer","hosts":[""],"key":{"algo":"rsa","size":2048}}' > notary-signer.json
+
+cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=client notary-signer.json | cfssljson -bare notary-signer
+
+# Copy keys over to ../fixtures/database/[...] and ../notarysql/postgresql-initdb.d/[...]
+cp ca.pem ../database/
+cp notary-signer.pem ../database/
+cp notary-signer-key.pem ../database/
+cp notary-server.pem ../database
+cp notary-server-key.pem ../database/
+
+cp ca.pem ../../notarysql/postgresql-initdb.d/root.crt
+cp server.pem ../../notarysql/postgresql-initdb.d/server.crt
+cp server-key.pem ../../notarysql/postgresql-initdb.d/server.key
+
+# remove the working dir
+cd ..
+rm -rf cfssl

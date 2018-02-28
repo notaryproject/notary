@@ -11,12 +11,13 @@ import (
 	"strings"
 
 	bugsnag_hook "github.com/Shopify/logrus-bugsnag"
-	"github.com/Sirupsen/logrus"
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/go-sql-driver/mysql"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
-	"github.com/docker/notary"
+	"github.com/theupdateframework/notary"
 )
 
 // Storage is a configuration about what storage backend a server should use
@@ -54,9 +55,10 @@ func GetPathRelativeToConfig(configuration *viper.Viper, key string) string {
 func ParseServerTLS(configuration *viper.Viper, tlsRequired bool) (*tls.Config, error) {
 	//  unmarshalling into objects does not seem to pick up env vars
 	tlsOpts := tlsconfig.Options{
-		CertFile: GetPathRelativeToConfig(configuration, "server.tls_cert_file"),
-		KeyFile:  GetPathRelativeToConfig(configuration, "server.tls_key_file"),
-		CAFile:   GetPathRelativeToConfig(configuration, "server.client_ca_file"),
+		CertFile:           GetPathRelativeToConfig(configuration, "server.tls_cert_file"),
+		KeyFile:            GetPathRelativeToConfig(configuration, "server.tls_key_file"),
+		CAFile:             GetPathRelativeToConfig(configuration, "server.client_ca_file"),
+		ExclusiveRootPools: true,
 	}
 	if tlsOpts.CAFile != "" {
 		tlsOpts.ClientAuth = tls.RequireAndVerifyClientCert
@@ -109,6 +111,16 @@ func ParseSQLStorage(configuration *viper.Viper) (*Storage, error) {
 			"must provide a non-empty database source for %s",
 			store.Backend,
 		)
+	case store.Backend == notary.MySQLBackend:
+		urlConfig, err := mysql.ParseDSN(store.Source)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse the database source for %s",
+				store.Backend,
+			)
+		}
+
+		urlConfig.ParseTime = true
+		store.Source = urlConfig.FormatDSN()
 	}
 	return &store, nil
 }

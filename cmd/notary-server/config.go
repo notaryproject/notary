@@ -8,24 +8,24 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/health"
 	_ "github.com/docker/distribution/registry/auth/htpasswd"
 	_ "github.com/docker/distribution/registry/auth/token"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/docker/notary"
-	"github.com/docker/notary/server"
-	"github.com/docker/notary/server/storage"
-	"github.com/docker/notary/signer/client"
-	"github.com/docker/notary/storage/rethinkdb"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/utils"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/server"
+	"github.com/theupdateframework/notary/server/storage"
+	"github.com/theupdateframework/notary/signer/client"
+	"github.com/theupdateframework/notary/storage/rethinkdb"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/utils"
 	"golang.org/x/net/context"
-	gorethink "gopkg.in/dancannon/gorethink.v2"
+	"gopkg.in/dancannon/gorethink.v3"
 )
 
 // gets the required gun prefixes accepted by this server
@@ -67,9 +67,10 @@ func grpcTLS(configuration *viper.Viper) (*tls.Config, error) {
 	}
 
 	tlsConfig, err := tlsconfig.Client(tlsconfig.Options{
-		CAFile:   rootCA,
-		CertFile: clientCert,
-		KeyFile:  clientKey,
+		CAFile:             rootCA,
+		CertFile:           clientCert,
+		KeyFile:            clientKey,
+		ExclusiveRootPools: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf(
@@ -106,9 +107,10 @@ func getStore(configuration *viper.Viper, hRegister healthRegister, doBootstrap 
 			return nil, err
 		}
 		tlsOpts := tlsconfig.Options{
-			CAFile:   storeConfig.CA,
-			CertFile: storeConfig.Cert,
-			KeyFile:  storeConfig.Key,
+			CAFile:             storeConfig.CA,
+			CertFile:           storeConfig.Cert,
+			KeyFile:            storeConfig.Key,
+			ExclusiveRootPools: true,
 		}
 		if doBootstrap {
 			sess, err = rethinkdb.AdminConnection(tlsOpts, storeConfig.Source)

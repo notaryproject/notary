@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 func TestGenerateCertificate(t *testing.T) {
@@ -22,7 +22,7 @@ func TestGenerateCertificate(t *testing.T) {
 	require.NoError(t, err, "could not add key to store")
 
 	// Check GenerateCertificate method
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	startTime := time.Now()
 	cert, err := GenerateCertificate(privKey, gun, startTime, startTime.AddDate(10, 0, 0))
 	require.NoError(t, err, "could not generate certificate")
@@ -34,5 +34,5 @@ func TestGenerateCertificate(t *testing.T) {
 	require.Equal(t, ecdsaPublicKey, cert.PublicKey)
 
 	// Check CommonName
-	require.Equal(t, cert.Subject.CommonName, gun)
+	require.EqualValues(t, cert.Subject.CommonName, gun)
 }

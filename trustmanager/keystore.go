@@ -1,26 +1,23 @@
 package trustmanager
 
 import (
-	"encoding/pem"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/notary"
-	store "github.com/docker/notary/storage"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/utils"
+	"github.com/sirupsen/logrus"
+	"github.com/theupdateframework/notary"
+	store "github.com/theupdateframework/notary/storage"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 type keyInfoMap map[string]KeyInfo
 
-// KeyInfo stores the role, path, and gun for a corresponding private key ID
-// It is assumed that each private key ID is unique
-type KeyInfo struct {
-	Gun  string
-	Role string
+type cachedKey struct {
+	role data.RoleName
+	key  data.PrivateKey
 }
 
 // GenericKeyStore is a wrapper for Storage instances that provides
@@ -107,7 +104,7 @@ func (s *GenericKeyStore) AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error
 	}
 	keyID := privKey.ID()
 	for attempts := 0; ; attempts++ {
-		chosenPassphrase, giveup, err = s.PassRetriever(keyID, keyInfo.Role, true, attempts)
+		chosenPassphrase, giveup, err = s.PassRetriever(keyID, keyInfo.Role.String(), true, attempts)
 		if err == nil {
 			break
 		}
@@ -116,17 +113,13 @@ func (s *GenericKeyStore) AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error
 		}
 	}
 
-	if chosenPassphrase != "" {
-		pemPrivKey, err = utils.EncryptPrivateKey(privKey, keyInfo.Role, keyInfo.Gun, chosenPassphrase)
-	} else {
-		pemPrivKey, err = utils.KeyToPEM(privKey, keyInfo.Role, keyInfo.Gun)
-	}
+	pemPrivKey, err = utils.ConvertPrivateKeyToPKCS8(privKey, keyInfo.Role, keyInfo.Gun, chosenPassphrase)
 
 	if err != nil {
 		return err
 	}
 
-	s.cachedKeys[keyID] = &cachedKey{alias: keyInfo.Role, key: privKey}
+	s.cachedKeys[keyID] = &cachedKey{role: keyInfo.Role, key: privKey}
 	err = s.store.Set(keyID, pemPrivKey)
 	if err != nil {
 		return err
@@ -136,13 +129,13 @@ func (s *GenericKeyStore) AddKey(keyInfo KeyInfo, privKey data.PrivateKey) error
 }
 
 // GetKey returns the PrivateKey given a KeyID
-func (s *GenericKeyStore) GetKey(keyID string) (data.PrivateKey, string, error) {
+func (s *GenericKeyStore) GetKey(keyID string) (data.PrivateKey, data.RoleName, error) {
 	s.Lock()
 	defer s.Unlock()
 
 	cachedKeyEntry, ok := s.cachedKeys[keyID]
 	if ok {
-		return cachedKeyEntry.key, cachedKeyEntry.alias, nil
+		return cachedKeyEntry.key, cachedKeyEntry.role, nil
 	}
 
 	role, err := getKeyRole(s.store, keyID)
@@ -163,7 +156,7 @@ func (s *GenericKeyStore) GetKey(keyID string) (data.PrivateKey, string, error) 
 			return nil, "", err
 		}
 	}
-	s.cachedKeys[keyID] = &cachedKey{alias: role, key: privKey}
+	s.cachedKeys[keyID] = &cachedKey{role: role, key: privKey}
 	return privKey, role, nil
 }
 
@@ -206,17 +199,17 @@ func copyKeyInfoMap(keyInfoMap map[string]KeyInfo) map[string]KeyInfo {
 func KeyInfoFromPEM(pemBytes []byte, filename string) (string, KeyInfo, error) {
 	var keyID string
 	keyID = filepath.Base(filename)
-	block, _ := pem.Decode(pemBytes)
-	if block == nil {
-		return "", KeyInfo{}, fmt.Errorf("could not decode PEM block for key %s", filename)
+	role, gun, err := utils.ExtractPrivateKeyAttributes(pemBytes)
+	if err != nil {
+		return "", KeyInfo{}, err
 	}
-	return keyID, KeyInfo{Gun: block.Headers["gun"], Role: block.Headers["role"]}, nil
+	return keyID, KeyInfo{Gun: gun, Role: role}, nil
 }
 
 // getKeyRole finds the role for the given keyID. It attempts to look
 // both in the newer format PEM headers, and also in the legacy filename
 // format. It returns: the role, and an error
-func getKeyRole(s Storage, keyID string) (string, error) {
+func getKeyRole(s Storage, keyID string) (data.RoleName, error) {
 	name := strings.TrimSpace(strings.TrimSuffix(filepath.Base(keyID), filepath.Ext(keyID)))
 
 	for _, file := range s.ListFiles() {
@@ -226,10 +219,12 @@ func getKeyRole(s Storage, keyID string) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			block, _ := pem.Decode(d)
-			if block != nil {
-				return block.Headers["role"], nil
+
+			role, _, err := utils.ExtractPrivateKeyAttributes(d)
+			if err != nil {
+				return "", err
 			}
+			return role, nil
 		}
 	}
 	return "", ErrKeyNotFound{KeyID: keyID}

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="95px" height="25px" viewBox="0 0 95 25" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 46 (44423) - http://www.bohemiancoding.com/sketch -->
+    <title>notary-blk@3x</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Artboard" transform="translate(-367.000000, -109.000000)" fill="#000000">
+            <g id="notary-blk" transform="translate(367.000000, 109.000000)">
+                <path d="M6,20 L6,8 L12,8 L12,20 L18,20 L18,25 L0,25 L0,20 L6,20 Z M61,17 L61,14 L52,14 L52,17 L61,17 Z M64,17.5 L64,20 L49,20 L49,17.5 L49,11 L50.5,11 L61,11 L61,8 L64,8 L64,17.5 Z M92,22 L92,20 L80,20 L80,18.5 L80,5 L83,5 L83,17 L92,17 L92,5 L95,5 L95,25 L92.5,25 L20,25 L20,22 L92,22 Z M40,5 L40,0 L43,0 L43,5 L64,5 L64,8 L43,8 L43,20 L40,20 L40,8 L37,8 L37,5 L40,5 Z M0,0 L18,0 L18,5 L0,5 L0,0 Z M20,5 L23,5 L23,20 L20,20 L20,5 Z M32,5 L35,5 L35,20 L32,20 L32,5 Z M23,17 L32,17 L32,20 L23,20 L23,17 Z M23,5 L32,5 L32,8 L23,8 L23,5 Z M43,17 L46,17 L46,20 L43,20 L43,17 Z M66,5 L78,5 L78,8 L66,8 L66,5 Z M66,8 L69,8 L69,20 L66,20 L66,8 Z M0,5 L3,5 L3,20 L0,20 L0,5 Z M15,5 L18,5 L18,20 L15,20 L15,5 Z" id="Combined-Shape"></path>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -7,14 +7,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/notary"
-	"github.com/docker/notary/passphrase"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/version"
 	homedir "github.com/mitchellh/go-homedir"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/passphrase"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/version"
 )
 
 const (
@@ -236,21 +236,21 @@ func getPassphraseRetriever() notary.PassRetriever {
 		// Note that we don't check if the role name is for a delegation to allow for names like "user"
 		// since delegation keys can be shared across repositories
 		// This cannot be a base role or imported key, though.
-		if v := env["delegation"]; !data.IsBaseRole(alias) && v != "" {
+		if v := env["delegation"]; !data.IsBaseRole(data.RoleName(alias)) && v != "" {
 			return v, numAttempts > 1, nil
 		}
 		return baseRetriever(keyName, alias, createNew, numAttempts)
 	}
 }
 
-// Set the logging level to fatal on default, or the most specific level the user specified (debug or error)
+// Set the logging level to warn on default, or the most verbose level the user specified (debug, info)
 func (n *notaryCommander) setVerbosityLevel() {
 	if n.debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	} else if n.verbose {
-		logrus.SetLevel(logrus.ErrorLevel)
+		logrus.SetLevel(logrus.InfoLevel)
 	} else {
-		logrus.SetLevel(logrus.FatalLevel)
+		logrus.SetLevel(logrus.WarnLevel)
 	}
 	logrus.SetOutput(os.Stderr)
 }

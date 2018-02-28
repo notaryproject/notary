@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/notary"
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary"
 )
 
 func init() {
@@ -44,7 +44,7 @@ func init() {
 
 			// drop all tables, if they exist
 			gormDB.DropTable(&TUFFile{})
-			gormDB.DropTable(&Change{})
+			gormDB.DropTable(&SQLChange{})
 		}
 		cleanup1()
 		dbStore := SetupSQLDB(t, notary.PostgresBackend, dburl)

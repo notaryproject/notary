@@ -1,8 +1,7 @@
 // Only run on Linux atm
-wrappedNode(label: 'docker') {
+wrappedNode(label: 'ubuntu && ec2 && docker-edge') {
   deleteDir()
   stage "checkout"
   checkout scm
 
-  documentationChecker("docs")
 }

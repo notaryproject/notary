@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/docker/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 // StrSliceContains checks if the given string appears in the slice
@@ -20,9 +20,19 @@ func StrSliceContains(ss []string, s string) bool {
 	return false
 }
 
-// StrSliceRemove removes the the given string from the slice, returning a new slice
-func StrSliceRemove(ss []string, s string) []string {
-	res := []string{}
+// RoleNameSliceContains checks if the given string appears in the slice
+func RoleNameSliceContains(ss []data.RoleName, s data.RoleName) bool {
+	for _, v := range ss {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+// RoleNameSliceRemove removes the the given RoleName from the slice, returning a new slice
+func RoleNameSliceRemove(ss []data.RoleName, s data.RoleName) []data.RoleName {
+	res := []data.RoleName{}
 	for _, v := range ss {
 		if v != s {
 			res = append(res, v)
@@ -88,7 +98,7 @@ func RemoveUnusedKeys(t *data.SignedTargets) {
 
 // FindRoleIndex returns the index of the role named <name> or -1 if no
 // matching role is found.
-func FindRoleIndex(rs []*data.Role, name string) int {
+func FindRoleIndex(rs []*data.Role, name data.RoleName) int {
 	for i, r := range rs {
 		if r.Name == name {
 			return i
@@ -100,9 +110,9 @@ func FindRoleIndex(rs []*data.Role, name string) int {
 // ConsistentName generates the appropriate HTTP URL path for the role,
 // based on whether the repo is marked as consistent. The RemoteStore
 // is responsible for adding file extensions.
-func ConsistentName(role string, hashSha256 []byte) string {
-	if len(hashSha256) > 0 {
-		hash := hex.EncodeToString(hashSha256)
+func ConsistentName(role string, hashSHA256 []byte) string {
+	if len(hashSHA256) > 0 {
+		hash := hex.EncodeToString(hashSHA256)
 		return fmt.Sprintf("%s.%s", role, hash)
 	}
 	return role

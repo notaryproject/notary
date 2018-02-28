@@ -9,12 +9,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/docker/notary/passphrase"
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/utils"
 	"github.com/miekg/pkcs11"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/passphrase"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 var ret = passphrase.ConstantRetriever("passphrase")
@@ -256,7 +256,7 @@ type nonworkingBackup struct {
 
 // AddKey stores the contents of a PEM-encoded private key as a PEM block
 func (s *nonworkingBackup) AddKey(keyInfo trustmanager.KeyInfo, privKey data.PrivateKey) error {
-	return errors.New("Nope!")
+	return errors.New("nope")
 }
 
 // If, when adding a key to the Yubikey, we can't back up the key, it should

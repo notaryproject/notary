@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 # This script cross-compiles static (when possible) binaries for supported OS's
 # architectures.  The Linux binary is completely static, whereas Mac OS binary
 # has libtool statically linked in. but is otherwise not static because you
@@ -40,7 +42,7 @@ for os in "$@"; do
 	go build \
 		-o "${NOTARYDIR}/cross/${GOOS}/${GOARCH}/${OUTFILE}" \
 		-a \
-		-tags "${BUILDTAGS}" \
+		-tags "${BUILDTAGS} netgo" \
 		-ldflags "-w ${CTIMEVAR} ${LDFLAGS}"  \
 		./cmd/notary;
 	set +x;

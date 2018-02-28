@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/notary/tuf/data"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 func SetupSQLDB(t *testing.T, dbtype, dburl string) *SQLStorage {
@@ -39,10 +39,10 @@ func assertExpectedGormTUFMeta(t *testing.T, expected []StoredTUFMeta, gormDB go
 	for i, tufObj := range expected {
 		expectedGorm[i] = TUFFile{
 			Model:   gorm.Model{ID: uint(i + 1)},
-			Gun:     tufObj.Gun,
-			Role:    tufObj.Role,
+			Gun:     tufObj.Gun.String(),
+			Role:    tufObj.Role.String(),
 			Version: tufObj.Version,
-			Sha256:  tufObj.Sha256,
+			SHA256:  tufObj.SHA256,
 			Data:    tufObj.Data,
 		}
 	}
@@ -246,4 +246,11 @@ func TestSQLGetChanges(t *testing.T) {
 	defer cleanup()
 
 	testGetChanges(t, s)
+}
+
+func TestSQLDBGetVersion(t *testing.T) {
+	dbStore, cleanup := sqldbSetup(t)
+	defer cleanup()
+
+	testGetVersion(t, dbStore)
 }

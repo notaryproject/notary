@@ -57,7 +57,7 @@ func TestRDBTUFFileJSONUnmarshalling(t *testing.T) {
 		Gun:            "namespaced/name",
 		Role:           "timestamp",
 		Version:        5,
-		Sha256:         "56ee4a23129fc22c6cb4b4ba5f78d730c91ab6def514e80d807c947bb21f0d63",
+		SHA256:         "56ee4a23129fc22c6cb4b4ba5f78d730c91ab6def514e80d807c947bb21f0d63",
 		Data:           data,
 		TSchecksum:     "ebe6b6e082c94ef24043f1786a7046432506c3d193a47c299ed48ff4413ad7b0",
 	}
@@ -116,12 +116,4 @@ func TestRDBTUFFileJSONUnmarshallingFailure(t *testing.T) {
 		_, err := TUFFilesRethinkTable.JSONUnmarshaller([]byte(invalid))
 		require.Error(t, err)
 	}
-}
-
-func TestRethinkDBGetChanges(t *testing.T) {
-	s := NewRethinkDBStorage("dbname", "user", "pwd", nil)
-	c, err := s.GetChanges("foo", 10, "")
-	require.Error(t, err)
-	require.Nil(t, c)
-	require.Contains(t, err.Error(), "Not Implemented")
 }

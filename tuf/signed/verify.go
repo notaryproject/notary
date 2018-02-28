@@ -6,9 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/go/canonical/json"
-	"github.com/docker/notary/tuf/data"
+	"github.com/sirupsen/logrus"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 // Various basic signing errors
@@ -24,7 +25,7 @@ func IsExpired(t time.Time) bool {
 }
 
 // VerifyExpiry returns ErrExpired if the metadata is expired
-func VerifyExpiry(s *data.SignedCommon, role string) error {
+func VerifyExpiry(s *data.SignedCommon, role data.RoleName) error {
 	if IsExpired(s.Expires) {
 		logrus.Errorf("Metadata for %s expired", role)
 		return ErrExpired{Role: role, Expired: s.Expires.Format("Mon Jan 2 15:04:05 MST 2006")}
@@ -98,12 +99,25 @@ func VerifySignature(msg []byte, sig *data.Signature, pk data.PublicKey) error {
 	method := sig.Method
 	verifier, ok := Verifiers[method]
 	if !ok {
-		return fmt.Errorf("signing method is not supported: %s\n", sig.Method)
+		return fmt.Errorf("signing method is not supported: %s", sig.Method)
 	}
 
 	if err := verifier.Verify(pk, sig.Signature, msg); err != nil {
-		return fmt.Errorf("signature was invalid\n")
+		return fmt.Errorf("signature was invalid")
 	}
 	sig.IsValid = true
+	return nil
+}
+
+// VerifyPublicKeyMatchesPrivateKey checks if the private key and the public keys forms valid key pairs.
+// Supports both x509 certificate PublicKeys and non-certificate PublicKeys
+func VerifyPublicKeyMatchesPrivateKey(privKey data.PrivateKey, pubKey data.PublicKey) error {
+	pubKeyID, err := utils.CanonicalKeyID(pubKey)
+	if err != nil {
+		return fmt.Errorf("could not verify key pair: %v", err)
+	}
+	if privKey == nil || pubKeyID != privKey.ID() {
+		return fmt.Errorf("private key is nil or does not match public key")
+	}
 	return nil
 }

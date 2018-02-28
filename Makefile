@@ -3,7 +3,7 @@ PREFIX?=$(shell pwd)
 
 # Populate version variables
 # Add to compile time flags
-NOTARY_PKG := github.com/docker/notary
+NOTARY_PKG := github.com/theupdateframework/notary
 NOTARY_VERSION := $(shell cat NOTARY_VERSION)
 GITCOMMIT := $(shell git rev-parse --short HEAD)
 GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
@@ -15,7 +15,7 @@ GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
 GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
 GOOSES = darwin linux windows
 NOTARY_BUILDTAGS ?= pkcs11
-NOTARYDIR := /go/src/github.com/docker/notary
+NOTARYDIR := /go/src/github.com/theupdateframework/notary
 
 GO_VERSION := $(shell go version | grep "1\.[7-9]\(\.[0-9]+\)*\|devel")
 # check to make sure we have the right version. development versions of Go are
@@ -66,6 +66,10 @@ ${PREFIX}/bin/notary-signer: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
 	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS} ./cmd/notary-signer
 
+${PREFIX}/bin/escrow: NOTARY_VERSION $(shell find . -type f -name '*.go')
+	@echo "+ $@"
+	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS} ./cmd/escrow
+
 ifeq ($(shell uname -s),Darwin)
 ${PREFIX}/bin/static/notary-server:
 	@echo "notary-server: static builds not supported on OS X"
@@ -78,16 +82,15 @@ ${PREFIX}/bin/static/notary:
 else
 ${PREFIX}/bin/static/notary-server: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
-	@(export CGO_ENABLED=0; go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-server)
+	@(export CGO_ENABLED=0; go build -tags "${NOTARY_BUILDTAGS} netgo" -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-server)
 
 ${PREFIX}/bin/static/notary-signer: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
-	@(export CGO_ENABLED=0; go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-signer)
+	@(export CGO_ENABLED=0; go build -tags "${NOTARY_BUILDTAGS} netgo" -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-signer)
 
 ${PREFIX}/bin/static/notary:
 	@echo "+ $@"
-	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary
-
+	@go build -tags "${NOTARY_BUILDTAGS} netgo" -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary
 endif
 
 
@@ -161,7 +164,7 @@ ci: override TESTOPTS = -race
 # Codecov knows how to merge multiple coverage files, so covmerge is not needed
 ci: gen-cover
 
-yubikey-tests: override PKGS = github.com/docker/notary/cmd/notary github.com/docker/notary/trustmanager/yubikey
+yubikey-tests: override PKGS = github.com/theupdateframework/notary/cmd/notary github.com/theupdateframework/notary/trustmanager/yubikey
 yubikey-tests: ci
 
 covmerge:
@@ -175,6 +178,9 @@ client: ${PREFIX}/bin/notary
 	@echo "+ $@"
 
 binaries: ${PREFIX}/bin/notary-server ${PREFIX}/bin/notary ${PREFIX}/bin/notary-signer
+	@echo "+ $@"
+
+escrow: ${PREFIX}/bin/escrow
 	@echo "+ $@"
 
 static: ${PREFIX}/bin/static/notary-server ${PREFIX}/bin/static/notary-signer ${PREFIX}/bin/static/notary
@@ -194,8 +200,9 @@ docker-images: notary-dockerfile server-dockerfile signer-dockerfile
 shell: notary-dockerfile
 	docker run --rm -it -v $(CURDIR)/cross:$(NOTARYDIR)/cross -v $(CURDIR)/bin:$(NOTARYDIR)/bin notary bash
 
-cross: notary-dockerfile
+cross:
 	@rm -rf $(CURDIR)/cross
+	@docker build --rm --force-rm -t notary -f cross.Dockerfile .
 	docker run --rm -v $(CURDIR)/cross:$(NOTARYDIR)/cross -e CTIMEVAR="${CTIMEVAR}" -e NOTARY_BUILDTAGS=$(NOTARY_BUILDTAGS) notary buildscripts/cross.sh $(GOOSES)
 
 clean:

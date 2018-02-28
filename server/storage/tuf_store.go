@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/docker/go/canonical/json"
-	"github.com/docker/notary"
-	"github.com/docker/notary/storage"
-	"github.com/docker/notary/tuf/data"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/storage"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 // TUFMetaStorage wraps a MetaStore in order to walk the TUF tree for GetCurrent in a consistent manner,
@@ -33,7 +33,7 @@ type storedMeta struct {
 }
 
 // GetCurrent gets a specific TUF record, by walking from the current Timestamp to other metadata by checksum
-func (tms TUFMetaStorage) GetCurrent(gun, tufRole string) (*time.Time, []byte, error) {
+func (tms TUFMetaStorage) GetCurrent(gun data.GUN, tufRole data.RoleName) (*time.Time, []byte, error) {
 	timestampTime, timestampJSON, err := tms.MetaStore.GetCurrent(gun, data.CanonicalTimestampRole)
 	if err != nil {
 		return nil, nil, err
@@ -52,26 +52,26 @@ func (tms TUFMetaStorage) GetCurrent(gun, tufRole string) (*time.Time, []byte, e
 	if err != nil || snapshotChecksums == nil {
 		return nil, nil, fmt.Errorf("could not retrieve latest snapshot checksum")
 	}
-	snapshotSha256Bytes, ok := snapshotChecksums.Hashes[notary.SHA256]
+	snapshotSHA256Bytes, ok := snapshotChecksums.Hashes[notary.SHA256]
 	if !ok {
 		return nil, nil, fmt.Errorf("could not retrieve latest snapshot sha256")
 	}
-	snapshotSha256Hex := hex.EncodeToString(snapshotSha256Bytes[:])
+	snapshotSHA256Hex := hex.EncodeToString(snapshotSHA256Bytes[:])
 
 	// Check the cache if we have our snapshot data
 	var snapshotTime *time.Time
 	var snapshotJSON []byte
-	if cachedSnapshotData, ok := tms.cachedMeta[snapshotSha256Hex]; ok {
+	if cachedSnapshotData, ok := tms.cachedMeta[snapshotSHA256Hex]; ok {
 		snapshotTime = cachedSnapshotData.createupdate
 		snapshotJSON = cachedSnapshotData.data
 	} else {
 		// Get the snapshot from the underlying store by checksum if it isn't cached yet
-		snapshotTime, snapshotJSON, err = tms.GetChecksum(gun, data.CanonicalSnapshotRole, snapshotSha256Hex)
+		snapshotTime, snapshotJSON, err = tms.GetChecksum(gun, data.CanonicalSnapshotRole, snapshotSHA256Hex)
 		if err != nil {
 			return nil, nil, err
 		}
 		// cache for subsequent lookups
-		tms.cachedMeta[snapshotSha256Hex] = &storedMeta{data: snapshotJSON, createupdate: snapshotTime}
+		tms.cachedMeta[snapshotSHA256Hex] = &storedMeta{data: snapshotJSON, createupdate: snapshotTime}
 	}
 	// If we wanted data for the snapshot role, we're done here
 	if tufRole == data.CanonicalSnapshotRole {
@@ -87,27 +87,27 @@ func (tms TUFMetaStorage) GetCurrent(gun, tufRole string) (*time.Time, []byte, e
 	if err != nil {
 		return nil, nil, err
 	}
-	roleSha256Bytes, ok := roleMeta.Hashes[notary.SHA256]
+	roleSHA256Bytes, ok := roleMeta.Hashes[notary.SHA256]
 	if !ok {
 		return nil, nil, fmt.Errorf("could not retrieve latest %s sha256", tufRole)
 	}
-	roleSha256Hex := hex.EncodeToString(roleSha256Bytes[:])
+	roleSHA256Hex := hex.EncodeToString(roleSHA256Bytes[:])
 	// check if we can retrieve this data from cache
-	if cachedRoleData, ok := tms.cachedMeta[roleSha256Hex]; ok {
+	if cachedRoleData, ok := tms.cachedMeta[roleSHA256Hex]; ok {
 		return cachedRoleData.createupdate, cachedRoleData.data, nil
 	}
 
-	roleTime, roleJSON, err := tms.MetaStore.GetChecksum(gun, tufRole, roleSha256Hex)
+	roleTime, roleJSON, err := tms.MetaStore.GetChecksum(gun, tufRole, roleSHA256Hex)
 	if err != nil {
 		return nil, nil, err
 	}
 	// cache for subsequent lookups
-	tms.cachedMeta[roleSha256Hex] = &storedMeta{data: roleJSON, createupdate: roleTime}
+	tms.cachedMeta[roleSHA256Hex] = &storedMeta{data: roleJSON, createupdate: roleTime}
 	return roleTime, roleJSON, nil
 }
 
 // GetChecksum gets a specific TUF record by checksum, also checking the internal cache
-func (tms TUFMetaStorage) GetChecksum(gun, tufRole, checksum string) (*time.Time, []byte, error) {
+func (tms TUFMetaStorage) GetChecksum(gun data.GUN, tufRole data.RoleName, checksum string) (*time.Time, []byte, error) {
 	if cachedRoleData, ok := tms.cachedMeta[checksum]; ok {
 		return cachedRoleData.createupdate, cachedRoleData.data, nil
 	}

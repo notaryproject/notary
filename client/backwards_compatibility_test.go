@@ -12,17 +12,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/passphrase"
-	store "github.com/docker/notary/storage"
-	"github.com/docker/notary/trustpinning"
-	"github.com/docker/notary/tuf/data"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/passphrase"
+	store "github.com/theupdateframework/notary/storage"
+	"github.com/theupdateframework/notary/trustpinning"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 // Once a fixture is read in, ensure that it's valid by making sure the expiry
 // times of all the metadata and certificates is > 10 years ahead
-func requireValidFixture(t *testing.T, notaryRepo *NotaryRepository) {
+func requireValidFixture(t *testing.T, notaryRepo *repository) {
 	tenYearsInFuture := time.Now().AddDate(10, 0, 0)
 	require.True(t, notaryRepo.tufRepo.Root.Signed.Expires.After(tenYearsInFuture))
 	require.True(t, notaryRepo.tufRepo.Snapshot.Signed.Expires.After(tenYearsInFuture))
@@ -35,12 +35,16 @@ func requireValidFixture(t *testing.T, notaryRepo *NotaryRepository) {
 // recursively copies the contents of one directory into another - ignores
 // symlinks
 func recursiveCopy(sourceDir, targetDir string) error {
+	sourceDir, err := filepath.Abs(sourceDir)
+	if err != nil {
+		return err
+	}
 	return filepath.Walk(sourceDir, func(fp string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		targetFP := filepath.Join(targetDir, strings.TrimPrefix(fp, sourceDir+"/"))
+		targetFP := filepath.Join(targetDir, strings.TrimPrefix(fp, sourceDir))
 
 		if fi.IsDir() {
 			return os.MkdirAll(targetFP, fi.Mode())
@@ -68,7 +72,7 @@ func recursiveCopy(sourceDir, targetDir string) error {
 		if err != nil {
 			return err
 		}
-		return nil
+		return out.Sync()
 	})
 }
 
@@ -80,18 +84,19 @@ func Test0Dot1Migration(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, recursiveCopy("../fixtures/compatibility/notary0.1", tmpDir))
 
-	gun := "docker.com/notary0.1/samplerepo"
+	var gun data.GUN = "docker.com/notary0.1/samplerepo"
 	passwd := "randompass"
 
 	ts := fullTestServer(t)
 	defer ts.Close()
 
-	_, err = NewFileCachedNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
+	_, err = NewFileCachedRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
 	// check that root_keys and tuf_keys are gone and that all corect keys are present and have the correct headers
-	files, _ := ioutil.ReadDir(filepath.Join(tmpDir, notary.PrivDir))
+	files, err := ioutil.ReadDir(filepath.Join(tmpDir, notary.PrivDir))
+	require.NoError(t, err)
 	require.Equal(t, files[0].Name(), "7fc757801b9bab4ec9e35bfe7a6b61668ff6f4c81b5632af19e6c728ab799599.key")
 	targKey, err := os.OpenFile(filepath.Join(tmpDir, notary.PrivDir, "7fc757801b9bab4ec9e35bfe7a6b61668ff6f4c81b5632af19e6c728ab799599.key"), os.O_RDONLY, notary.PrivExecPerms)
 	require.NoError(t, err)
@@ -127,13 +132,13 @@ func Test0Dot3Migration(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, recursiveCopy("../fixtures/compatibility/notary0.3", tmpDir))
 
-	gun := "docker.com/notary0.3/samplerepo"
+	var gun data.GUN = "docker.com/notary0.3/samplerepo"
 	passwd := "randompass"
 
 	ts := fullTestServer(t)
 	defer ts.Close()
 
-	_, err = NewFileCachedNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
+	_, err = NewFileCachedRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 
@@ -176,6 +181,9 @@ func Test0Dot3Migration(t *testing.T) {
 
 // We can read and publish from notary0.1 repos
 func Test0Dot1RepoFormat(t *testing.T) {
+	if notary.FIPSEnabled() {
+		t.Skip("skip backward compatibility test in FIPS mode")
+	}
 	// make a temporary directory and copy the fixture into it, since updating
 	// and publishing will modify the files
 	tmpDir, err := ioutil.TempDir("", "notary-backwards-compat-test")
@@ -183,15 +191,16 @@ func Test0Dot1RepoFormat(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, recursiveCopy("../fixtures/compatibility/notary0.1", tmpDir))
 
-	gun := "docker.com/notary0.1/samplerepo"
+	var gun data.GUN = "docker.com/notary0.1/samplerepo"
 	passwd := "randompass"
 
 	ts := fullTestServer(t)
 	defer ts.Close()
 
-	repo, err := NewFileCachedNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
+	r, err := NewFileCachedRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
+	repo := r.(*repository)
 
 	// targets should have 1 target, and it should be readable offline
 	targets, err := repo.ListTargets()
@@ -204,10 +213,10 @@ func Test0Dot1RepoFormat(t *testing.T) {
 
 	// delete the timestamp metadata, since the server will ignore the uploaded
 	// one and try to create a new one from scratch, which will be the wrong version
-	require.NoError(t, repo.cache.Remove(data.CanonicalTimestampRole))
+	require.NoError(t, repo.cache.Remove(data.CanonicalTimestampRole.String()))
 
 	// rotate the timestamp key, since the server doesn't have that one
-	err = repo.RotateKey(data.CanonicalTimestampRole, true)
+	err = repo.RotateKey(data.CanonicalTimestampRole, true, nil)
 	require.NoError(t, err)
 
 	require.NoError(t, repo.Publish())
@@ -217,10 +226,10 @@ func Test0Dot1RepoFormat(t *testing.T) {
 	require.Len(t, targets, 2)
 
 	// Also check that we can add/remove keys by rotating keys
-	oldTargetsKeys := repo.CryptoService.ListKeys(data.CanonicalTargetsRole)
-	require.NoError(t, repo.RotateKey(data.CanonicalTargetsRole, false))
+	oldTargetsKeys := repo.GetCryptoService().ListKeys(data.CanonicalTargetsRole)
+	require.NoError(t, repo.RotateKey(data.CanonicalTargetsRole, false, nil))
 	require.NoError(t, repo.Publish())
-	newTargetsKeys := repo.CryptoService.ListKeys(data.CanonicalTargetsRole)
+	newTargetsKeys := repo.GetCryptoService().ListKeys(data.CanonicalTargetsRole)
 
 	require.Len(t, oldTargetsKeys, 1)
 	require.Len(t, newTargetsKeys, 1)
@@ -228,7 +237,7 @@ func Test0Dot1RepoFormat(t *testing.T) {
 
 	// rotate the snapshot key to the server and ensure that the server can re-generate the snapshot
 	// and we can download the snapshot
-	require.NoError(t, repo.RotateKey(data.CanonicalSnapshotRole, true))
+	require.NoError(t, repo.RotateKey(data.CanonicalSnapshotRole, true, nil))
 	require.NoError(t, repo.Publish())
 	err = repo.Update(false)
 	require.NoError(t, err)
@@ -236,6 +245,9 @@ func Test0Dot1RepoFormat(t *testing.T) {
 
 // We can read and publish from notary0.3 repos
 func Test0Dot3RepoFormat(t *testing.T) {
+	if notary.FIPSEnabled() {
+		t.Skip("skip backward compatibility test in FIPS mode")
+	}
 	// make a temporary directory and copy the fixture into it, since updating
 	// and publishing will modify the files
 	tmpDir, err := ioutil.TempDir("", "notary-backwards-compat-test")
@@ -243,15 +255,16 @@ func Test0Dot3RepoFormat(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, recursiveCopy("../fixtures/compatibility/notary0.3", tmpDir))
 
-	gun := "docker.com/notary0.3/tst"
+	var gun data.GUN = "docker.com/notary0.3/tst"
 	passwd := "password"
 
 	ts := fullTestServer(t)
 	defer ts.Close()
 
-	repo, err := NewFileCachedNotaryRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
+	r, err := NewFileCachedRepository(tmpDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
+	repo := r.(*repository)
 
 	// targets should have 1 target, and it should be readable offline
 	targets, err := repo.ListTargets()
@@ -263,10 +276,10 @@ func Test0Dot3RepoFormat(t *testing.T) {
 
 	// delete the timestamp metadata, since the server will ignore the uploaded
 	// one and try to create a new one from scratch, which will be the wrong version
-	require.NoError(t, repo.cache.Remove(data.CanonicalTimestampRole))
+	require.NoError(t, repo.cache.Remove(data.CanonicalTimestampRole.String()))
 
 	// rotate the timestamp key, since the server doesn't have that one
-	err = repo.RotateKey(data.CanonicalTimestampRole, true)
+	err = repo.RotateKey(data.CanonicalTimestampRole, true, nil)
 	require.NoError(t, err)
 
 	require.NoError(t, repo.Publish())
@@ -278,13 +291,13 @@ func Test0Dot3RepoFormat(t *testing.T) {
 	delegations, err := repo.GetDelegationRoles()
 	require.NoError(t, err)
 	require.Len(t, delegations, 1)
-	require.Equal(t, "targets/releases", delegations[0].Name)
+	require.Equal(t, data.RoleName("targets/releases"), delegations[0].Name)
 
 	// Also check that we can add/remove keys by rotating keys
-	oldTargetsKeys := repo.CryptoService.ListKeys(data.CanonicalTargetsRole)
-	require.NoError(t, repo.RotateKey(data.CanonicalTargetsRole, false))
+	oldTargetsKeys := repo.GetCryptoService().ListKeys(data.CanonicalTargetsRole)
+	require.NoError(t, repo.RotateKey(data.CanonicalTargetsRole, false, nil))
 	require.NoError(t, repo.Publish())
-	newTargetsKeys := repo.CryptoService.ListKeys(data.CanonicalTargetsRole)
+	newTargetsKeys := repo.GetCryptoService().ListKeys(data.CanonicalTargetsRole)
 
 	require.Len(t, oldTargetsKeys, 1)
 	require.Len(t, newTargetsKeys, 1)
@@ -292,7 +305,7 @@ func Test0Dot3RepoFormat(t *testing.T) {
 
 	// rotate the snapshot key to the server and ensure that the server can re-generate the snapshot
 	// and we can download the snapshot
-	require.NoError(t, repo.RotateKey(data.CanonicalSnapshotRole, true))
+	require.NoError(t, repo.RotateKey(data.CanonicalSnapshotRole, true, nil))
 	require.NoError(t, repo.Publish())
 	err = repo.Update(false)
 	require.NoError(t, err)
@@ -300,11 +313,11 @@ func Test0Dot3RepoFormat(t *testing.T) {
 
 // Ensures that the current client can download metadata that is published from notary 0.1 repos
 func TestDownloading0Dot1RepoFormat(t *testing.T) {
-	gun := "docker.com/notary0.1/samplerepo"
+	var gun data.GUN = "docker.com/notary0.1/samplerepo"
 	passwd := "randompass"
 
 	metaCache, err := store.NewFileStore(
-		filepath.Join("../fixtures/compatibility/notary0.1/tuf", filepath.FromSlash(gun), "metadata"),
+		filepath.Join("../fixtures/compatibility/notary0.1/tuf", filepath.FromSlash(gun.String()), "metadata"),
 		"json")
 	require.NoError(t, err)
 
@@ -315,9 +328,10 @@ func TestDownloading0Dot1RepoFormat(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(repoDir)
 
-	repo, err := NewFileCachedNotaryRepository(repoDir, gun, ts.URL, http.DefaultTransport,
+	r, err := NewFileCachedRepository(repoDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
+	repo := r.(*repository)
 
 	err = repo.Update(true)
 	require.NoError(t, err, "error updating repo: %s", err)
@@ -325,11 +339,11 @@ func TestDownloading0Dot1RepoFormat(t *testing.T) {
 
 // Ensures that the current client can download metadata that is published from notary 0.3 repos
 func TestDownloading0Dot3RepoFormat(t *testing.T) {
-	gun := "docker.com/notary0.3/tst"
+	var gun data.GUN = "docker.com/notary0.3/tst"
 	passwd := "randompass"
 
 	metaCache, err := store.NewFileStore(
-		filepath.Join("../fixtures/compatibility/notary0.3/tuf", filepath.FromSlash(gun), "metadata"),
+		filepath.Join("../fixtures/compatibility/notary0.3/tuf", filepath.FromSlash(gun.String()), "metadata"),
 		"json")
 	require.NoError(t, err)
 
@@ -340,9 +354,10 @@ func TestDownloading0Dot3RepoFormat(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(repoDir)
 
-	repo, err := NewFileCachedNotaryRepository(repoDir, gun, ts.URL, http.DefaultTransport,
+	r, err := NewFileCachedRepository(repoDir, gun, ts.URL, http.DefaultTransport,
 		passphrase.ConstantRetriever(passwd), trustpinning.TrustPinConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
+	repo := r.(*repository)
 
 	err = repo.Update(true)
 	require.NoError(t, err, "error updating repo: %s", err)

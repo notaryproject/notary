@@ -5,9 +5,11 @@ package yubikey
 import (
 	"encoding/pem"
 	"errors"
-	"github.com/docker/notary"
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/tuf/utils"
+
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 // YubiImport is a wrapper around the YubiStore that allows us to import private
@@ -39,7 +41,7 @@ func (s *YubiImport) Set(name string, bytes []byte) error {
 	}
 	ki := trustmanager.KeyInfo{
 		// GUN is ignored by YubiStore
-		Role: role,
+		Role: data.RoleName(role),
 	}
 	privKey, err := utils.ParsePEMPrivateKey(bytes, "")
 	if err != nil {
@@ -47,7 +49,7 @@ func (s *YubiImport) Set(name string, bytes []byte) error {
 			s.passRetriever,
 			bytes,
 			name,
-			ki.Role,
+			ki.Role.String(),
 		)
 		if err != nil {
 			return err

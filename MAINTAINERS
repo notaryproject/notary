@@ -1,6 +1,6 @@
 # Notary maintainers file
 #
-# This file describes who runs the docker/notary project and how.
+# This file describes who runs the theupdateframework/notary project and how.
 # This is a living document - if you see something out of date or missing, speak up!
 #
 # It is structured to be consumable by both humans and programs.
@@ -13,8 +13,8 @@
 		people = [
 			"cyli",
 			"diogomonica",
-			"dmcgowan",
 			"endophage",
+			"ecordell",
 			"hukeping",
 			"nathanmccauley",
 			"riyazdf",
@@ -38,15 +38,15 @@
 	Email = "diogo@docker.com"
 	GitHub = "diogomonica"
 
-	[people.dmcgowan]
-	Name = "Derek McGowan"
-	Email = "derek@docker.com"
-	GitHub = "dmcgowan"
-
 	[people.endophage]
 	Name = "David Lawrence"
 	Email = "david.lawrence@docker.com"
 	GitHub = "endophage"
+
+	[people.ecordell]
+	Name = "Evan Cordell"
+	Email = "evan.cordell@coreos.com"
+	GitHub = "ecordell"
 
 	[people.hukeping]
 	Name = "Hu Keping"

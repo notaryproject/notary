@@ -32,10 +32,10 @@ JSON keys to learn more about the configuration section corresponding to that ke
   <a href="#trust_dir-section-optional">"trust_dir"</a> : "~/.docker/trust",
   <a href="#remote_server-section-optional">"remote_server"</a>: {
     "url": "https://my-notary-server.my-private-registry.com",
-    "root-ca": "./fixtures/root-ca.crt",
+    "root_ca": "./fixtures/root-ca.crt",
     "tls_client_cert": "./fixtures/secure.example.com.crt",
-    "tls_client_key": "./fixtures/secure.example.com.crt"
-  }
+    "tls_client_key": "./fixtures/secure.example.com.key"
+  },
   <a href="#trust_pinning-section-optional">"trust_pinning"</a>: {
     "certs": {
       "docker.com/notary": ["49cf5c6404a35fa41d5a5aa2ce539dfee0d7a2176d0da488914a38603b1f4292"]
@@ -65,9 +65,9 @@ Remote server example:
 ```json
 "remote_server": {
   "url": "https://my-notary-server.my-private-registry.com",
-  "root-ca": "./fixtures/root-ca.crt",
+  "root_ca": "./fixtures/root-ca.crt",
   "tls_client_cert": "./fixtures/secure.example.com.crt",
-  "tls_client_key": "./fixtures/secure.example.com.crt"
+  "tls_client_key": "./fixtures/secure.example.com.key"
 }
 ```
 
@@ -85,7 +85,7 @@ Remote server example:
 			`-s` or `--server`.</td>
 	</tr>
 	<tr>
-		<td valign="top"><code>root-ca</code></td>
+		<td valign="top"><code>root_ca</code></td>
 		<td valign="top">no</td>
 		<td valign="top"><p>The path to the file containing the root CA with which to verify
 			the TLS certificate of the Notary server, for example if it is self-signed.
@@ -132,9 +132,9 @@ but the pinned certificates will take highest priority for validation, followed
 by the pinned CA, followed by TOFUS (TOFU over HTTPS).  The diagram below
 describes this validation flow:
 
-<center>
-![Trust pinning flow](../images/trust-pinning-flow.png)
-</center>
+
+![Trust pinning flow](https://cdn.rawgit.com/theupdateframework/notary/27469f01fe244bdf70f34219616657b336724bc3/docs/images/trust-pinning-flow.png)
+
 
 Only one trust pinning option will be used to validate a GUN even if multiple
 sections are specified, and any validation failure will result in a failed

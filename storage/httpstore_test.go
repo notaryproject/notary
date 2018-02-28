@@ -13,9 +13,9 @@ import (
 	"testing"
 
 	"github.com/docker/go/canonical/json"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/validation"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/validation"
 )
 
 const testRoot = `{"signed":{"_type":"Root","consistent_snapshot":false,"expires":"2025-07-17T16:19:21.101698314-07:00","keys":{"1ca15c7f4b2b0c6efce202a545e7267152da28ab7c91590b3b60bdb4da723aad":{"keytype":"ecdsa","keyval":{"private":null,"public":"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEb0720c99Cj6ZmuDlznEZ52NA6YpeY9Sj45z51XvPnG63Bi2RSBezMJlPzbSfP39mXKXqOJyT+z9BZhi3FVWczg=="}},"b1d6813b55442ecbfb1f4b40eb1fcdb4290e53434cfc9ba2da24c26c9143873b":{"keytype":"ecdsa-x509","keyval":{"private":null,"public":"LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJVekNCKzZBREFnRUNBaEFCWDNKLzkzaW8zbHcrZUsvNFhvSHhNQW9HQ0NxR1NNNDlCQU1DTUJFeER6QU4KQmdOVkJBTVRCbVY0Y0dseVpUQWVGdzB4TlRBM01qQXlNekU1TVRkYUZ3MHlOVEEzTVRjeU16RTVNVGRhTUJFeApEekFOQmdOVkJBTVRCbVY0Y0dseVpUQlpNQk1HQnlxR1NNNDlBZ0VHQ0NxR1NNNDlBd0VIQTBJQUJFTDhOTFhQCitreUJZYzhYY0FTMXB2S2l5MXRQUDlCZHJ1dEdrWlR3Z0dEYTM1THMzSUFXaWlrUmlPbGRuWmxVVEE5cG5JekoKOFlRQThhTjQ1TDQvUlplak5UQXpNQTRHQTFVZER3RUIvd1FFQXdJQW9EQVRCZ05WSFNVRUREQUtCZ2dyQmdFRgpCUWNEQXpBTUJnTlZIUk1CQWY4RUFqQUFNQW9HQ0NxR1NNNDlCQU1DQTBjQU1FUUNJRVJ1ZUVURG5xMlRqRFBmClhGRStqUFJqMEtqdXdEOG9HSmtoVGpMUDAycjhBaUI5cUNyL2ZqSXpJZ1NQcTJVSXZqR0hlYmZOYXh1QlpZZUUKYW8xNjd6dHNYZz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K"}},"fbddae7f25a6c23ca735b017206a849d4c89304a4d8de4dcc4b3d6f3eb22ce3b":{"keytype":"ecdsa","keyval":{"private":null,"public":"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/xS5fBHK2HKmlGcvAr06vwPITvmxWP4P3CMDCgY25iSaIiM21OiXA1/Uvo3Pa3xh5G3cwCtDvi+4FpflW2iB/w=="}},"fd75751f010c3442e23b3e3e99a1442a112f2f21038603cb8609d8b17c9e912a":{"keytype":"ed25519","keyval":{"private":null,"public":"rc+glN01m+q8jmX8SolGsjTfk6NMhUQTWyj10hjmne0="}}},"roles":{"root":{"keyids":["b1d6813b55442ecbfb1f4b40eb1fcdb4290e53434cfc9ba2da24c26c9143873b"],"threshold":1},"snapshot":{"keyids":["1ca15c7f4b2b0c6efce202a545e7267152da28ab7c91590b3b60bdb4da723aad"],"threshold":1},"targets":{"keyids":["fbddae7f25a6c23ca735b017206a849d4c89304a4d8de4dcc4b3d6f3eb22ce3b"],"threshold":1},"timestamp":{"keyids":["fd75751f010c3442e23b3e3e99a1442a112f2f21038603cb8609d8b17c9e912a"],"threshold":1}},"version":2},"signatures":[{"keyid":"b1d6813b55442ecbfb1f4b40eb1fcdb4290e53434cfc9ba2da24c26c9143873b","method":"ecdsa","sig":"A2lNVwxHBnD9ViFtRre8r5oG6VvcvJnC6gdvvxv/Jyag40q/fNMjllCqyHrb+6z8XDZcrTTDsFU1R3/e+92d1A=="}]}`
@@ -94,8 +94,8 @@ func TestHTTPStoreGetAllMeta(t *testing.T) {
 
 func TestSetSingleAndSetMultiMeta(t *testing.T) {
 	metas := map[string][]byte{
-		"root":    []byte("root data"),
-		"targets": []byte("targets data"),
+		data.CanonicalRootRole.String():    []byte("root data"),
+		data.CanonicalTargetsRole.String(): []byte("targets data"),
 	}
 
 	var updates map[string][]byte
@@ -240,6 +240,31 @@ func TestTranslateErrorsWhenCannotParse400(t *testing.T) {
 	}
 }
 
+// Cut off error reading after a certain size
+func TestTranslateErrorsLimitsErrorSize(t *testing.T) {
+	// if the error message itself is the max error size, then extra JSON surrounding it will put it over
+	// the top
+	msg := make([]byte, MaxErrorResponseSize)
+	for i := range msg {
+		msg[i] = 'a'
+	}
+
+	serialObj, err := validation.NewSerializableError(validation.ErrBadRoot{Msg: string(msg)})
+	require.NoError(t, err)
+	serialization, err := json.Marshal(serialObj)
+	require.NoError(t, err)
+	errorBody := bytes.NewBuffer([]byte(fmt.Sprintf(
+		`{"errors": [{"otherstuff": "what", "detail": %s}]}`,
+		string(serialization))))
+	errorResp := http.Response{
+		StatusCode: http.StatusBadRequest,
+		Body:       ioutil.NopCloser(errorBody),
+	}
+
+	err = translateStatusToError(&errorResp, "")
+	require.IsType(t, ErrInvalidOperation{}, err)
+}
+
 func TestHTTPStoreRemoveAll(t *testing.T) {
 	// Set up a simple handler and server for our store, just check that a non-error response back is fine
 	handler := func(w http.ResponseWriter, r *http.Request) {}
@@ -321,6 +346,27 @@ func TestHTTPStoreGetKey(t *testing.T) {
 	_, err = store.GetKey(data.CanonicalSnapshotRole)
 	require.IsType(t, NetworkError{}, err)
 	require.Equal(t, "FAIL", err.Error())
+}
+
+func TestHTTPStoreGetRotateKeySizeLimited(t *testing.T) {
+	tooLarge := make([]byte, MaxKeySize+10)
+	for i := range tooLarge {
+		tooLarge[i] = 'a'
+	}
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/metadata/snapshot.key", r.URL.Path)
+		w.Write(tooLarge)
+	}
+	server := httptest.NewServer(http.HandlerFunc(handler))
+	defer server.Close()
+	store, err := NewHTTPStore(server.URL, "metadata", "json", "key", http.DefaultTransport)
+	require.NoError(t, err)
+
+	for _, downloadFunc := range []func(data.RoleName) ([]byte, error){store.RotateKey, store.GetKey} {
+		gotten, err := downloadFunc(data.CanonicalSnapshotRole)
+		require.NoError(t, err)
+		require.Equal(t, tooLarge[:MaxKeySize], gotten)
+	}
 }
 
 func TestHTTPOffline(t *testing.T) {

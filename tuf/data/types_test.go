@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/docker/go/canonical/json"
-	"github.com/docker/notary"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary"
 )
 
 func TestGenerateFileMetaDefault(t *testing.T) {
@@ -68,7 +68,7 @@ func TestCheckHashes(t *testing.T) {
 	require.Error(t, err)
 	missingMeta, ok := err.(ErrMissingMeta)
 	require.True(t, ok)
-	require.Equal(t, "metaName1", missingMeta.Role)
+	require.EqualValues(t, "metaName1", missingMeta.Role)
 
 	// Expected to fail since there is no checksum at all.
 	hashes := make(Hashes)
@@ -76,7 +76,7 @@ func TestCheckHashes(t *testing.T) {
 	require.Error(t, err)
 	missingMeta, ok = err.(ErrMissingMeta)
 	require.True(t, ok)
-	require.Equal(t, "metaName2", missingMeta.Role)
+	require.EqualValues(t, "metaName2", missingMeta.Role)
 
 	// The most standard one.
 	hashes[notary.SHA256], err = hex.DecodeString("d13e2b60d74c2e6f4f449b5e536814edf9a4827f5a9f4f957fc92e77609b9c92")
@@ -111,7 +111,7 @@ func TestCheckHashes(t *testing.T) {
 	require.Error(t, err)
 	badChecksum, ok := err.(ErrMismatchedChecksum)
 	require.True(t, ok)
-	require.Equal(t, ErrMismatchedChecksum{alg: notary.SHA256, name: "metaName3",
+	require.EqualValues(t, ErrMismatchedChecksum{alg: notary.SHA256, name: "metaName3",
 		expected: hex.EncodeToString([]byte("malicious data"))}, badChecksum)
 
 	// Expected to fail due to the failure of sha512
@@ -121,7 +121,7 @@ func TestCheckHashes(t *testing.T) {
 	require.Error(t, err)
 	badChecksum, ok = err.(ErrMismatchedChecksum)
 	require.True(t, ok)
-	require.Equal(t, ErrMismatchedChecksum{alg: notary.SHA512, name: "metaName4",
+	require.EqualValues(t, ErrMismatchedChecksum{alg: notary.SHA512, name: "metaName4",
 		expected: hex.EncodeToString([]byte("malicious data"))}, badChecksum)
 
 	// Expected to fail because of the failure of sha512
@@ -137,7 +137,7 @@ func TestCheckHashes(t *testing.T) {
 	require.Error(t, err)
 	badChecksum, ok = err.(ErrMismatchedChecksum)
 	require.True(t, ok)
-	require.Equal(t, ErrMismatchedChecksum{alg: notary.SHA512, name: "metaName5",
+	require.EqualValues(t, ErrMismatchedChecksum{alg: notary.SHA512, name: "metaName5",
 		expected: "d13e2b60d74c2e6f4f449b5e536814edf9a4827f5a9f4f957fc92e77609b9c92"}, badChecksum)
 }
 
@@ -230,8 +230,71 @@ func TestCompareMultiHashes(t *testing.T) {
 	require.NoError(t, err)
 
 	// change the sha512 for hashes2, comparison will now fail
-	hashes2[notary.SHA512], err = hex.DecodeString(strings.Repeat("a", notary.Sha512HexSize))
+	hashes2[notary.SHA512], err = hex.DecodeString(strings.Repeat("a", notary.SHA512HexSize))
 	require.NoError(t, err)
 	err = CompareMultiHashes(hashes1, hashes2)
 	require.Error(t, err)
+}
+
+func TestFileMetaEquals(t *testing.T) {
+	var err error
+
+	hashes1 := make(Hashes)
+	hashes2 := make(Hashes)
+	hashes1["sha384"], err = hex.DecodeString("64becc3c23843942b1040ffd4743d1368d988ddf046d17d448a6e199c02c3044b425a680112b399d4dbe9b35b7ccc989")
+	require.NoError(t, err)
+	hashes2[notary.SHA256], err = hex.DecodeString("766af0ef090a4f2307e49160fa242db6fb95f071ad81a198eeb7d770e61cd6d8")
+	require.NoError(t, err)
+
+	rawMessage1, rawMessage2 := json.RawMessage{}, json.RawMessage{}
+	require.NoError(t, rawMessage1.UnmarshalJSON([]byte("hello")))
+	require.NoError(t, rawMessage2.UnmarshalJSON([]byte("there")))
+
+	f1 := []FileMeta{
+		{
+			Length: 1,
+			Hashes: hashes1,
+		},
+		{
+			Length: 2,
+			Hashes: hashes1,
+		},
+		{
+			Length: 1,
+			Hashes: hashes2,
+		},
+		{
+			Length: 1,
+			Hashes: hashes1,
+			Custom: &rawMessage1,
+		},
+		{},
+	}
+
+	f2 := []FileMeta{
+		{
+			Length: 1,
+			Hashes: hashes1,
+			Custom: &rawMessage1,
+		},
+		{
+			Length: 1,
+			Hashes: hashes1,
+			Custom: &rawMessage2,
+		},
+		{
+			Length: 1,
+			Hashes: hashes1,
+		},
+	}
+
+	require.False(t, FileMeta{}.Equals(f1[0]))
+	require.True(t, f1[0].Equals(f1[0]))
+	for _, meta := range f1[1:] {
+		require.False(t, f1[0].Equals(meta))
+	}
+	require.True(t, f2[0].Equals(f2[0]))
+	for _, meta := range f2[1:] {
+		require.False(t, f2[0].Equals(meta))
+	}
 }

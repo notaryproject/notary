@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/docker/go/canonical/json"
-	"github.com/docker/notary/server/storage"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/testutils"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/server/storage"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/testutils"
 )
 
 func TestSnapshotExpired(t *testing.T) {
@@ -56,7 +56,7 @@ type FailingStore struct {
 	*storage.MemStorage
 }
 
-func (f FailingStore) GetCurrent(role, gun string) (*time.Time, []byte, error) {
+func (f FailingStore) GetCurrent(gun data.GUN, role data.RoleName) (*time.Time, []byte, error) {
 	return nil, nil, fmt.Errorf("failing store failed")
 }
 
@@ -72,7 +72,7 @@ type CorruptedStore struct {
 	*storage.MemStorage
 }
 
-func (c CorruptedStore) GetCurrent(role, gun string) (*time.Time, []byte, error) {
+func (c CorruptedStore) GetCurrent(gun data.GUN, role data.RoleName) (*time.Time, []byte, error) {
 	return &time.Time{}, []byte("junk"), nil
 }
 
@@ -96,7 +96,7 @@ func TestGetSnapshotKeyExistingMetadata(t *testing.T) {
 	repo, crypto, err := testutils.EmptyRepo("gun")
 	require.NoError(t, err)
 
-	sgnd, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	sgnd, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	rootJSON, err := json.Marshal(sgnd)
 	require.NoError(t, err)
@@ -137,7 +137,7 @@ func TestGetSnapshotNoPreviousSnapshot(t *testing.T) {
 	repo, crypto, err := testutils.EmptyRepo("gun")
 	require.NoError(t, err)
 
-	sgnd, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	sgnd, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	rootJSON, err := json.Marshal(sgnd)
 	require.NoError(t, err)
@@ -198,7 +198,7 @@ func TestGetSnapshotOldSnapshotExpired(t *testing.T) {
 	repo, crypto, err := testutils.EmptyRepo("gun")
 	require.NoError(t, err)
 
-	sgnd, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	sgnd, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	rootJSON, err := json.Marshal(sgnd)
 	require.NoError(t, err)
@@ -272,7 +272,7 @@ func TestCreateSnapshotNoKeyInCrypto(t *testing.T) {
 	repo, _, err := testutils.EmptyRepo("gun")
 	require.NoError(t, err)
 
-	sgnd, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	sgnd, err := repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	rootJSON, err := json.Marshal(sgnd)
 	require.NoError(t, err)

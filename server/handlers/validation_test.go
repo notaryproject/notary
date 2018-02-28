@@ -8,14 +8,14 @@ import (
 
 	"github.com/docker/go/canonical/json"
 
-	"github.com/docker/notary/server/storage"
-	"github.com/docker/notary/trustpinning"
-	"github.com/docker/notary/tuf"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/testutils"
-	"github.com/docker/notary/tuf/validation"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/server/storage"
+	"github.com/theupdateframework/notary/trustpinning"
+	"github.com/theupdateframework/notary/tuf"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/testutils"
+	"github.com/theupdateframework/notary/tuf/validation"
 )
 
 // this is a fake storage that serves errors
@@ -26,8 +26,8 @@ type getFailStore struct {
 
 // GetCurrent returns the current metadata, or an error depending on whether
 // getFailStore is configured to return an error for this role
-func (f getFailStore) GetCurrent(gun, tufRole string) (*time.Time, []byte, error) {
-	err := f.errsToReturn[tufRole]
+func (f getFailStore) GetCurrent(gun data.GUN, tufRole data.RoleName) (*time.Time, []byte, error) {
+	err := f.errsToReturn[tufRole.String()]
 	if err == nil {
 		return f.MetaStore.GetCurrent(gun, tufRole)
 	}
@@ -36,8 +36,8 @@ func (f getFailStore) GetCurrent(gun, tufRole string) (*time.Time, []byte, error
 
 // GetChecksum returns the metadata with this checksum, or an error depending on
 // whether getFailStore is configured to return an error for this role
-func (f getFailStore) GetChecksum(gun, tufRole, checksum string) (*time.Time, []byte, error) {
-	err := f.errsToReturn[tufRole]
+func (f getFailStore) GetChecksum(gun data.GUN, tufRole data.RoleName, checksum string) (*time.Time, []byte, error) {
+	err := f.errsToReturn[tufRole.String()]
 	if err == nil {
 		return f.MetaStore.GetChecksum(gun, tufRole, checksum)
 	}
@@ -77,7 +77,7 @@ func getUpdates(r, tg, sn, ts *data.Signed) (
 }
 
 func TestValidateEmptyNew(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -95,7 +95,7 @@ func TestValidateEmptyNew(t *testing.T) {
 
 	// we generated our own timestamp, and did not take the other timestamp,
 	// but all other metadata should come from updates
-	founds := make(map[string]bool)
+	founds := make(map[data.RoleName]bool)
 	for _, update := range updates {
 		switch update.Role {
 		case data.CanonicalRootRole:
@@ -116,7 +116,7 @@ func TestValidateEmptyNew(t *testing.T) {
 }
 
 func TestValidateRootCanContainOnlyx509KeysWithRightGun(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo("wrong/gun")
 	require.NoError(t, err)
 	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
@@ -152,7 +152,7 @@ func TestValidateRootCanContainOnlyx509KeysWithRightGun(t *testing.T) {
 }
 
 func TestValidatePrevTimestamp(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
@@ -186,7 +186,7 @@ func TestValidatePrevTimestamp(t *testing.T) {
 }
 
 func TestValidatePreviousTimestampCorrupt(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
@@ -209,7 +209,7 @@ func TestValidatePreviousTimestampCorrupt(t *testing.T) {
 }
 
 func TestValidateGetCurrentTimestampBroken(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
@@ -222,7 +222,7 @@ func TestValidateGetCurrentTimestampBroken(t *testing.T) {
 
 	store := getFailStore{
 		MetaStore:    storage.NewMemStorage(),
-		errsToReturn: map[string]error{data.CanonicalTimestampRole: data.ErrNoSuchRole{}},
+		errsToReturn: map[string]error{data.CanonicalTimestampRole.String(): data.ErrNoSuchRole{}},
 	}
 
 	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
@@ -232,7 +232,7 @@ func TestValidateGetCurrentTimestampBroken(t *testing.T) {
 }
 
 func TestValidateNoNewRoot(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -251,7 +251,7 @@ func TestValidateNoNewRoot(t *testing.T) {
 }
 
 func TestValidateNoNewTargets(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -270,7 +270,7 @@ func TestValidateNoNewTargets(t *testing.T) {
 }
 
 func TestValidateOnlySnapshot(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -291,7 +291,7 @@ func TestValidateOnlySnapshot(t *testing.T) {
 }
 
 func TestValidateOldRoot(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -310,7 +310,7 @@ func TestValidateOldRoot(t *testing.T) {
 }
 
 func TestValidateOldRootCorrupt(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -337,7 +337,7 @@ func TestValidateOldRootCorrupt(t *testing.T) {
 // We cannot validate a new root if the old root is corrupt, because there might
 // have been a root key rotation.
 func TestValidateOldRootCorruptRootRole(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -372,12 +372,12 @@ func TestValidateOldRootCorruptRootRole(t *testing.T) {
 // have been an old root and we can't determine if the new root represents a
 // root key rotation.
 func TestValidateRootGetCurrentRootBroken(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := getFailStore{
 		MetaStore:    storage.NewMemStorage(),
-		errsToReturn: map[string]error{data.CanonicalRootRole: data.ErrNoSuchRole{}},
+		errsToReturn: map[string]error{data.CanonicalRootRole.String(): data.ErrNoSuchRole{}},
 	}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
@@ -396,7 +396,7 @@ func TestValidateRootGetCurrentRootBroken(t *testing.T) {
 // A valid root rotation only cares about the immediately previous old root keys,
 // whether or not there are old root roles
 func TestValidateRootRotationWithOldSigs(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, crypto, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	serverCrypto := testutils.CopyKeys(t, crypto, data.CanonicalTimestampRole)
@@ -431,7 +431,7 @@ func TestValidateRootRotationWithOldSigs(t *testing.T) {
 	// the next root does NOT need to be signed by both keys, because we only care
 	// about signing with both keys if the root keys have changed (signRoot again to bump the version)
 
-	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	// delete all signatures except the one with the new key
 	for _, sig := range repo.Root.Signatures {
@@ -460,7 +460,7 @@ func TestValidateRootRotationWithOldSigs(t *testing.T) {
 	newRootID2 := newRootKey2.ID()
 
 	require.NoError(t, repo.ReplaceBaseKeys(data.CanonicalRootRole, newRootKey2))
-	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	// delete all signatures except the ones with the first and second new keys
 	sigs := make([]data.Signature, 0, 2)
@@ -489,7 +489,7 @@ func TestValidateRootRotationWithOldSigs(t *testing.T) {
 // of which can sign the root rotation, then either one of those keys can be used
 // to sign the root rotation - not necessarily the one that signed the previous root.
 func TestValidateRootRotationMultipleKeysThreshold1(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, crypto, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	serverCrypto := testutils.CopyKeys(t, crypto, data.CanonicalTimestampRole)
@@ -527,7 +527,7 @@ func TestValidateRootRotationMultipleKeysThreshold1(t *testing.T) {
 	rotatedRootID := rotatedRootKey.ID()
 	require.NoError(t, repo.ReplaceBaseKeys(data.CanonicalRootRole, rotatedRootKey))
 
-	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	require.Len(t, r.Signatures, 3)
 	// delete all signatures except the additional key (which didn't sign the
@@ -556,7 +556,7 @@ func TestValidateRootRotationMultipleKeysThreshold1(t *testing.T) {
 // A root rotation must be signed with old and new root keys such that it satisfies
 // the old and new roles, otherwise the new root fails to validate
 func TestRootRotationNotSignedWithOldKeysForOldRole(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, crypto, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -587,7 +587,7 @@ func TestRootRotationNotSignedWithOldKeysForOldRole(t *testing.T) {
 	repo.Root.Signed.Roles[data.CanonicalRootRole].Threshold = 1
 	require.NoError(t, repo.ReplaceBaseKeys(data.CanonicalRootRole, finalRootKey))
 
-	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole))
+	r, err = repo.SignRoot(data.DefaultExpires(data.CanonicalRootRole), nil)
 	require.NoError(t, err)
 	origSigs := r.Signatures
 
@@ -631,9 +631,51 @@ func TestRootRotationNotSignedWithOldKeysForOldRole(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// A root rotation must increment the root version by 1
+func TestRootRotationVersionIncrement(t *testing.T) {
+	var gun data.GUN = "docker.com/notary"
+	repo, crypto, err := testutils.EmptyRepo(gun)
+	require.NoError(t, err)
+	serverCrypto := testutils.CopyKeys(t, crypto, data.CanonicalTimestampRole)
+	store := storage.NewMemStorage()
+
+	r, tg, sn, ts, err := testutils.Sign(repo)
+	require.NoError(t, err)
+	root, targets, snapshot, timestamp, err := getUpdates(r, tg, sn, ts)
+	require.NoError(t, err)
+
+	// set the original root in the store
+	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
+	require.NoError(t, store.UpdateMany(gun, updates))
+
+	// rotate the root key, sign with both keys, and update - update should succeed
+	newRootKey, err := testutils.CreateKey(crypto, gun, data.CanonicalRootRole, data.ECDSAKey)
+	require.NoError(t, err)
+
+	require.NoError(t, repo.ReplaceBaseKeys(data.CanonicalRootRole, newRootKey))
+	r, _, sn, _, err = testutils.Sign(repo)
+	require.NoError(t, err)
+	root, _, snapshot, _, err = getUpdates(r, tg, sn, ts)
+	require.NoError(t, err)
+	snapshot.Version = repo.Snapshot.Signed.Version
+
+	// Wrong root version
+	root.Version = repo.Root.Signed.Version + 1
+
+	_, err = validateUpdate(serverCrypto, gun, []storage.MetaUpdate{root, snapshot}, store)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Root modifications must increment the version")
+
+	// correct root version
+	root.Version = root.Version - 1
+	updates, err = validateUpdate(serverCrypto, gun, []storage.MetaUpdate{root, snapshot}, store)
+	require.NoError(t, err)
+	require.NoError(t, store.UpdateMany(gun, updates))
+}
+
 // An update is not valid without the root metadata.
 func TestValidateNoRoot(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -652,7 +694,7 @@ func TestValidateNoRoot(t *testing.T) {
 }
 
 func TestValidateSnapshotMissingNoSnapshotKey(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -671,7 +713,7 @@ func TestValidateSnapshotMissingNoSnapshotKey(t *testing.T) {
 }
 
 func TestValidateSnapshotGenerateNoPrev(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -689,7 +731,7 @@ func TestValidateSnapshotGenerateNoPrev(t *testing.T) {
 }
 
 func TestValidateSnapshotGenerateWithPrev(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -724,7 +766,7 @@ func TestValidateSnapshotGenerateWithPrev(t *testing.T) {
 }
 
 func TestValidateSnapshotGeneratePrevCorrupt(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -750,12 +792,12 @@ func TestValidateSnapshotGeneratePrevCorrupt(t *testing.T) {
 
 // Store is broken when getting the current snapshot
 func TestValidateSnapshotGenerateStoreGetCurrentSnapshotBroken(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := getFailStore{
 		MetaStore:    storage.NewMemStorage(),
-		errsToReturn: map[string]error{data.CanonicalSnapshotRole: data.ErrNoSuchRole{}},
+		errsToReturn: map[string]error{data.CanonicalSnapshotRole.String(): data.ErrNoSuchRole{}},
 	}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
@@ -772,7 +814,7 @@ func TestValidateSnapshotGenerateStoreGetCurrentSnapshotBroken(t *testing.T) {
 }
 
 func TestValidateSnapshotGenerateNoTargets(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -790,7 +832,7 @@ func TestValidateSnapshotGenerateNoTargets(t *testing.T) {
 }
 
 func TestValidateSnapshotGenerate(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -813,7 +855,7 @@ func TestValidateSnapshotGenerate(t *testing.T) {
 // happen if pushing an existing repository from one server to another that
 // does not have the repo.
 func TestValidateRootNoTimestampKey(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	oldRepo, _, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
@@ -841,7 +883,7 @@ func TestValidateRootNoTimestampKey(t *testing.T) {
 // repository from one server to another that had already initialized the same
 // repo.
 func TestValidateRootInvalidTimestampKey(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	oldRepo, _, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
@@ -864,7 +906,7 @@ func TestValidateRootInvalidTimestampKey(t *testing.T) {
 
 // If the timestamp role has a threshold > 1, validation fails.
 func TestValidateRootInvalidTimestampThreshold(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	oldRepo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
@@ -892,7 +934,7 @@ func TestValidateRootInvalidTimestampThreshold(t *testing.T) {
 // If any role has a threshold < 1, validation fails
 func TestValidateRootInvalidZeroThreshold(t *testing.T) {
 	for _, role := range data.BaseRoles {
-		gun := "docker.com/notary"
+		var gun data.GUN = "docker.com/notary"
 		oldRepo, cs, err := testutils.EmptyRepo(gun)
 		require.NoError(t, err)
 		tsRole, ok := oldRepo.Root.Signed.Roles[role]
@@ -918,7 +960,7 @@ func TestValidateRootInvalidZeroThreshold(t *testing.T) {
 // These tests remove a role from the Root file and
 // check for a validation.ErrBadRoot
 func TestValidateRootRoleMissing(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -939,7 +981,7 @@ func TestValidateRootRoleMissing(t *testing.T) {
 }
 
 func TestValidateTargetsRoleMissing(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -960,7 +1002,7 @@ func TestValidateTargetsRoleMissing(t *testing.T) {
 }
 
 func TestValidateSnapshotRoleMissing(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -984,7 +1026,7 @@ func TestValidateSnapshotRoleMissing(t *testing.T) {
 
 // ### Signature missing negative tests ###
 func TestValidateRootSigMissing(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -1008,7 +1050,7 @@ func TestValidateRootSigMissing(t *testing.T) {
 }
 
 func TestValidateTargetsSigMissing(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -1030,7 +1072,7 @@ func TestValidateTargetsSigMissing(t *testing.T) {
 }
 
 func TestValidateSnapshotSigMissing(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -1055,7 +1097,7 @@ func TestValidateSnapshotSigMissing(t *testing.T) {
 
 // ### Corrupted metadata negative tests ###
 func TestValidateRootCorrupt(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -1077,7 +1119,7 @@ func TestValidateRootCorrupt(t *testing.T) {
 }
 
 func TestValidateTargetsCorrupt(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -1099,7 +1141,7 @@ func TestValidateTargetsCorrupt(t *testing.T) {
 }
 
 func TestValidateSnapshotCorrupt(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -1124,7 +1166,7 @@ func TestValidateSnapshotCorrupt(t *testing.T) {
 
 // ### Snapshot size mismatch negative tests ###
 func TestValidateRootModifiedSize(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -1150,7 +1192,7 @@ func TestValidateRootModifiedSize(t *testing.T) {
 }
 
 func TestValidateTargetsModifiedSize(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -1176,7 +1218,7 @@ func TestValidateTargetsModifiedSize(t *testing.T) {
 
 // ### Snapshot hash mismatch negative tests ###
 func TestValidateRootModifiedHash(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -1186,7 +1228,7 @@ func TestValidateRootModifiedHash(t *testing.T) {
 
 	snap, err := data.SnapshotFromSigned(sn)
 	require.NoError(t, err)
-	snap.Signed.Meta[data.CanonicalRootRole].Hashes["sha256"][0] = snap.Signed.Meta[data.CanonicalRootRole].Hashes["sha256"][0] ^ 0xff
+	snap.Signed.Meta[data.CanonicalRootRole.String()].Hashes["sha256"][0] = snap.Signed.Meta[data.CanonicalRootRole.String()].Hashes["sha256"][0] ^ 0xff
 
 	sn, err = snap.ToSigned()
 	require.NoError(t, err)
@@ -1203,7 +1245,7 @@ func TestValidateRootModifiedHash(t *testing.T) {
 }
 
 func TestValidateTargetsModifiedHash(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -1233,7 +1275,7 @@ func TestValidateTargetsModifiedHash(t *testing.T) {
 
 // ### generateSnapshot tests ###
 func TestGenerateSnapshotRootNotLoaded(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	builder := tuf.NewRepoBuilder(gun, nil, trustpinning.TrustPinConfig{})
 	_, err := generateSnapshot(gun, builder, storage.NewMemStorage())
 	require.Error(t, err)
@@ -1241,7 +1283,7 @@ func TestGenerateSnapshotRootNotLoaded(t *testing.T) {
 }
 
 func TestGenerateSnapshotNoKey(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	metadata, cs, err := testutils.NewRepoMetadata(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
@@ -1265,7 +1307,7 @@ func TestGenerateSnapshotNoKey(t *testing.T) {
 
 // ### Target validation with delegations tests
 func TestLoadTargetsLoadsNothingIfNoUpdates(t *testing.T) {
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	metadata, _, err := testutils.NewRepoMetadata(gun)
 	require.NoError(t, err)
 
@@ -1290,9 +1332,11 @@ func TestLoadTargetsLoadsNothingIfNoUpdates(t *testing.T) {
 // When a delegation role appears in the update and the parent does not, the
 // parent is loaded from the DB if it can
 func TestValidateTargetsRequiresStoredParent(t *testing.T) {
-	gun := "docker.com/notary"
-	delgName := "targets/level1"
-	metadata, _, err := testutils.NewRepoMetadata(gun, delgName, path.Join(delgName, "other"))
+	var (
+		gun      data.GUN      = "docker.com/notary"
+		delgName data.RoleName = "targets/level1"
+	)
+	metadata, _, err := testutils.NewRepoMetadata(gun, delgName, data.RoleName(path.Join(delgName.String(), "other")))
 	require.NoError(t, err)
 
 	// load the root into the builder, else we can't load anything else
@@ -1305,7 +1349,7 @@ func TestValidateTargetsRequiresStoredParent(t *testing.T) {
 		Data:    metadata[delgName],
 	}
 
-	upload := map[string]storage.MetaUpdate{delgName: delUpdate}
+	upload := map[data.RoleName]storage.MetaUpdate{delgName: delUpdate}
 
 	store := storage.NewMemStorage()
 
@@ -1331,9 +1375,11 @@ func TestValidateTargetsRequiresStoredParent(t *testing.T) {
 // If the parent is not in the store, then the parent must be in the update else
 // validation fails.
 func TestValidateTargetsParentInUpdate(t *testing.T) {
-	gun := "docker.com/notary"
-	delgName := "targets/level1"
-	metadata, _, err := testutils.NewRepoMetadata(gun, delgName, path.Join(delgName, "other"))
+	var (
+		gun      data.GUN      = "docker.com/notary"
+		delgName data.RoleName = "targets/level1"
+	)
+	metadata, _, err := testutils.NewRepoMetadata(gun, delgName, data.RoleName(path.Join(delgName.String(), "other")))
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
 
@@ -1353,7 +1399,7 @@ func TestValidateTargetsParentInUpdate(t *testing.T) {
 		Data:    metadata[delgName],
 	}
 
-	upload := map[string]storage.MetaUpdate{
+	upload := map[data.RoleName]storage.MetaUpdate{
 		"targets/level1":          delgUpdate,
 		data.CanonicalTargetsRole: targetsUpdate,
 	}
@@ -1377,7 +1423,7 @@ func TestValidateTargetsParentInUpdate(t *testing.T) {
 // of the delegation update, validation fails
 func TestValidateTargetsRoleNotInParent(t *testing.T) {
 	// no delegation at first
-	gun := "docker.com/notary"
+	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
@@ -1399,7 +1445,7 @@ func TestValidateTargetsRoleNotInParent(t *testing.T) {
 	storeWithParent.UpdateCurrent(gun, origTargetsUpdate)
 
 	// add a delegation role now
-	delgName := "targets/level1"
+	var delgName data.RoleName = "targets/level1"
 	level1Key, err := testutils.CreateKey(cs, gun, delgName, data.ECDSAKey)
 	require.NoError(t, err)
 	require.NoError(t, repo.UpdateDelegationKeys(delgName, []data.PublicKey{level1Key}, []string{}, 1))
@@ -1420,7 +1466,7 @@ func TestValidateTargetsRoleNotInParent(t *testing.T) {
 
 	// parent in update does not have this role, whether or not there's a parent in the store,
 	// so validation fails
-	roles := map[string]storage.MetaUpdate{
+	roles := map[data.RoleName]storage.MetaUpdate{
 		delgName:                  delgUpdate,
 		data.CanonicalTargetsRole: origTargetsUpdate,
 	}
@@ -1434,7 +1480,7 @@ func TestValidateTargetsRoleNotInParent(t *testing.T) {
 	// if the update is provided without the parent, then the parent from the
 	// store is loaded - if it doesn't have the role, then the update fails
 	updates, err := loadAndValidateTargets(gun, builder,
-		map[string]storage.MetaUpdate{delgName: delgUpdate}, storeWithParent)
+		map[data.RoleName]storage.MetaUpdate{delgName: delgUpdate}, storeWithParent)
 	require.Error(t, err)
 	require.Empty(t, updates)
 	require.IsType(t, validation.ErrBadTargets{}, err)

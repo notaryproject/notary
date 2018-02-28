@@ -14,15 +14,15 @@ import (
 	"testing"
 
 	_ "github.com/docker/distribution/registry/auth/silly"
-	"github.com/docker/notary"
-	"github.com/docker/notary/server/storage"
-	store "github.com/docker/notary/storage"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/testutils"
-	tufutils "github.com/docker/notary/tuf/utils"
-	"github.com/docker/notary/utils"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/server/storage"
+	store "github.com/theupdateframework/notary/storage"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/testutils"
+	tufutils "github.com/theupdateframework/notary/tuf/utils"
+	"github.com/theupdateframework/notary/utils"
 	"golang.org/x/net/context"
 )
 
@@ -59,7 +59,7 @@ func TestRunReservedPort(t *testing.T) {
 }
 
 func TestRepoPrefixMatches(t *testing.T) {
-	gun := "docker.io/notary"
+	var gun data.GUN = "docker.io/notary"
 	meta, cs, err := testutils.NewRepoMetadata(gun)
 	require.NoError(t, err)
 
@@ -77,13 +77,13 @@ func TestRepoPrefixMatches(t *testing.T) {
 	require.NoError(t, err)
 
 	// uploading is cool
-	require.NoError(t, uploader.SetMulti(meta))
+	require.NoError(t, uploader.SetMulti(data.MetadataRoleMapToStringMap(meta)))
 	// getting is cool
-	_, err = uploader.GetSized(data.CanonicalSnapshotRole, notary.MaxDownloadSize)
+	_, err = uploader.GetSized(data.CanonicalSnapshotRole.String(), notary.MaxDownloadSize)
 	require.NoError(t, err)
 
 	_, err = uploader.GetSized(
-		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]), notary.MaxDownloadSize)
+		tufutils.ConsistentName(data.CanonicalSnapshotRole.String(), snChecksumBytes[:]), notary.MaxDownloadSize)
 	require.NoError(t, err)
 
 	_, err = uploader.GetKey(data.CanonicalTimestampRole)
@@ -99,7 +99,7 @@ func TestRepoPrefixMatches(t *testing.T) {
 }
 
 func TestRepoPrefixDoesNotMatch(t *testing.T) {
-	gun := "docker.io/notary"
+	var gun data.GUN = "docker.io/notary"
 	meta, cs, err := testutils.NewRepoMetadata(gun)
 	require.NoError(t, err)
 	s := storage.NewMemStorage()
@@ -117,7 +117,7 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 	uploader, err := store.NewHTTPStore(url, "", "json", "key", http.DefaultTransport)
 	require.NoError(t, err)
 
-	require.Error(t, uploader.SetMulti(meta))
+	require.Error(t, uploader.SetMulti(data.MetadataRoleMapToStringMap(meta)))
 
 	// update the storage so we don't fail just because the metadata is missing
 	for _, roleName := range data.BaseRoles {
@@ -128,11 +128,11 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 		}))
 	}
 
-	_, err = uploader.GetSized(data.CanonicalSnapshotRole, notary.MaxDownloadSize)
+	_, err = uploader.GetSized(data.CanonicalSnapshotRole.String(), notary.MaxDownloadSize)
 	require.Error(t, err)
 
 	_, err = uploader.GetSized(
-		tufutils.ConsistentName(data.CanonicalSnapshotRole, snChecksumBytes[:]), notary.MaxDownloadSize)
+		tufutils.ConsistentName(data.CanonicalSnapshotRole.String(), snChecksumBytes[:]), notary.MaxDownloadSize)
 	require.Error(t, err)
 
 	_, err = uploader.GetKey(data.CanonicalTimestampRole)
@@ -168,7 +168,7 @@ func TestGetKeysEndpoint(t *testing.T) {
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
-	rolesToStatus := map[string]int{
+	rolesToStatus := map[data.RoleName]int{
 		data.CanonicalTimestampRole: http.StatusOK,
 		data.CanonicalSnapshotRole:  http.StatusOK,
 		data.CanonicalTargetsRole:   http.StatusNotFound,
@@ -255,6 +255,72 @@ func TestGetRoleByHash(t *testing.T) {
 // This just checks the URL routing is working correctly and cache headers are set correctly.
 // More detailed tests for this path including negative
 // tests are located in /server/handlers/
+func TestGetRoleByVersion(t *testing.T) {
+	store := storage.NewMemStorage()
+
+	ts := data.SignedTimestamp{
+		Signatures: make([]data.Signature, 0),
+		Signed: data.Timestamp{
+			SignedCommon: data.SignedCommon{
+				Type:    data.TUFTypes[data.CanonicalTimestampRole],
+				Version: 1,
+				Expires: data.DefaultExpires(data.CanonicalTimestampRole),
+			},
+		},
+	}
+	j, err := json.Marshal(&ts)
+	require.NoError(t, err)
+	store.UpdateCurrent("gun", storage.MetaUpdate{
+		Role:    data.CanonicalTimestampRole,
+		Version: 1,
+		Data:    j,
+	})
+
+	// create and add a newer timestamp. We're going to try and request
+	// the older version we created above.
+	ts = data.SignedTimestamp{
+		Signatures: make([]data.Signature, 0),
+		Signed: data.Timestamp{
+			SignedCommon: data.SignedCommon{
+				Type:    data.TUFTypes[data.CanonicalTimestampRole],
+				Version: 2,
+				Expires: data.DefaultExpires(data.CanonicalTimestampRole),
+			},
+		},
+	}
+	newTS, err := json.Marshal(&ts)
+	require.NoError(t, err)
+	store.UpdateCurrent("gun", storage.MetaUpdate{
+		Role:    data.CanonicalTimestampRole,
+		Version: 1,
+		Data:    newTS,
+	})
+
+	ctx := context.WithValue(
+		context.Background(), notary.CtxKeyMetaStore, store)
+
+	ctx = context.WithValue(ctx, notary.CtxKeyKeyAlgo, data.ED25519Key)
+
+	ccc := utils.NewCacheControlConfig(10, false)
+	handler := RootHandler(ctx, nil, signed.NewEd25519(), ccc, ccc, nil)
+	serv := httptest.NewServer(handler)
+	defer serv.Close()
+
+	res, err := http.Get(fmt.Sprintf(
+		"%s/v2/gun/_trust/tuf/%d.%s.json",
+		serv.URL,
+		1,
+		data.CanonicalTimestampRole,
+	))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	// if content is equal, checksums are guaranteed to be equal
+	verifyGetResponse(t, res, j)
+}
+
+// This just checks the URL routing is working correctly and cache headers are set correctly.
+// More detailed tests for this path including negative
+// tests are located in /server/handlers/
 func TestGetCurrentRole(t *testing.T) {
 	store := storage.NewMemStorage()
 	metadata, _, err := testutils.NewRepoMetadata("gun")
@@ -316,7 +382,7 @@ func TestRotateKeyEndpoint(t *testing.T) {
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
-	rolesToStatus := map[string]int{
+	rolesToStatus := map[data.RoleName]int{
 		data.CanonicalTimestampRole: http.StatusOK,
 		data.CanonicalSnapshotRole:  http.StatusOK,
 		data.CanonicalTargetsRole:   http.StatusNotFound,

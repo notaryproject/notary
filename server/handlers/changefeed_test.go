@@ -4,19 +4,19 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	ctxu "github.com/docker/distribution/context"
-	"github.com/docker/notary"
-	"github.com/docker/notary/server/storage"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/server/storage"
 )
 
 type changefeedArgs struct {
-	logger    ctxu.Logger
-	store     storage.MetaStore
-	imageName string
-	changeID  string
-	pageSize  int64
+	logger   ctxu.Logger
+	store    storage.MetaStore
+	gun      string
+	changeID string
+	pageSize int64
 }
 
 type changefeedTest struct {
@@ -33,11 +33,11 @@ func Test_changefeed(t *testing.T) {
 		{
 			name: "Empty Store",
 			args: changefeedArgs{
-				logger:    logrus.New(),
-				store:     s,
-				imageName: "",
-				changeID:  "0",
-				pageSize:  notary.DefaultPageSize,
+				logger:   logrus.New(),
+				store:    s,
+				gun:      "",
+				changeID: "0",
+				pageSize: notary.DefaultPageSize,
 			},
 			want:    []byte("{\"count\":0,\"records\":null}"),
 			wantErr: false,
@@ -45,11 +45,11 @@ func Test_changefeed(t *testing.T) {
 		{
 			name: "Bad ChangeID",
 			args: changefeedArgs{
-				logger:    logrus.New(),
-				store:     s,
-				imageName: "",
-				changeID:  "not_a_number",
-				pageSize:  notary.DefaultPageSize,
+				logger:   logrus.New(),
+				store:    s,
+				gun:      "",
+				changeID: "not_a_number",
+				pageSize: notary.DefaultPageSize,
 			},
 			want:    nil,
 			wantErr: true,
@@ -61,7 +61,7 @@ func Test_changefeed(t *testing.T) {
 
 func runChangefeedTests(t *testing.T, tests []changefeedTest) {
 	for _, tt := range tests {
-		got, err := changefeed(tt.args.logger, tt.args.store, tt.args.imageName, tt.args.changeID, tt.args.pageSize)
+		got, err := changefeed(tt.args.logger, tt.args.store, tt.args.gun, tt.args.changeID, tt.args.pageSize)
 		if tt.wantErr {
 			require.Error(t, err,
 				"%q. changefeed() error = %v, wantErr %v", tt.name, err, tt.wantErr)

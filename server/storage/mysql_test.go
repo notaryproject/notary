@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,7 +43,7 @@ func init() {
 
 			// drop all tables, if they exist
 			gormDB.DropTable(&TUFFile{})
-			gormDB.DropTable(&Change{})
+			gormDB.DropTable(&SQLChange{})
 		}
 		cleanup1()
 		dbStore := SetupSQLDB(t, "mysql", dburl)

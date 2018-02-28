@@ -14,10 +14,10 @@ const (
 	MinRSABitSize = 2048
 	// MinThreshold requires a minimum of one threshold for roles; currently we do not support a higher threshold
 	MinThreshold = 1
-	// Sha256HexSize is how big a Sha256 hex is in number of characters
-	Sha256HexSize = 64
-	// Sha512HexSize is how big a Sha512 hex is in number of characters
-	Sha512HexSize = 128
+	// SHA256HexSize is how big a SHA256 hex is in number of characters
+	SHA256HexSize = 64
+	// SHA512HexSize is how big a SHA512 hex is in number of characters
+	SHA512HexSize = 128
 	// SHA256 is the name of SHA256 hash algorithm
 	SHA256 = "sha256"
 	// SHA512 is the name of SHA512 hash algorithm
@@ -57,6 +57,7 @@ const (
 	PostgresBackend  = "postgres"
 	SQLiteBackend    = "sqlite3"
 	RethinkDBBackend = "rethinkdb"
+	FileBackend      = "file"
 
 	DefaultImportRole = "delegation"
 
@@ -83,15 +84,6 @@ const (
 	CtxKeyCryptoSvc
 	CtxKeyRepo
 )
-
-// NotaryDefaultExpiries is the construct used to configure the default expiry times of
-// the various role files.
-var NotaryDefaultExpiries = map[string]time.Duration{
-	"root":      NotaryRootExpiry,
-	"targets":   NotaryTargetsExpiry,
-	"snapshot":  NotarySnapshotExpiry,
-	"timestamp": NotaryTimestampExpiry,
-}
 
 // NotarySupportedBackends contains the backends we would like to support at present
 var NotarySupportedBackends = []string{

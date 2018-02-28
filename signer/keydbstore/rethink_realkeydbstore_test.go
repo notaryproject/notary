@@ -11,16 +11,16 @@ import (
 	"time"
 
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/docker/notary/storage/rethinkdb"
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
 	"github.com/dvsekhvalnov/jose2go"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/dancannon/gorethink.v2"
+	"github.com/theupdateframework/notary/storage/rethinkdb"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"gopkg.in/dancannon/gorethink.v3"
 )
 
-var tlsOpts = tlsconfig.Options{InsecureSkipVerify: true}
+var tlsOpts = tlsconfig.Options{InsecureSkipVerify: true, ExclusiveRootPools: true}
 var rdbNow = time.Date(2016, 12, 31, 1, 1, 1, 0, time.UTC)
 
 func rethinkSessionSetup(t *testing.T) (*gorethink.Session, string) {

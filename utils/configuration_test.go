@@ -6,18 +6,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"reflect"
-	"syscall"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/bugsnag/bugsnag-go"
-	"github.com/docker/notary"
-	"github.com/docker/notary/tuf/utils"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 const envPrefix = "NOTARY_TESTING_ENV_PREFIX"
@@ -192,6 +190,20 @@ func TestParseInvalidSQLStorageNoDBSource(t *testing.T) {
 	}
 }
 
+// If an invalid DB source is provided, an error is returned.
+func TestParseInvalidDBSourceInSQLStorage(t *testing.T) {
+	config := configure(`{
+		"storage": {
+			"backend": "mysql",
+			"db_url": "foobar"
+		}
+	}`)
+	_, err := ParseSQLStorage(config)
+	require.Error(t, err)
+	require.Contains(t, err.Error(),
+		fmt.Sprintf("failed to parse the database source for mysql"))
+}
+
 // A supported backend with DB source will be successfully parsed.
 func TestParseSQLStorageDBStore(t *testing.T) {
 	config := configure(`{
@@ -203,7 +215,7 @@ func TestParseSQLStorageDBStore(t *testing.T) {
 
 	expected := Storage{
 		Backend: "mysql",
-		Source:  "username:passord@tcp(hostname:1234)/dbname",
+		Source:  "username:passord@tcp(hostname:1234)/dbname?parseTime=true",
 	}
 
 	store, err := ParseSQLStorage(config)
@@ -333,7 +345,7 @@ func TestParseSQLStorageWithEnvironmentVariables(t *testing.T) {
 
 	expected := Storage{
 		Backend: "mysql",
-		Source:  "username:passord@tcp(hostname:1234)/dbname",
+		Source:  "username:passord@tcp(hostname:1234)/dbname?parseTime=true",
 	}
 
 	store, err := ParseSQLStorage(config)
@@ -534,42 +546,4 @@ func TestAdjustLogLevel(t *testing.T) {
 
 		require.Equal(t, expt.endLevel, logrus.GetLevel())
 	}
-}
-
-func testSetSignalTrap(t *testing.T) {
-	var signalsPassedOn map[string]struct{}
-
-	signalHandler := func(s os.Signal) {
-		signalsPassedOn := make(map[string]struct{})
-		signalsPassedOn[s.String()] = struct{}{}
-	}
-	c := SetupSignalTrap(signalHandler)
-
-	if len(notary.NotarySupportedSignals) == 0 { // currently, windows only
-		require.Nil(t, c)
-	} else {
-		require.NotNil(t, c)
-		defer signal.Stop(c)
-	}
-
-	for _, s := range notary.NotarySupportedSignals {
-		syscallSignal, ok := s.(syscall.Signal)
-		require.True(t, ok)
-		require.NoError(t, syscall.Kill(syscall.Getpid(), syscallSignal))
-		require.Len(t, signalsPassedOn, 0)
-		require.NotNil(t, signalsPassedOn[s.String()])
-	}
-}
-
-// TODO: undo this extra indirection, needed for mocking notary.NotarySupportedSignals being empty, when we have
-// a windows CI system running
-func TestSetSignalTrap(t *testing.T) {
-	testSetSignalTrap(t)
-}
-
-func TestSetSignalTrapMockWindows(t *testing.T) {
-	old := notary.NotarySupportedSignals
-	notary.NotarySupportedSignals = nil
-	testSetSignalTrap(t)
-	notary.NotarySupportedSignals = old
 }

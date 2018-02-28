@@ -1,17 +1,19 @@
-FROM golang:1.7.1-alpine
+FROM golang:1.9.4-alpine
 MAINTAINER David Lawrence "david.lawrence@docker.com"
 
 RUN apk add --update git gcc libc-dev && rm -rf /var/cache/apk/*
 
-# Install SQL DB migration tool
-RUN go get github.com/mattes/migrate
+# Pin to the specific v3.0.0 version
+RUN go get -tags 'mysql postgres file' github.com/mattes/migrate/cli && mv /go/bin/cli /go/bin/migrate
 
-ENV NOTARYPKG github.com/docker/notary
+ENV NOTARYPKG github.com/theupdateframework/notary
 
 # Copy the local repo to the expected go path
 COPY . /go/src/${NOTARYPKG}
 
 WORKDIR /go/src/${NOTARYPKG}
+
+RUN chmod 0600 ./fixtures/database/*
 
 ENV SERVICE_NAME=notary_server
 EXPOSE 4443

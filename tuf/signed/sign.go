@@ -14,10 +14,10 @@ package signed
 import (
 	"crypto/rand"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/utils"
+	"github.com/sirupsen/logrus"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 // Sign takes a data.Signed and a cryptoservice containing private keys,

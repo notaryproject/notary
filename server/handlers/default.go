@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -11,15 +13,15 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/server/errors"
-	"github.com/docker/notary/server/snapshot"
-	"github.com/docker/notary/server/storage"
-	"github.com/docker/notary/server/timestamp"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/validation"
-	"github.com/docker/notary/utils"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/server/errors"
+	"github.com/theupdateframework/notary/server/snapshot"
+	"github.com/theupdateframework/notary/server/storage"
+	"github.com/theupdateframework/notary/server/timestamp"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	"github.com/theupdateframework/notary/tuf/validation"
+	"github.com/theupdateframework/notary/utils"
 )
 
 // MainHandler is the default handler for the server
@@ -44,7 +46,7 @@ func AtomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 }
 
 func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	gun := vars["imageName"]
+	gun := data.GUN(vars["gun"])
 	s := ctx.Value(notary.CtxKeyMetaStore)
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	store, ok := s.(storage.MetaStore)
@@ -70,8 +72,8 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 		if err == io.EOF {
 			break
 		}
-		role := strings.TrimSuffix(part.FileName(), ".json")
-		if role == "" {
+		role := data.RoleName(strings.TrimSuffix(part.FileName(), ".json"))
+		if role.String() == "" {
 			logger.Info("400 POST empty role")
 			return errors.ErrNoFilename.WithDetail(nil)
 		} else if !data.ValidRole(role) {
@@ -114,7 +116,22 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 		logger.Errorf("500 POST error applying update request: %v", err)
 		return errors.ErrUpdating.WithDetail(nil)
 	}
+
+	logTS(logger, gun.String(), updates)
+
 	return nil
+}
+
+// logTS logs the timestamp update at Info level
+func logTS(logger ctxu.Logger, gun string, updates []storage.MetaUpdate) {
+	for _, update := range updates {
+		if update.Role == data.CanonicalTimestampRole {
+			checksumBin := sha256.Sum256(update.Data)
+			checksum := hex.EncodeToString(checksumBin[:])
+			logger.Infof("updated %s to timestamp version %d, checksum %s", gun, update.Version, checksum)
+			break
+		}
+	}
 }
 
 // GetHandler returns the json for a specified role and GUN.
@@ -125,8 +142,9 @@ func GetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) err
 }
 
 func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	gun := vars["imageName"]
+	gun := data.GUN(vars["gun"])
 	checksum := vars["checksum"]
+	version := vars["version"]
 	tufRole := vars["tufRole"]
 	s := ctx.Value(notary.CtxKeyMetaStore)
 
@@ -138,7 +156,7 @@ func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, var
 		return errors.ErrNoStorage.WithDetail(nil)
 	}
 
-	lastModified, output, err := getRole(ctx, store, gun, tufRole, checksum)
+	lastModified, output, err := getRole(ctx, store, gun, data.RoleName(tufRole), checksum, version)
 	if err != nil {
 		logger.Infof("404 GET %s role", tufRole)
 		return err
@@ -160,7 +178,7 @@ func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, var
 // DeleteHandler deletes all data for a GUN. A 200 responses indicates success.
 func DeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	vars := mux.Vars(r)
-	gun := vars["imageName"]
+	gun := data.GUN(vars["gun"])
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	s := ctx.Value(notary.CtxKeyMetaStore)
 	store, ok := s.(storage.MetaStore)
@@ -173,6 +191,7 @@ func DeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 		logger.Error("500 DELETE repository")
 		return errors.ErrUnknown.WithDetail(err)
 	}
+	logger.Infof("trust data deleted for %s", gun)
 	return nil
 }
 
@@ -254,16 +273,16 @@ func rotateKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Reques
 }
 
 // To be called before getKeyHandler or rotateKeyHandler
-func setupKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string, actionVerb string) (string, string, string, storage.MetaStore, signed.CryptoService, error) {
-	gun, ok := vars["imageName"]
+func setupKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string, actionVerb string) (data.RoleName, data.GUN, string, storage.MetaStore, signed.CryptoService, error) {
+	gun := data.GUN(vars["gun"])
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
-	if !ok || gun == "" {
+	if gun == "" {
 		logger.Infof("400 %s no gun in request", actionVerb)
 		return "", "", "", nil, nil, errors.ErrUnknown.WithDetail("no gun")
 	}
 
-	role, ok := vars["tufRole"]
-	if !ok || role == "" {
+	role := data.RoleName(vars["tufRole"])
+	if role == "" {
 		logger.Infof("400 %s no role in request", actionVerb)
 		return "", "", "", nil, nil, errors.ErrUnknown.WithDetail("no role")
 	}

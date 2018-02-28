@@ -1,14 +1,15 @@
 package storage
 
 import (
-	"github.com/docker/notary/storage/rethinkdb"
+	"github.com/theupdateframework/notary/storage/rethinkdb"
 )
 
 // These consts are the index names we've defined for RethinkDB
 const (
-	rdbSha256Idx        = "sha256"
-	rdbGunRoleIdx       = "gun_role"
-	rdbGunRoleSha256Idx = "gun_role_sha256"
+	rdbSHA256Idx         = "sha256"
+	rdbGunRoleIdx        = "gun_role"
+	rdbGunRoleSHA256Idx  = "gun_role_sha256"
+	rdbGunRoleVersionIdx = "gun_role_version"
 )
 
 var (
@@ -17,16 +18,30 @@ var (
 		Name:       RDBTUFFile{}.TableName(),
 		PrimaryKey: "gun_role_version",
 		SecondaryIndexes: map[string][]string{
-			rdbSha256Idx:         nil,
+			rdbSHA256Idx:         nil,
 			"gun":                nil,
 			"timestamp_checksum": nil,
 			rdbGunRoleIdx:        {"gun", "role"},
-			rdbGunRoleSha256Idx:  {"gun", "role", "sha256"},
+			rdbGunRoleSHA256Idx:  {"gun", "role", "sha256"},
 		},
 		// this configuration guarantees linearizability of individual atomic operations on individual documents
 		Config: map[string]string{
 			"write_acks": "majority",
 		},
 		JSONUnmarshaller: rdbTUFFileFromJSON,
+	}
+
+	// ChangeRethinkTable is the table definition for changefeed objects
+	ChangeRethinkTable = rethinkdb.Table{
+		Name:       Change{}.TableName(),
+		PrimaryKey: "id",
+		SecondaryIndexes: map[string][]string{
+			"rdb_created_at_id":     {"created_at", "id"},
+			"rdb_gun_created_at_id": {"gun", "created_at", "id"},
+		},
+		Config: map[string]string{
+			"write_acks": "majority",
+		},
+		JSONUnmarshaller: rdbChangeFromJSON,
 	}
 )

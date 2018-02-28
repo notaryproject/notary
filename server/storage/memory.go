@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 type key struct {
@@ -54,7 +54,7 @@ func NewMemStorage() *MemStorage {
 }
 
 // UpdateCurrent updates the meta data for a specific role
-func (st *MemStorage) UpdateCurrent(gun string, update MetaUpdate) error {
+func (st *MemStorage) UpdateCurrent(gun data.GUN, update MetaUpdate) error {
 	id := entryKey(gun, update.Role)
 	st.lock.Lock()
 	defer st.lock.Unlock()
@@ -70,11 +70,11 @@ func (st *MemStorage) UpdateCurrent(gun string, update MetaUpdate) error {
 	checksumBytes := sha256.Sum256(update.Data)
 	checksum := hex.EncodeToString(checksumBytes[:])
 
-	_, ok := st.checksums[gun]
+	_, ok := st.checksums[gun.String()]
 	if !ok {
-		st.checksums[gun] = make(map[string]ver)
+		st.checksums[gun.String()] = make(map[string]ver)
 	}
-	st.checksums[gun][checksum] = version
+	st.checksums[gun.String()][checksum] = version
 	if update.Role == data.CanonicalTimestampRole {
 		st.writeChange(gun, update.Version, checksum)
 	}
@@ -83,10 +83,10 @@ func (st *MemStorage) UpdateCurrent(gun string, update MetaUpdate) error {
 
 // writeChange must only be called by a function already holding a lock on
 // the MemStorage. Behaviour is undefined otherwise
-func (st *MemStorage) writeChange(gun string, version int, checksum string) {
+func (st *MemStorage) writeChange(gun data.GUN, version int, checksum string) {
 	c := Change{
-		ID:        uint(len(st.changes) + 1),
-		GUN:       gun,
+		ID:        strconv.Itoa(len(st.changes) + 1),
+		GUN:       gun.String(),
 		Version:   version,
 		SHA256:    checksum,
 		CreatedAt: time.Now(),
@@ -96,7 +96,7 @@ func (st *MemStorage) writeChange(gun string, version int, checksum string) {
 }
 
 // UpdateMany updates multiple TUF records
-func (st *MemStorage) UpdateMany(gun string, updates []MetaUpdate) error {
+func (st *MemStorage) UpdateMany(gun data.GUN, updates []MetaUpdate) error {
 	st.lock.Lock()
 	defer st.lock.Unlock()
 
@@ -108,13 +108,13 @@ func (st *MemStorage) UpdateMany(gun string, updates []MetaUpdate) error {
 		id := entryKey(gun, u.Role)
 
 		// prevent duplicate versions of the same role
-		if _, ok := versioner[u.Role][u.Version]; ok {
+		if _, ok := versioner[u.Role.String()][u.Version]; ok {
 			return ErrOldVersion{}
 		}
-		if _, ok := versioner[u.Role]; !ok {
-			versioner[u.Role] = make(map[int]struct{})
+		if _, ok := versioner[u.Role.String()]; !ok {
+			versioner[u.Role.String()] = make(map[int]struct{})
 		}
-		versioner[u.Role][u.Version] = constant
+		versioner[u.Role.String()][u.Version] = constant
 
 		if space, ok := st.tufMeta[id]; ok {
 			for _, v := range space {
@@ -134,11 +134,11 @@ func (st *MemStorage) UpdateMany(gun string, updates []MetaUpdate) error {
 		checksumBytes := sha256.Sum256(u.Data)
 		checksum := hex.EncodeToString(checksumBytes[:])
 
-		_, ok := st.checksums[gun]
+		_, ok := st.checksums[gun.String()]
 		if !ok {
-			st.checksums[gun] = make(map[string]ver)
+			st.checksums[gun.String()] = make(map[string]ver)
 		}
-		st.checksums[gun][checksum] = version
+		st.checksums[gun.String()][checksum] = version
 		if u.Role == data.CanonicalTimestampRole {
 			st.writeChange(gun, u.Version, checksum)
 		}
@@ -147,7 +147,7 @@ func (st *MemStorage) UpdateMany(gun string, updates []MetaUpdate) error {
 }
 
 // GetCurrent returns the createupdate date metadata for a given role, under a GUN.
-func (st *MemStorage) GetCurrent(gun, role string) (*time.Time, []byte, error) {
+func (st *MemStorage) GetCurrent(gun data.GUN, role data.RoleName) (*time.Time, []byte, error) {
 	id := entryKey(gun, role)
 	st.lock.Lock()
 	defer st.lock.Unlock()
@@ -159,23 +159,38 @@ func (st *MemStorage) GetCurrent(gun, role string) (*time.Time, []byte, error) {
 }
 
 // GetChecksum returns the createupdate date and metadata for a given role, under a GUN.
-func (st *MemStorage) GetChecksum(gun, role, checksum string) (*time.Time, []byte, error) {
+func (st *MemStorage) GetChecksum(gun data.GUN, role data.RoleName, checksum string) (*time.Time, []byte, error) {
 	st.lock.Lock()
 	defer st.lock.Unlock()
-	space, ok := st.checksums[gun][checksum]
+	space, ok := st.checksums[gun.String()][checksum]
 	if !ok || len(space.data) == 0 {
 		return nil, nil, ErrNotFound{}
 	}
 	return &(space.createupdate), space.data, nil
 }
 
+// GetVersion gets a specific TUF record by its version
+func (st *MemStorage) GetVersion(gun data.GUN, role data.RoleName, version int) (*time.Time, []byte, error) {
+	st.lock.Lock()
+	defer st.lock.Unlock()
+
+	id := entryKey(gun, role)
+	for _, ver := range st.tufMeta[id] {
+		if ver.version == version {
+			return &(ver.createupdate), ver.data, nil
+		}
+	}
+
+	return nil, nil, ErrNotFound{}
+}
+
 // Delete deletes all the metadata for a given GUN
-func (st *MemStorage) Delete(gun string) error {
+func (st *MemStorage) Delete(gun data.GUN) error {
 	st.lock.Lock()
 	defer st.lock.Unlock()
 	l := len(st.tufMeta)
 	for k := range st.tufMeta {
-		if strings.HasPrefix(k, gun) {
+		if strings.HasPrefix(k, gun.String()) {
 			delete(st.tufMeta, k)
 		}
 	}
@@ -183,10 +198,10 @@ func (st *MemStorage) Delete(gun string) error {
 		// we didn't delete anything, don't write change.
 		return nil
 	}
-	delete(st.checksums, gun)
+	delete(st.checksums, gun.String())
 	c := Change{
-		ID:        uint(len(st.changes) + 1),
-		GUN:       gun,
+		ID:        strconv.Itoa(len(st.changes) + 1),
+		GUN:       gun.String(),
 		Category:  changeCategoryDeletion,
 		CreatedAt: time.Now(),
 	}
@@ -209,7 +224,7 @@ func (st *MemStorage) GetChanges(changeID string, records int, filterName string
 	} else {
 		id, err = strconv.ParseInt(changeID, 10, 32)
 		if err != nil {
-			return nil, err
+			return nil, ErrBadQuery{msg: fmt.Sprintf("change ID expected to be integer, provided ID was: %d", changeID)}
 		}
 	}
 	var (
@@ -299,6 +314,6 @@ func getFilteredChanges(toInspect []Change, filterName string, records int, reve
 	return res
 }
 
-func entryKey(gun, role string) string {
+func entryKey(gun data.GUN, role data.RoleName) string {
 	return fmt.Sprintf("%s.%s", gun, role)
 }

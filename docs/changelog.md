@@ -17,7 +17,7 @@ Implements root key and certificate rotation, as well as trust pinning configura
 Additional improvements and fixes to notary internals, and RethinkDB support.
 
 > Detailed release notes can be found here:
-<a href="https://github.com/docker/notary/releases/tag/v0.3.0" target="_blank">v0.3 release notes</a>.
+<a href="https://github.com/theupdateframework/notary/releases/tag/v0.3.0" target="_blank">v0.3 release notes</a>.
 
 ## v0.2
 #### 2/24/2016
@@ -29,7 +29,7 @@ This version also supports managing the snapshot key on notary server, which sho
 Moreover, this version also adds more key management functionality to the notary CLI, and changes the docker-compose development configuration to use the official MariaDB image.
 
 > Detailed release notes can be found here:
-<a href="https://github.com/docker/notary/releases/tag/v0.2.0" target="_blank">v0.2 release notes</a>.
+<a href="https://github.com/theupdateframework/notary/releases/tag/v0.2.0" target="_blank">v0.2 release notes</a>.
 
 ## v0.1
 #### 11/15/2015
@@ -37,4 +37,4 @@ Initial notary non-alpha release.
 Implements The Update Framework (TUF) with root, targets, snapshot, and timestamp roles to sign and verify content of a trusted collection.
 
 > Detailed release notes can be found here:
-<a href="https://github.com/docker/notary/releases/tag/v0.1" target="_blank">v0.1 release notes</a>.
+<a href="https://github.com/theupdateframework/notary/releases/tag/v0.1" target="_blank">v0.1 release notes</a>.

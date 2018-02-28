@@ -1,6 +1,6 @@
 # Contributing to notary
 
-## Before reporting an issue...
+## Before reporting an issue...
 
 ### If your problem is with...
 
@@ -26,7 +26,7 @@ By following these simple rules you will get better and faster feedback on your 
 
  - search the bugtracker for an already reported issue
 
-### If you found an issue that describes your problem:
+### If you found an issue that describes your problem:
 
  - please read other user comments first, and confirm this is the same issue: a given error condition might be indicative of different problems - you may also find a workaround in the comments
  - please refrain from adding "same thing here" or "+1" comments
@@ -87,4 +87,9 @@ Complying to these simple rules will greatly accelerate the review process, and 
 ## Review and Development notes
 
 - All merges require LGTMs from any 2 maintainers.
-- We use the git flow model (as best we can) using the `releases` branch as the stable branch, and the `master` branch as the development branch.  When we get near a potential release, a release branch (`release/<semver>`) will be created from `master`.  Any PRs that should go into the release should be made against that branch.  Hotfixes for a minor release will be added to the branch `hotfox/<semver>`.
+- We use the git flow model (as best we can) using the `releases` branch as the stable branch, and the `master` branch as the development branch.  When we get near a potential release, a release branch (`release/<semver>`) will be created from `master`.  Any PRs that should go into the release should be made against that branch.  Hotfixes for a minor release will be added to the branch `hotfix/<semver>`.
+
+## Vendoring new dependency versions
+
+We use [VNDR](https://github.com/LK4D4/vndr); please update `vendor.conf` with the new dependency or the new version, and run
+`vndr <top level package name>`.

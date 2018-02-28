@@ -5,19 +5,19 @@
 		"tls_cert_file": "./notary-server.crt"
 	},
 	"trust_service": {
-	  "type": "remote",
-	  "hostname": "notarysigner",
-	  "port": "7899",
-	  "tls_ca_file": "./root-ca.crt",
-	  "key_algorithm": "ecdsa",
-	  "tls_client_cert": "./notary-server.crt",
-	  "tls_client_key": "./notary-server.key"
+		"type": "remote",
+		"hostname": "notarysigner",
+		"port": "7899",
+		"tls_ca_file": "./root-ca.crt",
+		"key_algorithm": "ecdsa",
+		"tls_client_cert": "./notary-server.crt",
+		"tls_client_key": "./notary-server.key"
 	},
 	"logging": {
 		"level": "debug"
 	},
 	"storage": {
 		"backend": "postgres",
-		"db_url": "postgres://server@postgresql:5432/notaryserver?sslmode=disable"
+		"db_url": "postgres://server@postgresql:5432/notaryserver?sslmode=verify-ca&sslrootcert=/go/src/github.com/theupdateframework/notary/fixtures/database/ca.pem&sslcert=/go/src/github.com/theupdateframework/notary/fixtures/database/notary-server.pem&sslkey=/go/src/github.com/theupdateframework/notary/fixtures/database/notary-server-key.pem"
 	}
 }

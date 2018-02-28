@@ -20,5 +20,6 @@ coverage:
     - "tuf/testutils/*"
     - "vendor/*"
     - "proto/*.pb.go"
+    - "trustmanager/remoteks/*.pb.go"
 comment: off
 

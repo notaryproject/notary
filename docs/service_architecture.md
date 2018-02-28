@@ -20,7 +20,7 @@ This document assumes familiarity with
 <a href="https://www.theupdateframework.com/" target="_blank">The Update Framework</a>,
 but here is a brief recap of the TUF roles and corresponding key hierarchy:
 
-<center><img src="https://cdn.rawgit.com/docker/notary/09f81717080f53276e6881ece57cbbbf91b8e2a7/docs/images/key-hierarchy.svg" alt="TUF Key Hierarchy" width="400px"/></center>
+<center><img src="https://cdn.rawgit.com/theupdateframework/notary/09f81717080f53276e6881ece57cbbbf91b8e2a7/docs/images/key-hierarchy.svg" alt="TUF Key Hierarchy" width="400px"/></center>
 
 - The root key is the root of all trust. It signs the
   <a href="https://github.com/theupdateframework/tuf/blob/1bed3e09a478c2c918ffbff10b9118f6e52ee129/docs/tuf-spec.txt#L489" target="_blank">root metadata file</a>,
@@ -77,7 +77,7 @@ for multiple trusted collections in an associated database, and a Notary signer,
 stores private keys for and signs metadata for the Notary server. The following
 diagram illustrates this architecture:
 
-![Notary Service Architecture Diagram](https://cdn.rawgit.com/docker/notary/09f81717080f53276e6881ece57cbbbf91b8e2a7/docs/images/service-architecture.svg)
+![Notary Service Architecture Diagram](https://cdn.rawgit.com/theupdateframework/notary/09f81717080f53276e6881ece57cbbbf91b8e2a7/docs/images/service-architecture.svg)
 
 Root, targets, and (sometimes) snapshot metadata are generated and signed by
 clients, who upload the metadata to the Notary server. The server is
@@ -101,7 +101,7 @@ The Notary signer is responsible for:
 The following diagram illustrates the interactions between the Notary client,
 server, and signer:
 
-![Notary Service Sequence Diagram](https://cdn.rawgit.com/docker/notary/27469f01fe244bdf70f34219616657b336724bc3/docs/images/metadata-sequence.svg)
+![Notary Service Sequence Diagram](https://cdn.rawgit.com/theupdateframework/notary/27469f01fe244bdf70f34219616657b336724bc3/docs/images/metadata-sequence.svg)
 
 1. Notary server optionally supports authentication from clients using
    <a href="http://jwt.io/" target="_blank">JWT</a> tokens. This requires an authorization server that

@@ -11,12 +11,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/notary/client"
-	"github.com/docker/notary/passphrase"
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/utils"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/client"
+	"github.com/theupdateframework/notary/passphrase"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 // --- tests for pretty printing keys ---
@@ -103,21 +103,21 @@ func TestPrettyPrintRootAndSigningKeys(t *testing.T) {
 	// add keys to the key stores
 	require.NoError(t, keyStores[0].AddKey(trustmanager.KeyInfo{Role: root, Gun: ""}, keys[0]))
 	require.NoError(t, keyStores[1].AddKey(trustmanager.KeyInfo{Role: root, Gun: ""}, keys[0]))
-	require.NoError(t, keyStores[0].AddKey(trustmanager.KeyInfo{Role: data.CanonicalTargetsRole, Gun: strings.Repeat("/a", 30)}, keys[1]))
+	require.NoError(t, keyStores[0].AddKey(trustmanager.KeyInfo{Role: data.CanonicalTargetsRole, Gun: data.GUN(strings.Repeat("/a", 30))}, keys[1]))
 	require.NoError(t, keyStores[1].AddKey(trustmanager.KeyInfo{Role: data.CanonicalSnapshotRole, Gun: "short/gun"}, keys[1]))
 	require.NoError(t, keyStores[0].AddKey(trustmanager.KeyInfo{Role: "targets/a", Gun: ""}, keys[3]))
 	require.NoError(t, keyStores[0].AddKey(trustmanager.KeyInfo{Role: "invalidRole", Gun: ""}, keys[2]))
 
 	expected := [][]string{
 		// root always comes first
-		{root, keys[0].ID(), keyStores[0].Name()},
-		{root, keys[0].ID(), longNameShortened},
+		{root.String(), keys[0].ID(), keyStores[0].Name()},
+		{root.String(), keys[0].ID(), longNameShortened},
 		// these have no gun, so they come first
 		{"invalidRole", keys[2].ID(), keyStores[0].Name()},
 		{"targets/a", keys[3].ID(), keyStores[0].Name()},
 		// these have guns, and are sorted then by guns
-		{data.CanonicalTargetsRole, "..." + strings.Repeat("/a", 11), keys[1].ID(), keyStores[0].Name()},
-		{data.CanonicalSnapshotRole, "short/gun", keys[1].ID(), longNameShortened},
+		{data.CanonicalTargetsRole.String(), "..." + strings.Repeat("/a", 11), keys[1].ID(), keyStores[0].Name()},
+		{data.CanonicalSnapshotRole.String(), "short/gun", keys[1].ID(), longNameShortened},
 	}
 
 	var b bytes.Buffer

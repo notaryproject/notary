@@ -5,8 +5,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/notary"
-	"github.com/docker/notary/storage"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/storage"
 )
 
 func bootstrap(ctx context.Context) error {
@@ -16,7 +16,7 @@ func bootstrap(ctx context.Context) error {
 	}
 	store, ok := s.(storage.Bootstrapper)
 	if !ok {
-		return fmt.Errorf("Store does not support bootstrapping.")
+		return fmt.Errorf("store does not support bootstrapping")
 	}
 	return store.Bootstrap()
 }

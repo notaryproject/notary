@@ -12,27 +12,27 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/health"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/docker/notary"
-	"github.com/docker/notary/cryptoservice"
-	"github.com/docker/notary/passphrase"
-	pb "github.com/docker/notary/proto"
-	"github.com/docker/notary/signer"
-	"github.com/docker/notary/signer/api"
-	"github.com/docker/notary/signer/keydbstore"
-	"github.com/docker/notary/storage"
-	"github.com/docker/notary/storage/rethinkdb"
-	"github.com/docker/notary/trustmanager"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/signed"
-	tufutils "github.com/docker/notary/tuf/utils"
-	"github.com/docker/notary/utils"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/cryptoservice"
+	"github.com/theupdateframework/notary/passphrase"
+	pb "github.com/theupdateframework/notary/proto"
+	"github.com/theupdateframework/notary/signer"
+	"github.com/theupdateframework/notary/signer/api"
+	"github.com/theupdateframework/notary/signer/keydbstore"
+	"github.com/theupdateframework/notary/storage"
+	"github.com/theupdateframework/notary/storage/rethinkdb"
+	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/signed"
+	tufutils "github.com/theupdateframework/notary/tuf/utils"
+	"github.com/theupdateframework/notary/utils"
 	ghealth "google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"gopkg.in/dancannon/gorethink.v2"
+	"gopkg.in/dancannon/gorethink.v3"
 )
 
 const (
@@ -124,9 +124,10 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, d
 			return nil, err
 		}
 		tlsOpts := tlsconfig.Options{
-			CAFile:   storeConfig.CA,
-			CertFile: storeConfig.Cert,
-			KeyFile:  storeConfig.Key,
+			CAFile:             storeConfig.CA,
+			CertFile:           storeConfig.Cert,
+			KeyFile:            storeConfig.Key,
+			ExclusiveRootPools: true,
 		}
 		if doBootstrap {
 			sess, err = rethinkdb.AdminConnection(tlsOpts, storeConfig.Source)
@@ -244,7 +245,7 @@ func getAddrAndTLSConfig(configuration *viper.Viper) (string, *tls.Config, error
 func bootstrap(s interface{}) error {
 	store, ok := s.(storage.Bootstrapper)
 	if !ok {
-		return fmt.Errorf("Store does not support bootstrapping.")
+		return fmt.Errorf("store does not support bootstrapping")
 	}
 	return store.Bootstrap()
 }

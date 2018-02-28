@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/utils"
+	"github.com/sirupsen/logrus"
+	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 type activatingPrivateKey struct {
