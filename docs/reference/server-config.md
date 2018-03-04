@@ -10,7 +10,7 @@ parent="mn_notary_config"
 
 # Notary server configuration file
 
-This document is for those who are [running their own Notary service](../running_a_service.md) who
+This document is for those who are [running their own Notary service](../running_a_service.md) and
 want to specify custom options.
 
 ## Overview
@@ -240,7 +240,7 @@ DB storage example:
 		<td valign="top"><code>db_url</code></td>
 		<td valign="top">yes if not <code>memory</code></td>
 		<td valign="top">The <a href="https://github.com/go-sql-driver/mysql">
-			the Data Source Name used to access the DB.</a>
+			Data Source Name used to access the DB.</a>
 			(note: please include <code>parseTime=true</code> as part of the DSN)</td>
 	</tr>
 </table>
@@ -363,6 +363,7 @@ Example:
 
 ## Hot logging level reload
 We don't support completely reloading notary configuration files yet at present. What we support for Linux and OSX now is:
+
 - increase logging level by signaling `SIGUSR1`
 - decrease logging level by signaling `SIGUSR2`
 
@@ -387,7 +388,7 @@ or
 
 $ docker exec -i CONTAINER_ID kill -s SIGUSR2 PID
 ```
-PID is the process id of `notary-server` and it may not the PID 1 process if you are running
+PID is the process ID of `notary-server` and it may not the PID 1 process if you are running
 the container with some kind of wrapper startup script or something.
 
 You can get the PID of `notary-server` through
