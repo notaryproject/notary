@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -197,6 +198,76 @@ func TestAdminTokenAuthNon200Non401Status(t *testing.T) {
 	auth, err := tokenAuth(s.URL, baseTransport, gun, admin)
 	require.NoError(t, err)
 	require.Nil(t, auth)
+}
+
+func fakeAuthServerFactory(t *testing.T, expectedScope string) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		require.Contains(t, r.URL.RawQuery, "scope="+url.QueryEscape(expectedScope))
+		w.WriteHeader(200)
+	}
+}
+
+func authChallengerFactory(URL string) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm="%s"`, URL))
+		w.WriteHeader(401)
+	}
+}
+func TestConfigureRepo(t *testing.T) {
+	authserver := httptest.NewServer(http.HandlerFunc(fakeAuthServerFactory(t, "repository:yes:pull")))
+	defer authserver.Close()
+
+	s := httptest.NewServer(http.HandlerFunc(authChallengerFactory(authserver.URL)))
+	defer s.Close()
+
+	tempBaseDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempBaseDir)
+	v := viper.New()
+	v.SetDefault("trust_dir", tempBaseDir)
+	v.Set("remote_server.url", s.URL)
+
+	repo, err := ConfigureRepo(v, nil, true, readOnly)("yes")
+	require.NoError(t, err)
+	//perform an arbitrary action to trigger a call to the fake auth server
+	repo.ListRoles()
+}
+
+func TestConfigureRepoRW(t *testing.T) {
+	authserver := httptest.NewServer(http.HandlerFunc(fakeAuthServerFactory(t, "repository:yes:push,pull")))
+	defer authserver.Close()
+
+	s := httptest.NewServer(http.HandlerFunc(authChallengerFactory(authserver.URL)))
+	defer s.Close()
+
+	tempBaseDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempBaseDir)
+	v := viper.New()
+	v.SetDefault("trust_dir", tempBaseDir)
+	v.Set("remote_server.url", s.URL)
+
+	repo, err := ConfigureRepo(v, nil, true, readWrite)("yes")
+	require.NoError(t, err)
+	//perform an arbitrary action to trigger a call to the fake auth server
+	repo.ListRoles()
+}
+
+func TestConfigureRepoAdmin(t *testing.T) {
+	authserver := httptest.NewServer(http.HandlerFunc(fakeAuthServerFactory(t, "repository:yes:*")))
+	defer authserver.Close()
+
+	s := httptest.NewServer(http.HandlerFunc(authChallengerFactory(authserver.URL)))
+	defer s.Close()
+
+	tempBaseDir := tempDirWithConfig(t, "{}")
+	defer os.RemoveAll(tempBaseDir)
+	v := viper.New()
+	v.SetDefault("trust_dir", tempBaseDir)
+	v.Set("remote_server.url", s.URL)
+
+	repo, err := ConfigureRepo(v, nil, true, admin)("yes")
+	require.NoError(t, err)
+	//perform an arbitrary action to trigger a call to the fake auth server
+	repo.ListRoles()
 }
 
 func TestStatusUnstageAndReset(t *testing.T) {
