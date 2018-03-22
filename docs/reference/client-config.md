@@ -185,6 +185,7 @@ passphrase.
 |`NOTARY_TARGETS_PASSPHRASE`    | The targets (an online) key passphrase    |
 |`NOTARY_SNAPSHOT_PASSPHRASE`   | The snapshot (an online) key passphrase   |
 |`NOTARY_DELEGATION_PASSPHRASE` | The delegation (an online) key passphrase |
+|`NOTARY_AUTH`                  | The notary server creds ("username:password"), base64-ed |
 
 
 Please note that if provided, the passphrase in `NOTARY_DELEGATION_PASSPHRASE`
