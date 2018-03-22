@@ -77,10 +77,9 @@ func (n *notaryCommander) parseConfig() (*viper.Viper, error) {
 	// Get home directory for current user
 	homeDir, err := homedir.Dir()
 	if err != nil {
-		return nil, fmt.Errorf("cannot get current user home directory: %v", err)
-	}
-	if homeDir == "" {
-		return nil, fmt.Errorf("cannot get current user home directory")
+		logrus.Warnf("cannot get current user home directory: %v", err)
+		pwd, _ := os.Getwd()
+		logrus.Warnf("notary will use %s to store configuration and keys", filepath.Join(pwd, configDir))
 	}
 
 	config := viper.New()
