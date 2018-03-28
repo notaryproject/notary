@@ -9,13 +9,11 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/theupdateframework/notary"
 	"github.com/theupdateframework/notary/tuf/data"
 )
 
@@ -289,27 +287,13 @@ func TestECDSAX509PublickeyID(t *testing.T) {
 	require.Equal(t, tufPrivKey.ID(), tufID)
 }
 
-func preserveEnv(name string) func() {
-	if env, has := os.LookupEnv(name); has {
-		os.Unsetenv(name)
-		return func() {
-			os.Setenv(name, env)
-		}
-	}
-
-	return func() {}
-}
-
 func TestExtractPrivateKeyAttributes(t *testing.T) {
 	testExtractPrivateKeyAttributes(t)
 	testExtractPrivateKeyAttributesWithFIPS(t)
 }
 
 func testExtractPrivateKeyAttributes(t *testing.T) {
-	defer preserveEnv(notary.FIPSEnvVar)()
-
-	err := os.Unsetenv(notary.FIPSEnvVar)
-	require.NoError(t, err)
+	fips := false
 
 	testPKCS1PEM1 := getPKCS1KeyWithRole(t, "unicorn", "rainbow")
 	testPKCS1PEM2 := getPKCS1KeyWithRole(t, "docker", "")
@@ -317,61 +301,58 @@ func testExtractPrivateKeyAttributes(t *testing.T) {
 	testPKCS8PEM2 := getPKCS8KeyWithRole(t, "dagger", "")
 
 	// Try garbage bytes
-	_, _, err = ExtractPrivateKeyAttributes([]byte("Knock knock; it's Bob."))
+	_, _, err := extractPrivateKeyAttributes([]byte("Knock knock; it's Bob."), fips)
 	require.Error(t, err)
 
 	// PKCS#8
-	role, gun, err := ExtractPrivateKeyAttributes(testPKCS8PEM1)
+	role, gun, err := extractPrivateKeyAttributes(testPKCS8PEM1, fips)
 	require.NoError(t, err)
 	require.EqualValues(t, data.RoleName("fat"), role)
 	require.EqualValues(t, data.GUN("panda"), gun)
 
-	role, gun, err = ExtractPrivateKeyAttributes(testPKCS8PEM2)
+	role, gun, err = extractPrivateKeyAttributes(testPKCS8PEM2, fips)
 	require.NoError(t, err)
 	require.EqualValues(t, data.RoleName("dagger"), role)
 	require.EqualValues(t, data.GUN(""), gun)
 
 	// PKCS#1
-	role, gun, err = ExtractPrivateKeyAttributes(testPKCS1PEM1)
+	role, gun, err = extractPrivateKeyAttributes(testPKCS1PEM1, fips)
 	require.NoError(t, err)
 	require.EqualValues(t, data.RoleName("unicorn"), role)
 	require.EqualValues(t, data.GUN("rainbow"), gun)
 
-	role, gun, err = ExtractPrivateKeyAttributes(testPKCS1PEM2)
+	role, gun, err = extractPrivateKeyAttributes(testPKCS1PEM2, fips)
 	require.NoError(t, err)
 	require.EqualValues(t, data.RoleName("docker"), role)
 	require.EqualValues(t, data.GUN(""), gun)
 }
 
 func testExtractPrivateKeyAttributesWithFIPS(t *testing.T) {
-	defer preserveEnv(notary.FIPSEnvVar)()
-
-	err := os.Setenv(notary.FIPSEnvVar, "1")
-	require.NoError(t, err)
+	fips := true
 
 	testPKCS1PEM1 := getPKCS1KeyWithRole(t, "unicorn", "rainbow")
 	testPKCS1PEM2 := getPKCS1KeyWithRole(t, "docker", "")
 
 	// PKCS#1
-	_, _, err = ExtractPrivateKeyAttributes(testPKCS1PEM1)
+	_, _, err := extractPrivateKeyAttributes(testPKCS1PEM1, fips)
 	require.Error(t, err)
-	_, _, err = ExtractPrivateKeyAttributes(testPKCS1PEM2)
+	_, _, err = extractPrivateKeyAttributes(testPKCS1PEM2, fips)
 	require.Error(t, err)
 
 	testPKCS8PEM1 := getPKCS8KeyWithRole(t, "fat", "panda")
 	testPKCS8PEM2 := getPKCS8KeyWithRole(t, "dagger", "")
 
 	// Try garbage bytes
-	_, _, err = ExtractPrivateKeyAttributes([]byte("Knock knock; it's Bob."))
+	_, _, err = extractPrivateKeyAttributes([]byte("Knock knock; it's Bob."), fips)
 	require.Error(t, err)
 
 	// PKCS#8
-	role, gun, err := ExtractPrivateKeyAttributes(testPKCS8PEM1)
+	role, gun, err := extractPrivateKeyAttributes(testPKCS8PEM1, fips)
 	require.NoError(t, err)
 	require.EqualValues(t, data.RoleName("fat"), role)
 	require.EqualValues(t, data.GUN("panda"), gun)
 
-	role, gun, err = ExtractPrivateKeyAttributes(testPKCS8PEM2)
+	role, gun, err = extractPrivateKeyAttributes(testPKCS8PEM2, fips)
 	require.NoError(t, err)
 	require.EqualValues(t, data.RoleName("dagger"), role)
 	require.EqualValues(t, data.GUN(""), gun)
@@ -433,25 +414,19 @@ PBV11bfmoHzDVeeuz1ztFUb3WjR7xlQe09izY3o3N6yZlTFIsqawIg==
 }
 
 func testParsePEMPrivateKeyLegacy(t *testing.T, raw []byte) {
-	defer preserveEnv(notary.FIPSEnvVar)()
+	fips := false
 
-	err := os.Unsetenv(notary.FIPSEnvVar)
-	require.NoError(t, err)
-
-	key, err := ParsePEMPrivateKey(raw, "")
+	key, err := parsePEMPrivateKey(raw, "", fips)
 	require.NoError(t, err)
 	require.NotNil(t, key.Public())
 	require.NotNil(t, key.Private())
 }
 
 func testParsePEMPrivateKeyLegacyWithFIPS(t *testing.T, raw []byte) {
-	defer preserveEnv(notary.FIPSEnvVar)()
-
-	err := os.Setenv(notary.FIPSEnvVar, "1")
-	require.NoError(t, err)
+	fips := true
 
 	// No legacy key must be accepted in FIPS mode
-	_, err = ParsePEMPrivateKey(raw, "")
+	_, err := parsePEMPrivateKey(raw, "", fips)
 	require.Error(t, err)
 }
 
