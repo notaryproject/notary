@@ -30,7 +30,7 @@ type cmdFlags struct {
 func setupFlags(flagStorage *cmdFlags) {
 	// Setup flags
 	flag.StringVar(&flagStorage.configFile, "config", "", "Path to configuration file")
-	flag.BoolVar(&flagStorage.debug, "debug", false, "Show the version and exit")
+	flag.BoolVar(&flagStorage.debug, "debug", false, "Run in debug mode, enables Go debug server")
 	flag.StringVar(&flagStorage.logFormat, "logf", "json", "Set the format of the logs. Only 'json' and 'logfmt' are supported at the moment.")
 	flag.BoolVar(&flagStorage.doBootstrap, "bootstrap", false, "Do any necessary setup of configured backend storage services")
 
