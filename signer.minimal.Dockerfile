@@ -17,7 +17,6 @@ RUN go install \
 
 
 FROM busybox:latest
-MAINTAINER David Lawrence "david.lawrence@docker.com"
 
 # the ln is for compatibility with the docker-compose.yml, making these
 # images a straight swap for the those built in the compose file.
