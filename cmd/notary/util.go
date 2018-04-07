@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 )
 
 const (
@@ -51,4 +52,13 @@ func feedback(t *tufCommander, payload []byte) error {
 
 	os.Stdout.Write(payload)
 	return nil
+}
+
+// homeExpand will expand an initial ~ to the user home directory. This is supported for
+// config files where the shell will not have expanded paths.
+func homeExpand(homeDir, path string) string {
+	if path == "" || path[0] != '~' || (len(path) > 1 && path[1] != os.PathSeparator) {
+		return path
+	}
+	return filepath.Join(homeDir, path[1:])
 }

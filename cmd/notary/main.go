@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -75,9 +74,9 @@ func (n *notaryCommander) parseConfig() (*viper.Viper, error) {
 	n.setVerbosityLevel()
 
 	// Get home directory for current user
-	homeDir, err := homedir.Dir()
-	if err != nil {
-		logrus.Warnf("cannot get current user home directory: %v", err)
+	homeDir := os.Getenv(homeEnv)
+	if homeDir == "" {
+		logrus.Warn("cannot get current user home directory: environment variable not set")
 		pwd, _ := os.Getwd()
 		logrus.Warnf("notary will use %s to store configuration and keys", filepath.Join(pwd, configDir))
 	}
@@ -129,11 +128,9 @@ func (n *notaryCommander) parseConfig() (*viper.Viper, error) {
 	}
 
 	// Expands all the possible ~/ that have been given, either through -d or config
-	// If there is no error, use it, if not, just attempt to use whatever the user gave us
-	expandedTrustDir, err := homedir.Expand(config.GetString("trust_dir"))
-	if err == nil {
-		config.Set("trust_dir", expandedTrustDir)
-	}
+	// Otherwise just attempt to use whatever the user gave us
+	expandedTrustDir := homeExpand(homeDir, config.GetString("trust_dir"))
+	config.Set("trust_dir", expandedTrustDir)
 	logrus.Debugf("Using the following trust directory: %s", config.GetString("trust_dir"))
 
 	return config, nil

@@ -52,3 +52,12 @@ func TestFeedback(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "", string(content))
 }
+
+func TestHomeExpand(t *testing.T) {
+	require.Equal(t, homeExpand("home", ""), "")
+	require.Equal(t, homeExpand("home", "~"), "home")
+	require.Equal(t, homeExpand("home", "~"+string(os.PathSeparator)), "home")
+	require.Equal(t, homeExpand("home", filepath.Join("~", "test")), filepath.Join("home", "test"))
+	require.Equal(t, homeExpand("home", "~cyli"), "~cyli")
+	require.Equal(t, homeExpand(string(os.PathSeparator)+"home", filepath.Join("~", "test")), string(os.PathSeparator)+filepath.Join("home", "test"))
+}
