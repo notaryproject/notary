@@ -9,7 +9,8 @@ import (
 	"github.com/theupdateframework/notary/trustmanager"
 )
 
-func getKeyStores(baseDir string, retriever notary.PassRetriever) ([]trustmanager.KeyStore, error) {
+//GetKeyStores creates a new FileStore on the harddrive to store or load keys
+func GetKeyStores(baseDir string, retriever notary.PassRetriever, _ bool) ([]trustmanager.KeyStore, error) {
 	fileKeyStore, err := trustmanager.NewKeyFileStore(baseDir, retriever)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create private key store in directory: %s", baseDir)
