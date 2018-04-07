@@ -50,6 +50,11 @@ func main() {
 
 	if flagStorage.debug {
 		go debugServer(debugAddr)
+	} else {
+		// If not in debug mode, stop tracing, core dumps if supported to help protect keys.
+		if err := protect(); err != nil {
+			logrus.Fatal(err.Error())
+		}
 	}
 
 	// when the signer starts print the version for debugging and issue logs later
