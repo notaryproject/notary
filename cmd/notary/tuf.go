@@ -205,7 +205,7 @@ func (t *tufCommander) tufWitness(cmd *cobra.Command, args []string) error {
 	gun := data.GUN(args[0])
 	roles := data.NewRoleList(args[1:])
 
-	fact := ConfigureRepo(config, t.retriever, false)
+	fact := ConfigureRepo(config, t.retriever, false, readOnly)
 	nRepo, err := fact(gun)
 	if err != nil {
 		return err
@@ -294,7 +294,7 @@ func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 
 	// no online operations are performed by add so the transport argument
 	// should be nil
-	fact := ConfigureRepo(config, t.retriever, false)
+	fact := ConfigureRepo(config, t.retriever, false, readWrite)
 	nRepo, err := fact(gun)
 	if err != nil {
 		return err
@@ -350,7 +350,7 @@ func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 
 	// no online operations are performed by add so the transport argument
 	// should be nil
-	fact := ConfigureRepo(config, t.retriever, false)
+	fact := ConfigureRepo(config, t.retriever, false, readWrite)
 	nRepo, err := fact(gun)
 	if err != nil {
 		return err
@@ -481,7 +481,7 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 	}
 	gun := data.GUN(args[0])
 
-	fact := ConfigureRepo(config, t.retriever, true)
+	fact := ConfigureRepo(config, t.retriever, true, readWrite)
 	nRepo, err := fact(gun)
 	if err != nil {
 		return err
@@ -547,7 +547,7 @@ func (t *tufCommander) tufList(cmd *cobra.Command, args []string) error {
 	}
 	gun := data.GUN(args[0])
 
-	fact := ConfigureRepo(config, t.retriever, true)
+	fact := ConfigureRepo(config, t.retriever, true, readOnly)
 	nRepo, err := fact(gun)
 	if err != nil {
 		return err
@@ -576,7 +576,7 @@ func (t *tufCommander) tufLookup(cmd *cobra.Command, args []string) error {
 	gun := data.GUN(args[0])
 	targetName := args[1]
 
-	fact := ConfigureRepo(config, t.retriever, true)
+	fact := ConfigureRepo(config, t.retriever, true, readOnly)
 	nRepo, err := fact(gun)
 	if err != nil {
 		return err
@@ -603,7 +603,7 @@ func (t *tufCommander) tufStatus(cmd *cobra.Command, args []string) error {
 	}
 	gun := data.GUN(args[0])
 
-	fact := ConfigureRepo(config, t.retriever, false)
+	fact := ConfigureRepo(config, t.retriever, false, readOnly)
 	nRepo, err := fact(gun)
 	if err != nil {
 		return err
@@ -655,7 +655,7 @@ func (t *tufCommander) tufReset(cmd *cobra.Command, args []string) error {
 	}
 	gun := data.GUN(args[0])
 
-	fact := ConfigureRepo(config, t.retriever, false)
+	fact := ConfigureRepo(config, t.retriever, false, admin)
 	nRepo, err := fact(gun)
 	if err != nil {
 		return err
@@ -692,7 +692,7 @@ func (t *tufCommander) tufPublish(cmd *cobra.Command, args []string) error {
 
 	cmd.Println("Pushing changes to", gun)
 
-	fact := ConfigureRepo(config, t.retriever, true)
+	fact := ConfigureRepo(config, t.retriever, true, readWrite)
 	nRepo, err := fact(gun)
 	if err != nil {
 		return err
@@ -713,7 +713,7 @@ func (t *tufCommander) tufRemove(cmd *cobra.Command, args []string) error {
 	gun := data.GUN(args[0])
 	targetName := args[1]
 
-	fact := ConfigureRepo(config, t.retriever, false)
+	fact := ConfigureRepo(config, t.retriever, false, admin)
 	nRepo, err := fact(gun)
 	if err != nil {
 		return err
@@ -748,7 +748,7 @@ func (t *tufCommander) tufVerify(cmd *cobra.Command, args []string) error {
 	gun := data.GUN(args[0])
 	targetName := args[1]
 
-	fact := ConfigureRepo(config, t.retriever, true)
+	fact := ConfigureRepo(config, t.retriever, true, readOnly)
 	nRepo, err := fact(gun)
 	if err != nil {
 		return err
