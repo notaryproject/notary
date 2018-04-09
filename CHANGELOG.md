@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.6.1](https://github.com/docker/notary/releases/tag/v0.6.0) 04/10/2018
++ Fixed bug where CLI requested admin privileges for all metadata operations, including listing targets on a repo [#1315](https://github.com/theupdateframework/notary/pull/1315)
++ Prevented notary signer from being dumpable or ptraceable in Linux, except in debug mode [#1327](https://github.com/theupdateframework/notary/pull/1327)
++ Bumped JWT dependency to fix potential Invalid Curve Attack on NIST curves within ECDH key management [#1334](https://github.com/theupdateframework/notary/pull/1334)
++ If the home directory cannot be found, log a warning instead of erroring out [#1318](https://github.com/theupdateframework/notary/pull/1318)
++ Bumped go version and various dependencies [#1323](https://github.com/theupdateframework/notary/pull/1323) [#1332](https://github.com/theupdateframework/notary/pull/1332) [#1335](https://github.com/theupdateframework/notary/pull/1335) [#1336](https://github.com/theupdateframework/notary/pull/1336)
++ Various internal and documentation fixes [#1312](https://github.com/theupdateframework/notary/pull/1312) [#1313](https://github.com/theupdateframework/notary/pull/1313) [#1319](https://github.com/theupdateframework/notary/pull/1319) [#1320](https://github.com/theupdateframework/notary/pull/1320) [#1324](https://github.com/theupdateframework/notary/pull/1324) [#1326](https://github.com/theupdateframework/notary/pull/1326) [#1328](https://github.com/theupdateframework/notary/pull/1328) [#1329](https://github.com/theupdateframework/notary/pull/1329) [#1333](https://github.com/theupdateframework/notary/pull/1333)
+
 ## [v0.6.0](https://github.com/docker/notary/releases/tag/v0.6.0) 02/28/2018
 + **The project has been moved from https://github.com/docker/notary to https://github.com/theupdateframework/notary, as it has been accepted into the CNCF.  Downstream users should update their go imports.**
 + Removed support for RSA-key exchange ciphers supported by the server and signer and require TLS >= 1.2 for the server and signer. [#1307](https://github.com/theupdateframework/notary/pull/1307)
