@@ -17,7 +17,7 @@ GOOSES = darwin linux windows
 NOTARY_BUILDTAGS ?= pkcs11
 NOTARYDIR := /go/src/github.com/theupdateframework/notary
 
-GO_VERSION := $(shell go version | grep "1\.[7-9]\(\.[0-9]+\)*\|devel")
+GO_VERSION := $(shell go version | grep "1\.\(7\|8\|9\|10\)\(\.[0-9]+\)*\|devel")
 # check to make sure we have the right version. development versions of Go are
 # not officially supported, but allowed for building
 
