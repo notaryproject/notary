@@ -485,6 +485,7 @@ func (k RSAPrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) 
 // Sign creates an ed25519 signature
 func (k ED25519PrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) (signature []byte, err error) {
 	priv := [ed25519.PrivateKeySize]byte{}
+	// The ed25519 key is serialized as public key then private key, so just use private key here.
 	copy(priv[:], k.private[ed25519.PublicKeySize:])
 	return ed25519.Sign(&priv, msg)[:], nil
 }
