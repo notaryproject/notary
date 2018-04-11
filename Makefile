@@ -114,8 +114,8 @@ endif
 	#    go get -u github.com/gordonklaus/ineffassign
 	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec ineffassign {} \; | tee /dev/stderr)"
 	# gas - requires that the following be run first:
-	#    go get -u github.com/HewlettPackard/gas
-	# @gas -skip=vendor -skip=*/*_test.go -skip=*/*/*_test.go -fmt=csv -out=gas_output.csv ./... && test -z "$$(cat gas_output.csv | tee /dev/stderr)"
+	#    go get -u github.com/GoASTScanner/gas
+	@gas -skip=vendor -skip=*/*_test.go -skip=*/*/*_test.go -fmt=csv -out=gas_output.csv ./... && test -z "$$(cat gas_output.csv | tee /dev/stderr)"
 
 build:
 	@echo "+ $@"
