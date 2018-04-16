@@ -518,7 +518,7 @@ func (k *keyCommander) importKeys(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	for _, file := range args {
-		from, err := os.OpenFile(file, os.O_RDONLY, notary.PrivExecPerms)
+		from, err := os.Open(file)
 		if err != nil {
 			return err
 		}
