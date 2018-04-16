@@ -547,7 +547,7 @@ func (k *keyCommander) exportKeys(cmd *cobra.Command, args []string) error {
 	if k.outFile == "" {
 		out = cmd.OutOrStdout()
 	} else {
-		f, err := os.OpenFile(k.outFile, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, notary.PrivExecPerms)
+		f, err := os.OpenFile(k.outFile, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, notary.PrivNoExecPerms)
 		if err != nil {
 			return err
 		}
