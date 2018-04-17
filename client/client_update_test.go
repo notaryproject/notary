@@ -26,7 +26,7 @@ import (
 	"github.com/theupdateframework/notary/tuf/testutils"
 )
 
-func newBlankRepo(t *testing.T, url string) *repository {
+func newBlankRepo(t *testing.T, url string) (*repository, string) {
 	// Temporary directory where test files will be created
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
@@ -34,7 +34,7 @@ func newBlankRepo(t *testing.T, url string) *repository {
 	r, err := NewFileCachedRepository(tempBaseDir, "docker.com/notary", url,
 		http.DefaultTransport, passphrase.ConstantRetriever("pass"), trustpinning.TrustPinConfig{})
 	require.NoError(t, err)
-	return r.(*repository)
+	return r.(*repository), tempBaseDir
 }
 
 var metadataDelegations = []data.RoleName{"targets/a", "targets/a/b", "targets/b", "targets/a/b/c", "targets/b/c"}
@@ -112,7 +112,7 @@ func TestUpdateSucceedsEvenIfCannotWriteNewRepo(t *testing.T) {
 	defer ts.Close()
 
 	for role := range serverMeta {
-		repo := newBlankRepo(t, ts.URL)
+		repo, baseDir := newBlankRepo(t, ts.URL)
 		repo.cache = &unwritableStore{MetadataStore: repo.cache, roleToNotWrite: role}
 		err := repo.Update(false)
 		require.NoError(t, err)
@@ -130,7 +130,7 @@ func TestUpdateSucceedsEvenIfCannotWriteNewRepo(t *testing.T) {
 			}
 		}
 
-		os.RemoveAll(repo.baseDir)
+		os.RemoveAll(baseDir)
 	}
 }
 
@@ -145,8 +145,8 @@ func TestUpdateSucceedsEvenIfCannotWriteExistingRepo(t *testing.T) {
 	defer ts.Close()
 
 	// download existing metadata
-	repo := newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(repo.baseDir)
+	repo, baseDir := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 
 	err := repo.Update(false)
 	require.NoError(t, err)
@@ -196,8 +196,8 @@ func TestUpdateInOfflineMode(t *testing.T) {
 	}
 
 	// invalid URL, no cache - errors
-	invalidURLRepo := newBlankRepo(t, "https://nothisdoesnotexist.com")
-	defer os.RemoveAll(invalidURLRepo.baseDir)
+	invalidURLRepo, baseDir := newBlankRepo(t, "https://nothisdoesnotexist.com")
+	defer os.RemoveAll(baseDir)
 	err := invalidURLRepo.Update(false)
 	require.Error(t, err)
 	require.IsType(t, store.NetworkError{}, err)
@@ -274,8 +274,8 @@ func TestUpdateReplacesCorruptOrMissingMetadata(t *testing.T) {
 	ts := readOnlyServer(t, store.NewMemoryStore(serverMeta), http.StatusNotFound, "docker.com/notary")
 	defer ts.Close()
 
-	repo := newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(repo.baseDir)
+	repo, baseDir := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 
 	err = repo.Update(false) // ensure we have all metadata to start with
 	require.NoError(t, err)
@@ -332,8 +332,8 @@ func TestUpdateFailsIfServerRootKeyChangedWithoutMultiSign(t *testing.T) {
 	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
 	defer ts.Close()
 
-	repo := newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(repo.baseDir)
+	repo, baseDir := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 
 	err := repo.Update(false) // ensure we have all metadata to start with
 	require.NoError(t, err)
@@ -686,8 +686,8 @@ func testUpdateRemoteNon200Error(t *testing.T, opts updateOpts, errExpected inte
 	ts := readOnlyServer(t, serverSwizzler.MetadataCache, opts.notFoundCode, "docker.com/notary")
 	defer ts.Close()
 
-	repo := newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(repo.baseDir)
+	repo, baseDir := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 
 	if opts.localCache {
 		err := repo.Update(false) // acquire local cache
@@ -798,8 +798,8 @@ func testUpdateRemoteFileChecksumWrong(t *testing.T, opts updateOpts, errExpecte
 	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
 	defer ts.Close()
 
-	repo := newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(repo.baseDir)
+	repo, baseDir := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 
 	if opts.localCache {
 		err := repo.Update(false) // acquire local cache
@@ -1274,8 +1274,8 @@ func testUpdateRemoteCorruptValidChecksum(t *testing.T, opts updateOpts, expt sw
 	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
 	defer ts.Close()
 
-	repo := newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(repo.baseDir)
+	repo, baseDir := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 
 	if opts.localCache {
 		err := repo.Update(false)
@@ -1359,8 +1359,8 @@ func testUpdateLocalAndRemoteRootCorrupt(t *testing.T, forWrite bool, localExpt,
 	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
 	defer ts.Close()
 
-	repo := newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(repo.baseDir)
+	repo, baseDir := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 
 	// get local cache
 	err := repo.Update(false)
@@ -1429,8 +1429,8 @@ func testUpdateRemoteKeyRotated(t *testing.T, role data.RoleName) {
 	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
 	defer ts.Close()
 
-	repo := newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(repo.baseDir)
+	repo, baseDir := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 
 	// get local cache
 	err := repo.Update(false)
@@ -1514,8 +1514,8 @@ func TestValidateRootRotationWithOldRole(t *testing.T) {
 	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
 	defer ts.Close()
 
-	repo := newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(repo.baseDir)
+	repo, baseDir := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 
 	// --- setup so that the root starts with a role with 3 keys, and threshold of 2
 	// --- signed by the first two keys (also, the original role which has 1 original
@@ -1610,8 +1610,8 @@ func TestRootRoleInvariant(t *testing.T) {
 	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
 	defer ts.Close()
 
-	repo := newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(repo.baseDir)
+	repo, baseDir := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 
 	// --- setup so that the root starts with a role with 1 keys, and threshold of 1
 	rootBytes, err := serverSwizzler.MetadataCache.GetSized(data.CanonicalRootRole.String(), store.NoSizeLimit)
@@ -1691,8 +1691,8 @@ func TestBadIntermediateTransitions(t *testing.T) {
 	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
 	defer ts.Close()
 
-	repo := newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(repo.baseDir)
+	repo, baseDir := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 
 	// --- setup so that the root starts with a role with 1 keys, and threshold of 1
 	rootBytes, err := serverSwizzler.MetadataCache.GetSized(data.CanonicalRootRole.String(), store.NoSizeLimit)
@@ -1748,8 +1748,8 @@ func TestExpiredIntermediateTransitions(t *testing.T) {
 	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
 	defer ts.Close()
 
-	repo := newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(repo.baseDir)
+	repo, baseDir := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 
 	// --- setup so that the root starts with a role with 1 keys, and threshold of 1
 	rootBytes, err := serverSwizzler.MetadataCache.GetSized(data.CanonicalRootRole.String(), store.NoSizeLimit)
@@ -1827,8 +1827,8 @@ func TestDownloadTargetsLarge(t *testing.T) {
 	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
 	defer ts.Close()
 
-	notaryRepo := newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(notaryRepo.baseDir)
+	notaryRepo, baseDir := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 
 	tgts, err := notaryRepo.ListTargets()
 	require.NoError(t, err)
@@ -1861,8 +1861,8 @@ func TestDownloadTargetsDeep(t *testing.T) {
 	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
 	defer ts.Close()
 
-	repo := newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(repo.baseDir)
+	repo, baseDir := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 
 	roles, err := repo.ListRoles()
 	require.NoError(t, err)
@@ -1925,8 +1925,8 @@ func TestDownloadSnapshotLargeDelegationsMany(t *testing.T) {
 	ts := readOnlyServer(t, serverSwizzler.MetadataCache, http.StatusNotFound, "docker.com/notary")
 	defer ts.Close()
 
-	notaryRepo := newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(notaryRepo.baseDir)
+	notaryRepo, baseDir := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 
 	roles, err := notaryRepo.ListRoles()
 	require.NoError(t, err)
@@ -1955,8 +1955,8 @@ func TestRootOnDiskTrustPinning(t *testing.T) {
 	restrictiveTrustPinning := trustpinning.TrustPinConfig{DisableTOFU: true}
 
 	// for sanity, ensure that without a root on disk, we can't download a new root
-	repo := newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(repo.baseDir)
+	repo, baseDir := newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 	repo.trustPinning = restrictiveTrustPinning
 
 	err := repo.Update(false)
@@ -1964,8 +1964,8 @@ func TestRootOnDiskTrustPinning(t *testing.T) {
 	require.IsType(t, &trustpinning.ErrValidationFail{}, err)
 
 	// show that if we have a root on disk, we can update
-	repo = newBlankRepo(t, ts.URL)
-	defer os.RemoveAll(repo.baseDir)
+	repo, baseDir = newBlankRepo(t, ts.URL)
+	defer os.RemoveAll(baseDir)
 	repo.trustPinning = restrictiveTrustPinning
 	// put root on disk
 	require.NoError(t, repo.cache.Set(data.CanonicalRootRole.String(), meta[data.CanonicalRootRole]))
