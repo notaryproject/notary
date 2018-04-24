@@ -17,7 +17,7 @@ import (
 	"github.com/theupdateframework/notary/trustmanager"
 	"github.com/theupdateframework/notary/tuf/data"
 	"github.com/theupdateframework/notary/tuf/signed"
-	"gopkg.in/dancannon/gorethink.v3"
+	"gopkg.in/gorethink/gorethink.v3"
 )
 
 var tlsOpts = tlsconfig.Options{InsecureSkipVerify: true, ExclusiveRootPools: true}

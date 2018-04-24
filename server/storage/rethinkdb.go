@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/theupdateframework/notary/storage/rethinkdb"
 	"github.com/theupdateframework/notary/tuf/data"
-	"gopkg.in/dancannon/gorethink.v3"
+	"gopkg.in/gorethink/gorethink.v3"
 )
 
 // RethinkDB has eventual consistency. This represents a 60 second blackout
