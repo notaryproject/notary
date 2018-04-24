@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"gopkg.in/dancannon/gorethink.v3"
+	"gopkg.in/gorethink/gorethink.v3"
 )
 
 // Wait for 60 seconds maximum on Wait() calls for rethink
