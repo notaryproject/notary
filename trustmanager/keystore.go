@@ -186,6 +186,28 @@ func (s *GenericKeyStore) Name() string {
 	return s.store.Location()
 }
 
+// Generate generates a key and adds it to the keystore.
+func (p *GenericKeyStore) Generate(keyInfo KeyInfo, token, algorithm string) (keyID string, pubKey data.PublicKey, err error) {
+	// Only specialized keystores support multiple tokens.
+	if token != "" {
+		err = fmt.Errorf("key store %s does not support multiple tokens", p.Name())
+		return
+	}
+	// Generate the key
+	var privKey data.PrivateKey
+	if privKey, err = utils.GenerateKey(algorithm); err != nil {
+		return
+	}
+	// Compute the public key
+	pubKey = data.PublicKeyFromPrivate(privKey)
+	// Add it to the key store
+	if err = p.AddKey(keyInfo, privKey); err == nil {
+		return
+	}
+	// Success
+	return
+}
+
 // copyKeyInfoMap returns a deep copy of the passed-in keyInfoMap
 func copyKeyInfoMap(keyInfoMap map[string]KeyInfo) map[string]KeyInfo {
 	copyMap := make(map[string]KeyInfo)

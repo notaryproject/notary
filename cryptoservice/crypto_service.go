@@ -34,6 +34,42 @@ func NewCryptoService(keyStores ...trustmanager.KeyStore) *CryptoService {
 	return &CryptoService{keyStores: keyStores}
 }
 
+// Generate generates and stores a new key.
+//
+// If keystoreName="" then any key store willing to create a key will be used.
+// Otherwise only keystore(s) with a matching name are used.
+//
+// The meaning of token depends on the key store. It should be "" for
+// keystores with no concept of separate tokens.
+func (cs *CryptoService) Generate(role data.RoleName, gun data.GUN, keystoreName, token, algorithm string) (data.PublicKey, error) {
+	var err error
+	if algorithm == data.RSAKey {
+		return nil, fmt.Errorf("%s keys can only be imported", data.RSAKey)
+	}
+
+	// Use the first keystore that is suitably named and is willing to generate a key
+	var keyStore trustmanager.KeyStore
+	var keyInfo = trustmanager.KeyInfo{gun, role}
+	var keyID string
+	var pubKey data.PublicKey
+	for _, keyStore = range cs.keyStores {
+		if keystoreName == "" || keyStore.Name() == keystoreName {
+			if keyID, pubKey, err = keyStore.Generate(keyInfo, token, algorithm); err == nil {
+				break
+			}
+		}
+	}
+	// If no keystore was suitable, return immediately
+	if err != nil {
+		return nil, err
+	}
+	if pubKey == nil {
+		return nil, errors.New("no suitable keystore found")
+	}
+	logrus.Debugf("generated new %s key for role: %s and keyID: %s", algorithm, role.String(), keyID)
+	return pubKey, err
+}
+
 // Create is used to generate keys for targets, snapshots and timestamps
 func (cs *CryptoService) Create(role data.RoleName, gun data.GUN, algorithm string) (data.PublicKey, error) {
 	if algorithm == data.RSAKey {

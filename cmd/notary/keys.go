@@ -97,6 +97,8 @@ type keyCommander struct {
 	exportGUNs    []string
 	exportKeyIDs  []string
 	outFile       string
+	keyStore      string
+	token         string
 }
 
 func (k *keyCommander) GetCommand() *cobra.Command {
@@ -109,6 +111,20 @@ func (k *keyCommander) GetCommand() *cobra.Command {
 		"o",
 		"",
 		"Filepath to write export output to",
+	)
+	cmdGenerate.Flags().StringVarP(
+		&k.keyStore,
+		"keystore",
+		"K",
+		"",
+		"Key store to use",
+	)
+	cmdGenerate.Flags().StringVarP(
+		&k.token,
+		"token",
+		"T",
+		"",
+		"Token to use",
 	)
 	cmdGenerate.Flags().StringVarP(
 		&k.generateRole, "role", "r", "root", "Role to generate key with, defaulting to \"root\".",
@@ -128,6 +144,20 @@ func (k *keyCommander) GetCommand() *cobra.Command {
 		"k",
 		nil,
 		"New key(s) to rotate to. If not specified, one will be generated.",
+	)
+	cmdRotateKey.Flags().StringVarP(
+		&k.keyStore,
+		"keystore",
+		"K",
+		"",
+		"Key store to use when generating key",
+	)
+	cmdRotateKey.Flags().StringVarP(
+		&k.token,
+		"token",
+		"T",
+		"",
+		"Token to use when generating key",
 	)
 	cmd.AddCommand(cmdRotateKey)
 
@@ -220,7 +250,7 @@ func (k *keyCommander) keysGenerate(cmd *cobra.Command, args []string) error {
 		}
 		cs := cryptoservice.NewCryptoService(ks...)
 
-		pubKey, err := cs.Create(data.RoleName(k.generateRole), "", algorithm)
+		pubKey, err := cs.Generate(data.RoleName(k.generateRole), "", k.keyStore, k.token, algorithm)
 		if err != nil {
 			return fmt.Errorf("Failed to create a new %s key: %v", k.generateRole, err)
 		}
@@ -341,7 +371,7 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 		}
 	}
 	nRepo.SetLegacyVersions(k.legacyVersions)
-	if err := nRepo.RotateKey(rotateKeyRole, k.rotateKeyServerManaged, keyList); err != nil {
+	if err := nRepo.RotateKey(rotateKeyRole, k.rotateKeyServerManaged, k.keyStore, k.token, keyList); err != nil {
 		return err
 	}
 	cmd.Printf("Successfully rotated %s key for repository %s\n", rotateKeyRole, gun)

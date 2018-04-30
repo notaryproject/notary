@@ -1133,12 +1133,12 @@ func (r *repository) bootstrapClient(checkInitialized bool) (*tufClient, error) 
 // managing the key to the server. If key(s) are specified by keyList, then they are
 // used for signing the role.
 // These changes are staged in a changelist until publish is called.
-func (r *repository) RotateKey(role data.RoleName, serverManagesKey bool, keyList []string) error {
+func (r *repository) RotateKey(role data.RoleName, serverManagesKey bool, keystoreName string, token string, keyList []string) error {
 	if err := checkRotationInput(role, serverManagesKey); err != nil {
 		return err
 	}
 
-	pubKeyList, err := r.pubKeyListForRotation(role, serverManagesKey, keyList)
+	pubKeyList, err := r.pubKeyListForRotation(role, serverManagesKey, keystoreName, token, keyList)
 	if err != nil {
 		return err
 	}
@@ -1151,7 +1151,7 @@ func (r *repository) RotateKey(role data.RoleName, serverManagesKey bool, keyLis
 }
 
 // Given a set of new keys to rotate to and a set of keys to drop, returns the list of current keys to use
-func (r *repository) pubKeyListForRotation(role data.RoleName, serverManaged bool, newKeys []string) (pubKeyList data.KeyList, err error) {
+func (r *repository) pubKeyListForRotation(role data.RoleName, serverManaged bool, keystoreName string, token string, newKeys []string) (pubKeyList data.KeyList, err error) {
 	var pubKey data.PublicKey
 
 	// If server manages the key being rotated, request a rotation and return the new key
@@ -1169,7 +1169,11 @@ func (r *repository) pubKeyListForRotation(role data.RoleName, serverManaged boo
 	// If no new keys are passed in, we generate one
 	if len(newKeys) == 0 {
 		pubKeyList = make(data.KeyList, 0, 1)
-		pubKey, err = r.GetCryptoService().Create(role, r.gun, data.ECDSAKey)
+		cryptoService, ok := r.GetCryptoService().(*cryptoservice.CryptoService)
+		if !ok {
+			panic("crypto service not of expected type")
+		}
+		pubKey, err = cryptoService.Generate(role, r.gun, keystoreName, token, data.ECDSAKey)
 		pubKeyList = append(pubKeyList, pubKey)
 	}
 	if err != nil {

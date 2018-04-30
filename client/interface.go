@@ -39,7 +39,7 @@ type Repository interface {
 	Witness(roles ...data.RoleName) ([]data.RoleName, error)
 
 	// Key Operations
-	RotateKey(role data.RoleName, serverManagesKey bool, keyList []string) error
+	RotateKey(role data.RoleName, serverManagesKey bool, keystoreName string, token string, keyList []string) error
 
 	GetCryptoService() signed.CryptoService
 	SetLegacyVersions(int)

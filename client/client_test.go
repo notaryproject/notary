@@ -2681,31 +2681,31 @@ func TestRotateKeyInvalidRole(t *testing.T) {
 	require.NoError(t, repo.Update(false))
 
 	// rotating a root key to the server fails
-	require.Error(t, repo.RotateKey(data.CanonicalRootRole, true, nil),
+	require.Error(t, repo.RotateKey(data.CanonicalRootRole, true, "", "", nil),
 		"Rotating a root key with server-managing the key should fail")
 
 	// rotating a targets key to the server fails
-	require.Error(t, repo.RotateKey(data.CanonicalTargetsRole, true, nil),
+	require.Error(t, repo.RotateKey(data.CanonicalTargetsRole, true, "", "",nil),
 		"Rotating a targets key with server-managing the key should fail")
 
 	// rotating a timestamp key locally fails
-	require.Error(t, repo.RotateKey(data.CanonicalTimestampRole, false, nil),
+	require.Error(t, repo.RotateKey(data.CanonicalTimestampRole, false,"", "",nil),
 		"Rotating a timestamp key locally should fail")
 
 	// rotating a delegation key fails
-	require.Error(t, repo.RotateKey("targets/releases", false, nil),
+	require.Error(t, repo.RotateKey("targets/releases", false, "", "",nil),
 		"Rotating a delegation key should fail")
 
 	// rotating a delegation key to the server also fails
-	require.Error(t, repo.RotateKey("targets/releases", true, nil),
+	require.Error(t, repo.RotateKey("targets/releases", true, "", "",nil),
 		"Rotating a delegation key should fail")
 
 	// rotating a not a real role key fails
-	require.Error(t, repo.RotateKey("nope", false, nil),
+	require.Error(t, repo.RotateKey("nope", false, "", "",nil),
 		"Rotating a non-real role key should fail")
 
 	// rotating a not a real role key to the server also fails
-	require.Error(t, repo.RotateKey("nope", true, nil),
+	require.Error(t, repo.RotateKey("nope", true, "", "",nil),
 		"Rotating a non-real role key should fail")
 }
 
@@ -2720,7 +2720,7 @@ func TestRemoteRotationError(t *testing.T) {
 
 	// server has died, so this should fail
 	for _, role := range []data.RoleName{data.CanonicalSnapshotRole, data.CanonicalTimestampRole} {
-		err := repo.RotateKey(role, true, nil)
+		err := repo.RotateKey(role, true, "", "",nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unable to rotate remote key")
 	}
@@ -2735,7 +2735,7 @@ func TestRemoteRotationEndpointError(t *testing.T) {
 
 	// simpleTestServer has no rotate key endpoint, so this should fail
 	for _, role := range []data.RoleName{data.CanonicalSnapshotRole, data.CanonicalTimestampRole} {
-		err := repo.RotateKey(role, true, nil)
+		err := repo.RotateKey(role, true, "", "",nil)
 		require.Error(t, err)
 		require.IsType(t, store.ErrMetaNotFound{}, err)
 	}
@@ -2756,7 +2756,7 @@ func TestRemoteRotationNoRootKey(t *testing.T) {
 	_, err := newRepo.ListTargets()
 	require.NoError(t, err)
 
-	err = newRepo.RotateKey(data.CanonicalSnapshotRole, true, nil)
+	err = newRepo.RotateKey(data.CanonicalSnapshotRole, true, "", "",nil)
 	require.Error(t, err)
 	require.IsType(t, signed.ErrInsufficientSignatures{}, err)
 }
@@ -2770,7 +2770,7 @@ func TestRemoteRotationNoInit(t *testing.T) {
 	repo, baseDir := newBlankRepo(t, ts.URL)
 	defer os.RemoveAll(baseDir)
 
-	err := repo.RotateKey(data.CanonicalTimestampRole, true, nil)
+	err := repo.RotateKey(data.CanonicalTimestampRole, true, "", "",nil)
 	require.NoError(t, err)
 }
 
@@ -2797,7 +2797,7 @@ func requireRotationSuccessful(t *testing.T, repo1 *repository, keysToRotate map
 
 	// Do rotation
 	for role, serverManaged := range keysToRotate {
-		require.NoError(t, repo1.RotateKey(role, serverManaged, nil))
+		require.NoError(t, repo1.RotateKey(role, serverManaged, "", "",nil))
 	}
 
 	changesPost := getChanges(t, repo1)
@@ -2988,7 +2988,7 @@ func TestRotateRootKey(t *testing.T) {
 
 	// Rotate root certificate and key.
 	logRepoTrustRoot(t, "original", authorRepo)
-	err = authorRepo.RotateKey(data.CanonicalRootRole, false, nil)
+	err = authorRepo.RotateKey(data.CanonicalRootRole, false, "", "",nil)
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "post-rotate", authorRepo)
 
@@ -3060,12 +3060,12 @@ func TestRotateRootMultiple(t *testing.T) {
 
 	// Rotate root certificate and key.
 	logRepoTrustRoot(t, "original", authorRepo)
-	err = authorRepo.RotateKey(data.CanonicalRootRole, false, nil)
+	err = authorRepo.RotateKey(data.CanonicalRootRole, false, "", "",nil)
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "post-rotate", authorRepo)
 
 	// Rotate root certificate and key again.
-	err = authorRepo.RotateKey(data.CanonicalRootRole, false, nil)
+	err = authorRepo.RotateKey(data.CanonicalRootRole, false, "", "",nil)
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "post-rotate-again", authorRepo)
 
@@ -3144,12 +3144,12 @@ func TestRotateRootKeyProvided(t *testing.T) {
 	require.NoError(t, err)
 
 	// Fail to rotate to bad key
-	err = authorRepo.RotateKey(data.CanonicalRootRole, false, []string{"notakey"})
+	err = authorRepo.RotateKey(data.CanonicalRootRole, false, "", "",[]string{"notakey"})
 	require.Error(t, err)
 
 	// Rotate root certificate and key.
 	logRepoTrustRoot(t, "original", authorRepo)
-	err = authorRepo.RotateKey(data.CanonicalRootRole, false, []string{rootPrivateKey.ID()})
+	err = authorRepo.RotateKey(data.CanonicalRootRole, false, "", "",[]string{rootPrivateKey.ID()})
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "post-rotate", authorRepo)
 
@@ -3222,13 +3222,13 @@ func TestRotateRootKeyLegacySupport(t *testing.T) {
 
 	// Rotate root certificate and key.
 	logRepoTrustRoot(t, "original", authorRepo)
-	err = authorRepo.RotateKey(data.CanonicalRootRole, false, nil)
+	err = authorRepo.RotateKey(data.CanonicalRootRole, false, "", "",nil)
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "post-rotate", authorRepo)
 
 	// Rotate root certificate and key again, this time with legacy support
 	authorRepo.LegacyVersions = SignWithAllOldVersions
-	err = authorRepo.RotateKey(data.CanonicalRootRole, false, nil)
+	err = authorRepo.RotateKey(data.CanonicalRootRole, false, "", "",nil)
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "post-rotate-again", authorRepo)
 
