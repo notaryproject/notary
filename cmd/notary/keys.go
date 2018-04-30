@@ -19,6 +19,7 @@ import (
 	"github.com/theupdateframework/notary/cryptoservice"
 	store "github.com/theupdateframework/notary/storage"
 	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/trustmanager/p11store"
 	"github.com/theupdateframework/notary/tuf/data"
 	tufutils "github.com/theupdateframework/notary/tuf/utils"
 )
@@ -637,6 +638,17 @@ func (k *keyCommander) getKeyStores(
 			// the yubikey store
 			ks = []trustmanager.KeyStore{yubiStore, fileKeyStore}
 		}
+
+		var pkcs11 *p11store.Pkcs11Store
+		if pkcs11, err = p11store.NewPkcs11Store("", retriever); err == nil {
+			// Add a PKCS#11 key store on the end. Contrary to the yubikey case,
+			// we deprioritize it and expect users to select it via the --keystore
+			// and --token arguments.
+			ks = append(ks, pkcs11)
+		} else if err != p11store.ErrNoProvider {
+			// A PKCS#11 provider was configured but something went wrong setting it up
+			return nil, err
+		} // else nothing was configured
 	}
 
 	return ks, nil

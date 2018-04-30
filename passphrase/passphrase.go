@@ -117,6 +117,8 @@ func (br *boundRetriever) requestPassphrase(keyName, alias string, createNew boo
 		fmt.Fprintf(br.out, "Enter passphrase for new %s key%s: ", displayAlias, withID)
 	case displayAlias == "yubikey":
 		fmt.Fprintf(br.out, "Enter the %s for the attached Yubikey: ", keyName)
+	case displayAlias == "pkcs11":
+		fmt.Fprintf(br.out, "Enter the passphrase for the PKCS#11 token '%s': ", keyName)
 	default:
 		fmt.Fprintf(br.out, "Enter passphrase for %s key%s: ", displayAlias, withID)
 	}
