@@ -385,7 +385,7 @@ func TestInitRepositoryWithCerts(t *testing.T) {
 				iDs = []string{}
 			}
 
-			err = repo.initialize(iDs, pubKeys, data.CanonicalTimestampRole)
+			err = repo.initialize(iDs, pubKeys, nil, data.CanonicalTimestampRole)
 			if len(iDs) == len(pubKeys) || // case: 2 keys 2 certs
 				(len(iDs) != 0 && len(pubKeys) == 0) || // case: 1 key and 0 cert
 				(len(iDs) == 0 && len(pubKeys) != 0) { // case: 0 keys and 1 cert
@@ -397,7 +397,7 @@ func TestInitRepositoryWithCerts(t *testing.T) {
 			}
 			// implicit else case: 2 keys 1 cert
 		} else { // unmatched key pairs case
-			err = repo.initialize(pubKeyIDs[1:], pubKeys[:1])
+			err = repo.initialize(pubKeyIDs[1:],  pubKeys[:1], nil)
 		}
 		require.Error(t, err, tc.expectedError, tc.name)
 		require.Nil(t, repo.tufRepo)

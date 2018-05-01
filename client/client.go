@@ -182,7 +182,7 @@ func (r *repository) GetCryptoService() signed.CryptoService {
 }
 
 // initialize initializes the notary repository with a set of rootkeys, root certificates and roles.
-func (r *repository) initialize(rootKeyIDs []string, rootCerts []data.PublicKey, serverManagedRoles ...data.RoleName) error {
+func (r *repository) initialize(rootKeyIDs []string, rootCerts []data.PublicKey, roleKeys map[data.RoleName]data.PublicKey, serverManagedRoles ...data.RoleName) error {
 
 	// currently we only support server managing timestamps and snapshots, and
 	// nothing else - timestamps are always managed by the server, and implicit
@@ -228,6 +228,7 @@ func (r *repository) initialize(rootKeyIDs []string, rootCerts []data.PublicKey,
 		publicKeys,
 		locallyManagedKeys,
 		remotelyManagedKeys,
+		roleKeys,
 	)
 	if err != nil {
 		return err
@@ -317,7 +318,7 @@ func matchKeyIdsWithPubKeys(r *repository, ids []string, pubKeys []data.PublicKe
 // result is only stored on local disk, not published to the server. To do that,
 // use r.Publish() eventually.
 func (r *repository) Initialize(rootKeyIDs []string, serverManagedRoles ...data.RoleName) error {
-	return r.initialize(rootKeyIDs, nil, serverManagedRoles...)
+	return r.initialize(rootKeyIDs, nil, nil, serverManagedRoles...)
 }
 
 type errKeyNotFound struct{}
@@ -341,6 +342,7 @@ func keyExistsInList(cert data.PublicKey, ids map[string]bool) error {
 
 // InitializeWithCertificate initializes the repository with root keys and their corresponding certificates
 func (r *repository) InitializeWithCertificate(rootKeyIDs []string, rootCerts []data.PublicKey,
+	roleKeys map[data.RoleName]data.PublicKey,
 	serverManagedRoles ...data.RoleName) error {
 
 	// If we explicitly pass in certificate(s) but not key, then look keys up using certificate
@@ -359,10 +361,10 @@ func (r *repository) InitializeWithCertificate(rootKeyIDs []string, rootCerts []
 			rootKeyIDs = append(rootKeyIDs, keyID)
 		}
 	}
-	return r.initialize(rootKeyIDs, rootCerts, serverManagedRoles...)
+	return r.initialize(rootKeyIDs, rootCerts, roleKeys, serverManagedRoles...)
 }
 
-func (r *repository) initializeRoles(rootKeys []data.PublicKey, localRoles, remoteRoles []data.RoleName) (
+func (r *repository) initializeRoles(rootKeys []data.PublicKey, localRoles, remoteRoles []data.RoleName, roleKeys map[data.RoleName]data.PublicKey) (
 	root, targets, snapshot, timestamp data.BaseRole, err error) {
 	root = data.NewBaseRole(
 		data.CanonicalRootRole,
@@ -375,9 +377,17 @@ func (r *repository) initializeRoles(rootKeys []data.PublicKey, localRoles, remo
 	for _, role := range localRoles {
 		// This is currently hardcoding the keys to ECDSA.
 		var key data.PublicKey
-		key, err = r.GetCryptoService().Create(role, r.gun, data.ECDSAKey)
-		if err != nil {
-			return
+		cryptoService := r.GetCryptoService()
+		// Maybe there is a pre-generated key
+		if roleKeys != nil {
+			key = roleKeys[role]
+		}
+		// If not then generate one
+		if key == nil {
+			key, err = cryptoService.Create(role, r.gun, data.ECDSAKey)
+			if err != nil {
+				return
+			}
 		}
 		switch role {
 		case data.CanonicalSnapshotRole:

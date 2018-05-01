@@ -23,6 +23,12 @@ instead.
 
 ## Generating Keys
 
+`notary init` does not generate HSM-protected keys.
+Instead you must generate the required keys in advance with `notary key generate`.
+This can be done for the root, targets and snapshot keys.
+
+### Root Key
+
 Here I assume a token with a label of `ocs1`.
 You can also specify `serialNumber:7e585d361027d0e6`.
 
@@ -30,26 +36,32 @@ You can also specify `serialNumber:7e585d361027d0e6`.
     Enter the passphrase for the PKCS#11 token 'nCipher Corp. Ltd ocs1 (7e585d361027d0e6)':
     Generated new ecdsa root key with keyID: ea90ae746cbb336030db3e8715218ce4dcd0411e65c37c80bf78959ff1774dca
 
-The key should be visible in the key list:
+### Targets Key
+
+    $ notary key generate -K pkcs11 -T label:ocs1 -r targets -g example.com/nshield
+    Enter the passphrase for the PKCS#11 token 'nCipher Corp. Ltd ocs1 (7e585d361027d0e6)':
+    Generated new ecdsa targets key with keyID: 930e06d6c0f2e0c0e1a45eb403cf573d7d934f44cbd41adec784ead07b7451e5
+
+### Outcome
+
+The keys should be visible in the key list:
 
     $ notary key list
-    
-    ROLE    GUN    KEY ID                                                              LOCATION
-    ----    ---    ------                                                              --------
-    root           ea90ae746cbb336030db3e8715218ce4dcd0411e65c37c80bf78959ff1774dca    pkcs11
+
+    ROLE       GUN                    KEY ID                                                              LOCATION
+    ----       ---                    ------                                                              --------
+    root                              ea90ae746cbb336030db3e8715218ce4dcd0411e65c37c80bf78959ff1774dca    pkcs11
+    targets    example.com/nshield    930e06d6c0f2e0c0e1a45eb403cf573d7d934f44cbd41adec784ead07b7451e5    pkcs11
 
 If you don't set `NOTARY_HSM_LIB` appropriately then the key just disappears:
 
     $ NOTARY_HSM_LIB="" notary key list -v
-    
-    No signing keys found.
 
-At the time of writing only the `targets` role is supported,
-but my aspiration is to expand this.
+    No signing keys found.
 
 ## Initializing Collections
 
-`notary init` will automatically pick up a key in the root role if it exists.
+`notary init` will automatically pick up a key in the root, targets and snapshot roles if they exist.
 
     $ notary init example.com/collection
     Root key found, using: ea90ae746cbb336030db3e8715218ce4dcd0411e65c37c80bf78959ff1774dca
@@ -107,6 +119,10 @@ For example:
 
 ## Rotating Keys
 
+Unlike `notary init`, `notary key rotate` is capable of generating HSM-protected keys.
+
+### Rotating the root key
+
     $ notary key rotate -K pkcs11 -T label:ocs1 -v example.com/collection root
     Warning: you are about to rotate your root key.
 
@@ -115,6 +131,12 @@ For example:
     Enter the passphrase for the PKCS#11 token 'nCipher Corp. Ltd ocs1 (7e585d361027d0e6)':
     Enter passphrase for snapshot key with ID 783c289:
     Successfully rotated root key for repository example.com/nshield
+
+### Rotating the targets key
+
+    $ notary key rotate -K pkcs11 -T label:ocs1 -v example.com/nshield targets
+    Enter the passphrase for the PKCS#11 token 'nCipher Corp. Ltd ocs1 (7e585d361027d0e6)':
+    Successfully rotated targets key for repository example.com/nshield
 
 ## Removing Keys
 

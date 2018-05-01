@@ -94,6 +94,7 @@ type keyCommander struct {
 
 	importRole    string
 	generateRole  string
+	generateGun   string
 	keysImportGUN string
 	exportGUNs    []string
 	exportKeyIDs  []string
@@ -129,6 +130,9 @@ func (k *keyCommander) GetCommand() *cobra.Command {
 	)
 	cmdGenerate.Flags().StringVarP(
 		&k.generateRole, "role", "r", "root", "Role to generate key with, defaulting to \"root\".",
+	)
+	cmdGenerate.Flags().StringVarP(
+		&k.generateGun, "gun", "g", "", "GUN to generate key with.",
 	)
 	cmd.AddCommand(cmdGenerate)
 	cmd.AddCommand(cmdKeyRemoveTemplate.ToCommand(k.keyRemove))
@@ -251,7 +255,7 @@ func (k *keyCommander) keysGenerate(cmd *cobra.Command, args []string) error {
 		}
 		cs := cryptoservice.NewCryptoService(ks...)
 
-		pubKey, err := cs.Generate(data.RoleName(k.generateRole), "", k.keyStore, k.token, algorithm)
+		pubKey, err := cs.Generate(data.RoleName(k.generateRole), data.GUN(k.generateGun), k.keyStore, k.token, algorithm)
 		if err != nil {
 			return fmt.Errorf("Failed to create a new %s key: %v", k.generateRole, err)
 		}

@@ -10,7 +10,7 @@ import (
 type Repository interface {
 	// General management operations
 	Initialize(rootKeyIDs []string, serverManagedRoles ...data.RoleName) error
-	InitializeWithCertificate(rootKeyIDs []string, rootCerts []data.PublicKey, serverManagedRoles ...data.RoleName) error
+	InitializeWithCertificate(rootKeyIDs []string, rootCerts []data.PublicKey, roleKeys map[data.RoleName]data.PublicKey, serverManagedRoles ...data.RoleName) error
 	Publish() error
 
 	// Target Operations
