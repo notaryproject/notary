@@ -26,6 +26,7 @@ import (
 	"github.com/theupdateframework/notary/storage"
 	"github.com/theupdateframework/notary/storage/rethinkdb"
 	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/trustmanager/p11store"
 	"github.com/theupdateframework/notary/tuf/data"
 	"github.com/theupdateframework/notary/tuf/signed"
 	tufutils "github.com/theupdateframework/notary/tuf/utils"
@@ -163,6 +164,28 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, d
 		health.RegisterPeriodicFunc(
 			"DB operational", time.Minute, dbStore.HealthCheck)
 		keyService = keydbstore.NewCachedKeyService(dbStore)
+	case notary.Pkcs11Backend:
+		// The crypto service created here is a PKCS#11 key store, using a specific token.
+		provider := configuration.GetString("storage.provider")
+		if provider == "" {
+			return nil, fmt.Errorf("provider.token must be set for PKCS#11 backend")
+		}
+		token := configuration.GetString("storage.token")
+		if token == "" {
+			return nil, fmt.Errorf("storage.token must be set for PKCS#11 backend")
+		}
+		if pkcs11KeyStore, err := p11store.NewPkcs11Store(provider,
+			func(keyName, alias string, createNew bool, attempts int) (passphrase string, giveup bool, err error) {
+				passphrase = os.Getenv("NOTARY_HSM_PIN")
+				return
+			}); err != nil {
+			return nil, err
+		} else {
+			keyService = &p11store.Pkcs11CryptoService{
+				Store: pkcs11KeyStore,
+				Token:  token,
+			}
+		}
 	}
 
 	if doBootstrap {

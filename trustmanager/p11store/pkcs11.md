@@ -10,7 +10,9 @@ So by default keys will be created in software and no HSM used.
 To enable use of an HSM, the new `--keystore` and `--token` arguments must be used
 when generating the key.
 
-This key store has been tested with nShield and SoftHSM.
+This key store has been tested with nShield and (partially) SoftHSM.
+
+# Client-Managed Keys
 
 ## Device Configuration
 
@@ -41,6 +43,8 @@ You can also specify `serialNumber:7e585d361027d0e6`.
     $ notary key generate -K pkcs11 -T label:ocs1 -r targets -g example.com/nshield
     Enter the passphrase for the PKCS#11 token 'nCipher Corp. Ltd ocs1 (7e585d361027d0e6)':
     Generated new ecdsa targets key with keyID: 930e06d6c0f2e0c0e1a45eb403cf573d7d934f44cbd41adec784ead07b7451e5
+
+The same approach can be used to put a (client-managed) snapshots key in the HSM.
 
 ### Outcome
 
@@ -149,6 +153,51 @@ Unlike `notary init`, `notary key rotate` is capable of generating HSM-protected
 
 You can also remove it with the HSM's native tools
 if you can correctly identify it.
+
+# Server-Managed Keys
+
+## Timestamp Key
+
+The (server-managed) timestamp key can also be protected by an HSM.
+
+First, the signer must have access to the HSM from within its container.
+How that is does depends on the PKCS#11 provider;
+in `docker-compose-pkcs11.yml` the required files for nShield are bind-mounted into the container
+as follows:
+
+    volumes:
+      - type: bind
+        source: /opt/nfast/toolkits/pkcs11
+        target: /opt/nfast/toolkits/pkcs11
+        read_only: true
+      - type: bind
+        source: /opt/nfast/sockets/nserver
+        target: /opt/nfast/sockets/nserver
+        read_only: true
+      - type: bind
+        source: /opt/nfast/kmdata/local
+        target: /opt/nfast/kmdata/local
+
+Secondly if the token requires a passphrase
+then it must be communicated to the signer
+in the environment variable `NOTARY_HSM_PIN`:
+
+    environment:
+       - NOTARY_HSM_PIN
+
+Thirdly, the provider and token must be specified in the signer's configuration file.
+For example to use module-protected keys with nShield:
+
+	"storage": {
+		"backend": "pkcs11",
+		"provider": "/opt/nfast/toolkits/pkcs11/libcknfast.so",
+		"token": "label:accelerator"
+	}
+
+The `token` field has the same rules as the `--token` option described above.
+
+With this configuration in place the signer will use the HSM
+for the timestamp key.
 
 # Developer Information
 

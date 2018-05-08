@@ -1,0 +1,60 @@
+version: "3.2"
+services:
+  server:
+    build:
+      context: .
+      dockerfile: server.Dockerfile
+    networks:
+      - mdb
+      - sig
+    ports:
+      - "8080"
+      - "4443:4443"
+    entrypoint: /usr/bin/env sh
+    command: -c "./migrations/migrate.sh && notary-server -config=fixtures/server-config.json"
+    depends_on:
+      - mysql
+      - signer
+  signer:
+    build:
+      context: .
+      dockerfile: signer.Dockerfile
+    networks:
+      sig:
+        aliases:
+          - notarysigner
+    volumes:
+      - type: bind
+        source: /opt/nfast/toolkits/pkcs11
+        target: /opt/nfast/toolkits/pkcs11
+        read_only: true
+      - type: bind
+        source: /opt/nfast/sockets/nserver
+        target: /opt/nfast/sockets/nserver
+        read_only: true
+      - type: bind
+        source: /opt/nfast/kmdata/local
+        target: /opt/nfast/kmdata/local
+    environment:
+      - NOTARY_HSM_PIN
+    entrypoint: /usr/bin/env sh
+    command: -c "CKNFAST_ASSUME_SINGLE_PROCESS=0 notary-signer -config=fixtures/signer-config-pkcs11.json"
+  mysql:
+    networks:
+      - mdb
+    volumes:
+      - ./notarysql/mysql-initdb.d:/docker-entrypoint-initdb.d
+      - notary_data:/var/lib/mysql
+    image: mariadb:10.1.28
+    environment:
+      - TERM=dumb
+      - MYSQL_ALLOW_EMPTY_PASSWORD="true"
+    command: mysqld --innodb_file_per_table
+volumes:
+  notary_data:
+    external: false
+networks:
+  mdb:
+    external: false
+  sig:
+    external: false
