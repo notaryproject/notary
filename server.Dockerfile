@@ -1,4 +1,4 @@
-FROM golang:1.10.1-alpine
+FROM golang:1.10.2-alpine
 
 RUN apk add --update git gcc libc-dev
 
