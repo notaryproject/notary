@@ -6,7 +6,7 @@ Changes to the [Repo Guidelines](#repo-guidelines) require a simple majority.
 
 ## Hard Acceptance Criteria for merging a PR:
 
-- 2 LGTMs are required when merging a PR
+- 2 LGTMs are required when merging a non-minor PR
 - If there is obviously still discussion going on in the PR, even with 2 LGTMs, let the discussion resolve before merging. If you’re not sure, reach out to the maintainers involved in the discussion.
 - All checks must be green 
     - There are limited mitigating circumstances for this, like if the docs builds are just broken and that’s the only test failing.
