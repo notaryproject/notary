@@ -23,17 +23,13 @@ project=integration
 function cleanup {
     rm -f bin/notary
 	docker-compose -p "${project}_${db}" -f ${composeFile} kill
-	# if we're in CircleCI, we cannot remove any containers
-	if [[ -z "${CIRCLECI}" ]]; then
-		docker-compose -p "${project}_${db}" -f ${composeFile} down -v --remove-orphans
-	fi
+	docker-compose -p "${project}_${db}" -f ${composeFile} down -v --remove-orphans
 }
 
 function cleanupAndExit {
     cleanup
-    # Check for existence of SUCCESS
-    ls test_output/SUCCESS
-    exitCode=$?
+    # Assume trap is failure
+    exitCode=1
     # Clean up test_output dir (if not in CircleCI) and exit
     if [[ -z "${CIRCLECI}" ]]; then
         rm -rf test_output

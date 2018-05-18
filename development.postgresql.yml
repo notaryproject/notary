@@ -35,11 +35,11 @@ services:
     depends_on:
       - postgresql
   postgresql:
-    image: postgres:9.5.4
+    build:
+      context: .
+      dockerfile: postgresql.Dockerfile
     networks:
       - mdb 
-    volumes:
-      - ./notarysql/postgresql-initdb.d:/docker-entrypoint-initdb.d
     command: -l
   client:
     build:
