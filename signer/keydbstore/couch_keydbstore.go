@@ -2,7 +2,6 @@ package keydbstore
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -49,46 +48,6 @@ type CDBPrivateKey struct {
 	LastUsed time.Time `json:"last_used"`
 }
 
-// Unmarshal here in an anonymous struct
-func cdbPrivateKeyFromJSON(jsonData []byte) (interface{}, error) {
-	a := struct {
-		CreatedAt       time.Time     `json:"created_at"`
-		UpdatedAt       time.Time     `json:"updated_at"`
-		DeletedAt       time.Time     `json:"deleted_at"`
-		KeyID           string        `json:"key_id"`
-		EncryptionAlg   string        `json:"encryption_alg"`
-		KeywrapAlg      string        `json:"keywrap_alg"`
-		Algorithm       string        `json:"algorithm"`
-		PassphraseAlias string        `json:"passphrase_alias"`
-		Gun             data.GUN      `json:"gun"`
-		Role            data.RoleName `json:"role"`
-		Public          []byte        `json:"public"`
-		Private         []byte        `json:"private"`
-		LastUsed        time.Time     `json:"last_used"`
-	}{}
-	if err := json.Unmarshal(jsonData, &a); err != nil {
-		return CDBPrivateKey{}, err
-	}
-	return CDBPrivateKey{
-		Timing: couchdb.Timing{
-			CreatedAt: a.CreatedAt,
-			UpdatedAt: a.UpdatedAt,
-			DeletedAt: a.DeletedAt,
-		},
-		KeyID:           a.KeyID,
-		EncryptionAlg:   a.EncryptionAlg,
-		KeywrapAlg:      a.KeywrapAlg,
-		Algorithm:       a.Algorithm,
-		PassphraseAlias: a.PassphraseAlias,
-		Gun:             a.Gun,
-		Role:            a.Role,
-		Public:          a.Public,
-		Private:         a.Private,
-		LastUsed:        a.LastUsed,
-	}, nil
-
-}
-
 // PrivateKeysCouchTable is the table definition for notary signer's key information
 var PrivateKeysCouchTable = couchdb.Table{
 	Name: CDBPrivateKey{}.TableName(),
@@ -96,7 +55,6 @@ var PrivateKeysCouchTable = couchdb.Table{
 		"1": []string{"key_id"},
 		"2": []string{"gun", "role", "algorithm", "last_used"},
 	},
-	JSONUnmarshaller: cdbPrivateKeyFromJSON,
 }
 
 // TableName sets a specific table name for our CDBPrivateKey
