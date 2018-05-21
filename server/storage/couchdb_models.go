@@ -17,7 +17,6 @@ var (
 			"6": []string{"gun", "created_at"},
 			"7": []string{"_id", "created_at"},
 		},
-		JSONUnmarshaller: cdbTUFFileFromJSON,
 	}
 
 	// ChangeCouchTable is the table definition for changefeed objects

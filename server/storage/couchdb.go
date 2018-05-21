@@ -50,38 +50,6 @@ func (cdb CChange) TableName() string {
 	return ChangefeedTableName
 }
 
-// unmarshal in an anonymous struct
-func cdbTUFFileFromJSON(data []byte) (interface{}, error) {
-	a := struct {
-		CreatedAt  time.Time `json:"created_at"`
-		UpdatedAt  time.Time `json:"updated_at"`
-		DeletedAt  time.Time `json:"deleted_at"`
-		Gun        string    `json:"gun"`
-		Role       string    `json:"role"`
-		Version    int       `json:"version"`
-		SHA256     string    `json:"sha256"`
-		Data       []byte    `json:"data"`
-		TSchecksum string    `json:"timestamp_checksum"`
-	}{}
-	if err := json.Unmarshal(data, &a); err != nil {
-		return CDBTUFFile{}, err
-	}
-	return CDBTUFFile{
-		Timing: couchdb.Timing{
-			CreatedAt: a.CreatedAt,
-			UpdatedAt: a.UpdatedAt,
-			DeletedAt: a.DeletedAt,
-		},
-		GunRoleVersion: []interface{}{a.Gun, a.Role, a.Version},
-		Gun:            a.Gun,
-		Role:           a.Role,
-		Version:        a.Version,
-		SHA256:         a.SHA256,
-		Data:           a.Data,
-		TSchecksum:     a.TSchecksum,
-	}, nil
-}
-
 func cdbChangeFromJSON(data []byte) (interface{}, error) {
 	res := CChange{}
 	if err := json.Unmarshal(data, &res); err != nil {
