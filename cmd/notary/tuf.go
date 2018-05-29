@@ -796,7 +796,7 @@ func (ps passwordStore) Basic(u *url.URL) (string, string) {
 
 		i := strings.Index(plain, ":")
 		if i == 0 {
-			logrus.Error("Authentication string with zero-legnth username")
+			logrus.Error("Authentication string with zero-length username")
 			return "", ""
 		} else if i > -1 {
 			username := plain[:i]
