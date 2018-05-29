@@ -3,6 +3,8 @@ machine:
   # Upgrade docker
     - curl -sSL https://s3.amazonaws.com/circle-downloads/install-circleci-docker.sh | bash -s -- 1.10.0
   # upgrade compose
+    - sudo apt update
+    - sudo apt install libpython-dev
     - sudo pip install --upgrade docker-compose
 
   services:
