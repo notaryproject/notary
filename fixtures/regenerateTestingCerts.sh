@@ -213,3 +213,19 @@ cp server-key.pem ../../notarysql/postgresql-initdb.d/server.key
 # remove the working dir
 cd ..
 rm -rf cfssl
+
+# Create key and certs for CouchDB testing
+CFG="
+[req]
+distinguished_name = dn
+[dn]
+[ext]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:TRUE
+"
+openssl req -config <(echo "$CFG") -newkey rsa:2048 \
+    -x509 -extensions ext -days 3650 -nodes \
+    -keyout couchdb/key.pem -out couchdb/ca.pem \
+    -subj '/CN=*.cdb/'
+cp couchdb/ca.pem couchdb/cert.pem
