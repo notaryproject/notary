@@ -4,6 +4,7 @@ package passphrase
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -132,7 +133,7 @@ func (br *boundRetriever) requestPassphrase(keyName, alias string, createNew boo
 		return "", false, err
 	}
 
-	retPass := strings.TrimSpace(string(passphrase))
+	retPass := string(passphrase)
 
 	if createNew {
 		err = br.verifyAndConfirmPassword(stdin, retPass, displayAlias, withID)
@@ -162,7 +163,7 @@ func (br *boundRetriever) verifyAndConfirmPassword(stdin *bufio.Reader, retPass,
 	if err != nil {
 		return err
 	}
-	confirmationStr := strings.TrimSpace(string(confirmation))
+	confirmationStr := string(confirmation)
 
 	if retPass != confirmationStr {
 		fmt.Fprintln(br.out, "Passphrases do not match. Please retry.")
@@ -225,5 +226,5 @@ func GetPassphrase(in *bufio.Reader) ([]byte, error) {
 		passphrase, err = in.ReadBytes('\n')
 	}
 
-	return passphrase, err
+	return bytes.TrimSpace(passphrase), err
 }
