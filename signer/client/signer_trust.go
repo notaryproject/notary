@@ -104,7 +104,8 @@ type NotarySigner struct {
 }
 
 func healthCheck(d time.Duration, hc healthpb.HealthClient, serviceName string) (*healthpb.HealthCheckResponse, error) {
-	ctx, _ := context.WithTimeout(context.Background(), d)
+	ctx, cancel := context.WithTimeout(context.Background(), d)
+	defer cancel()
 	req := &healthpb.HealthCheckRequest{
 		Service: serviceName,
 	}
