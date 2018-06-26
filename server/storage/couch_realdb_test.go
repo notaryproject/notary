@@ -5,15 +5,19 @@
 package storage
 
 import (
+	"fmt"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/theupdateframework/notary/storage/couchdb"
 	"github.com/theupdateframework/notary/tuf/data"
 
 	"github.com/flimzy/kivik"
+	"github.com/flimzy/kivik/driver/couchdb/chttp"
 	_ "github.com/go-kivik/couchdb"
 )
 
@@ -61,7 +65,9 @@ func TestCouchBootstrapSetsUsernamePassword(t *testing.T) {
 	// Bootstrap
 	s := NewCouchDBStorage(dbname, username, password, adminSession)
 	require.NoError(t, s.Bootstrap())
-	defer couchdb.DBDrop(adminSession, dbname, "")
+	// Bootstrap creates two databases we need to clean up
+	defer couchdb.DBDrop(adminSession, dbname, TUFFilesCouchTable.Name)
+	defer couchdb.DBDrop(adminSession, dbname, ChangeCouchTable.Name)
 
 	// A user with an invalid password cannot connect to couch DB at all
 	_, err := couchdb.UserConnection(tlsOpts, source, username, "wrongpass")
@@ -80,8 +86,20 @@ func TestCouchBootstrapSetsUsernamePassword(t *testing.T) {
 	s = NewCouchDBStorage(dbname, username, password, userSession)
 	_, _, err = s.GetCurrent("gun", data.CanonicalRootRole)
 	require.Error(t, err)
-	require.IsType(t, ErrNotFound{}, err)
-	require.NoError(t, s.CheckHealth())
+
+	// CouchDB returns ErrNotFound
+	expType1 := reflect.TypeOf(ErrNotFound{})
+	// Cloudant doesn't allow other users to execute queries and returns
+	//	*chttp.HTTPError: Forbidden: one of _design, _reader is required for this request
+	expType2 := reflect.TypeOf(&chttp.HTTPError{})
+
+	errType := reflect.TypeOf(err)
+	if !assert.ObjectsAreEqual(expType1, errType) && !assert.ObjectsAreEqual(expType2, errType) {
+		assert.Fail(t, fmt.Sprintf("err must be either of type %v or %v but is of type %v", expType1, expType2, errType))
+	}
+	if assert.ObjectsAreEqual(expType1, err) {
+		require.NoError(t, s.CheckHealth())
+	}
 }
 
 // CreateAgainPass will create an existing database again; this will not fail
