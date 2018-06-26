@@ -16,6 +16,7 @@ var (
 			"5": []string{"timestamp_checksum"},
 			"6": []string{"gun", "created_at"},
 			"7": []string{"_id", "created_at"},
+			"8": []string{"gun", "role"},
 		},
 	}
 

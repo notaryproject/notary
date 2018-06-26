@@ -227,28 +227,30 @@ func (cdb CouchDB) GetCurrent(gun data.GUN, role data.RoleName) (created *time.T
 		"selector": map[string]interface{}{
 			"gun":  gun.String(),
 			"role": role.String(),
-			"version": map[string]int{
-				"$gte": 0,
-			},
 		},
-		"sort":  []map[string]string{{"version": "desc"}},
-		"limit": 1,
+		"fields": []string{"version", "data", "created_at"},
 	})
 	if err != nil {
 		return nil, nil, err
 	}
 	defer rows.Close()
 
-	if !rows.Next() {
+	lastFile := CDBTUFFile{}
+	lastFile.Version = -1
+
+	for rows.Next() {
+		if err := rows.ScanDoc(&file); err != nil {
+			return nil, nil, fmt.Errorf("unable to scan document: %s", err)
+		}
+		if file.Version > lastFile.Version {
+			lastFile = file
+		}
+	}
+	if lastFile.Version == -1 {
 		return nil, nil, ErrNotFound{}
 	}
 
-	err = rows.ScanDoc(&file)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return &file.CreatedAt, file.Data, nil
+	return &lastFile.CreatedAt, lastFile.Data, nil
 }
 
 // GetChecksum returns the given TUF role file and creation date for the
