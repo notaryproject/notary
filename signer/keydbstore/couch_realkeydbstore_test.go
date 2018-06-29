@@ -143,7 +143,7 @@ func requireExpectedCDBKeys(t *testing.T, dbStore *CouchDBKeyStore, expectedKeys
 		// because we have to manually set the created and modified times
 		require.True(t, cdbKey.CreatedAt.Equal(cdbNow))
 		require.True(t, cdbKey.UpdatedAt.Equal(cdbNow))
-		require.True(t, cdbKey.DeletedAt.Equal(time.Time{}))
+		require.Nil(t, cdbKey.DeletedAt)
 	}
 
 	return result

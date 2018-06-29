@@ -99,8 +99,8 @@ func (cdb *CouchDBKeyStore) AddKey(role data.RoleName, gun data.GUN, privKey dat
 			ID: privKey.ID(),
 		},
 		Timing: couchdb.Timing{
-			CreatedAt: now,
-			UpdatedAt: now,
+			CreatedAt: &now,
+			UpdatedAt: &now,
 		},
 		KeyID:           privKey.ID(),
 		EncryptionAlg:   EncryptionAlg,

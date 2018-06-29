@@ -126,8 +126,8 @@ func (cdb CouchDB) updateCurrentWithTSChecksum(gun, tsChecksum string, update Me
 
 	file := CDBTUFFile{
 		Timing: couchdb.Timing{
-			CreatedAt: now,
-			UpdatedAt: now,
+			CreatedAt: &now,
+			UpdatedAt: &now,
 		},
 		ID: couchdb.ID{
 			ID: id,
@@ -250,7 +250,7 @@ func (cdb CouchDB) GetCurrent(gun data.GUN, role data.RoleName) (created *time.T
 		return nil, nil, ErrNotFound{}
 	}
 
-	return &lastFile.CreatedAt, lastFile.Data, nil
+	return lastFile.CreatedAt, lastFile.Data, nil
 }
 
 // GetChecksum returns the given TUF role file and creation date for the
@@ -284,7 +284,7 @@ func (cdb CouchDB) GetChecksum(gun data.GUN, role data.RoleName, checksum string
 		return nil, nil, err
 	}
 
-	return &file.CreatedAt, file.Data, nil
+	return file.CreatedAt, file.Data, nil
 }
 
 // GetVersion gets a specific TUF record by its version
@@ -317,7 +317,7 @@ func (cdb CouchDB) GetVersion(gun data.GUN, role data.RoleName, version int) (*t
 		return nil, nil, err
 	}
 
-	return &file.CreatedAt, file.Data, nil
+	return file.CreatedAt, file.Data, nil
 }
 
 // Delete removes all metadata for a given GUN.  It does not return an

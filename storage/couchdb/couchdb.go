@@ -24,9 +24,9 @@ type ID struct {
 
 // Timing can be embedded into other models to add time tracking fields
 type Timing struct {
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	DeletedAt time.Time `json:"deleted_at"`
+	CreatedAt *time.Time `json:"created_at"`
+	UpdatedAt *time.Time `json:"updated_at"`
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 }
 
 func createConnection(tlsOpts tlsconfig.Options, host string, username, password string) (*kivik.Client, error) {
