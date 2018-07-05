@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/flimzy/kivik"
+	"github.com/go-kivik/kivik"
 	couch "github.com/go-kivik/couchdb"
 	"github.com/go-kivik/couchdb/chttp"
 	"github.com/sirupsen/logrus"

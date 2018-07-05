@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/flimzy/kivik"
+	"github.com/go-kivik/kivik"
 	_ "github.com/go-kivik/couchdb" //
 )
 
 func makeDB(client *kivik.Client, name string) error {
-	err := client.CreateDB(context.TODO(), name)
+	_, err := client.CreateDB(context.TODO(), name)
 	if err != nil {
 		exists, nerr := client.DBExists(context.TODO(), name)
 		// we may not be allowed to create the DB but use it then
@@ -64,15 +64,15 @@ func CreateAndGrantDBUser(client *kivik.Client, dbName, username, password strin
 		return fmt.Errorf("Could not check whether _users DB exists: %s", err)
 	}
 	if !exists {
-		if err = client.CreateDB(context.TODO(), "_users"); err != nil {
+		if _, err = client.CreateDB(context.TODO(), "_users"); err != nil {
 			return fmt.Errorf("Could not create _users DB")
 		}
 	}
 
-	usersDB, err := client.DB(context.TODO(), "_users")
-	if err != nil {
-		return fmt.Errorf("unable to access _users DB: %s", err)
-	}
+        usersDB, err := client.DB(context.TODO(), "_users")
+        if err != nil {
+                return fmt.Errorf("unable to access _users DB: %s", err)
+        }
 
 	id := kivik.UserPrefix + username
 
@@ -83,7 +83,7 @@ func CreateAndGrantDBUser(client *kivik.Client, dbName, username, password strin
 		"password": password,
 		"roles":    []string{},
 	}
-	rev, err := usersDB.Rev(context.TODO(), id)
+	_, rev, err := usersDB.GetMeta(context.TODO(), id, nil)
 	if err == nil {
 		user["_rev"] = rev
 	}

@@ -20,7 +20,7 @@ import (
 	"github.com/theupdateframework/notary/tuf/data"
 	"github.com/theupdateframework/notary/tuf/signed"
 
-	"github.com/flimzy/kivik"
+	"github.com/go-kivik/kivik"
 	_ "github.com/go-kivik/couchdb" //
 )
 
@@ -104,10 +104,7 @@ func getAllKeys(client *kivik.Client, dbName, tableName string) ([]CDBPrivateKey
 	var rows []CDBPrivateKey
 	for res.Next() {
 		var row CDBPrivateKey
-		arow, err := db.Get(context.TODO(), res.Key())
-		if err != nil {
-			return nil, err
-		}
+		arow := db.Get(context.TODO(), res.Key())
 		if err = arow.ScanDoc(&row); err != nil {
 			return nil, err
 		}

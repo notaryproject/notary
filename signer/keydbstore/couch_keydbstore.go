@@ -6,7 +6,7 @@ import (
 	"time"
 
 	jose "github.com/dvsekhvalnov/jose2go"
-	"github.com/flimzy/kivik"
+	"github.com/go-kivik/kivik"
 	_ "github.com/go-kivik/couchdb" //
 	"github.com/theupdateframework/notary"
 	"github.com/theupdateframework/notary/storage/couchdb"
