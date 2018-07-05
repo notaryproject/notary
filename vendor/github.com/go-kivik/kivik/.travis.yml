@@ -1,0 +1,50 @@
+dist: trusty
+sudo: required
+services:
+    - docker
+addons:
+  apt:
+    sources:
+      - sourceline: 'ppa:masterminds/glide'
+    packages:
+      - glide
+cache:
+    directories:
+        - node_modules
+        - $HOME/gopath/pkg
+
+language: go
+
+os:
+    - linux
+    # - osx
+
+go:
+    - 1.8.x
+    - 1.9.x
+    - 1.10.x
+    - master
+env:
+    global:
+        - KIVIK_TEST_DSN_COUCH21="http://admin:abc123@localhost:6002/"
+        # - HOMEBREW_NO_AUTO_UPDATE=1
+    matrix:
+        - MODE=standard
+
+matrix:
+    fast_finish: true
+    allow_failures:
+        - go: master
+    include:
+        - go: 1.10.x
+          env: MODE=gopherjs
+        - go: 1.10.x
+          env: MODE=linter
+        - go: 1.10.x
+          env: MODE=coverage
+
+install:
+    - ./travis/install.sh $MODE
+
+script:
+    - ./travis/test.sh $MODE

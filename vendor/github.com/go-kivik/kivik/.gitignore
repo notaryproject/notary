@@ -1,0 +1,6 @@
+test/pouch__all_dbs__/
+vendor
+test.*
+glide.lock
+node_modules
+coverage.txt

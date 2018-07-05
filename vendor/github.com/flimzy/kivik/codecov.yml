@@ -1,4 +1,0 @@
-ignore:
-- "driver/memory"
-- "driver/pouchdb"
-- "test"
