@@ -16,8 +16,8 @@ import (
 	"github.com/theupdateframework/notary/storage/couchdb"
 	"github.com/theupdateframework/notary/tuf/data"
 
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/driver/couchdb/chttp"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/couchdb/chttp"
 	_ "github.com/go-kivik/couchdb"
 )
 

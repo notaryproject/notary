@@ -14,7 +14,7 @@ import (
 	"github.com/theupdateframework/notary/storage/couchdb"
 	"github.com/theupdateframework/notary/tuf/data"
 
-	"github.com/flimzy/kivik"
+	"github.com/go-kivik/kivik"
 )
 
 // CDBTUFFile is a TUF file record
@@ -94,8 +94,8 @@ func (cdb CouchDB) UpdateCurrent(gun data.GUN, update MetaUpdate) error {
 
 	id := genID(gun.String(), update.Role.String(), update.Version)
 
-	row, _ := db.Get(context.TODO(), id)
-	if row != nil {
+	row := db.Get(context.TODO(), id)
+	if row.Err == nil {
 		return ErrOldVersion{}
 	}
 	// empty string is the zero value for tsChecksum in the CDBTUFFile struct.
