@@ -6,10 +6,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/driver"
-	"github.com/flimzy/kivik/errors"
 	"github.com/go-kivik/couchdb/chttp"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/errors"
 )
 
 // Couch represents the parent driver instance.
@@ -100,23 +100,12 @@ func (c *client) setCompatMode(ctx context.Context) {
 	}
 }
 
-func (c *client) DB(_ context.Context, dbName string, options map[string]interface{}) (driver.DB, error) {
+func (c *client) DB(_ context.Context, dbName string, _ map[string]interface{}) (driver.DB, error) {
 	if dbName == "" {
 		return nil, missingArg("dbName")
 	}
-	fullCommit, err := fullCommit(false, options)
-	if err != nil {
-		return nil, err
-	}
 	return &db{
-		client:     c,
-		dbName:     dbName,
-		fullCommit: fullCommit,
+		client: c,
+		dbName: dbName,
 	}, nil
-}
-
-type putResponse struct {
-	ID  string `json:"id"`
-	OK  bool   `json:"ok"`
-	Rev string `json:"rev"`
 }

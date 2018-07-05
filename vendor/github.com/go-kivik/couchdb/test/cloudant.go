@@ -1,7 +1,7 @@
 package test
 
 import (
-	"github.com/flimzy/kivik"
+	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kiviktest"
 	"github.com/go-kivik/kiviktest/kt"
 )
@@ -75,11 +75,11 @@ func registerSuiteCloudant() {
 		"Get/RW/group/NoAuth/_design/foo.status": kivik.StatusUnauthorized,
 		"Get/RW/group/NoAuth/_local/foo.status":  kivik.StatusUnauthorized,
 
-		"Rev/RW/group/Admin/bogus.status":        kivik.StatusNotFound,
-		"Rev/RW/group/NoAuth/bob.status":         kivik.StatusUnauthorized,
-		"Rev/RW/group/NoAuth/bogus.status":       kivik.StatusUnauthorized,
-		"Rev/RW/group/NoAuth/_design/foo.status": kivik.StatusUnauthorized,
-		"Rev/RW/group/NoAuth/_local/foo.status":  kivik.StatusUnauthorized,
+		"GetMeta/RW/group/Admin/bogus.status":        kivik.StatusNotFound,
+		"GetMeta/RW/group/NoAuth/bob.status":         kivik.StatusUnauthorized,
+		"GetMeta/RW/group/NoAuth/bogus.status":       kivik.StatusUnauthorized,
+		"GetMeta/RW/group/NoAuth/_design/foo.status": kivik.StatusUnauthorized,
+		"GetMeta/RW/group/NoAuth/_local/foo.status":  kivik.StatusUnauthorized,
 
 		"Put/RW/NoAuth/Create.status": kivik.StatusUnauthorized,
 

@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -14,11 +15,11 @@ import (
 
 	"github.com/flimzy/diff"
 	"github.com/flimzy/testy"
-	"github.com/go-kivik/couchdb/chttp"
 
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/driver"
-	"github.com/flimzy/kivik/errors"
+	"github.com/go-kivik/couchdb/chttp"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/errors"
 )
 
 func TestAllDocs(t *testing.T) {
@@ -33,15 +34,24 @@ func TestQuery(t *testing.T) {
 	testy.Error(t, "Get http://example.com/testdb/_design/ddoc/_view/view: test error", err)
 }
 
+type Attachment struct {
+	Filename    string
+	ContentType string
+	Size        int64
+	Content     string
+}
+
 func TestGet(t *testing.T) {
 	tests := []struct {
-		name     string
-		db       *db
-		id       string
-		options  map[string]interface{}
-		expected string
-		status   int
-		err      string
+		name        string
+		db          *db
+		id          string
+		options     map[string]interface{}
+		doc         *driver.Document
+		expected    string
+		attachments []*Attachment
+		status      int
+		err         string
 	}{
 		{
 			name:   "missing doc ID",
@@ -67,7 +77,7 @@ func TestGet(t *testing.T) {
 			id:   "foo",
 			db: newTestDB(&http.Response{
 				StatusCode: kivik.StatusBadRequest,
-				Body:       ioutil.NopCloser(strings.NewReader("")),
+				Body:       Body(""),
 			}, nil),
 			status: kivik.StatusBadRequest,
 			err:    "Bad Request",
@@ -77,19 +87,18 @@ func TestGet(t *testing.T) {
 			id:   "foo",
 			db: newTestDB(&http.Response{
 				StatusCode: kivik.StatusOK,
-				Body:       ioutil.NopCloser(strings.NewReader("some response")),
+				Header: http.Header{
+					"Content-Type": {"application/json"},
+					"ETag":         {`"12-xxx"`},
+				},
+				ContentLength: 13,
+				Body:          Body("some response"),
 			}, nil),
-			expected: "some response",
-		},
-		{
-			name: "body read failure",
-			id:   "foo",
-			db: newTestDB(&http.Response{
-				StatusCode: kivik.StatusOK,
-				Body:       errorReadCloser{errors.New("read error")},
-			}, nil),
-			status: kivik.StatusUnknownError,
-			err:    "read error",
+			doc: &driver.Document{
+				ContentLength: 13,
+				Rev:           "12-xxx",
+			},
+			expected: "some response\n",
 		},
 		{
 			name: "If-None-Match",
@@ -114,25 +123,249 @@ func TestGet(t *testing.T) {
 			status:  kivik.StatusBadRequest,
 			err:     "kivik: option 'If-None-Match' must be string, not int",
 		},
+		{
+			name: "invalid content type in response",
+			id:   "foo",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Header: http.Header{
+					"Content-Type": {"image/jpeg"},
+					"ETag":         {`"12-xxx"`},
+				},
+				ContentLength: 13,
+				Body:          Body("some response"),
+			}, nil),
+			status: kivik.StatusBadResponse,
+			err:    "kivik: invalid content type in response: image/jpeg",
+		},
+		{
+			name: "invalid content type header",
+			id:   "foo",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Header: http.Header{
+					"Content-Type": {"cow; =moo"},
+					"ETag":         {`"12-xxx"`},
+				},
+				ContentLength: 13,
+				Body:          Body("some response"),
+			}, nil),
+			status: kivik.StatusBadResponse,
+			err:    "mime: invalid media parameter",
+		},
+		{
+			name: "missing multipart boundary",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Header: http.Header{
+					"Content-Type": {"multipart/related"},
+					"ETag":         {`"12-xxx"`},
+				},
+				ContentLength: 13,
+				Body:          Body("some response"),
+			}, nil),
+			id:     "foo",
+			status: kivik.StatusBadResponse,
+			err:    "kivik: boundary missing for multipart/related response",
+		},
+		{
+			name: "no multipart data",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Header: http.Header{
+					"Content-Length": {"538"},
+					"Content-Type":   {`multipart/related; boundary="e89b3e29388aef23453450d10e5aaed0"`},
+					"Date":           {"Sat, 28 Sep 2013 08:08:22 GMT"},
+					"ETag":           {`"2-c1c6c44c4bc3c9344b037c8690468605"`},
+					"ServeR":         {"CouchDB (Erlang OTP)"},
+				},
+				ContentLength: 538,
+				Body:          Body(`bogus data`),
+			}, nil),
+			id:      "foo",
+			options: map[string]interface{}{"include_docs": true},
+			status:  kivik.StatusBadResponse,
+			err:     "multipart: NextPart: EOF",
+		},
+		{
+			name: "incomplete multipart data",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Header: http.Header{
+					"Content-Length": {"538"},
+					"Content-Type":   {`multipart/related; boundary="e89b3e29388aef23453450d10e5aaed0"`},
+					"Date":           {"Sat, 28 Sep 2013 08:08:22 GMT"},
+					"ETag":           {`"2-c1c6c44c4bc3c9344b037c8690468605"`},
+					"ServeR":         {"CouchDB (Erlang OTP)"},
+				},
+				ContentLength: 538,
+				Body: Body(`--e89b3e29388aef23453450d10e5aaed0
+				bogus data`),
+			}, nil),
+			id:      "foo",
+			options: map[string]interface{}{"include_docs": true},
+			status:  kivik.StatusBadResponse,
+			err:     "malformed MIME header (initial )?line:.*bogus data",
+		},
+		{
+			name: "multipart attachments",
+			// response borrowed from http://docs.couchdb.org/en/2.1.1/api/document/common.html#efficient-multiple-attachments-retrieving
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Header: http.Header{
+					"Content-Length": {"538"},
+					"Content-Type":   {`multipart/related; boundary="e89b3e29388aef23453450d10e5aaed0"`},
+					"Date":           {"Sat, 28 Sep 2013 08:08:22 GMT"},
+					"ETag":           {`"2-c1c6c44c4bc3c9344b037c8690468605"`},
+					"ServeR":         {"CouchDB (Erlang OTP)"},
+				},
+				ContentLength: 538,
+				Body: Body(`--e89b3e29388aef23453450d10e5aaed0
+Content-Type: application/json
+
+{"_id":"secret","_rev":"2-c1c6c44c4bc3c9344b037c8690468605","_attachments":{"recipe.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-HV9aXJdEnu0xnMQYTKgOFA==","length":86,"follows":true}}}
+--e89b3e29388aef23453450d10e5aaed0
+Content-Disposition: attachment; filename="recipe.txt"
+Content-Type: text/plain
+Content-Length: 86
+
+1. Take R
+2. Take E
+3. Mix with L
+4. Add some A
+5. Serve with X
+
+--e89b3e29388aef23453450d10e5aaed0--`),
+			}, nil),
+			id:      "foo",
+			options: map[string]interface{}{"include_docs": true},
+			doc: &driver.Document{
+				ContentLength: -1,
+				Rev:           "2-c1c6c44c4bc3c9344b037c8690468605",
+				Attachments: &multipartAttachments{
+					meta: map[string]attMeta{
+						"recipe.txt": {
+							Follows:     true,
+							ContentType: "text/plain",
+							Size:        func() *int64 { x := int64(86); return &x }(),
+						},
+					},
+				},
+			},
+			expected: `{"_id":"secret","_rev":"2-c1c6c44c4bc3c9344b037c8690468605","_attachments":{"recipe.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-HV9aXJdEnu0xnMQYTKgOFA==","length":86,"follows":true}}}`,
+			attachments: []*Attachment{
+				{
+					Filename:    "recipe.txt",
+					Size:        86,
+					ContentType: "text/plain",
+					Content:     "1. Take R\n2. Take E\n3. Mix with L\n4. Add some A\n5. Serve with X\n",
+				},
+			},
+		},
+		{
+			name: "multipart attachments, doc content length",
+			// response borrowed from http://docs.couchdb.org/en/2.1.1/api/document/common.html#efficient-multiple-attachments-retrieving
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Header: http.Header{
+					"Content-Length": {"558"},
+					"Content-Type":   {`multipart/related; boundary="e89b3e29388aef23453450d10e5aaed0"`},
+					"Date":           {"Sat, 28 Sep 2013 08:08:22 GMT"},
+					"ETag":           {`"2-c1c6c44c4bc3c9344b037c8690468605"`},
+					"ServeR":         {"CouchDB (Erlang OTP)"},
+				},
+				ContentLength: 558,
+				Body: Body(`--e89b3e29388aef23453450d10e5aaed0
+Content-Type: application/json
+Content-Length: 199
+
+{"_id":"secret","_rev":"2-c1c6c44c4bc3c9344b037c8690468605","_attachments":{"recipe.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-HV9aXJdEnu0xnMQYTKgOFA==","length":86,"follows":true}}}
+--e89b3e29388aef23453450d10e5aaed0
+Content-Disposition: attachment; filename="recipe.txt"
+Content-Type: text/plain
+Content-Length: 86
+
+1. Take R
+2. Take E
+3. Mix with L
+4. Add some A
+5. Serve with X
+
+--e89b3e29388aef23453450d10e5aaed0--`),
+			}, nil),
+			id:      "foo",
+			options: map[string]interface{}{"include_docs": true},
+			doc: &driver.Document{
+				ContentLength: 199,
+				Rev:           "2-c1c6c44c4bc3c9344b037c8690468605",
+				Attachments: &multipartAttachments{
+					meta: map[string]attMeta{
+						"recipe.txt": {
+							Follows:     true,
+							ContentType: "text/plain",
+							Size:        func() *int64 { x := int64(86); return &x }(),
+						},
+					},
+				},
+			},
+			expected: `{"_id":"secret","_rev":"2-c1c6c44c4bc3c9344b037c8690468605","_attachments":{"recipe.txt":{"content_type":"text/plain","revpos":2,"digest":"md5-HV9aXJdEnu0xnMQYTKgOFA==","length":86,"follows":true}}}`,
+			attachments: []*Attachment{
+				{
+					Filename:    "recipe.txt",
+					Size:        86,
+					ContentType: "text/plain",
+					Content:     "1. Take R\n2. Take E\n3. Mix with L\n4. Add some A\n5. Serve with X\n",
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := test.db.Get(context.Background(), test.id, test.options)
-			testy.StatusError(t, test.err, test.status, err)
+			doc, err := test.db.Get(context.Background(), test.id, test.options)
+			testy.StatusErrorRE(t, test.err, test.status, err)
+			result, err := ioutil.ReadAll(doc.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if string(result) != test.expected {
 				t.Errorf("Unexpected result: %s", string(result))
+			}
+			var attachments []*Attachment
+			if doc.Attachments != nil {
+				att := new(driver.Attachment)
+				for {
+					if err := doc.Attachments.Next(att); err != nil {
+						if err != io.EOF {
+							t.Fatal(err)
+						}
+						break
+					}
+					content, e := ioutil.ReadAll(att.Content)
+					if e != nil {
+						t.Fatal(e)
+					}
+					attachments = append(attachments, &Attachment{
+						Filename:    att.Filename,
+						ContentType: att.ContentType,
+						Size:        att.Size,
+						Content:     string(content),
+					})
+				}
+				doc.Attachments.(*multipartAttachments).content = nil // Determinism
+				doc.Attachments.(*multipartAttachments).mpReader = nil
+			}
+			doc.Body = nil // Determinism
+			if d := diff.Interface(test.doc, doc); d != nil {
+				t.Errorf("Unexpected doc:\n%s", d)
+			}
+			if d := diff.Interface(test.attachments, attachments); d != nil {
+				t.Errorf("Unexpected attachments:\n%s", d)
 			}
 		})
 	}
 }
 
 func TestCreateDoc(t *testing.T) {
-	db := newTestDB(nil, errors.New("error"))
-	_, _, err := db.CreateDoc(context.Background(), map[string]string{"foo": "bar"})
-	testy.Error(t, "Post http://example.com/testdb: error", err)
-}
-
-func TestCreateDocOpts(t *testing.T) {
 	tests := []struct {
 		name    string
 		db      *db
@@ -235,7 +468,7 @@ func TestCreateDocOpts(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			id, rev, err := test.db.CreateDocOpts(context.Background(), test.doc, test.options)
+			id, rev, err := test.db.CreateDoc(context.Background(), test.doc, test.options)
 			testy.StatusError(t, test.err, test.status, err)
 			if test.id != id || test.rev != rev {
 				t.Errorf("Unexpected results: ID=%s rev=%s", id, rev)
@@ -259,6 +492,38 @@ func TestStats(t *testing.T) {
 			err:    "Get http://example.com/testdb: net error",
 		},
 		{
+			name: "read error",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Body: &mockReadCloser{
+					ReadFunc: func(_ []byte) (int, error) {
+						return 0, errors.New("read error")
+					},
+					CloseFunc: func() error { return nil },
+				},
+			}, nil),
+			status: kivik.StatusNetworkError,
+			err:    "read error",
+		},
+		{
+			name: "invalid JSON response",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Body:       ioutil.NopCloser(strings.NewReader(`invalid json`)),
+			}, nil),
+			status: kivik.StatusBadResponse,
+			err:    "invalid character 'i' looking for beginning of value",
+		},
+		{
+			name: "error response",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusBadRequest,
+				Body:       ioutil.NopCloser(strings.NewReader("")),
+			}, nil),
+			status: kivik.StatusBadRequest,
+			err:    "Bad Request",
+		},
+		{
 			name: "1.6.1",
 			db: newTestDB(&http.Response{
 				StatusCode: kivik.StatusOK,
@@ -278,6 +543,7 @@ func TestStats(t *testing.T) {
 				UpdateSeq:    "31",
 				DiskSize:     127080,
 				ActiveSize:   6028,
+				RawResponse:  []byte(`{"db_name":"_users","doc_count":3,"doc_del_count":14,"update_seq":31,"purge_seq":0,"compact_running":false,"disk_size":127080,"data_size":6028,"instance_start_time":"1509022681259533","disk_format_version":6,"committed_update_seq":31}`),
 			},
 		},
 		{
@@ -303,6 +569,39 @@ func TestStats(t *testing.T) {
 				DiskSize:     87323,
 				ActiveSize:   6082,
 				ExternalSize: 2495,
+				RawResponse:  []byte(`{"db_name":"_users","update_seq":"13-g1AAAAEzeJzLYWBg4MhgTmHgzcvPy09JdcjLz8gvLskBCjMlMiTJ____PyuRAYeCJAUgmWQPVsOCS40DSE08WA0rLjUJIDX1eO3KYwGSDA1ACqhsPiF1CyDq9mclMuFVdwCi7j4hdQ8g6kDuywIAkRBjAw","sizes":{"file":87323,"external":2495,"active":6082},"purge_seq":0,"other":{"data_size":2495},"doc_del_count":6,"doc_count":1,"disk_size":87323,"disk_format_version":6,"data_size":6082,"compact_running":false,"instance_start_time":"0"}`),
+			},
+		},
+		{
+			name: "2.1.1",
+			db: newTestDB(&http.Response{
+				StatusCode: kivik.StatusOK,
+				Header: http.Header{
+					"Server":              {"CouchDB/2.0.0 (Erlang OTP/17)"},
+					"Date":                {"Thu, 26 Oct 2017 13:01:13 GMT"},
+					"Content-Type":        {"application/json"},
+					"Content-Length":      {"429"},
+					"Cache-Control":       {"must-revalidate"},
+					"X-Couch-Request-ID":  {"2486f27546"},
+					"X-CouchDB-Body-Time": {"0"},
+				},
+				Body: ioutil.NopCloser(strings.NewReader(`{"db_name":"_users","update_seq":"13-g1AAAAEzeJzLYWBg4MhgTmHgzcvPy09JdcjLz8gvLskBCjMlMiTJ____PyuRAYeCJAUgmWQPVsOCS40DSE08WA0rLjUJIDX1eO3KYwGSDA1ACqhsPiF1CyDq9mclMuFVdwCi7j4hdQ8g6kDuywIAkRBjAw","sizes":{"file":87323,"external":2495,"active":6082},"purge_seq":0,"other":{"data_size":2495},"doc_del_count":6,"doc_count":1,"disk_size":87323,"disk_format_version":6,"data_size":6082,"compact_running":false,"instance_start_time":"0","cluster":{"n":1,"q":2,"r":3,"w":4}}`)),
+			}, nil),
+			expected: &driver.DBStats{
+				Name:         "_users",
+				DocCount:     1,
+				DeletedCount: 6,
+				UpdateSeq:    "13-g1AAAAEzeJzLYWBg4MhgTmHgzcvPy09JdcjLz8gvLskBCjMlMiTJ____PyuRAYeCJAUgmWQPVsOCS40DSE08WA0rLjUJIDX1eO3KYwGSDA1ACqhsPiF1CyDq9mclMuFVdwCi7j4hdQ8g6kDuywIAkRBjAw",
+				DiskSize:     87323,
+				ActiveSize:   6082,
+				ExternalSize: 2495,
+				Cluster: &driver.ClusterStats{
+					Replicas:    1,
+					Shards:      2,
+					ReadQuorum:  3,
+					WriteQuorum: 4,
+				},
+				RawResponse: []byte(`{"db_name":"_users","update_seq":"13-g1AAAAEzeJzLYWBg4MhgTmHgzcvPy09JdcjLz8gvLskBCjMlMiTJ____PyuRAYeCJAUgmWQPVsOCS40DSE08WA0rLjUJIDX1eO3KYwGSDA1ACqhsPiF1CyDq9mclMuFVdwCi7j4hdQ8g6kDuywIAkRBjAw","sizes":{"file":87323,"external":2495,"active":6082},"purge_seq":0,"other":{"data_size":2495},"doc_del_count":6,"doc_count":1,"disk_size":87323,"disk_format_version":6,"data_size":6082,"compact_running":false,"instance_start_time":"0","cluster":{"n":1,"q":2,"r":3,"w":4}}`),
 			},
 		},
 	}
@@ -502,12 +801,6 @@ func TestViewCleanup(t *testing.T) {
 }
 
 func TestPut(t *testing.T) {
-	db := &db{}
-	_, err := db.Put(context.Background(), "", nil)
-	testy.Error(t, "kivik: docID required", err)
-}
-
-func TestPutOpts(t *testing.T) {
 	tests := []struct {
 		name    string
 		db      *db
@@ -632,12 +925,12 @@ func TestPutOpts(t *testing.T) {
 			id:     "cow",
 			doc:    map[string]interface{}{"feet": 4},
 			status: kivik.StatusNetworkError,
-			err:    "Put http://127.0.0.1:1/animals/cow: dial tcp ([::1]|127.0.0.1):1: getsockopt: connection refused",
+			err:    "Put http://127.0.0.1:1/animals/cow: dial tcp ([::1]|127.0.0.1):1: (getsockopt|connect): connection refused",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rev, err := test.db.PutOpts(context.Background(), test.id, test.doc, test.options)
+			rev, err := test.db.Put(context.Background(), test.id, test.doc, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if rev != test.rev {
 				t.Errorf("Unexpected rev: %s", rev)
@@ -647,12 +940,6 @@ func TestPutOpts(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	db := &db{}
-	_, err := db.Delete(context.Background(), "", "")
-	testy.Error(t, "kivik: docID required", err)
-}
-
-func TestDeleteOpts(t *testing.T) {
 	tests := []struct {
 		name    string
 		db      *db
@@ -772,7 +1059,7 @@ func TestDeleteOpts(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			newrev, err := test.db.DeleteOpts(context.Background(), test.id, test.rev, test.options)
+			newrev, err := test.db.Delete(context.Background(), test.id, test.rev, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if newrev != test.newrev {
 				t.Errorf("Unexpected new rev: %s", newrev)
@@ -1148,14 +1435,16 @@ func TestSetSecurity(t *testing.T) {
 	}
 }
 
-func TestRev(t *testing.T) {
+func TestGetMeta(t *testing.T) {
 	tests := []struct {
-		name   string
-		db     *db
-		id     string
-		rev    string
-		status int
-		err    string
+		name    string
+		db      *db
+		id      string
+		size    int64
+		options kivik.Options
+		rev     string
+		status  int
+		err     string
 	}{
 		{
 			name:   "no doc id",
@@ -1185,17 +1474,22 @@ func TestRev(t *testing.T) {
 					"Content-Length": {"70"},
 					"Cache-Control":  {"must-revalidate"},
 				},
-				Body: ioutil.NopCloser(strings.NewReader("")),
+				ContentLength: 70,
+				Body:          ioutil.NopCloser(strings.NewReader("")),
 			}, nil),
-			rev: "1-4c6114c65e295552ab1019e2b046b10e",
+			size: 70,
+			rev:  "1-4c6114c65e295552ab1019e2b046b10e",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rev, err := test.db.Rev(context.Background(), test.id)
+			size, rev, err := test.db.GetMeta(context.Background(), test.id, test.options)
 			testy.StatusError(t, test.err, test.status, err)
+			if size != test.size {
+				t.Errorf("Got size %d, expected %d", size, test.size)
+			}
 			if rev != test.rev {
-				t.Errorf("Got %s, expected %s", rev, test.rev)
+				t.Errorf("Got rev %s, expected %s", rev, test.rev)
 			}
 		})
 	}
@@ -1312,4 +1606,165 @@ func TestCopy(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMultipartAttachmentsNext(t *testing.T) {
+	tests := []struct {
+		name     string
+		atts     *multipartAttachments
+		content  string
+		expected *driver.Attachment
+		status   int
+		err      string
+	}{
+		{
+			name: "done reading",
+			atts: &multipartAttachments{
+				mpReader: func() *multipart.Reader {
+					r := multipart.NewReader(strings.NewReader("--xxx\r\n\r\n--xxx--"), "xxx")
+					_, _ = r.NextPart()
+					return r
+				}(),
+			},
+			status: 500,
+			err:    io.EOF.Error(),
+		},
+		{
+			name: "malformed message",
+			atts: &multipartAttachments{
+				mpReader: func() *multipart.Reader {
+					r := multipart.NewReader(strings.NewReader("oink"), "xxx")
+					_, _ = r.NextPart()
+					return r
+				}(),
+			},
+			status: kivik.StatusBadResponse,
+			err:    "multipart: NextPart: EOF",
+		},
+		{
+			name: "malformed Content-Disposition",
+			atts: &multipartAttachments{
+				mpReader: multipart.NewReader(strings.NewReader(`--xxx
+Content-Type: text/plain
+
+--xxx--`), "xxx"),
+			},
+			status: kivik.StatusBadResponse,
+			err:    "Content-Disposition: mime: no media type",
+		},
+		{
+			name: "malformed Content-Type",
+			atts: &multipartAttachments{
+				meta: map[string]attMeta{
+					"foo.txt": {Follows: true},
+				},
+				mpReader: multipart.NewReader(strings.NewReader(`--xxx
+Content-Type: text/plain; =foo
+Content-Disposition: attachment; filename="foo.txt"
+
+--xxx--`), "xxx"),
+			},
+			status: kivik.StatusBadResponse,
+			err:    "mime: invalid media parameter",
+		},
+		{
+			name: "file not in manifest",
+			atts: &multipartAttachments{
+				mpReader: multipart.NewReader(strings.NewReader(`--xxx
+Content-Type: text/plain; charset=foobar
+Content-Disposition: attachment; filename="foo.txt"
+
+test content
+--xxx--`), "xxx"),
+			},
+			status: kivik.StatusBadResponse,
+			err:    "File 'foo.txt' not in manifest",
+		},
+		{
+			name: "invalid content-disposition",
+			atts: &multipartAttachments{
+				mpReader: multipart.NewReader(strings.NewReader(`--xxx
+Content-Type: text/plain
+Content-Disposition: oink
+
+--xxx--`), "xxx"),
+			},
+			status: kivik.StatusBadResponse,
+			err:    "Unexpected Content-Disposition: oink",
+		},
+		{
+			name: "success",
+			atts: &multipartAttachments{
+				meta: map[string]attMeta{
+					"foo.txt": {Follows: true},
+				},
+				mpReader: multipart.NewReader(strings.NewReader(`--xxx
+Content-Type: text/plain; charset=foobar
+Content-Disposition: attachment; filename="foo.txt"
+
+test content
+--xxx--`), "xxx"),
+			},
+			content: "test content",
+			expected: &driver.Attachment{
+				Filename:    "foo.txt",
+				ContentType: "text/plain",
+				Size:        -1,
+			},
+		},
+		{
+			name: "success, no Content-Type header, & Content-Length header",
+			atts: &multipartAttachments{
+				meta: map[string]attMeta{
+					"foo.txt": {
+						Follows:     true,
+						ContentType: "text/plain",
+					},
+				},
+				mpReader: multipart.NewReader(strings.NewReader(`--xxx
+Content-Disposition: attachment; filename="foo.txt"
+Content-Length: 123
+
+test content
+--xxx--`), "xxx"),
+			},
+			content: "test content",
+			expected: &driver.Attachment{
+				Filename:    "foo.txt",
+				ContentType: "text/plain",
+				Size:        123,
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := new(driver.Attachment)
+			err := test.atts.Next(result)
+			testy.StatusError(t, test.err, test.status, err)
+			content, err := ioutil.ReadAll(result.Content)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if d := diff.Text(test.content, string(content)); d != nil {
+				t.Errorf("Unexpected content:\n%s", d)
+			}
+			result.Content = nil // Determinism
+			if d := diff.Interface(test.expected, result); d != nil {
+				t.Error(d)
+			}
+		})
+	}
+}
+
+func TestMultipartAttachmentsClose(t *testing.T) {
+	err := "some error"
+	atts := &multipartAttachments{
+		content: &mockReadCloser{
+			CloseFunc: func() error {
+				return errors.New(err)
+			},
+		},
+	}
+
+	testy.Error(t, err, atts.Close())
 }

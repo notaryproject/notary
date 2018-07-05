@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/driver"
-	"github.com/flimzy/kivik/errors"
 	"github.com/go-kivik/couchdb/chttp"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/errors"
 )
 
 type bulkResults struct {
@@ -71,7 +71,7 @@ func (d *db) BulkDocs(ctx context.Context, docs []interface{}, options map[strin
 	if options == nil {
 		options = make(map[string]interface{})
 	}
-	fullCommit, err := fullCommit(d.fullCommit, options)
+	fullCommit, err := fullCommit(false, options)
 	if err != nil {
 		return nil, err
 	}

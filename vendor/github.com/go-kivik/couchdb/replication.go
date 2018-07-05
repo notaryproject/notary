@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/driver"
-	"github.com/flimzy/kivik/errors"
 	"github.com/go-kivik/couchdb/chttp"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/errors"
 )
 
 type replicationError struct {
@@ -83,7 +83,7 @@ var _ driver.Replication = &replication{}
 
 func (c *client) fetchReplication(ctx context.Context, docID string) *replication {
 	rep := c.newReplication(docID)
-	rep.db = &db{client: c, dbName: "_replicator", fullCommit: true}
+	rep.db = &db{client: c, dbName: "_replicator"}
 	// Do an update to get the initial state, but don't fail if there's an error
 	// at this stage, because we successfully created the replication doc.
 	_ = rep.updateMain(ctx)
@@ -182,12 +182,12 @@ func (r *replication) updateMain(ctx context.Context) error {
 }
 
 func (r *replication) getReplicatorDoc(ctx context.Context) (*replicatorDoc, error) {
-	body, err := r.db.Get(ctx, r.docID, nil)
+	row, err := r.db.Get(ctx, r.docID, nil)
 	if err != nil {
 		return nil, err
 	}
 	var doc replicatorDoc
-	err = json.Unmarshal(body, &doc)
+	err = json.NewDecoder(row.Body).Decode(&doc)
 	return &doc, err
 }
 
@@ -218,11 +218,11 @@ func (r *replication) setFromReplicatorDoc(doc *replicatorDoc) {
 }
 
 func (r *replication) Delete(ctx context.Context) error {
-	rev, err := r.Rev(ctx, r.docID)
+	_, rev, err := r.GetMeta(ctx, r.docID, nil)
 	if err != nil {
 		return err
 	}
-	_, err = r.db.Delete(ctx, r.docID, rev)
+	_, err = r.db.Delete(ctx, r.docID, rev, nil)
 	return err
 }
 

@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/driver"
-	"github.com/flimzy/kivik/errors"
 	"github.com/go-kivik/couchdb/chttp"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/errors"
 )
 
 type schedulerDoc struct {
@@ -164,11 +164,11 @@ func (r *schedulerReplication) Update(ctx context.Context, rep *driver.Replicati
 }
 
 func (r *schedulerReplication) Delete(ctx context.Context) error {
-	rev, err := r.Rev(ctx, r.docID)
+	_, rev, err := r.GetMeta(ctx, r.docID, nil)
 	if err != nil {
 		return err
 	}
-	_, err = r.db.Delete(ctx, r.docID, rev)
+	_, err = r.db.Delete(ctx, r.docID, rev, nil)
 	return err
 }
 

@@ -13,16 +13,10 @@ import (
 	"github.com/flimzy/diff"
 	"github.com/flimzy/testy"
 
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/driver"
-	"github.com/flimzy/kivik/errors"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/errors"
 )
-
-func TestPutAttachment(t *testing.T) {
-	db := &db{}
-	_, err := db.PutAttachment(context.Background(), "", "", "", "", nil)
-	testy.StatusError(t, "kivik: docID required", kivik.StatusBadRequest, err)
-}
 
 type closer struct {
 	io.Reader
@@ -36,13 +30,13 @@ func (c *closer) Close() error {
 	return nil
 }
 
-func TestPutAttachmentOpts(t *testing.T) {
+func TestPutAttachment(t *testing.T) {
 	type paoTest struct {
-		name                     string
-		db                       *db
-		id, rev, filename, ctype string
-		body                     io.Reader
-		options                  map[string]interface{}
+		name    string
+		db      *db
+		id, rev string
+		att     *driver.Attachment
+		options map[string]interface{}
 
 		newRev string
 		status int
@@ -56,38 +50,63 @@ func TestPutAttachmentOpts(t *testing.T) {
 			err:    "kivik: docID required",
 		},
 		{
-			name: "missing filename",
-			id:   "foo", rev: "1-xxx",
+			name:   "nil attachment",
+			id:     "foo",
+			rev:    "1-xxx",
 			status: kivik.StatusBadRequest,
-			err:    "kivik: filename required",
+			err:    "kivik: att required",
+		},
+		{
+			name:   "missing filename",
+			id:     "foo",
+			rev:    "1-xxx",
+			att:    &driver.Attachment{},
+			status: kivik.StatusBadRequest,
+			err:    "kivik: att.Filename required",
 		},
 		{
 			name: "missing content type",
-			id:   "foo", rev: "1-xxx", filename: "x.jpg",
+			id:   "foo",
+			rev:  "1-xxx",
+			att: &driver.Attachment{
+				Filename: "x.jpg",
+			},
 			status: kivik.StatusBadRequest,
-			err:    "kivik: contentType required",
+			err:    "kivik: att.ContentType required",
 		},
 		{
 			name: "no body",
-			id:   "foo", rev: "1-xxx", filename: "x.jpg", ctype: "image.jpeg",
+			id:   "foo",
+			rev:  "1-xxx",
+			att: &driver.Attachment{
+				Filename:    "x.jpg",
+				ContentType: "image/jpeg",
+			},
 			status: kivik.StatusBadRequest,
-			err:    "kivik: body is nil",
+			err:    "kivik: att.Content required",
 		},
 		{
 			name: "network error",
-			id:   "foo", rev: "1-xxx", filename: "x.jpg", ctype: "image/jpeg",
-			db:     newTestDB(nil, errors.New("net error")),
-			body:   strings.NewReader("x"),
+			db:   newTestDB(nil, errors.New("net error")),
+			id:   "foo",
+			rev:  "1-xxx",
+			att: &driver.Attachment{
+				Filename:    "x.jpg",
+				ContentType: "image/jpeg",
+				Content:     Body("x"),
+			},
 			status: kivik.StatusNetworkError,
 			err:    "Put http://example.com/testdb/foo/x.jpg\\?rev=1-xxx: net error",
 		},
 		{
-			name:     "1.6.1",
-			id:       "foo",
-			rev:      "1-4c6114c65e295552ab1019e2b046b10e",
-			filename: "foo.txt",
-			ctype:    "text/plain",
-			body:     strings.NewReader("Hello, World!"),
+			name: "1.6.1",
+			id:   "foo",
+			rev:  "1-4c6114c65e295552ab1019e2b046b10e",
+			att: &driver.Attachment{
+				Filename:    "foo.txt",
+				ContentType: "text/plain",
+				Content:     Body("Hello, World!"),
+			},
 			db: newCustomDB(func(req *http.Request) (*http.Response, error) {
 				defer req.Body.Close() // nolint: errcheck
 				if ct, _, _ := mime.ParseMediaType(req.Header.Get("Content-Type")); ct != "text/plain" {
@@ -102,8 +121,8 @@ func TestPutAttachmentOpts(t *testing.T) {
 					return nil, err
 				}
 				expected := "Hello, World!"
-				if string(body) != expected {
-					t.Errorf("Unexpected body:\n%s\n", string(body))
+				if d := diff.Text(expected, string(body)); d != nil {
+					t.Errorf("Unexpected body:\n%s", d)
 				}
 				return &http.Response{
 					StatusCode: 201,
@@ -129,36 +148,42 @@ func TestPutAttachmentOpts(t *testing.T) {
 				}
 				return nil, errors.New("ignore this error")
 			}),
-			id:       "foo",
-			filename: "foo.txt",
-			ctype:    "text/plain",
-			body:     strings.NewReader("x"),
-			status:   601,
-			err:      "Put http://example.com/testdb/foo/foo.txt: ignore this error",
+			id: "foo",
+			att: &driver.Attachment{
+				Filename:    "foo.txt",
+				ContentType: "text/plain",
+				Content:     Body("x"),
+			},
+			status: 601,
+			err:    "Put http://example.com/testdb/foo/foo.txt: ignore this error",
 		},
 		{
-			name:     "with options",
-			db:       newTestDB(nil, errors.New("success")),
-			id:       "foo",
-			rev:      "1-xxx",
-			filename: "foo.txt",
-			ctype:    "text/plain",
-			body:     strings.NewReader("x"),
-			options:  map[string]interface{}{"foo": "oink"},
-			status:   kivik.StatusNetworkError,
-			err:      "foo=oink",
+			name: "with options",
+			db:   newTestDB(nil, errors.New("success")),
+			id:   "foo",
+			rev:  "1-xxx",
+			att: &driver.Attachment{
+				Filename:    "foo.txt",
+				ContentType: "text/plain",
+				Content:     Body("x"),
+			},
+			options: map[string]interface{}{"foo": "oink"},
+			status:  kivik.StatusNetworkError,
+			err:     "foo=oink",
 		},
 		{
-			name:     "invalid options",
-			db:       &db{},
-			id:       "foo",
-			rev:      "1-xxx",
-			filename: "foo.txt",
-			ctype:    "text/plain",
-			body:     strings.NewReader("x"),
-			options:  map[string]interface{}{"foo": make(chan int)},
-			status:   kivik.StatusBadRequest,
-			err:      "kivik: invalid type chan int for options",
+			name: "invalid options",
+			db:   &db{},
+			id:   "foo",
+			rev:  "1-xxx",
+			att: &driver.Attachment{
+				Filename:    "foo.txt",
+				ContentType: "text/plain",
+				Content:     Body("x"),
+			},
+			options: map[string]interface{}{"foo": make(chan int)},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: invalid type chan int for options",
 		},
 		{
 			name: "full commit",
@@ -171,26 +196,30 @@ func TestPutAttachmentOpts(t *testing.T) {
 				}
 				return nil, errors.New("success")
 			}),
-			id:       "foo",
-			rev:      "1-xxx",
-			filename: "foo.txt",
-			ctype:    "text/plain",
-			body:     strings.NewReader("x"),
-			options:  map[string]interface{}{OptionFullCommit: true},
-			status:   kivik.StatusNetworkError,
-			err:      "success",
+			id:  "foo",
+			rev: "1-xxx",
+			att: &driver.Attachment{
+				Filename:    "foo.txt",
+				ContentType: "text/plain",
+				Content:     Body("x"),
+			},
+			options: map[string]interface{}{OptionFullCommit: true},
+			status:  kivik.StatusNetworkError,
+			err:     "success",
 		},
 		{
-			name:     "invalid full commit type",
-			db:       &db{},
-			id:       "foo",
-			rev:      "1-xxx",
-			filename: "foo.txt",
-			ctype:    "text/plain",
-			body:     strings.NewReader("x"),
-			options:  map[string]interface{}{OptionFullCommit: 123},
-			status:   kivik.StatusBadRequest,
-			err:      "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
+			name: "invalid full commit type",
+			db:   &db{},
+			id:   "foo",
+			rev:  "1-xxx",
+			att: &driver.Attachment{
+				Filename:    "foo.txt",
+				ContentType: "text/plain",
+				Content:     Body("x"),
+			},
+			options: map[string]interface{}{OptionFullCommit: 123},
+			status:  kivik.StatusBadRequest,
+			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
 		},
 		func() paoTest {
 			body := &closer{Reader: strings.NewReader("x")}
@@ -205,14 +234,16 @@ func TestPutAttachmentOpts(t *testing.T) {
 					}
 					return nil, errors.New("success")
 				}),
-				id:       "foo",
-				rev:      "1-xxx",
-				filename: "foo.txt",
-				ctype:    "text/plain",
-				body:     body,
-				options:  map[string]interface{}{OptionFullCommit: true},
-				status:   kivik.StatusNetworkError,
-				err:      "success",
+				id:  "foo",
+				rev: "1-xxx",
+				att: &driver.Attachment{
+					Filename:    "foo.txt",
+					ContentType: "text/plain",
+					Content:     Body("x"),
+				},
+				options: map[string]interface{}{OptionFullCommit: true},
+				status:  kivik.StatusNetworkError,
+				err:     "success",
 				final: func(t *testing.T) {
 					if !body.closed {
 						t.Fatal("body wasn't closed")
@@ -223,7 +254,7 @@ func TestPutAttachmentOpts(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			newRev, err := test.db.PutAttachmentOpts(context.Background(), test.id, test.rev, test.filename, test.ctype, test.body, test.options)
+			newRev, err := test.db.PutAttachment(context.Background(), test.id, test.rev, test.att, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if newRev != test.newRev {
 				t.Errorf("Expected %s, got %s\n", test.newRev, newRev)
@@ -242,10 +273,9 @@ func TestGetAttachmentMeta(t *testing.T) {
 		id, rev, filename string
 		options           map[string]interface{}
 
-		ctype  string
-		md5    driver.MD5sum
-		status int
-		err    string
+		expected *driver.Attachment
+		status   int
+		err      string
 	}{
 		{
 			name:     "network error",
@@ -272,31 +302,31 @@ func TestGetAttachmentMeta(t *testing.T) {
 				},
 				Body: Body(""),
 			}, nil),
-			md5:   driver.MD5sum{0x81, 0x2a, 0xfc, 0x75, 0x29, 0xb2, 0x9f, 0x00, 0x28, 0xa2, 0x61, 0xfb, 0x57, 0xa4, 0x55, 0x63},
-			ctype: "text/plain",
+			expected: &driver.Attachment{
+				ContentType: "text/plain",
+				Digest:      "gSr8dSmynwAoomH7V6RVYw==",
+				Content:     Body(""),
+			},
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			ctype, md5sum, err := test.db.GetAttachmentMeta(context.Background(), test.id, test.rev, test.filename, test.options)
+			att, err := test.db.GetAttachmentMeta(context.Background(), test.id, test.rev, test.filename, test.options)
 			testy.StatusError(t, test.err, test.status, err)
-			if ctype != test.ctype {
-				t.Errorf("Unexpected Content-Type: %s", ctype)
-			}
-			if md5sum != test.md5 {
-				t.Errorf("Unexpected MD5 Sum: %0x", md5sum)
+			if d := diff.Interface(test.expected, att); d != nil {
+				t.Errorf("Unexpected attachment:\n%s", d)
 			}
 		})
 	}
 }
 
-func TestGetMD5Checksum(t *testing.T) {
+func TestGetDigest(t *testing.T) {
 	tests := []struct {
-		name   string
-		resp   *http.Response
-		sum    driver.MD5sum
-		status int
-		err    string
+		name     string
+		resp     *http.Response
+		expected string
+		status   int
+		err      string
 	}{
 		{
 			name:   "no etag header",
@@ -305,57 +335,42 @@ func TestGetMD5Checksum(t *testing.T) {
 			err:    "ETag header not found",
 		},
 		{
-			name: "invalid ETag header",
-			resp: &http.Response{
-				Header: http.Header{"ETag": []string{`invalid base64`}},
-			},
-			status: kivik.StatusBadResponse,
-			err:    "failed to decode MD5 checksum: illegal base64 data at input byte 7",
-		},
-		{
 			name: "Standard ETag header",
 			resp: &http.Response{
 				Header: http.Header{"ETag": []string{`"ENGoH7oK8V9R3BMnfDHZmw=="`}},
 			},
-			sum: driver.MD5sum{0x10, 0xd1, 0xa8, 0x1f, 0xba, 0x0a, 0xf1, 0x5f, 0x51, 0xdc, 0x13, 0x27, 0x7c, 0x31, 0xd9, 0x9b},
+			expected: "ENGoH7oK8V9R3BMnfDHZmw==",
 		},
 		{
 			name: "normalized Etag header",
 			resp: &http.Response{
 				Header: http.Header{"Etag": []string{`"ENGoH7oK8V9R3BMnfDHZmw=="`}},
 			},
-			sum: driver.MD5sum{0x10, 0xd1, 0xa8, 0x1f, 0xba, 0x0a, 0xf1, 0x5f, 0x51, 0xdc, 0x13, 0x27, 0x7c, 0x31, 0xd9, 0x9b},
+			expected: "ENGoH7oK8V9R3BMnfDHZmw==",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			sum, err := getMD5Checksum(test.resp)
+			digest, err := getDigest(test.resp)
 			testy.Error(t, test.err, err)
-			if sum != test.sum {
-				t.Errorf("Unexpected result: %0x", sum)
+			if digest != test.expected {
+				t.Errorf("Unexpected result: %0x", digest)
 			}
 		})
 	}
 }
 
 func TestGetAttachment(t *testing.T) {
-	db := &db{}
-	_, _, _, err := db.GetAttachment(context.Background(), "", "", "")
-	testy.Error(t, "kivik: docID required", err)
-}
-
-func TestGetAttachmentOpts(t *testing.T) {
 	tests := []struct {
 		name              string
 		db                *db
 		id, rev, filename string
 		options           map[string]interface{}
 
-		ctype   string
-		md5     driver.MD5sum
-		content string
-		status  int
-		err     string
+		expected *driver.Attachment
+		content  string
+		status   int
+		err      string
 	}{
 		{
 			name:     "network error",
@@ -384,28 +399,28 @@ func TestGetAttachmentOpts(t *testing.T) {
 					Body: Body(`Hello, world!`),
 				}, nil
 			}),
-			ctype:   "text/plain",
-			md5:     driver.MD5sum{0x81, 0x2a, 0xfc, 0x75, 0x29, 0xb2, 0x9f, 0x00, 0x28, 0xa2, 0x61, 0xfb, 0x57, 0xa4, 0x55, 0x63},
+			expected: &driver.Attachment{
+				ContentType: "text/plain",
+				Digest:      "gSr8dSmynwAoomH7V6RVYw==",
+			},
 			content: "Hello, world!",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			ctype, md5, content, err := test.db.GetAttachmentOpts(context.Background(), test.id, test.rev, test.filename, test.options)
+			att, err := test.db.GetAttachment(context.Background(), test.id, test.rev, test.filename, test.options)
 			testy.StatusError(t, test.err, test.status, err)
-			defer content.Close() // nolint: errcheck
-			if ctype != test.ctype {
-				t.Errorf("Unexpected content type: %s", ctype)
-			}
-			if md5 != test.md5 {
-				t.Errorf("Unexpected MD5 sum: %0x", md5)
-			}
-			fileContent, err := ioutil.ReadAll(content)
+			fileContent, err := ioutil.ReadAll(att.Content)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if d := diff.Text(test.content, string(fileContent)); d != nil {
-				t.Error(d)
+				t.Errorf("Unexpected content:\n%s", d)
+			}
+			_ = att.Content.Close()
+			att.Content = nil // Determinism
+			if d := diff.Interface(test.expected, att); d != nil {
+				t.Errorf("Unexpected attachment:\n%s", d)
 			}
 		})
 	}
@@ -535,13 +550,12 @@ func TestFetchAttachment(t *testing.T) {
 
 func TestDecodeAttachment(t *testing.T) {
 	tests := []struct {
-		name    string
-		resp    *http.Response
-		ctype   string
-		md5     driver.MD5sum
-		content string
-		status  int
-		err     string
+		name     string
+		resp     *http.Response
+		expected *driver.Attachment
+		content  string
+		status   int
+		err      string
 	}{
 		{
 			name:   "no content type",
@@ -566,39 +580,34 @@ func TestDecodeAttachment(t *testing.T) {
 				},
 				Body: Body("Hello, World!"),
 			},
-			ctype:   "text/plain",
-			md5:     driver.MD5sum{0x81, 0x2a, 0xfc, 0x75, 0x29, 0xb2, 0x9f, 0x00, 0x28, 0xa2, 0x61, 0xfb, 0x57, 0xa4, 0x55, 0x63},
+			expected: &driver.Attachment{
+				ContentType: "text/plain",
+				Digest:      "gSr8dSmynwAoomH7V6RVYw==",
+			},
 			content: "Hello, World!",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			ctype, md5, content, err := decodeAttachment(test.resp)
+			att, err := decodeAttachment(test.resp)
 			testy.StatusError(t, test.err, test.status, err)
-			if ctype != test.ctype {
-				t.Errorf("Unexpected content type: %s", ctype)
-			}
-			if md5 != test.md5 {
-				t.Errorf("Unexpected MD5 sum: %0x", md5)
-			}
-			fileContent, err := ioutil.ReadAll(content)
+			fileContent, err := ioutil.ReadAll(att.Content)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if d := diff.Text(test.content, string(fileContent)); d != nil {
-				t.Error(d)
+				t.Errorf("Unexpected content:\n%s", d)
+			}
+			_ = att.Content.Close()
+			att.Content = nil // Determinism
+			if d := diff.Interface(test.expected, att); d != nil {
+				t.Errorf("Unexpected attachment:\n%s", d)
 			}
 		})
 	}
 }
 
 func TestDeleteAttachment(t *testing.T) {
-	db := &db{}
-	_, err := db.DeleteAttachment(context.Background(), "", "", "")
-	testy.Error(t, "kivik: docID required", err)
-}
-
-func TestDeleteAttachmentOpts(t *testing.T) {
 	tests := []struct {
 		name              string
 		db                *db
@@ -714,7 +723,7 @@ func TestDeleteAttachmentOpts(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			newRev, err := test.db.DeleteAttachmentOpts(context.Background(), test.id, test.rev, test.filename, test.options)
+			newRev, err := test.db.DeleteAttachment(context.Background(), test.id, test.rev, test.filename, test.options)
 			testy.StatusErrorRE(t, test.err, test.status, err)
 			if newRev != test.newRev {
 				t.Errorf("Unexpected new rev: %s", newRev)

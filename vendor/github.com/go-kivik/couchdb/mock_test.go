@@ -56,20 +56,6 @@ func newCustomClient(fn func(*http.Request) (*http.Response, error)) *client {
 	}
 }
 
-type errorReadCloser struct {
-	err error
-}
-
-var _ io.ReadCloser = &errorReadCloser{}
-
-func (c errorReadCloser) Read(_ []byte) (int, error) {
-	return 0, c.err
-}
-
-func (c errorReadCloser) Close() error {
-	return nil
-}
-
 func Body(str string) io.ReadCloser {
 	if !strings.HasSuffix(str, "\n") {
 		str = str + "\n"
@@ -93,4 +79,19 @@ func consume(r io.ReadCloser) error {
 	defer r.Close() // nolint: errcheck
 	_, e := ioutil.ReadAll(r)
 	return e
+}
+
+type mockReadCloser struct {
+	ReadFunc  func([]byte) (int, error)
+	CloseFunc func() error
+}
+
+var _ io.ReadCloser = &mockReadCloser{}
+
+func (rc *mockReadCloser) Read(p []byte) (int, error) {
+	return rc.ReadFunc(p)
+}
+
+func (rc *mockReadCloser) Close() error {
+	return rc.CloseFunc()
 }

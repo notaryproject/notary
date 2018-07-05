@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/flimzy/diff"
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/driver"
-	"github.com/flimzy/kivik/errors"
 	"github.com/flimzy/testy"
+
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/errors"
 )
 
 func TestReplicationError(t *testing.T) {

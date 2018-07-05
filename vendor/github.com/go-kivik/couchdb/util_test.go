@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	"github.com/flimzy/diff"
-	"github.com/flimzy/kivik"
 	"github.com/flimzy/testy"
+
+	"github.com/go-kivik/kivik"
 )
 
 func TestDeJSONify(t *testing.T) {

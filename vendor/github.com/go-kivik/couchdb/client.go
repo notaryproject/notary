@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/driver"
 	"github.com/go-kivik/couchdb/chttp"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/driver"
 )
 
 func (c *client) AllDBs(ctx context.Context, _ map[string]interface{}) ([]string, error) {

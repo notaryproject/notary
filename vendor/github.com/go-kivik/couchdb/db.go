@@ -5,21 +5,30 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"reflect"
+	"strconv"
 	"strings"
 
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/driver"
-	"github.com/flimzy/kivik/errors"
 	"github.com/go-kivik/couchdb/chttp"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/errors"
 )
 
 type db struct {
 	*client
-	dbName     string
-	fullCommit bool
+	dbName string
 }
+
+var _ driver.DB = &db{}
+var _ driver.MetaGetter = &db{}
+var _ driver.AttachmentMetaGetter = &db{}
 
 func (d *db) path(path string, query url.Values) string {
 	url, _ := url.Parse(d.dbName + "/" + strings.TrimPrefix(path, "/"))
@@ -81,50 +90,178 @@ func (d *db) Query(ctx context.Context, ddoc, view string, opts map[string]inter
 }
 
 // Get fetches the requested document.
-func (d *db) Get(ctx context.Context, docID string, options map[string]interface{}) (json.RawMessage, error) {
+func (d *db) Get(ctx context.Context, docID string, options map[string]interface{}) (*driver.Document, error) {
+	resp, rev, err := d.get(ctx, http.MethodGet, docID, options)
+	if err != nil {
+		return nil, err
+	}
+	ct, params, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if err != nil {
+		return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
+	}
+	switch ct {
+	case "application/json":
+		return &driver.Document{
+			Rev:           rev,
+			ContentLength: resp.ContentLength,
+			Body:          resp.Body,
+		}, nil
+	case "multipart/related":
+		boundary := strings.Trim(params["boundary"], "\"")
+		if boundary == "" {
+			return nil, errors.Statusf(kivik.StatusBadResponse, "kivik: boundary missing for multipart/related response")
+		}
+		mpReader := multipart.NewReader(resp.Body, boundary)
+		body, err := mpReader.NextPart()
+		if err != nil {
+			return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
+		}
+		length := int64(-1)
+		if cl, e := strconv.ParseInt(body.Header.Get("Content-Length"), 10, 64); e == nil {
+			length = cl
+		}
+
+		// TODO: Use a TeeReader here, to avoid slurping the entire body into memory at once
+		content, err := ioutil.ReadAll(body)
+		if err != nil {
+			return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
+		}
+		var metaDoc struct {
+			Attachments map[string]attMeta `json:"_attachments"`
+		}
+		if err := json.Unmarshal(content, &metaDoc); err != nil {
+			return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
+		}
+
+		return &driver.Document{
+			ContentLength: length,
+			Rev:           rev,
+			Body:          ioutil.NopCloser(bytes.NewBuffer(content)),
+			Attachments: &multipartAttachments{
+				content:  resp.Body,
+				mpReader: mpReader,
+				meta:     metaDoc.Attachments,
+			},
+		}, nil
+	default:
+		return nil, errors.Statusf(kivik.StatusBadResponse, "kivik: invalid content type in response: %s", ct)
+	}
+}
+
+type attMeta struct {
+	ContentType string `json:"content_type"`
+	Size        *int64 `json:"length"`
+	Follows     bool   `json:"follows"`
+}
+
+type multipartAttachments struct {
+	content  io.ReadCloser
+	mpReader *multipart.Reader
+	meta     map[string]attMeta
+}
+
+var _ driver.Attachments = &multipartAttachments{}
+
+func (a *multipartAttachments) Next(att *driver.Attachment) error {
+	part, err := a.mpReader.NextPart()
+	switch err {
+	case io.EOF:
+		return err
+	case nil:
+		// fall through
+	default:
+		return errors.WrapStatus(kivik.StatusBadResponse, err)
+	}
+
+	disp, dispositionParams, err := mime.ParseMediaType(part.Header.Get("Content-Disposition"))
+	if err != nil {
+		return errors.WrapStatus(kivik.StatusBadResponse, errors.Wrap(err, "Content-Disposition"))
+	}
+	if disp != "attachment" {
+		return errors.Statusf(kivik.StatusBadResponse, "Unexpected Content-Disposition: %s", disp)
+	}
+	filename := dispositionParams["filename"]
+
+	meta := a.meta[filename]
+	if !meta.Follows {
+		return errors.Statusf(kivik.StatusBadResponse, "File '%s' not in manifest", filename)
+	}
+
+	size := int64(-1)
+	if meta.Size != nil {
+		size = *meta.Size
+	} else if cl, e := strconv.ParseInt(part.Header.Get("Content-Length"), 10, 64); e == nil {
+		size = cl
+	}
+
+	var cType string
+	if ctHeader, ok := part.Header["Content-Type"]; ok {
+		cType, _, err = mime.ParseMediaType(ctHeader[0])
+		if err != nil {
+			return errors.WrapStatus(kivik.StatusBadResponse, err)
+		}
+	} else {
+		cType = meta.ContentType
+	}
+
+	*att = driver.Attachment{
+		Filename:    filename,
+		Size:        size,
+		ContentType: cType,
+		Content:     part,
+	}
+	return nil
+}
+
+func (a *multipartAttachments) Close() error {
+	return a.content.Close()
+}
+
+// Rev returns the most current rev of the requested document.
+func (d *db) GetMeta(ctx context.Context, docID string, options map[string]interface{}) (size int64, rev string, err error) {
+	resp, rev, err := d.get(ctx, http.MethodHead, docID, options)
+	if err != nil {
+		return 0, "", err
+	}
+	return resp.ContentLength, rev, err
+}
+
+func (d *db) get(ctx context.Context, method string, docID string, options map[string]interface{}) (*http.Response, string, error) {
 	if docID == "" {
-		return nil, missingArg("docID")
+		return nil, "", missingArg("docID")
 	}
 
 	inm, err := ifNoneMatch(options)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	params, err := optionsToParams(options)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	opts := &chttp.Options{
-		Accept:      "application/json; multipart/mixed",
+		Accept:      "application/json",
 		IfNoneMatch: inm,
 	}
-	resp, err := d.Client.DoReq(ctx, http.MethodGet, d.path(chttp.EncodeDocID(docID), params), opts)
+	resp, err := d.Client.DoReq(ctx, method, d.path(chttp.EncodeDocID(docID), params), opts)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if respErr := chttp.ResponseError(resp); respErr != nil {
-		return nil, respErr
+		return nil, "", respErr
 	}
-	defer func() { _ = resp.Body.Close() }()
-	doc := &bytes.Buffer{}
-	if _, err := doc.ReadFrom(resp.Body); err != nil {
-		return nil, errors.WrapStatus(kivik.StatusUnknownError, err)
-	}
-	return doc.Bytes(), nil
+	rev, err := chttp.GetRev(resp)
+	return resp, rev, err
 }
 
-func (d *db) CreateDoc(ctx context.Context, doc interface{}) (docID, rev string, err error) {
-	return d.CreateDocOpts(ctx, doc, nil)
-}
-
-func (d *db) CreateDocOpts(ctx context.Context, doc interface{}, options map[string]interface{}) (docID, rev string, err error) {
+func (d *db) CreateDoc(ctx context.Context, doc interface{}, options map[string]interface{}) (docID, rev string, err error) {
 	result := struct {
 		ID  string `json:"id"`
 		Rev string `json:"rev"`
 	}{}
 
-	fullCommit, err := fullCommit(d.fullCommit, options)
+	fullCommit, err := fullCommit(false, options)
 	if err != nil {
 		return "", "", err
 	}
@@ -146,15 +283,11 @@ func (d *db) CreateDocOpts(ctx context.Context, doc interface{}, options map[str
 	return result.ID, result.Rev, err
 }
 
-func (d *db) Put(ctx context.Context, docID string, doc interface{}) (rev string, err error) {
-	return d.PutOpts(ctx, docID, doc, nil)
-}
-
-func (d *db) PutOpts(ctx context.Context, docID string, doc interface{}, options map[string]interface{}) (rev string, err error) {
+func (d *db) Put(ctx context.Context, docID string, doc interface{}, options map[string]interface{}) (rev string, err error) {
 	if docID == "" {
 		return "", missingArg("docID")
 	}
-	fullCommit, err := fullCommit(d.fullCommit, options)
+	fullCommit, err := fullCommit(false, options)
 	if err != nil {
 		return "", err
 	}
@@ -177,11 +310,7 @@ func (d *db) PutOpts(ctx context.Context, docID string, doc interface{}, options
 	return result.Rev, nil
 }
 
-func (d *db) Delete(ctx context.Context, docID, rev string) (string, error) {
-	return d.DeleteOpts(ctx, docID, rev, nil)
-}
-
-func (d *db) DeleteOpts(ctx context.Context, docID, rev string, options map[string]interface{}) (string, error) {
+func (d *db) Delete(ctx context.Context, docID, rev string, options map[string]interface{}) (string, error) {
 	if docID == "" {
 		return "", missingArg("docID")
 	}
@@ -189,7 +318,7 @@ func (d *db) DeleteOpts(ctx context.Context, docID, rev string, options map[stri
 		return "", missingArg("rev")
 	}
 
-	fullCommit, err := fullCommit(d.fullCommit, options)
+	fullCommit, err := fullCommit(false, options)
 	if err != nil {
 		return "", err
 	}
@@ -206,7 +335,7 @@ func (d *db) DeleteOpts(ctx context.Context, docID, rev string, options map[stri
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close() // nolint: errcheck
 	return chttp.GetRev(resp)
 }
 
@@ -216,6 +345,18 @@ func (d *db) Flush(ctx context.Context) error {
 }
 
 func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
+	res, err := d.Client.DoReq(ctx, kivik.MethodGet, d.dbName, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close() // nolint: errcheck
+	if err = chttp.ResponseError(res); err != nil {
+		return nil, err
+	}
+	resBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, errors.WrapStatus(kivik.StatusNetworkError, err)
+	}
 	result := struct {
 		driver.DBStats
 		Sizes struct {
@@ -225,8 +366,10 @@ func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 		} `json:"sizes"`
 		UpdateSeq json.RawMessage `json:"update_seq"`
 	}{}
-	_, err := d.Client.DoJSON(ctx, kivik.MethodGet, d.dbName, nil, &result)
-	stats := result.DBStats
+	if err := json.Unmarshal(resBody, &result); err != nil {
+		return nil, errors.WrapStatus(kivik.StatusBadResponse, err)
+	}
+	stats := &result.DBStats
 	if result.Sizes.File > 0 {
 		stats.DiskSize = result.Sizes.File
 	}
@@ -237,7 +380,13 @@ func (d *db) Stats(ctx context.Context) (*driver.DBStats, error) {
 		stats.ActiveSize = result.Sizes.Active
 	}
 	stats.UpdateSeq = string(bytes.Trim(result.UpdateSeq, `"`))
-	return &stats, err
+	// Reflection is used to preserve backward compatibility with Kivik stable
+	// 1.7.3 and unstable prior to 25 June 2018. The reflection hack can be
+	// removed at some point in the reasonable future.
+	if v := reflect.ValueOf(stats).Elem().FieldByName("RawResponse"); v.CanSet() {
+		v.Set(reflect.ValueOf(resBody))
+	}
+	return stats, nil
 }
 
 func (d *db) Compact(ctx context.Context) error {
@@ -281,20 +430,8 @@ func (d *db) SetSecurity(ctx context.Context, security *driver.Security) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = res.Body.Close() }()
+	defer res.Body.Close() // nolint: errcheck
 	return chttp.ResponseError(res)
-}
-
-// Rev returns the most current rev of the requested document.
-func (d *db) Rev(ctx context.Context, docID string) (rev string, err error) {
-	if docID == "" {
-		return "", missingArg("docID")
-	}
-	res, err := d.Client.DoError(ctx, http.MethodHead, d.path(chttp.EncodeDocID(docID), nil), nil)
-	if err != nil {
-		return "", err
-	}
-	return chttp.GetRev(res)
 }
 
 func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[string]interface{}) (targetRev string, err error) {
@@ -304,7 +441,7 @@ func (d *db) Copy(ctx context.Context, targetID, sourceID string, options map[st
 	if targetID == "" {
 		return "", errors.Status(kivik.StatusBadRequest, "kivik: targetID required")
 	}
-	fullCommit, err := fullCommit(d.fullCommit, options)
+	fullCommit, err := fullCommit(false, options)
 	if err != nil {
 		return "", err
 	}

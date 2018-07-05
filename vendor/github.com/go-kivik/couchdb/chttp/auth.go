@@ -9,8 +9,8 @@ import (
 
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/errors"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/errors"
 )
 
 // Authenticator is an interface that provides authentication to a server.
@@ -82,7 +82,6 @@ type CookieAuth struct {
 	Username string `json:"name"`
 	Password string `json:"password"`
 
-	transport http.RoundTripper
 	// Set to true if the authenticator created the cookie jar; It will then
 	// also destroy it on logout.
 	setJar bool

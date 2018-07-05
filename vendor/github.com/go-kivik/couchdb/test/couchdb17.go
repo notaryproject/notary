@@ -1,7 +1,7 @@
 package test
 
 import (
-	"github.com/flimzy/kivik"
+	"github.com/go-kivik/kivik"
 	"github.com/go-kivik/kiviktest"
 	"github.com/go-kivik/kiviktest/kt"
 )
@@ -56,8 +56,8 @@ func registerSuiteCouch17() {
 		"Get/RW/group/Admin/bogus.status":  kivik.StatusNotFound,
 		"Get/RW/group/NoAuth/bogus.status": kivik.StatusNotFound,
 
-		"Rev/RW/group/Admin/bogus.status":  kivik.StatusNotFound,
-		"Rev/RW/group/NoAuth/bogus.status": kivik.StatusNotFound,
+		"GetMeta/RW/group/Admin/bogus.status":  kivik.StatusNotFound,
+		"GetMeta/RW/group/NoAuth/bogus.status": kivik.StatusNotFound,
 
 		"Flush.databases":                     []string{"_users", "chicken", "_duck"},
 		"Flush/Admin/chicken/DoFlush.status":  kivik.StatusNotFound,

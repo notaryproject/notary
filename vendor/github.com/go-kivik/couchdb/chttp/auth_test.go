@@ -11,11 +11,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/flimzy/diff"
+	"github.com/flimzy/testy"
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/flimzy/diff"
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/testy"
+	"github.com/go-kivik/kivik"
 )
 
 func TestBasicAuthRoundTrip(t *testing.T) {
@@ -92,18 +92,6 @@ func TestBasicAuthRoundTrip(t *testing.T) {
 			}
 		})
 	}
-}
-
-func getAuthName(client *Client, t *testing.T) string {
-	result := struct {
-		Ctx struct {
-			Name string `json:"name"`
-		} `json:"userCtx"`
-	}{}
-	if _, err := client.DoJSON(context.Background(), "GET", "/_session", nil, &result); err != nil {
-		t.Errorf("Failed to check session info: %s", err)
-	}
-	return result.Ctx.Name
 }
 
 type mockRT struct {
@@ -215,12 +203,11 @@ func TestCookieAuthAuthenticate(t *testing.T) {
 
 func TestBasicAuthAuthenticate(t *testing.T) {
 	tests := []struct {
-		name     string
-		auth     *BasicAuth
-		client   *Client
-		expected *Client
-		status   int
-		err      string
+		name   string
+		auth   *BasicAuth
+		client *Client
+		status int
+		err    string
 	}{
 		{
 			name:   "network error",

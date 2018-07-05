@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/errors"
 	"github.com/go-kivik/couchdb/chttp"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/errors"
 )
 
 func (c *client) Authenticate(ctx context.Context, a interface{}) error {

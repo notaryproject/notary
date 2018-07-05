@@ -1,7 +1,0 @@
-{
-    "Enable":   ["errcheck"],
-    "Exclude":  ["_test.go:[0-9]+:[0-9]+:"],
-    "Vendor":   true,
-    "Test":     true,
-    "Deadline": "60s"
-}

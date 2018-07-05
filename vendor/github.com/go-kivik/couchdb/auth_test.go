@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/errors"
 	"github.com/flimzy/testy"
+
 	"github.com/go-kivik/couchdb/chttp"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/errors"
 )
 
 type mockAuther struct {
@@ -45,7 +46,6 @@ func TestAuthenticate(t *testing.T) {
 		authenticator interface{}
 		status        int
 		err           string
-		expected      interface{}
 	}{
 		{
 			name:          "invalid authenticator",

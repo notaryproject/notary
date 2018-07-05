@@ -7,8 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/flimzy/kivik"
 	"github.com/flimzy/testy"
+
+	"github.com/go-kivik/kivik"
 )
 
 func TestNewClient(t *testing.T) {
@@ -167,22 +168,6 @@ func TestDB(t *testing.T) {
 			name:   "no dbname",
 			status: kivik.StatusBadRequest,
 			err:    "kivik: dbName required",
-		},
-		{
-			name:    "invalid full commit type",
-			dbName:  "foo",
-			options: map[string]interface{}{OptionFullCommit: 123},
-			status:  kivik.StatusBadRequest,
-			err:     "kivik: option 'X-Couch-Full-Commit' must be bool, not int",
-		},
-		{
-			name:    "full commit",
-			dbName:  "foo",
-			options: map[string]interface{}{OptionFullCommit: true},
-			expected: &db{
-				dbName:     "foo",
-				fullCommit: true,
-			},
 		},
 		{
 			name:   "no full commit",

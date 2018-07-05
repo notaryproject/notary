@@ -9,10 +9,11 @@ import (
 	"testing"
 
 	"github.com/flimzy/diff"
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/driver"
-	"github.com/flimzy/kivik/errors"
 	"github.com/flimzy/testy"
+
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/driver"
+	"github.com/go-kivik/kivik/errors"
 )
 
 func TestExplain(t *testing.T) {
@@ -372,7 +373,7 @@ func TestFind(t *testing.T) {
 				ContentLength: 77,
 				Body:          Body(`{"error":"bad_content_type","reason":"Content-Type must be application/json"}`),
 			}, nil),
-			status: kivik.StatusBadContentType,
+			status: kivik.StatusUnsupportedMediaType,
 			err:    "Unsupported Media Type: Content-Type must be application/json",
 		},
 		{

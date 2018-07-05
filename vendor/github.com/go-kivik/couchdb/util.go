@@ -3,8 +3,8 @@ package couchdb
 import (
 	"encoding/json"
 
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/errors"
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/errors"
 )
 
 // deJSONify unmarshals a string, []byte, or json.RawMessage. All other types

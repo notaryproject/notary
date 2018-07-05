@@ -7,9 +7,10 @@ import (
 	"testing"
 
 	"github.com/flimzy/diff"
-	"github.com/flimzy/kivik"
-	"github.com/flimzy/kivik/driver"
 	"github.com/flimzy/testy"
+
+	"github.com/go-kivik/kivik"
+	"github.com/go-kivik/kivik/driver"
 )
 
 func TestChanges(t *testing.T) {

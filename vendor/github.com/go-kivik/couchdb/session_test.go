@@ -11,8 +11,9 @@ import (
 	"testing"
 
 	"github.com/flimzy/diff"
-	"github.com/flimzy/kivik"
 	"github.com/flimzy/testy"
+
+	"github.com/go-kivik/kivik"
 )
 
 func TestSession(t *testing.T) {
