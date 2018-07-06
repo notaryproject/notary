@@ -14,7 +14,7 @@ import (
 
 	"github.com/docker/distribution/health"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/flimzy/kivik"
+	"github.com/go-kivik/kivik"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/theupdateframework/notary"

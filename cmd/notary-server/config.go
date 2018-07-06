@@ -12,7 +12,7 @@ import (
 	_ "github.com/docker/distribution/registry/auth/htpasswd"
 	_ "github.com/docker/distribution/registry/auth/token"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/flimzy/kivik"
+	"github.com/go-kivik/kivik"
 	_ "github.com/go-kivik/couchdb"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
