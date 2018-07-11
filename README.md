@@ -21,7 +21,7 @@ for more information.
 
 Notary aims to make the internet more secure by making it easy for people to
 publish and verify content. We often rely on TLS to secure our communications
-with a web server which is inherently flawed, as any compromise of the server
+with a web server, which is inherently flawed, as any compromise of the server
 enables malicious content to be substituted for the legitimate content.
 
 With Notary, publishers can sign their content offline using keys kept highly
