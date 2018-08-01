@@ -409,3 +409,21 @@ func TestNetworkError(t *testing.T) {
 	networkErr3 := NetworkError{Wrapped: err3}
 	require.Equal(t, err3.Error(), networkErr3.Error())
 }
+
+func TestLocation(t *testing.T) {
+	s, err := NewNotaryServerStore("https://my.server.io", "myGUN", failRoundTripper{})
+	require.NoError(t, err)
+	require.NotNil(t, s)
+	require.Equal(t, s.Location(), "my.server.io")
+
+	s, err = NewHTTPStore(
+		"http://store.me",
+		"metadata",
+		"txt",
+		"key",
+		failRoundTripper{},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, s)
+	require.Equal(t, s.Location(), "store.me")
+}

@@ -239,7 +239,7 @@ func Test0Dot1RepoFormat(t *testing.T) {
 	// and we can download the snapshot
 	require.NoError(t, repo.RotateKey(data.CanonicalSnapshotRole, true, nil))
 	require.NoError(t, repo.Publish())
-	err = repo.Update(false)
+	err = repo.updateTUF(false)
 	require.NoError(t, err)
 }
 
@@ -307,7 +307,7 @@ func Test0Dot3RepoFormat(t *testing.T) {
 	// and we can download the snapshot
 	require.NoError(t, repo.RotateKey(data.CanonicalSnapshotRole, true, nil))
 	require.NoError(t, repo.Publish())
-	err = repo.Update(false)
+	err = repo.updateTUF(false)
 	require.NoError(t, err)
 }
 
@@ -333,7 +333,7 @@ func TestDownloading0Dot1RepoFormat(t *testing.T) {
 	require.NoError(t, err, "error creating repo: %s", err)
 	repo := r.(*repository)
 
-	err = repo.Update(true)
+	err = repo.updateTUF(true)
 	require.NoError(t, err, "error updating repo: %s", err)
 }
 
@@ -359,6 +359,6 @@ func TestDownloading0Dot3RepoFormat(t *testing.T) {
 	require.NoError(t, err, "error creating repo: %s", err)
 	repo := r.(*repository)
 
-	err = repo.Update(true)
+	err = repo.updateTUF(true)
 	require.NoError(t, err, "error updating repo: %s", err)
 }

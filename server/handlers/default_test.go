@@ -413,7 +413,7 @@ func TestAtomicUpdateValidationFailurePropagated(t *testing.T) {
 }
 
 type failStore struct {
-	storage.MemStorage
+	storage.MetaStore
 }
 
 func (s *failStore) GetCurrent(_ data.GUN, _ data.RoleName) (*time.Time, []byte, error) {
@@ -430,7 +430,7 @@ func TestAtomicUpdateNonValidationFailureNotPropagated(t *testing.T) {
 	repo, cs, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 
-	state := handlerState{store: &failStore{*metaStore}, crypto: testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)}
+	state := handlerState{store: &failStore{metaStore}, crypto: testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	require.NoError(t, err)
@@ -455,7 +455,7 @@ func TestAtomicUpdateNonValidationFailureNotPropagated(t *testing.T) {
 }
 
 type invalidVersionStore struct {
-	storage.MemStorage
+	storage.MetaStore
 }
 
 func (s *invalidVersionStore) UpdateMany(_ data.GUN, _ []storage.MetaUpdate) error {
@@ -473,7 +473,7 @@ func TestAtomicUpdateVersionErrorPropagated(t *testing.T) {
 	require.NoError(t, err)
 
 	state := handlerState{
-		store: &invalidVersionStore{*metaStore}, crypto: testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)}
+		store: &invalidVersionStore{metaStore}, crypto: testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)}
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
 	require.NoError(t, err)
