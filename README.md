@@ -46,11 +46,16 @@ Notary is based on [The Update Framework](https://www.theupdateframework.com/), 
 
 ## Security
 
+Any security vulnerabilities can be reported to security@docker.com.
+
 See Notary's [service architecture docs](docs/service_architecture.md#threat-model) for more information about our threat model, which details the varying survivability and severities for key compromise as well as mitigations.
 
-Notary's last security audit was on July 31, 2015 by NCC ([results](docs/resources/ncc_docker_notary_audit_2015_07_31.pdf)).
+### Security Audits
 
-Any security vulnerabilities can be reported to security@docker.com.
+Notary has had two public security audits:
+
+* [August 7, 2018 by Cure53](docs/resources/cure53_tuf_notary_audit_2018_08_07.pdf) covering TUF and Notary
+* [July 31, 2015 by NCC](docs/resources/ncc_docker_notary_audit_2015_07_31.pdf) covering Notary
 
 # Getting started with the Notary CLI
 
