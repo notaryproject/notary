@@ -3,20 +3,17 @@ package testutils
 import (
 	"fmt"
 	"sort"
-	"testing"
 	"time"
 
 	"github.com/docker/go/canonical/json"
-	"github.com/stretchr/testify/require"
 	"github.com/theupdateframework/notary/cryptoservice"
 	"github.com/theupdateframework/notary/passphrase"
 	"github.com/theupdateframework/notary/trustmanager"
-	"github.com/theupdateframework/notary/tuf/data"
-	"github.com/theupdateframework/notary/tuf/utils"
-
 	"github.com/theupdateframework/notary/tuf"
+	"github.com/theupdateframework/notary/tuf/data"
 	"github.com/theupdateframework/notary/tuf/signed"
 	"github.com/theupdateframework/notary/tuf/testutils/keys"
+	"github.com/theupdateframework/notary/tuf/utils"
 )
 
 // CreateKey creates a new key inside the cryptoservice for the given role and gun,
@@ -54,16 +51,18 @@ func CreateKey(cs signed.CryptoService, gun data.GUN, role data.RoleName, keyAlg
 }
 
 // CopyKeys copies keys of a particular role to a new cryptoservice, and returns that cryptoservice
-func CopyKeys(t *testing.T, from signed.CryptoService, roles ...data.RoleName) signed.CryptoService {
+func CopyKeys(from signed.CryptoService, roles ...data.RoleName) (signed.CryptoService, error) {
 	memKeyStore := trustmanager.NewKeyMemoryStore(passphrase.ConstantRetriever("pass"))
 	for _, role := range roles {
 		for _, keyID := range from.ListKeys(role) {
 			key, _, err := from.GetPrivateKey(keyID)
-			require.NoError(t, err)
+			if err != nil {
+				return nil, err
+			}
 			memKeyStore.AddKey(trustmanager.KeyInfo{Role: role}, key)
 		}
 	}
-	return cryptoservice.NewCryptoService(memKeyStore)
+	return cryptoservice.NewCryptoService(memKeyStore), nil
 }
 
 // EmptyRepo creates an in memory crypto service
