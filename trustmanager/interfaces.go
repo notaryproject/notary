@@ -51,4 +51,14 @@ type KeyStore interface {
 	ListKeys() map[string]KeyInfo
 	RemoveKey(keyID string) error
 	Name() string
+
+	// Generate generates a new key and adds it to the keystore.
+	//
+	// The meaning of token depends on the key store but is intended
+	// to control how/where the key is stored (for instance, selecting
+	// between different possible smartcards). It should be "" if
+	// the key store has no such concept.
+	//
+	// algorithm can be ECDSAKey, RSAKey, etc.
+	Generate(keyInfo KeyInfo, token, algorithm string) (keyID string, pubKey data.PublicKey, err error)
 }

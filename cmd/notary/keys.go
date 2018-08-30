@@ -19,6 +19,7 @@ import (
 	"github.com/theupdateframework/notary/cryptoservice"
 	store "github.com/theupdateframework/notary/storage"
 	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/trustmanager/p11store"
 	"github.com/theupdateframework/notary/tuf/data"
 	tufutils "github.com/theupdateframework/notary/tuf/utils"
 )
@@ -93,10 +94,13 @@ type keyCommander struct {
 
 	importRole    string
 	generateRole  string
+	generateGun   string
 	keysImportGUN string
 	exportGUNs    []string
 	exportKeyIDs  []string
 	outFile       string
+	keyStore      string
+	token         string
 }
 
 func (k *keyCommander) GetCommand() *cobra.Command {
@@ -111,7 +115,24 @@ func (k *keyCommander) GetCommand() *cobra.Command {
 		"Filepath to write export output to",
 	)
 	cmdGenerate.Flags().StringVarP(
+		&k.keyStore,
+		"keystore",
+		"K",
+		"",
+		"Key store to use",
+	)
+	cmdGenerate.Flags().StringVarP(
+		&k.token,
+		"token",
+		"T",
+		"",
+		"Token to use",
+	)
+	cmdGenerate.Flags().StringVarP(
 		&k.generateRole, "role", "r", "root", "Role to generate key with, defaulting to \"root\".",
+	)
+	cmdGenerate.Flags().StringVarP(
+		&k.generateGun, "gun", "g", "", "GUN to generate key with.",
 	)
 	cmd.AddCommand(cmdGenerate)
 	cmd.AddCommand(cmdKeyRemoveTemplate.ToCommand(k.keyRemove))
@@ -128,6 +149,20 @@ func (k *keyCommander) GetCommand() *cobra.Command {
 		"k",
 		nil,
 		"New key(s) to rotate to. If not specified, one will be generated.",
+	)
+	cmdRotateKey.Flags().StringVarP(
+		&k.keyStore,
+		"keystore",
+		"K",
+		"",
+		"Key store to use when generating key",
+	)
+	cmdRotateKey.Flags().StringVarP(
+		&k.token,
+		"token",
+		"T",
+		"",
+		"Token to use when generating key",
 	)
 	cmd.AddCommand(cmdRotateKey)
 
@@ -220,7 +255,7 @@ func (k *keyCommander) keysGenerate(cmd *cobra.Command, args []string) error {
 		}
 		cs := cryptoservice.NewCryptoService(ks...)
 
-		pubKey, err := cs.Create(data.RoleName(k.generateRole), "", algorithm)
+		pubKey, err := cs.Generate(data.RoleName(k.generateRole), data.GUN(k.generateGun), k.keyStore, k.token, algorithm)
 		if err != nil {
 			return fmt.Errorf("Failed to create a new %s key: %v", k.generateRole, err)
 		}
@@ -341,7 +376,7 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 		}
 	}
 	nRepo.SetLegacyVersions(k.legacyVersions)
-	if err := nRepo.RotateKey(rotateKeyRole, k.rotateKeyServerManaged, keyList); err != nil {
+	if err := nRepo.RotateKey(rotateKeyRole, k.rotateKeyServerManaged, k.keyStore, k.token, keyList); err != nil {
 		return err
 	}
 	cmd.Printf("Successfully rotated %s key for repository %s\n", rotateKeyRole, gun)
@@ -607,6 +642,17 @@ func (k *keyCommander) getKeyStores(
 			// the yubikey store
 			ks = []trustmanager.KeyStore{yubiStore, fileKeyStore}
 		}
+
+		var pkcs11 *p11store.Pkcs11Store
+		if pkcs11, err = p11store.NewPkcs11Store("", retriever); err == nil {
+			// Add a PKCS#11 key store on the end. Contrary to the yubikey case,
+			// we deprioritize it and expect users to select it via the --keystore
+			// and --token arguments.
+			ks = append(ks, pkcs11)
+		} else if err != p11store.ErrNoProvider {
+			// A PKCS#11 provider was configured but something went wrong setting it up
+			return nil, err
+		} // else nothing was configured
 	}
 
 	return ks, nil

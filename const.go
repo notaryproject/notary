@@ -58,6 +58,7 @@ const (
 	SQLiteBackend    = "sqlite3"
 	RethinkDBBackend = "rethinkdb"
 	FileBackend      = "file"
+	Pkcs11Backend    = "pkcs11"
 
 	DefaultImportRole = "delegation"
 
@@ -92,4 +93,5 @@ var NotarySupportedBackends = []string{
 	SQLiteBackend,
 	RethinkDBBackend,
 	PostgresBackend,
+	Pkcs11Backend,
 }

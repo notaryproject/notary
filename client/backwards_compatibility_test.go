@@ -216,7 +216,7 @@ func Test0Dot1RepoFormat(t *testing.T) {
 	require.NoError(t, repo.cache.Remove(data.CanonicalTimestampRole.String()))
 
 	// rotate the timestamp key, since the server doesn't have that one
-	err = repo.RotateKey(data.CanonicalTimestampRole, true, nil)
+	err = repo.RotateKey(data.CanonicalTimestampRole, true, "", "",nil)
 	require.NoError(t, err)
 
 	require.NoError(t, repo.Publish())
@@ -227,7 +227,7 @@ func Test0Dot1RepoFormat(t *testing.T) {
 
 	// Also check that we can add/remove keys by rotating keys
 	oldTargetsKeys := repo.GetCryptoService().ListKeys(data.CanonicalTargetsRole)
-	require.NoError(t, repo.RotateKey(data.CanonicalTargetsRole, false, nil))
+	require.NoError(t, repo.RotateKey(data.CanonicalTargetsRole, false, "", "", nil))
 	require.NoError(t, repo.Publish())
 	newTargetsKeys := repo.GetCryptoService().ListKeys(data.CanonicalTargetsRole)
 
@@ -237,7 +237,7 @@ func Test0Dot1RepoFormat(t *testing.T) {
 
 	// rotate the snapshot key to the server and ensure that the server can re-generate the snapshot
 	// and we can download the snapshot
-	require.NoError(t, repo.RotateKey(data.CanonicalSnapshotRole, true, nil))
+	require.NoError(t, repo.RotateKey(data.CanonicalSnapshotRole, true, "", "",nil))
 	require.NoError(t, repo.Publish())
 	err = repo.Update(false)
 	require.NoError(t, err)
@@ -279,7 +279,7 @@ func Test0Dot3RepoFormat(t *testing.T) {
 	require.NoError(t, repo.cache.Remove(data.CanonicalTimestampRole.String()))
 
 	// rotate the timestamp key, since the server doesn't have that one
-	err = repo.RotateKey(data.CanonicalTimestampRole, true, nil)
+	err = repo.RotateKey(data.CanonicalTimestampRole, true, "", "", nil)
 	require.NoError(t, err)
 
 	require.NoError(t, repo.Publish())
@@ -295,7 +295,7 @@ func Test0Dot3RepoFormat(t *testing.T) {
 
 	// Also check that we can add/remove keys by rotating keys
 	oldTargetsKeys := repo.GetCryptoService().ListKeys(data.CanonicalTargetsRole)
-	require.NoError(t, repo.RotateKey(data.CanonicalTargetsRole, false, nil))
+	require.NoError(t, repo.RotateKey(data.CanonicalTargetsRole, false, "", "",nil))
 	require.NoError(t, repo.Publish())
 	newTargetsKeys := repo.GetCryptoService().ListKeys(data.CanonicalTargetsRole)
 
@@ -305,7 +305,7 @@ func Test0Dot3RepoFormat(t *testing.T) {
 
 	// rotate the snapshot key to the server and ensure that the server can re-generate the snapshot
 	// and we can download the snapshot
-	require.NoError(t, repo.RotateKey(data.CanonicalSnapshotRole, true, nil))
+	require.NoError(t, repo.RotateKey(data.CanonicalSnapshotRole, true, "", "",nil))
 	require.NoError(t, repo.Publish())
 	err = repo.Update(false)
 	require.NoError(t, err)

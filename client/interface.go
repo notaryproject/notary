@@ -10,7 +10,7 @@ import (
 type Repository interface {
 	// General management operations
 	Initialize(rootKeyIDs []string, serverManagedRoles ...data.RoleName) error
-	InitializeWithCertificate(rootKeyIDs []string, rootCerts []data.PublicKey, serverManagedRoles ...data.RoleName) error
+	InitializeWithCertificate(rootKeyIDs []string, rootCerts []data.PublicKey, roleKeys map[data.RoleName]data.PublicKey, serverManagedRoles ...data.RoleName) error
 	Publish() error
 
 	// Target Operations
@@ -39,7 +39,7 @@ type Repository interface {
 	Witness(roles ...data.RoleName) ([]data.RoleName, error)
 
 	// Key Operations
-	RotateKey(role data.RoleName, serverManagesKey bool, keyList []string) error
+	RotateKey(role data.RoleName, serverManagesKey bool, keystoreName string, token string, keyList []string) error
 
 	GetCryptoService() signed.CryptoService
 	SetLegacyVersions(int)

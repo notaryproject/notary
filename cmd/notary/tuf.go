@@ -469,6 +469,36 @@ func importRootCert(certFilePath string) ([]data.PublicKey, error) {
 	return publicKeys, nil
 }
 
+// findRoleKeys finds any pre-generated keys for selected roles
+func findRoleKeys(cmd *cobra.Command, nRepo notaryclient.Repository, gun data.GUN, roles []data.RoleName) (roleKeys map[data.RoleName]data.PublicKey, err error) {
+	roleKeys = map[data.RoleName]data.PublicKey{}
+	cryptoService := nRepo.GetCryptoService()
+	for _, role := range roles {
+		var keyFound data.PublicKey
+		var keyIDFound string
+		for _, keyID := range cryptoService.ListKeys(role) {
+			var keyInfo trustmanager.KeyInfo
+			if keyInfo, err = cryptoService.(*cryptoservice.CryptoService).GetKeyInfo(keyID); err != nil {
+				return
+			}
+			if keyInfo.Gun == gun {
+				// If there is more than one then don't try to guess which to use.
+				if keyFound != nil {
+					err = fmt.Errorf("multiple keys found for role %s", role)
+					return
+				}
+				keyFound = cryptoService.GetKey(keyID)
+				keyIDFound = keyID
+			}
+		}
+		if keyFound != nil {
+			roleKeys[role] = keyFound
+			cmd.Printf("%s key found, using: %s\n", role, keyIDFound)
+		}
+	}
+	return
+}
+
 func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 {
 		cmd.Usage()
@@ -497,12 +527,17 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	roleKeys, err := findRoleKeys(cmd, nRepo, gun, []data.RoleName{data.CanonicalTargetsRole, data.CanonicalSnapshotRole})
+	if err != nil {
+		return err
+	}
+
 	// if key is not defined but cert is, then clear the key to to allow key to be searched in keystore
 	if t.rootKey == "" && t.rootCert != "" {
 		rootKeyIDs = []string{}
 	}
 
-	if err = nRepo.InitializeWithCertificate(rootKeyIDs, rootCerts); err != nil {
+	if err = nRepo.InitializeWithCertificate(rootKeyIDs, rootCerts, roleKeys); err != nil {
 		return err
 	}
 

@@ -182,7 +182,7 @@ func (r *repository) GetCryptoService() signed.CryptoService {
 }
 
 // initialize initializes the notary repository with a set of rootkeys, root certificates and roles.
-func (r *repository) initialize(rootKeyIDs []string, rootCerts []data.PublicKey, serverManagedRoles ...data.RoleName) error {
+func (r *repository) initialize(rootKeyIDs []string, rootCerts []data.PublicKey, roleKeys map[data.RoleName]data.PublicKey, serverManagedRoles ...data.RoleName) error {
 
 	// currently we only support server managing timestamps and snapshots, and
 	// nothing else - timestamps are always managed by the server, and implicit
@@ -228,6 +228,7 @@ func (r *repository) initialize(rootKeyIDs []string, rootCerts []data.PublicKey,
 		publicKeys,
 		locallyManagedKeys,
 		remotelyManagedKeys,
+		roleKeys,
 	)
 	if err != nil {
 		return err
@@ -317,7 +318,7 @@ func matchKeyIdsWithPubKeys(r *repository, ids []string, pubKeys []data.PublicKe
 // result is only stored on local disk, not published to the server. To do that,
 // use r.Publish() eventually.
 func (r *repository) Initialize(rootKeyIDs []string, serverManagedRoles ...data.RoleName) error {
-	return r.initialize(rootKeyIDs, nil, serverManagedRoles...)
+	return r.initialize(rootKeyIDs, nil, nil, serverManagedRoles...)
 }
 
 type errKeyNotFound struct{}
@@ -341,6 +342,7 @@ func keyExistsInList(cert data.PublicKey, ids map[string]bool) error {
 
 // InitializeWithCertificate initializes the repository with root keys and their corresponding certificates
 func (r *repository) InitializeWithCertificate(rootKeyIDs []string, rootCerts []data.PublicKey,
+	roleKeys map[data.RoleName]data.PublicKey,
 	serverManagedRoles ...data.RoleName) error {
 
 	// If we explicitly pass in certificate(s) but not key, then look keys up using certificate
@@ -359,10 +361,10 @@ func (r *repository) InitializeWithCertificate(rootKeyIDs []string, rootCerts []
 			rootKeyIDs = append(rootKeyIDs, keyID)
 		}
 	}
-	return r.initialize(rootKeyIDs, rootCerts, serverManagedRoles...)
+	return r.initialize(rootKeyIDs, rootCerts, roleKeys, serverManagedRoles...)
 }
 
-func (r *repository) initializeRoles(rootKeys []data.PublicKey, localRoles, remoteRoles []data.RoleName) (
+func (r *repository) initializeRoles(rootKeys []data.PublicKey, localRoles, remoteRoles []data.RoleName, roleKeys map[data.RoleName]data.PublicKey) (
 	root, targets, snapshot, timestamp data.BaseRole, err error) {
 	root = data.NewBaseRole(
 		data.CanonicalRootRole,
@@ -375,9 +377,17 @@ func (r *repository) initializeRoles(rootKeys []data.PublicKey, localRoles, remo
 	for _, role := range localRoles {
 		// This is currently hardcoding the keys to ECDSA.
 		var key data.PublicKey
-		key, err = r.GetCryptoService().Create(role, r.gun, data.ECDSAKey)
-		if err != nil {
-			return
+		cryptoService := r.GetCryptoService()
+		// Maybe there is a pre-generated key
+		if roleKeys != nil {
+			key = roleKeys[role]
+		}
+		// If not then generate one
+		if key == nil {
+			key, err = cryptoService.Create(role, r.gun, data.ECDSAKey)
+			if err != nil {
+				return
+			}
 		}
 		switch role {
 		case data.CanonicalSnapshotRole:
@@ -1133,12 +1143,12 @@ func (r *repository) bootstrapClient(checkInitialized bool) (*tufClient, error) 
 // managing the key to the server. If key(s) are specified by keyList, then they are
 // used for signing the role.
 // These changes are staged in a changelist until publish is called.
-func (r *repository) RotateKey(role data.RoleName, serverManagesKey bool, keyList []string) error {
+func (r *repository) RotateKey(role data.RoleName, serverManagesKey bool, keystoreName string, token string, keyList []string) error {
 	if err := checkRotationInput(role, serverManagesKey); err != nil {
 		return err
 	}
 
-	pubKeyList, err := r.pubKeyListForRotation(role, serverManagesKey, keyList)
+	pubKeyList, err := r.pubKeyListForRotation(role, serverManagesKey, keystoreName, token, keyList)
 	if err != nil {
 		return err
 	}
@@ -1151,7 +1161,7 @@ func (r *repository) RotateKey(role data.RoleName, serverManagesKey bool, keyLis
 }
 
 // Given a set of new keys to rotate to and a set of keys to drop, returns the list of current keys to use
-func (r *repository) pubKeyListForRotation(role data.RoleName, serverManaged bool, newKeys []string) (pubKeyList data.KeyList, err error) {
+func (r *repository) pubKeyListForRotation(role data.RoleName, serverManaged bool, keystoreName string, token string, newKeys []string) (pubKeyList data.KeyList, err error) {
 	var pubKey data.PublicKey
 
 	// If server manages the key being rotated, request a rotation and return the new key
@@ -1169,7 +1179,11 @@ func (r *repository) pubKeyListForRotation(role data.RoleName, serverManaged boo
 	// If no new keys are passed in, we generate one
 	if len(newKeys) == 0 {
 		pubKeyList = make(data.KeyList, 0, 1)
-		pubKey, err = r.GetCryptoService().Create(role, r.gun, data.ECDSAKey)
+		cryptoService, ok := r.GetCryptoService().(*cryptoservice.CryptoService)
+		if !ok {
+			panic("crypto service not of expected type")
+		}
+		pubKey, err = cryptoService.Generate(role, r.gun, keystoreName, token, data.ECDSAKey)
 		pubKeyList = append(pubKeyList, pubKey)
 	}
 	if err != nil {
