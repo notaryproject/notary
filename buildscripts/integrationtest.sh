@@ -11,8 +11,11 @@ case ${db} in
   postgresql*)
     db="postgresql"
     ;;
+  couch*)
+    db="couch"
+    ;;
   *)
-    echo "Usage: $0 (mysql|rethink|postgresql)"
+    echo "Usage: $0 (mysql|rethink|postgresql|couch)"
     exit 1
     ;;
 esac

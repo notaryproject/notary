@@ -1,0 +1,54 @@
+version: "2"
+services:
+    server:
+      build:
+        context: .
+        dockerfile: server.Dockerfile
+      volumes:
+        - ./fixtures/couchdb:/tls
+      networks:
+        - cdb
+      links:
+        - signer
+        - cdb:cdb-01.cdb
+      ports:
+        - "4443:4443"
+      entrypoint: /usr/bin/env sh
+      command: -c "sh migrations/couch_migrate.sh && notary-server -config=fixtures/server-config.couch.json"
+    signer:
+      build:
+        context: .
+        dockerfile: signer.Dockerfile
+      volumes:
+        - ./fixtures/couchdb:/tls
+      networks:
+        cdb:
+            aliases:
+                - notarysigner
+      links:
+        - cdb
+      entrypoint: /usr/bin/env sh
+      command: -c "sh migrations/couch_migrate.sh && notary-signer -config=fixtures/signer-config.couch.json"
+    cdb:
+      build:
+        context: .
+        dockerfile: couchdb.Dockerfile
+      ports:
+        - "5984:5984"
+        - "6984:6984"
+      environment:
+        - COUCHDB_USER=admin
+        - COUCHDB_PASSWORD=adminpass
+        - SERVER_USER=server
+        - SERVER_USER_PASSWORD=serverpass
+        - SIGNER_USER=signer
+        - SIGNER_USER_PASSWORD=signerpass
+      networks:
+        cdb:
+          aliases:
+            - cdb-01.cdb
+      entrypoint: /usr/bin/env bash
+      command: -c "bash /couchdb_startup.sh"
+networks:
+    cdb:
+        external: false

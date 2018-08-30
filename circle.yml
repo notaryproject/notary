@@ -21,3 +21,4 @@ test:
   post:
     - docker-compose -f docker-compose.yml down -v
     - docker-compose -f docker-compose.rethink.yml down -v
+    - docker-compose -f docker-compose.couch.yml down -v

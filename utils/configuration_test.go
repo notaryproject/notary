@@ -332,6 +332,75 @@ func TestParseRethinkStorageDBStoreEmptyUsername(t *testing.T) {
 	require.Contains(t, err.Error(), "requires a username to connect to the db")
 }
 
+// ParseCouchDBStorage will reject non couch databases
+func TestParseCouchStorageDBStoreInvalidBackend(t *testing.T) {
+	config := configure(`{
+		"storage": {
+			"backend": "mysql",
+			"db_url": "http://username:password@hostname:1234",
+			"tls_ca_file": "/tls/ca.pem",
+			"client_cert_file": "/tls/cert.pem",
+			"client_key_file": "/tls/key.pem"
+		}
+	}`)
+
+	_, err := ParseCouchDBStorage(config)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not a supported CouchDB backend")
+}
+
+// ParseCouchDBStorage will require a db_url for couch databases
+func TestParseCouchStorageDBStoreEmptyDBUrl(t *testing.T) {
+	config := configure(`{
+		"storage": {
+			"backend": "couchdb",
+			"tls_ca_file": "/tls/ca.pem",
+			"client_cert_file": "/tls/cert.pem",
+			"client_key_file": "/tls/key.pem",
+			"database": "couchdbtest"
+		}
+	}`)
+
+	_, err := ParseCouchDBStorage(config)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "must provide a non-empty http[s]://<username>:<password>@<host>:<port>")
+}
+
+// ParseCouchDBStorage will require a dbname for couch databases
+func TestParseCouchStorageDBStoreEmptyDBName(t *testing.T) {
+	config := configure(`{
+		"storage": {
+			"backend": "couchdb",
+			"db_url": "http://username:password@hostname:1234",
+			"tls_ca_file": "/tls/ca.pem",
+			"client_cert_file": "/tls/cert.pem",
+			"client_key_file": "/tls/key.pem"
+		}
+	}`)
+
+	_, err := ParseCouchDBStorage(config)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "requires a specific database to connect to")
+}
+
+// ParseCouchDBStorage will require a username to connect to the database after bootstrapping
+func TestParseCouchStorageDBStoreEmptyUsername(t *testing.T) {
+	config := configure(`{
+		"storage": {
+			"backend": "couchdb",
+			"db_url": "http://:password@hostname:1234",
+			"database": "couchdbtest",
+			"client_cert_file": "/tls/cert.pem",
+			"client_key_file": "/tls/key.pem",
+			"tls_ca_file": "/tls/ca.pem"
+		}
+	}`)
+
+	_, err := ParseCouchDBStorage(config)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "requires a username in the URL to connect to the db")
+}
+
 func TestParseSQLStorageWithEnvironmentVariables(t *testing.T) {
 	config := configure(`{
 		"storage": {

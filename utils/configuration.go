@@ -5,6 +5,7 @@ package utils
 import (
 	"crypto/tls"
 	"fmt"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -28,6 +29,17 @@ type Storage struct {
 
 // RethinkDBStorage is configuration about a RethinkDB backend service
 type RethinkDBStorage struct {
+	Storage
+	CA       string
+	Cert     string
+	DBName   string
+	Key      string
+	Username string
+	Password string
+}
+
+// CouchDBStorage is configuration about a CouchDB backend service
+type CouchDBStorage struct {
 	Storage
 	CA       string
 	Cert     string
@@ -171,6 +183,60 @@ func ParseRethinkDBStorage(configuration *viper.Viper) (*RethinkDBStorage, error
 	case store.Username == "":
 		return nil, fmt.Errorf(
 			"%s requires a username to connect to the db",
+			store.Backend,
+		)
+	}
+
+	return &store, nil
+}
+
+// ParseCouchDBStorage tries to parse out Storage from a Viper.  If backend and
+// URL are not provided, returns a nil pointer.  Storage is required (if
+// a backend is not provided, an error will be returned.)
+// CA and certificate/key are optional for CouchDB.
+func ParseCouchDBStorage(configuration *viper.Viper) (*CouchDBStorage, error) {
+	store := CouchDBStorage{
+		Storage: Storage{
+			Backend: configuration.GetString("storage.backend"),
+			Source:  configuration.GetString("storage.db_url"),
+		},
+		CA:     GetPathRelativeToConfig(configuration, "storage.tls_ca_file"),
+		Cert:   GetPathRelativeToConfig(configuration, "storage.client_cert_file"),
+		Key:    GetPathRelativeToConfig(configuration, "storage.client_key_file"),
+		DBName: configuration.GetString("storage.database"),
+	}
+
+	dburl, err := url.Parse(store.Source)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"must provide a non-empty http[s]://<username>:<password>@<host>:<port> for %s",
+			store.Source,
+		)
+	}
+	if dburl.User != nil {
+		store.Username = dburl.User.Username()
+		store.Password, _ = dburl.User.Password()
+	}
+
+	switch {
+	case store.Backend != notary.CouchDBBackend:
+		return nil, fmt.Errorf(
+			"%s is not a supported CouchDB backend driver",
+			store.Backend,
+		)
+	case store.Source == "":
+		return nil, fmt.Errorf(
+			"must provide a non-empty http[s]://<username>:<password>@<host>:<port> for %s",
+			store.Backend,
+		)
+	case store.DBName == "":
+		return nil, fmt.Errorf(
+			"%s requires a specific database to connect to",
+			store.Backend,
+		)
+	case store.Username == "":
+		return nil, fmt.Errorf(
+			"%s requires a username in the URL to connect to the db",
 			store.Backend,
 		)
 	}

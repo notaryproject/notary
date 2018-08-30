@@ -13,13 +13,18 @@ case ${db} in
     dbContainerOpts="--name rethinkdb_tests rdb-01 --bind all --driver-tls-key /tls/key.pem --driver-tls-cert /tls/cert.pem"
     DBURL="rethinkdb_tests"
     ;;
+  couch*)
+    db="couch"
+    dbContainerOpts="--name couchdb_tests cdb"
+    DBURL="http://admin:adminpass@couchdb_tests:5984"
+    ;;
   postgresql*)
     db="postgresql"
     dbContainerOpts="--name postgresql_tests postgresql -l"
     DBURL="postgres://server@postgresql_tests:5432/notaryserver?sslmode=verify-ca&sslrootcert=/go/src/github.com/theupdateframework/notary/fixtures/database/ca.pem&sslcert=/go/src/github.com/theupdateframework/notary/fixtures/database/notary-server.pem&sslkey=/go/src/github.com/theupdateframework/notary/fixtures/database/notary-server-key.pem"
     ;;
   *)
-    echo "Usage: $0 (mysql|rethink)"
+    echo "Usage: $0 (mysql|rethink|couch)"
     exit 1
     ;;
 esac
