@@ -30,10 +30,7 @@ project=dbtests
 function cleanup {
     rm -f bin/notary
     docker-compose -p "${project}_${db}" -f "${composeFile}" kill
-    # if we're in CircleCI, we cannot remove any containers
-    if [[ -z "${CIRCLECI}" ]]; then
-        docker-compose -p "${project}_${db}" -f "${composeFile}" down -v --remove-orphans
-    fi
+    docker-compose -p "${project}_${db}" -f "${composeFile}" down -v --remove-orphans
 }
 
 clientCmd="make TESTOPTS='-p 1' test"

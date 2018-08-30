@@ -1,0 +1,89 @@
+version: 2
+
+jobs:
+  test:
+    machine:
+      image: circleci/classic:201808-01
+    working_directory: ~/go/src/github.com/theupdateframework/notary
+    steps:
+      - add_ssh_keys
+      - checkout
+      - run: docker build -t notary_client .
+      - run: docker run --rm -e NOTARY_BUILDTAGS=none --env-file buildscripts/env.list --user notary notary_client bash -c "make ci && codecov"
+  pkcs11:
+    machine:
+      image: circleci/classic:201808-01
+    working_directory: ~/go/src/github.com/theupdateframework/notary
+    steps:
+      - add_ssh_keys
+      - checkout
+      - run: docker build -t notary_client .
+      - run: docker run --rm -e NOTARY_BUILDTAGS=pkcs11 --env-file buildscripts/env.list --user notary notary_client bash -c "make ci && codecov"
+  mysql:
+    machine:
+      image: circleci/classic:201808-01
+    working_directory: ~/go/src/github.com/theupdateframework/notary
+    steps:
+      - add_ssh_keys
+      - checkout
+      - run: SKIPENVCHECK=1 make TESTDB=mysql testdb
+      - run: SKIPENVCHECK=1 make TESTDB=mysql integration
+      - run:
+          name: cleanup
+          command: docker-compose -f docker-compose.mysql.yml down -v
+          when: always
+  rethinkdb:
+    machine:
+      image: circleci/classic:201808-01
+    working_directory: ~/go/src/github.com/theupdateframework/notary
+    steps:
+      - add_ssh_keys
+      - checkout
+      - run: SKIPENVCHECK=1 make TESTDB=rethink testdb
+      - run: SKIPENVCHECK=1 make TESTDB=rethink integration
+      - run:
+          name: cleanup
+          command: docker-compose -f docker-compose.rethink.yml down -v
+          when: always
+  postgres:
+    machine:
+      image: circleci/classic:201808-01
+    working_directory: ~/go/src/github.com/theupdateframework/notary
+    steps:
+      - add_ssh_keys
+      - checkout
+      - run: SKIPENVCHECK=1 make TESTDB=postgresql testdb
+      - run: SKIPENVCHECK=1 make TESTDB=postgresql integration
+      - run:
+          name: cleanup
+          command: docker-compose -f docker-compose.postgresql.yml down -v
+          when: always
+  cross:
+    docker:
+      - image: circleci/golang:1.10-stretch
+    working_directory: /go/src/github.com/theupdateframework/notary
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: SKIPENVCHECK=1 make cross
+  lint:
+    docker:
+      - image: circleci/golang:1.10-stretch
+    working_directory: /go/src/github.com/theupdateframework/notary
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: docker build -t notary_client .
+      - run: docker run --rm -e NOTARY_BUILDTAGS=pkcs11 notary_client make lint
+  
+workflows:
+    version: 2
+    test:
+      jobs:
+        - test
+        - pkcs11
+        - cross
+        - lint
+        - mysql
+        - rethinkdb
+        - postgres
