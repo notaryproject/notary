@@ -2,34 +2,30 @@ version: 2
 
 jobs:
   test:
-    docker:
-      - image: circleci/golang:1.10-stretch
-    working_directory: /go/src/github.com/theupdateframework/notary
+    machine:
+      image: circleci/classic:201808-01
+    working_directory: ~/go/src/github.com/theupdateframework/notary
     steps:
+      - add_ssh_keys
       - checkout
-      - setup_remote_docker
-      - run: sudo apt install -y python-pip
-      - run: sudo pip install --upgrade docker-compose
       - run: docker build -t notary_client .
       - run: docker run --rm -e NOTARY_BUILDTAGS=none --env-file buildscripts/env.list --user notary notary_client bash -c "make ci && codecov"
   pkcs11:
-    docker:
-      - image: circleci/golang:1.10-stretch
-    working_directory: /go/src/github.com/theupdateframework/notary
+    machine:
+      image: circleci/classic:201808-01
+    working_directory: ~/go/src/github.com/theupdateframework/notary
     steps:
+      - add_ssh_keys
       - checkout
-      - setup_remote_docker
       - run: docker build -t notary_client .
       - run: docker run --rm -e NOTARY_BUILDTAGS=pkcs11 --env-file buildscripts/env.list --user notary notary_client bash -c "make ci && codecov"
   mysql:
-    docker:
-      - image: circleci/golang:1.10-stretch
-    working_directory: /go/src/github.com/theupdateframework/notary
+    machine:
+      image: circleci/classic:201808-01
+    working_directory: ~/go/src/github.com/theupdateframework/notary
     steps:
+      - add_ssh_keys
       - checkout
-      - setup_remote_docker
-      - run: sudo apt install -y python-pip
-      - run: sudo pip install --upgrade docker-compose
       - run: SKIPENVCHECK=1 make TESTDB=mysql testdb
       - run: SKIPENVCHECK=1 make TESTDB=mysql integration
       - run:
@@ -37,14 +33,12 @@ jobs:
           command: docker-compose -f docker-compose.mysql.yml down -v
           when: always
   rethinkdb:
-    docker:
-      - image: circleci/golang:1.10-stretch
-    working_directory: /go/src/github.com/theupdateframework/notary
+    machine:
+      image: circleci/classic:201808-01
+    working_directory: ~/go/src/github.com/theupdateframework/notary
     steps:
+      - add_ssh_keys
       - checkout
-      - setup_remote_docker
-      - run: sudo apt install -y python-pip
-      - run: sudo pip install --upgrade docker-compose
       - run: SKIPENVCHECK=1 make TESTDB=rethink testdb
       - run: SKIPENVCHECK=1 make TESTDB=rethink integration
       - run:
@@ -52,14 +46,12 @@ jobs:
           command: docker-compose -f docker-compose.rethink.yml down -v
           when: always
   postgres:
-    docker:
-      - image: circleci/golang:1.10-stretch
-    working_directory: /go/src/github.com/theupdateframework/notary
+    machine:
+      image: circleci/classic:201808-01
+    working_directory: ~/go/src/github.com/theupdateframework/notary
     steps:
+      - add_ssh_keys
       - checkout
-      - setup_remote_docker
-      - run: sudo apt install -y python-pip
-      - run: sudo pip install --upgrade docker-compose
       - run: SKIPENVCHECK=1 make TESTDB=postgresql testdb
       - run: SKIPENVCHECK=1 make TESTDB=postgresql integration
       - run:
