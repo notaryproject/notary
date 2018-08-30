@@ -2678,7 +2678,7 @@ func TestRotateKeyInvalidRole(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, repo.AddDelegation("targets/releases", []data.PublicKey{pubKey}, []string{""}))
 	require.NoError(t, repo.Publish())
-	require.NoError(t, repo.Update(false))
+	require.NoError(t, repo.updateTUF(false))
 
 	// rotating a root key to the server fails
 	require.Error(t, repo.RotateKey(data.CanonicalRootRole, true, nil),
@@ -2805,7 +2805,7 @@ func requireRotationSuccessful(t *testing.T, repo1 *repository, keysToRotate map
 
 	// Download data from remote and check that keys have changed
 	for _, repo := range repos {
-		err := repo.Update(true)
+		err := repo.updateTUF(true)
 		require.NoError(t, err)
 
 		for roleName, isRemoteKey := range keysToRotate {
@@ -2983,7 +2983,7 @@ func TestRotateRootKey(t *testing.T) {
 	// Initialize an user, using the original root cert and key.
 	userRepo, _, baseDir := newRepoToTestRepo(t, authorRepo, "")
 	defer os.RemoveAll(baseDir)
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 
 	// Rotate root certificate and key.
@@ -2992,7 +2992,7 @@ func TestRotateRootKey(t *testing.T) {
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "post-rotate", authorRepo)
 
-	require.NoError(t, authorRepo.Update(false))
+	require.NoError(t, authorRepo.updateTUF(false))
 	newRootRole, err := authorRepo.tufRepo.GetBaseRole(data.CanonicalRootRole)
 	require.NoError(t, err)
 	require.False(t, newRootRole.Equals(oldRootRole))
@@ -3031,7 +3031,7 @@ func TestRotateRootKey(t *testing.T) {
 
 	// Verify that the user initialized with the original certificate eventually
 	// rotates to the new certificate.
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "user refresh 1", userRepo)
 	require.Equal(t, newRootCertID, rootRoleCertID(t, userRepo))
@@ -3055,7 +3055,7 @@ func TestRotateRootMultiple(t *testing.T) {
 	// Initialize a user, using the original root cert and key.
 	userRepo, _, baseDir := newRepoToTestRepo(t, authorRepo, "")
 	defer os.RemoveAll(baseDir)
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 
 	// Rotate root certificate and key.
@@ -3069,7 +3069,7 @@ func TestRotateRootMultiple(t *testing.T) {
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "post-rotate-again", authorRepo)
 
-	require.NoError(t, authorRepo.Update(false))
+	require.NoError(t, authorRepo.updateTUF(false))
 	newRootRole, err := authorRepo.tufRepo.GetBaseRole(data.CanonicalRootRole)
 	require.NoError(t, err)
 	require.False(t, newRootRole.Equals(oldRootRole))
@@ -3093,7 +3093,7 @@ func TestRotateRootMultiple(t *testing.T) {
 	logRepoTrustRoot(t, "post-publish", authorRepo)
 
 	// Verify the user can use the rotated repo, and see the added target.
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 	_, err = userRepo.GetTargetByName("current")
 	require.NoError(t, err)
@@ -3110,7 +3110,7 @@ func TestRotateRootMultiple(t *testing.T) {
 
 	// Verify that the user initialized with the original certificate eventually
 	// rotates to the new certificate.
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "user refresh 1", userRepo)
 	require.Equal(t, newRootCertID, rootRoleCertID(t, userRepo))
@@ -3134,7 +3134,7 @@ func TestRotateRootKeyProvided(t *testing.T) {
 	// Initialize an user, using the original root cert and key.
 	userRepo, _, baseDir := newRepoToTestRepo(t, authorRepo, "")
 	defer os.RemoveAll(baseDir)
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 
 	// Key loaded from file (just generating it here)
@@ -3153,7 +3153,7 @@ func TestRotateRootKeyProvided(t *testing.T) {
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "post-rotate", authorRepo)
 
-	require.NoError(t, authorRepo.Update(false))
+	require.NoError(t, authorRepo.updateTUF(false))
 	newRootRole, err := authorRepo.tufRepo.GetBaseRole(data.CanonicalRootRole)
 	require.False(t, newRootRole.Equals(oldRootRole))
 	require.NoError(t, err)
@@ -3193,7 +3193,7 @@ func TestRotateRootKeyProvided(t *testing.T) {
 
 	// Verify that the user initialized with the original certificate eventually
 	// rotates to the new certificate.
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "user refresh 1", userRepo)
 	require.Equal(t, newRootCertID, rootRoleCertID(t, userRepo))
@@ -3217,7 +3217,7 @@ func TestRotateRootKeyLegacySupport(t *testing.T) {
 	// Initialize a user, using the original root cert and key.
 	userRepo, _, baseDir := newRepoToTestRepo(t, authorRepo, "")
 	defer os.RemoveAll(baseDir)
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 
 	// Rotate root certificate and key.
@@ -3232,7 +3232,7 @@ func TestRotateRootKeyLegacySupport(t *testing.T) {
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "post-rotate-again", authorRepo)
 
-	require.NoError(t, authorRepo.Update(false))
+	require.NoError(t, authorRepo.updateTUF(false))
 	newRootRole, err := authorRepo.tufRepo.GetBaseRole(data.CanonicalRootRole)
 	require.NoError(t, err)
 	require.False(t, newRootRole.Equals(oldRootRole))
@@ -3256,7 +3256,7 @@ func TestRotateRootKeyLegacySupport(t *testing.T) {
 	logRepoTrustRoot(t, "post-publish", authorRepo)
 
 	// Verify the user can use the rotated repo, and see the added target.
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 	_, err = userRepo.GetTargetByName("current")
 	require.NoError(t, err)
@@ -3277,7 +3277,7 @@ func TestRotateRootKeyLegacySupport(t *testing.T) {
 
 	// Verify that the user initialized with the original certificate eventually
 	// rotates to the new certificate.
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "user refresh 1", userRepo)
 	require.Equal(t, newRootCertID, rootRoleCertID(t, userRepo))
@@ -3598,37 +3598,6 @@ func TestRemoveDelegationErrorWritingChanges(t *testing.T) {
 	testErrorWritingChangefiles(t, func(repo *repository) error {
 		return repo.RemoveDelegationKeysAndPaths("targets/a", []string{""}, []string{})
 	})
-}
-
-// TestBootstrapClientBadURL checks that bootstrapClient correctly
-// returns an error when the URL is valid but does not point to
-// a TUF server
-func TestBootstrapClientBadURL(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	require.NoError(t, err, "failed to create a temporary directory: %s", err)
-	r, err := NewFileCachedRepository(
-		tempBaseDir,
-		"testGun",
-		"http://localhost:9998",
-		http.DefaultTransport,
-		passphraseRetriever,
-		trustpinning.TrustPinConfig{},
-	)
-	require.NoError(t, err, "error creating repo: %s", err)
-	repo := r.(*repository)
-
-	c, err := repo.bootstrapClient(false)
-	require.Nil(t, c)
-	require.Error(t, err)
-
-	c, err2 := repo.bootstrapClient(true)
-	require.Nil(t, c)
-	require.Error(t, err2)
-
-	// same error should be returned because we don't have local data
-	// and are requesting remote root regardless of checkInitialized
-	// value
-	require.EqualError(t, err, err2.Error())
 }
 
 // TestClientInvalidURL checks that instantiating a new repository

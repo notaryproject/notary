@@ -114,7 +114,7 @@ func TestUpdateSucceedsEvenIfCannotWriteNewRepo(t *testing.T) {
 	for role := range serverMeta {
 		repo, baseDir := newBlankRepo(t, ts.URL)
 		repo.cache = &unwritableStore{MetadataStore: repo.cache, roleToNotWrite: role}
-		err := repo.Update(false)
+		err := repo.updateTUF(false)
 		require.NoError(t, err)
 
 		for r, expected := range serverMeta {
@@ -148,7 +148,7 @@ func TestUpdateSucceedsEvenIfCannotWriteExistingRepo(t *testing.T) {
 	repo, baseDir := newBlankRepo(t, ts.URL)
 	defer os.RemoveAll(baseDir)
 
-	err := repo.Update(false)
+	err := repo.updateTUF(false)
 	require.NoError(t, err)
 
 	origFileStore := repo.cache
@@ -160,7 +160,7 @@ func TestUpdateSucceedsEvenIfCannotWriteExistingRepo(t *testing.T) {
 
 			// update fileStore
 			repo.cache = &unwritableStore{MetadataStore: origFileStore, roleToNotWrite: role}
-			err := repo.Update(forWrite)
+			err := repo.updateTUF(forWrite)
 
 			require.NoError(t, err)
 
@@ -198,7 +198,7 @@ func TestUpdateInOfflineMode(t *testing.T) {
 	// invalid URL, no cache - errors
 	invalidURLRepo, baseDir := newBlankRepo(t, "https://nothisdoesnotexist.com")
 	defer os.RemoveAll(baseDir)
-	err := invalidURLRepo.Update(false)
+	err := invalidURLRepo.updateTUF(false)
 	require.Error(t, err)
 	require.IsType(t, store.NetworkError{}, err)
 
@@ -211,7 +211,7 @@ func TestUpdateInOfflineMode(t *testing.T) {
 		nil, passphrase.ConstantRetriever("pass"), trustpinning.TrustPinConfig{})
 	require.NoError(t, err)
 	offlineRepo := or.(*repository)
-	err = offlineRepo.Update(false)
+	err = offlineRepo.updateTUF(false)
 	require.Error(t, err)
 	require.IsType(t, store.ErrOffline{}, err)
 
@@ -224,8 +224,8 @@ func TestUpdateInOfflineMode(t *testing.T) {
 	}
 
 	// both of these can read from cache and load repo
-	require.NoError(t, invalidURLRepo.Update(false))
-	require.NoError(t, offlineRepo.Update(false))
+	require.NoError(t, invalidURLRepo.updateTUF(false))
+	require.NoError(t, offlineRepo.updateTUF(false))
 }
 
 type swizzleFunc func(*testutils.MetadataSwizzler, data.RoleName) error
@@ -277,7 +277,7 @@ func TestUpdateReplacesCorruptOrMissingMetadata(t *testing.T) {
 	repo, baseDir := newBlankRepo(t, ts.URL)
 	defer os.RemoveAll(baseDir)
 
-	err = repo.Update(false) // ensure we have all metadata to start with
+	err = repo.updateTUF(false) // ensure we have all metadata to start with
 	require.NoError(t, err)
 
 	// we want to swizzle the local cache, not the server, so create a new one
@@ -291,7 +291,7 @@ func TestUpdateReplacesCorruptOrMissingMetadata(t *testing.T) {
 			text, messItUp := expt.desc, expt.swizzle
 			for _, forWrite := range []bool{true, false} {
 				require.NoError(t, messItUp(repoSwizzler, role), "could not fuzz %s (%s)", role, text)
-				err := repo.Update(forWrite)
+				err := repo.updateTUF(forWrite)
 				// If this is a root role, we should error if it's corrupted or invalid data;
 				// missing metadata is ok.
 				if role == data.CanonicalRootRole && expt.desc != "missing metadata" &&
@@ -335,7 +335,7 @@ func TestUpdateFailsIfServerRootKeyChangedWithoutMultiSign(t *testing.T) {
 	repo, baseDir := newBlankRepo(t, ts.URL)
 	defer os.RemoveAll(baseDir)
 
-	err := repo.Update(false) // ensure we have all metadata to start with
+	err := repo.updateTUF(false) // ensure we have all metadata to start with
 	require.NoError(t, err)
 
 	// rotate the server's root.json root key so that they no longer match trust anchors
@@ -358,7 +358,7 @@ func TestUpdateFailsIfServerRootKeyChangedWithoutMultiSign(t *testing.T) {
 
 			if _, ok := err.(store.ErrMetaNotFound); ok { // one of the ways to mess up is to delete metadata
 
-				err = repo.Update(forWrite)
+				err = repo.updateTUF(forWrite)
 				// the new server has a different root key, but we don't have any way of pinning against a previous root
 				require.NoError(t, err)
 				// revert our original metadata
@@ -369,7 +369,7 @@ func TestUpdateFailsIfServerRootKeyChangedWithoutMultiSign(t *testing.T) {
 
 				require.NoError(t, err)
 
-				err = repo.Update(forWrite)
+				err = repo.updateTUF(forWrite)
 				require.Error(t, err) // the new server has a different root, update fails
 
 				// we can't test that all the metadata is the same, because we probably would
@@ -690,7 +690,7 @@ func testUpdateRemoteNon200Error(t *testing.T, opts updateOpts, errExpected inte
 	defer os.RemoveAll(baseDir)
 
 	if opts.localCache {
-		err := repo.Update(false) // acquire local cache
+		err := repo.updateTUF(false) // acquire local cache
 		require.NoError(t, err)
 	}
 
@@ -700,7 +700,7 @@ func testUpdateRemoteNon200Error(t *testing.T, opts updateOpts, errExpected inte
 
 	require.NoError(t, serverSwizzler.RemoveMetadata(opts.role), "failed to remove %s", opts.role)
 
-	err := repo.Update(opts.forWrite)
+	err := repo.updateTUF(opts.forWrite)
 	if errExpected == nil {
 		require.NoError(t, err, "expected no failure updating when %s is %v (forWrite: %v)",
 			opts.role, opts.notFoundCode, opts.forWrite)
@@ -802,7 +802,7 @@ func testUpdateRemoteFileChecksumWrong(t *testing.T, opts updateOpts, errExpecte
 	defer os.RemoveAll(baseDir)
 
 	if opts.localCache {
-		err := repo.Update(false) // acquire local cache
+		err := repo.updateTUF(false) // acquire local cache
 		require.NoError(t, err)
 	}
 
@@ -812,7 +812,7 @@ func testUpdateRemoteFileChecksumWrong(t *testing.T, opts updateOpts, errExpecte
 
 	require.NoError(t, serverSwizzler.AddExtraSpace(opts.role), "failed to checksum-corrupt to %s", opts.role)
 
-	err := repo.Update(opts.forWrite)
+	err := repo.updateTUF(opts.forWrite)
 	if !errExpected {
 		require.NoError(t, err, "expected no failure updating when %s has the wrong checksum (forWrite: %v)",
 			opts.role, opts.forWrite)
@@ -1278,7 +1278,7 @@ func testUpdateRemoteCorruptValidChecksum(t *testing.T, opts updateOpts, expt sw
 	defer os.RemoveAll(baseDir)
 
 	if opts.localCache {
-		err := repo.Update(false)
+		err := repo.updateTUF(false)
 		require.NoError(t, err)
 	}
 
@@ -1312,7 +1312,7 @@ func testUpdateRemoteCorruptValidChecksum(t *testing.T, opts updateOpts, expt sw
 			}
 		}
 	}
-	err := repo.Update(opts.forWrite)
+	err := repo.updateTUF(opts.forWrite)
 	checkErrors(t, err, shouldErr, expt.expectErrs, msg)
 
 	if opts.checkRepo != nil {
@@ -1363,7 +1363,7 @@ func testUpdateLocalAndRemoteRootCorrupt(t *testing.T, forWrite bool, localExpt,
 	defer os.RemoveAll(baseDir)
 
 	// get local cache
-	err := repo.Update(false)
+	err := repo.updateTUF(false)
 	require.NoError(t, err)
 	repoSwizzler := &testutils.MetadataSwizzler{
 		Gun:           serverSwizzler.Gun,
@@ -1386,7 +1386,7 @@ func testUpdateLocalAndRemoteRootCorrupt(t *testing.T, forWrite bool, localExpt,
 	msg := fmt.Sprintf("swizzling root locally to return <%v> and remotely to return: <%v> (forWrite: %v)",
 		localExpt.desc, serverExpt.desc, forWrite)
 
-	err = repo.Update(forWrite)
+	err = repo.updateTUF(forWrite)
 	require.Error(t, err, "expected failure updating when %s", msg)
 
 	expectedErrs := serverExpt.expectErrs
@@ -1433,7 +1433,7 @@ func testUpdateRemoteKeyRotated(t *testing.T, role data.RoleName) {
 	defer os.RemoveAll(baseDir)
 
 	// get local cache
-	err := repo.Update(false)
+	err := repo.updateTUF(false)
 	require.NoError(t, err)
 
 	cs := signed.NewEd25519()
@@ -1457,7 +1457,7 @@ func testUpdateRemoteKeyRotated(t *testing.T, role data.RoleName) {
 
 	msg := fmt.Sprintf("swizzling %s remotely to rotate key (forWrite: false)", role)
 
-	err = repo.Update(false)
+	err = repo.updateTUF(false)
 	// invalid signatures are ok - the delegation is just skipped
 	if data.IsDelegation(role) {
 		require.NoError(t, err)
@@ -1550,7 +1550,7 @@ func TestValidateRootRotationWithOldRole(t *testing.T) {
 	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, threeKeys[:2])
 
 	// Load this root for the first time with 3 keys
-	require.NoError(t, repo.Update(false))
+	require.NoError(t, repo.updateTUF(false))
 
 	// --- First root rotation: replace the first key with a different key and change the
 	// --- threshold back to 1
@@ -1567,12 +1567,12 @@ func TestValidateRootRotationWithOldRole(t *testing.T) {
 	// --- will fail.  (signing with just the second key will not satisfy the first role,
 	// --- because that one has a threshold of 2, although it will satisfy the new role)
 	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, threeKeys[1:2])
-	require.Error(t, repo.Update(false))
+	require.Error(t, repo.updateTUF(false))
 
 	// --- If both the current and previous roles are satisfied, then the root rotation
 	// --- will succeed (signing with the second and third keys will satisfies both)
 	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, threeKeys[1:])
-	require.NoError(t, repo.Update(false))
+	require.NoError(t, repo.updateTUF(false))
 
 	// --- Older roles do not have to be satisfied in order to validate if the update
 	// --- does not involve a root rotation (replacing the snapshot key is not a root
@@ -1586,7 +1586,7 @@ func TestValidateRootRotationWithOldRole(t *testing.T) {
 	signedRoot.Signed.Roles[data.CanonicalSnapshotRole].KeyIDs = []string{snapKey.ID()}
 
 	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, []data.PublicKey{replacementKey})
-	require.NoError(t, repo.Update(false))
+	require.NoError(t, repo.updateTUF(false))
 
 	// --- Second root rotation: if only the previous role is satisfied but not the new role,
 	// --- then the root rotation will fail (if we rotate to the only valid signing key being
@@ -1596,11 +1596,11 @@ func TestValidateRootRotationWithOldRole(t *testing.T) {
 	signedRoot.Signed.Roles[data.CanonicalRootRole].KeyIDs = []string{keyIDs[0]}
 
 	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, []data.PublicKey{replacementKey})
-	require.Error(t, repo.Update(false))
+	require.Error(t, repo.updateTUF(false))
 
 	// again, signing with both will succeed
 	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, []data.PublicKey{replacementKey, threeKeys[0]})
-	require.NoError(t, repo.Update(false))
+	require.NoError(t, repo.updateTUF(false))
 }
 
 // A valid root role is signed by the current root role keys and the previous root role keys
@@ -1642,7 +1642,7 @@ func TestRootRoleInvariant(t *testing.T) {
 	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, []data.PublicKey{threeKeys[0]})
 
 	// Load this root for the first time with 1 key
-	require.NoError(t, repo.Update(false))
+	require.NoError(t, repo.updateTUF(false))
 
 	// --- First root rotation: replace the first key with a different key
 	signedRoot.Signed.Version++
@@ -1652,13 +1652,13 @@ func TestRootRoleInvariant(t *testing.T) {
 	// --- If the current role is satisfied but the previous one is not, root rotation
 	// --- will fail.  Signing with just the second key will not satisfy the first role.
 	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, []data.PublicKey{threeKeys[1]})
-	require.Error(t, repo.Update(false))
+	require.Error(t, repo.updateTUF(false))
 	requireRootSignatures(t, serverSwizzler, 1)
 
 	// --- If both the current and previous roles are satisfied, then the root rotation
 	// --- will succeed (signing with the first and second keys will satisfy both)
 	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, threeKeys[:2])
-	require.NoError(t, repo.Update(false))
+	require.NoError(t, repo.updateTUF(false))
 	requireRootSignatures(t, serverSwizzler, 2)
 
 	// --- Second root rotation: replace the second key with a third
@@ -1669,18 +1669,18 @@ func TestRootRoleInvariant(t *testing.T) {
 	// --- If the current role is satisfied but the previous one is not, root rotation
 	// --- will fail.  Signing with just the second key will not satisfy the first role.
 	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, []data.PublicKey{threeKeys[2]})
-	require.Error(t, repo.Update(false))
+	require.Error(t, repo.updateTUF(false))
 	requireRootSignatures(t, serverSwizzler, 1)
 
 	// --- If both the current and previous roles are satisfied, then the root rotation
 	// --- will succeed (signing with the second and third keys will satisfy both)
 	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, threeKeys[1:])
-	require.NoError(t, repo.Update(false))
+	require.NoError(t, repo.updateTUF(false))
 	requireRootSignatures(t, serverSwizzler, 2)
 
 	// -- If signed with all previous roles, update will succeed
 	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, threeKeys)
-	require.NoError(t, repo.Update(false))
+	require.NoError(t, repo.updateTUF(false))
 	requireRootSignatures(t, serverSwizzler, 3)
 }
 
@@ -1717,7 +1717,7 @@ func TestBadIntermediateTransitions(t *testing.T) {
 	signedRoot.Signed.Roles[data.CanonicalRootRole].Threshold = 1
 	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, []data.PublicKey{threeKeys[0]})
 
-	require.NoError(t, repo.Update(false))
+	require.NoError(t, repo.updateTUF(false))
 
 	// increment the root version and sign with the second key only
 	signedRoot.Signed.Version++
@@ -1738,7 +1738,7 @@ func TestBadIntermediateTransitions(t *testing.T) {
 	requireRootSignatures(t, serverSwizzler, 1)
 
 	// Update fails because version 1 -> 2 is invalid.
-	require.Error(t, repo.Update(false))
+	require.Error(t, repo.updateTUF(false))
 }
 
 // All intermediate roots must be signed by the previous root role
@@ -1774,7 +1774,7 @@ func TestExpiredIntermediateTransitions(t *testing.T) {
 	signedRoot.Signed.Roles[data.CanonicalRootRole].Threshold = 1
 	signSerializeAndUpdateRoot(t, signedRoot, serverSwizzler, []data.PublicKey{threeKeys[0]})
 
-	require.NoError(t, repo.Update(false))
+	require.NoError(t, repo.updateTUF(false))
 
 	// increment the root version and sign with the first and second keys, but set metadata to be expired.
 	signedRoot.Signed.Version++
@@ -1794,7 +1794,7 @@ func TestExpiredIntermediateTransitions(t *testing.T) {
 	requireRootSignatures(t, serverSwizzler, 3)
 
 	// Update succeeds despite version 2 being expired.
-	require.NoError(t, repo.Update(false))
+	require.NoError(t, repo.updateTUF(false))
 }
 
 // TestDownloadTargetsLarge: Check that we can download very large targets metadata files,
@@ -1959,7 +1959,7 @@ func TestRootOnDiskTrustPinning(t *testing.T) {
 	defer os.RemoveAll(baseDir)
 	repo.trustPinning = restrictiveTrustPinning
 
-	err := repo.Update(false)
+	err := repo.updateTUF(false)
 	require.Error(t, err)
 	require.IsType(t, &trustpinning.ErrValidationFail{}, err)
 
@@ -1970,5 +1970,30 @@ func TestRootOnDiskTrustPinning(t *testing.T) {
 	// put root on disk
 	require.NoError(t, repo.cache.Set(data.CanonicalRootRole.String(), meta[data.CanonicalRootRole]))
 
-	require.NoError(t, repo.Update(false))
+	require.NoError(t, repo.updateTUF(false))
+}
+
+// TestLoadTUFRepoBadURL checks that LoadTUFRepo correctly
+// returns an error when the URL is valid but does not point to
+// a TUF server, and there is no cache on disk
+func TestLoadTUFRepoBadURL(t *testing.T) {
+	remote, err := store.NewNotaryServerStore("https://localhost:9998", "testGUN", http.DefaultTransport)
+	require.NoError(t, err)
+
+	_, _, err1 := LoadTUFRepo(TUFLoadOptions{
+		GUN:                    "testGUN",
+		RemoteStore:            remote,
+		AlwaysCheckInitialized: true,
+	})
+
+	_, _, err2 := LoadTUFRepo(TUFLoadOptions{
+		GUN:                    "testGUN",
+		RemoteStore:            remote,
+		AlwaysCheckInitialized: false,
+	})
+
+	// same error should be returned because we don't have local data
+	// and are requesting remote root regardless of checkInitialized
+	// value
+	require.EqualError(t, err1, err2.Error())
 }
