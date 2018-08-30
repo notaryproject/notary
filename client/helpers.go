@@ -237,12 +237,12 @@ func getRemoteKey(role data.RoleName, remote store.RemoteStore) (data.PublicKey,
 func rotateRemoteKey(role data.RoleName, remote store.RemoteStore) (data.PublicKey, error) {
 	rawPubKey, err := remote.RotateKey(role)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to rotate remote key: %v", err)
 	}
 
 	pubKey, err := data.UnmarshalPublicKey(rawPubKey)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to rotate remote key: %v", err)
 	}
 
 	return pubKey, nil

@@ -2965,6 +2965,53 @@ func rootRoleCertID(t *testing.T, repo *repository) string {
 	return rootKeys[0]
 }
 
+func TestRotateKeyHelper(t *testing.T) {
+	ts := fullTestServer(t)
+	defer ts.Close()
+
+	var gun data.GUN
+	gun = "docker/test"
+	r, _ := initializeRepo(t, data.ECDSAKey, string(gun), ts.URL, false)
+	defer os.RemoveAll(r.baseDir)
+
+	r.Publish()
+
+	pubs := make([]data.PublicKey, 7)
+	for i := range pubs {
+		pubs[i], _ = r.GetCryptoService().Create(data.CanonicalRootRole, gun, data.ECDSAKey)
+	}
+
+	err := r.RotateKey(data.CanonicalRootRole, false, []string{pubs[0].ID()})
+	require.NoError(t, err, "rotate key with 1 key failed:")
+
+	err = r.RotateKey(data.CanonicalRootRole, false, nil)
+	require.NoError(t, err, "rotate with nil as key list failed")
+
+	err = r.RotateKeyWithCert(data.CanonicalRootRole, false, []string{pubs[1].ID()}, []data.PublicKey{pubs[1]})
+	require.NoError(t, err, "rotate with matching key/cert pair failed")
+
+	err = r.RotateKeyWithCert(data.CanonicalRootRole, false, nil, []data.PublicKey{pubs[2]})
+	require.NoError(t, err, "rotate with 1 key and no cert failed")
+
+	err = r.RotateKeyWithCert(data.CanonicalRootRole, false, nil, nil)
+	require.NoError(t, err, "rotate with no key and no cert failed")
+
+	err = r.RotateKeyWithCert(data.CanonicalRootRole, false, []string{}, nil)
+	require.NoError(t, err, "rotate with empty list of keys and certs")
+
+	_ = r.GetCryptoService().RemoveKey(pubs[4].ID()) // remove pubs[4] from crypto
+	err = r.RotateKeyWithCert(data.CanonicalRootRole, false, []string{}, []data.PublicKey{pubs[4]})
+	require.Error(t, err, "cert only, key is not in keystore, expect to fail")
+
+	err = r.RotateKeyWithCert(data.CanonicalRootRole, false, []string{pubs[3].ID()}, []data.PublicKey{pubs[1]})
+	require.NoError(t, err, "rotate with non-matching key cert pair should be allowed as importing multiple keys")
+
+	err = r.RotateKeyWithCert(data.CanonicalRootRole, false, []string{"juiceshop"}, []data.PublicKey{pubs[1]})
+	require.Error(t, err, "rotate with cert and invalid key id")
+
+	err = r.RotateKeyWithCert(data.CanonicalRootRole, false, []string{pubs[5].ID(), pubs[6].ID()}, []data.PublicKey{pubs[6], pubs[5]})
+	require.NoError(t, err, "rotate with 2 unordered cert/key pairs failed")
+}
 func TestRotateRootKey(t *testing.T) {
 	ts := fullTestServer(t)
 	defer ts.Close()

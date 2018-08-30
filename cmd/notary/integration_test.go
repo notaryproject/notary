@@ -257,7 +257,7 @@ i85wnaTwOgWv8n6q3tavmnIA/v2QqsTpmI+bhwrPNKQ=
 		"--rootkey", privKeyFilename,
 		"--rootcert", certFilename)
 	require.NoError(t, err)
-	require.Contains(t, output, "Root key found")
+	require.Contains(t, output, "Root key found, using:")
 	// === no rootkey specified: look up in keystore ===
 	// this requires the previous test to inject private key in keystore
 	output, err = runCommand(t, tempDir,
@@ -1420,20 +1420,32 @@ func getUniqueKeys(t *testing.T, tempDir string) ([]string, []string) {
 // List keys, parses the output, and asserts something about the number of root
 // keys and number of signing keys, as well as returning them.
 func assertNumKeys(t *testing.T, tempDir string, numRoot, numSigning int,
-	rootOnDisk bool) ([]string, []string) {
+	rootOnDisk bool, msg ...interface{}) ([]string, []string) {
 
 	root, signing := getUniqueKeys(t, tempDir)
-	require.Len(t, root, numRoot)
-	require.Len(t, signing, numSigning)
+	require.Len(t, root, numRoot, msg...)
+	require.Len(t, signing, numSigning, msg...)
+
+	// Root key will be stored both locally and on HSM when initializing a repository with HSM.
+	// All subsequent actions will only create root key on HSM if aviliable.
+	// This variable keeps record of any initial root key on both HSM and in FS.
+	// It can be set to true only once and fails the test if more than 1 root key exit
+	// on FS and in HSM.
+	rootKeyOnHSMAndOnDisk := false
 	for _, rootKeyID := range root {
 		_, err := os.Stat(filepath.Join(
 			tempDir, notary.PrivDir, rootKeyID+".key"))
 		// os.IsExist checks to see if the error is because a file already
 		// exists, and hence it isn't actually the right function to use here
-		require.Equal(t, rootOnDisk, !os.IsNotExist(err))
-
-		// this function is declared is in the build-tagged setup files
-		verifyRootKeyOnHardware(t, rootKeyID)
+		isExist := !os.IsNotExist(err)
+		if isExist && !rootKeyOnHSMAndOnDisk {
+			// this function is declared is in the build-tagged setup files
+			verifyRootKeyOnHardware(t, rootKeyID)
+			rootKeyOnHSMAndOnDisk = true
+		} else {
+			require.Equal(t, rootOnDisk, isExist, msg...)
+			verifyRootKeyOnHardware(t, rootKeyID)
+		}
 	}
 	return root, signing
 }
@@ -1575,9 +1587,9 @@ func TestKeyRotation(t *testing.T) {
 	require.NoError(t, err)
 	badKeyFile.Close()
 
-	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole.String(), "--key", "123")
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole.String(), "--key", "123", "-y")
 	require.Error(t, err)
-	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole.String(), "--key", badKeyFile.Name())
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole.String(), "--key", badKeyFile.Name(), "-y")
 	require.Error(t, err)
 
 	// create encrypted root keys
@@ -1598,16 +1610,16 @@ func TestKeyRotation(t *testing.T) {
 	require.NoError(t, err)
 
 	// rotate the root key
-	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole.String(), "--key", encryptedPEMKeyFilename1, "--key", encryptedPEMKeyFilename2)
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole.String(), "--key", encryptedPEMKeyFilename1, "--key", encryptedPEMKeyFilename2, "-y")
 	require.NoError(t, err)
 	// 3 root keys - 1 prev, 1 new
 	assertNumKeys(t, tempDir, 3, 2, true)
 
 	// rotate the root key again
-	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole.String())
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "rotate", "gun", data.CanonicalRootRole.String(), "-y")
 	require.NoError(t, err)
 	// 3 root keys, 2 prev, 1 new
-	assertNumKeys(t, tempDir, 3, 2, true)
+	assertNumKeys(t, tempDir, 4, 2, true)
 
 	// publish using the new keys
 	output := assertSuccessfullyPublish(
@@ -1616,9 +1628,252 @@ func TestKeyRotation(t *testing.T) {
 	require.True(t, strings.Contains(string(output), target))
 }
 
+func nonMatchingKeyPairFilenames(t *testing.T, dir string) (string, string) {
+	nonMatchingKeyStr := `-----BEGIN EC PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: AES-256-CBC,fd6e6735232efbc1a851549d12b8203d
+role: root
+
+Z6u+cAZOEmeoieyQHt6Lp8ZmLWPiyGXT0wTkfYMnGxZ+EX+6sBeu9CWgx+3kOCWQ
+qXuLmBjJ4ZwL/lZejeLLefF7jILA0oDLJtNH1L0oP7H/i7DUtNv+7Jvnci986Rx0
+i85wnaTwOgWv8n6q3tavmnIA/v2QqsTpmI+bhwrPNKQ=
+-----END EC PRIVATE KEY-----`
+
+	privFn := filepath.Join(dir, "non-matching-priv.key")
+	require.NoError(t, ioutil.WriteFile(privFn, []byte(nonMatchingKeyStr), 0644))
+
+	_, pub := matchingKeyPairFilenames(t, dir)
+	return privFn, pub
+}
+
+//matchingKeyPairFilenames Write a matching key pair to dir and return filename of private key and public key
+func matchingKeyPairFilenames(t *testing.T, dir string) (privFn string, pubFn string) {
+	// key pairs
+	privStr := `-----BEGIN EC PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: AES-256-CBC,c9ccb4ef1effa1a080030c9c36942e8e
+role: root
+gun:
+path: root_keys/ab7fc77dba46f5d6264c80d6630727d17f8d285fb0eff0fd7c5620b44e6cd0fc
+role: root
+
+3pCHAMGD2QJDr8BAojd01wa4nzhct0Brk6olIAoaL9yRfV5jRguidu1UaoA22Tan
+9zOatIkxIgqkEP+P3+prIipbXJPbr9I9zVdWxhANSEhmQ95jmlk9syi/xeJT2oXB
+6+u84t59l0mRpuAisdC9AGkw7Cz2T5U51lhyCWjLDqE=
+-----END EC PRIVATE KEY-----`
+
+	certStr := `-----BEGIN CERTIFICATE-----
+MIIBWDCB/6ADAgECAhBKKoVsRNJdGsGh6tPWnE4rMAoGCCqGSM49BAMCMBMxETAP
+BgNVBAMTCGRvY2tlci8qMB4XDTE3MDQyODIwMTczMFoXDTI3MDQyNjIwMTczMFow
+EzERMA8GA1UEAxMIZG9ja2VyLyowWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQQ
+6RhA8sX/kWedbPPFzNqOMI+AnWOQV+u0+FQfeNO+k/Uf0LBnKhHEPSwSBuuwLPon
+w+nR0YTdv3lFaM7x9nOUozUwMzAOBgNVHQ8BAf8EBAMCBaAwEwYDVR0lBAwwCgYI
+KwYBBQUHAwMwDAYDVR0TAQH/BAIwADAKBggqhkjOPQQDAgNIADBFAiA+eHPInhLJ
+HgP8nha+UqdYgq8ZCOlhdGTJhSdHd4sCuQIhAPXqQeWhDLA3/Pf8B7G3ZwWpPbZ8
+adLwkjqoeEKMaAXf
+-----END CERTIFICATE-----`
+	privFn = filepath.Join(dir, "priv.key")
+	pubFn = filepath.Join(dir, "pub.crt")
+	require.NoError(t, ioutil.WriteFile(privFn, []byte(privStr), 0644))
+	require.NoError(t, ioutil.WriteFile(pubFn, []byte(certStr), 0644))
+	return
+}
+
+// genKeyPairFN creates a ECDSA private key and write the key (in PKCS8 format) and its corresponding public key (in x509 certificate format) to disk.
+func genKeyPairFN(t *testing.T, dir, filePrefix string, gun data.GUN) (keyFN string, certFN string) {
+	keyFN = filepath.Join(dir, filePrefix+".key")
+	certFN = filepath.Join(dir, filePrefix+".crt")
+
+	//generate key
+	priv, err := utils.GenerateECDSAKey(rand.Reader)
+	require.NoError(t, err)
+
+	pemBytes, err := utils.ConvertPrivateKeyToPKCS8(priv, data.CanonicalRootRole, gun, "")
+	require.NoError(t, err)
+
+	//generate cert
+	startTime := time.Now()
+	endTime := startTime.AddDate(0, 0, 1)
+	cert, err := cryptoservice.GenerateCertificate(priv, gun, startTime, endTime)
+	require.NoError(t, err)
+
+	require.NoError(t, ioutil.WriteFile(keyFN, pemBytes, 0644))
+	require.NoError(t, ioutil.WriteFile(certFN, utils.CertToPEM(cert), 0644))
+	return
+}
+
+func TestKeyRotationWithDuplicatedKeysAndCerts(t *testing.T) {
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, `{}`)
+	defer os.RemoveAll(tempDir)
+
+	tempfiles := make([]string, 2)
+	for i := 0; i < 2; i++ {
+		tempFile, err := ioutil.TempFile("", "targetfile")
+		require.NoError(t, err)
+		tempFile.Close()
+		tempfiles[i] = tempFile.Name()
+		defer os.Remove(tempFile.Name())
+	}
+
+	server := setupServer()
+	defer server.Close()
+
+	gun := "docker/repoName"
+	target := "target"
+
+	// privKey and privKey2 are the same in this case
+	privKey, cert := matchingKeyPairFilenames(t, tempDir)
+	privKey2, cert2 := matchingKeyPairFilenames(t, tempDir)
+
+	// initialize a repo, should have signing keys and no new root key
+	_, err := runCommand(t, tempDir, "-s", server.URL, "init", gun)
+	require.NoError(t, err)
+	assertNumKeys(t, tempDir, 1, 2, true)
+	assertSuccessfullyPublish(t, tempDir, server.URL, gun, target, tempfiles[0])
+	out, err := runCommand(t, tempDir, "-s", server.URL, "key", "rotate", gun, data.CanonicalRootRole.String(), "--rootcert", cert, "--rootcert", cert2, "--key", privKey, "--key", privKey2, "-y")
+	require.NoError(t, err, "should successfully rotate")
+	assertNumKeys(t, tempDir, 2, 2, true, out)
+
+}
+
+func TestRootKeyRotationWithCert(t *testing.T) {
+	setUp(t)
+
+	tempDir := tempDirWithConfig(t, `{}`)
+	defer os.RemoveAll(tempDir)
+
+	tempfiles := make([]string, 3)
+	for i := 0; i < 3; i++ {
+		tempFile, err := ioutil.TempFile("", "targetfile")
+		require.NoError(t, err)
+		tempFile.Close()
+		tempfiles[i] = tempFile.Name()
+		defer os.Remove(tempFile.Name())
+	}
+
+	server := setupServer()
+	defer server.Close()
+
+	gun := "docker/repoName"
+	target := "target"
+	privKey, cert := matchingKeyPairFilenames(t, tempDir)
+	nonMatchingKey, cert2 := nonMatchingKeyPairFilenames(t, tempDir)
+
+	// starts out with no keys
+	assertNumKeys(t, tempDir, 0, 0, !rootOnHardware())
+
+	// initialize a repo, should have signing keys and no new root key
+	out, err := runCommand(t, tempDir, "-s", server.URL, "init", gun)
+	require.NoError(t, err)
+	assertNumKeys(t, tempDir, 1, 2, true, out)
+	assertSuccessfullyPublish(t, tempDir, server.URL, gun, target, tempfiles[0])
+
+	// add another root key to key store for test case 6: rotate with --rootcert flag only
+	privKey2, _ := genKeyPairFN(t, tempDir, "credentials2", data.GUN(gun))
+	_, err = runCommand(t, tempDir, "-s", server.URL, "key", "import", privKey2)
+	require.NoError(t, err, "importing key failed")
+	assertNumKeys(t, tempDir, 2, 2, !rootOnHardware(), out)
+
+	// confirm 2 root keys and 2 signing keys are present. Do not make assumption where the root keys are located.
+	// this is because keys are either imported into yubikey or to disk if yubikey is not present
+	root, signing := getUniqueKeys(t, tempDir)
+	require.Len(t, root, 2, "unexpected number of root keys")
+	require.Len(t, signing, 2, "unexpected number of signing keys")
+
+	// begin test
+	testCases := []struct {
+		name                string
+		keyArgs             []string
+		assertPublish       bool
+		useTargetRole       bool
+		targetName          string
+		targetFile          string
+		expectedRootKeys    int
+		expectedSigningKeys int
+		reqErr              bool
+	}{
+		{
+			name:                "1. test key rotation with 1 imported key and 1 matching certificate",
+			keyArgs:             []string{"--key", privKey, "--rootcert", cert},
+			assertPublish:       true,
+			targetName:          target + "2",
+			targetFile:          tempfiles[1],
+			expectedRootKeys:    3,
+			expectedSigningKeys: 2,
+		},
+		{
+			name:                "2. rotate with the same key",
+			keyArgs:             []string{"--key", privKey, "--rootcert", cert},
+			expectedRootKeys:    3,
+			expectedSigningKeys: 2,
+		},
+		{
+			name:                "3. test key rotation with key and a non matching certificate",
+			keyArgs:             []string{"--key", nonMatchingKey, "--rootcert", cert},
+			expectedRootKeys:    4,
+			expectedSigningKeys: 2,
+			reqErr:              false,
+		},
+		{
+			name:                "4. test key rotation with imported key and non matching number of certificates",
+			keyArgs:             []string{"--key", nonMatchingKey, "--key", privKey, "--rootcert", cert},
+			expectedRootKeys:    4,
+			expectedSigningKeys: 2,
+			reqErr:              false,
+		},
+		{
+			name:                "5. test key rotation with target role",
+			keyArgs:             []string{"--key", privKey, "--rootcert", cert},
+			useTargetRole:       true,
+			expectedRootKeys:    4,
+			expectedSigningKeys: 2,
+			reqErr:              true,
+		},
+		{
+			name:                "6. test key rotation with a certificate corresponding to an unrecognized key",
+			keyArgs:             []string{"--rootcert", cert2},
+			expectedRootKeys:    4,
+			expectedSigningKeys: 2,
+			assertPublish:       true,
+			targetName:          target + "3",
+			targetFile:          tempfiles[2],
+		},
+	}
+
+	for _, tc := range testCases {
+		role := data.CanonicalRootRole.String()
+		if tc.useTargetRole {
+			role = data.CanonicalTargetsRole.String()
+		}
+
+		// generate runCommand arguments
+		rotateArgs := []string{"key", "rotate", gun, role, "-s", server.URL, "-y"}
+		rotateArgs = append(rotateArgs, tc.keyArgs...)
+		fmt.Printf("command arguments: %v", rotateArgs)
+		_, err := runCommand(t, tempDir, rotateArgs...)
+
+		// switch between error and no error
+		if tc.reqErr {
+			require.Error(t, err, tc.name+": failed, error is expected but not obtained")
+		} else {
+			require.NoError(t, err, tc.name+" failed, error: %v", err)
+		}
+
+		root, signing := getUniqueKeys(t, tempDir)
+		require.Len(t, root, tc.expectedRootKeys, "test case: "+tc.name)
+		require.Len(t, signing, tc.expectedSigningKeys, "test case: "+tc.name)
+
+		if tc.assertPublish {
+			output := assertSuccessfullyPublish(t, tempDir, server.URL, gun, tc.targetName, tc.targetFile)
+			require.True(t, strings.Contains(string(output), tc.targetName))
+		}
+	}
+}
+
 // Tests rotating non-root keys
 func TestKeyRotationNonRoot(t *testing.T) {
-	// -- setup --
 	setUp(t)
 
 	tempDir := tempDirWithConfig(t, "{}")

@@ -29,11 +29,19 @@ func CanonicalKeyID(k data.PublicKey) (string, error) {
 	if k == nil {
 		return "", errors.New("public key is nil")
 	}
+	if IsX509Key(k) {
+		return X509PublicKeyID(k)
+	}
+	return k.ID(), nil
+}
+
+// IsX509Key returns true if k is a x509 RSA/ECDSA TUF key, otherwise return false
+func IsX509Key(k data.PublicKey) bool {
 	switch k.Algorithm() {
 	case data.ECDSAx509Key, data.RSAx509Key:
-		return X509PublicKeyID(k)
+		return true
 	default:
-		return k.ID(), nil
+		return false
 	}
 }
 

@@ -1133,25 +1133,35 @@ func (r *repository) bootstrapClient(checkInitialized bool) (*tufClient, error) 
 // managing the key to the server. If key(s) are specified by keyList, then they are
 // used for signing the role.
 // These changes are staged in a changelist until publish is called.
-func (r *repository) RotateKey(role data.RoleName, serverManagesKey bool, keyList []string) error {
+func (r *repository) rotateKey(role data.RoleName, serverManagesKey bool, keyList []string, certs []data.PublicKey) error {
+	if len(certs) > 0 && role != data.CanonicalRootRole {
+		return fmt.Errorf("rotate with certificate only supports root role")
+	}
 	if err := checkRotationInput(role, serverManagesKey); err != nil {
 		return err
 	}
 
-	pubKeyList, err := r.pubKeyListForRotation(role, serverManagesKey, keyList)
+	pubKeys, err := r.pubKeyListForRotation(role, serverManagesKey, keyList, certs)
 	if err != nil {
 		return err
 	}
 
 	cl := changelist.NewMemChangelist()
-	if err := r.rootFileKeyChange(cl, role, changelist.ActionCreate, pubKeyList); err != nil {
+	if err := r.rootFileKeyChange(cl, role, changelist.ActionCreate, pubKeys); err != nil {
 		return err
 	}
 	return r.publish(cl)
 }
+func (r *repository) RotateKey(role data.RoleName, serverManagesKey bool, keyList []string) error {
+	return r.rotateKey(role, serverManagesKey, keyList, nil)
+}
 
 // Given a set of new keys to rotate to and a set of keys to drop, returns the list of current keys to use
-func (r *repository) pubKeyListForRotation(role data.RoleName, serverManaged bool, newKeys []string) (pubKeyList data.KeyList, err error) {
+func (r *repository) RotateKeyWithCert(role data.RoleName, serverManagesKey bool, keyList []string, certs []data.PublicKey) error {
+	return r.rotateKey(role, serverManagesKey, keyList, certs)
+}
+
+func (r *repository) pubKeyListForRotation(role data.RoleName, serverManaged bool, newKeys []string, pubKeys data.KeyList) (pubKeyList data.KeyList, err error) {
 	var pubKey data.PublicKey
 
 	// If server manages the key being rotated, request a rotation and return the new key
@@ -1167,32 +1177,54 @@ func (r *repository) pubKeyListForRotation(role data.RoleName, serverManaged boo
 	}
 
 	// If no new keys are passed in, we generate one
-	if len(newKeys) == 0 {
+	if len(newKeys) == 0 && len(pubKeys) == 0 {
 		pubKeyList = make(data.KeyList, 0, 1)
 		pubKey, err = r.GetCryptoService().Create(role, r.gun, data.ECDSAKey)
 		pubKeyList = append(pubKeyList, pubKey)
+	}
+
+	// If a list of keys to rotate to are provided, we add those
+	if len(newKeys) > 0 || len(pubKeys) > 0 {
+		pubKeyList, err = r.pubKeyListFromPrivAndPubKeys(newKeys, pubKeys)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate key: %s", err)
 	}
 
 	// If a list of keys to rotate to are provided, we add those
-	if len(newKeys) > 0 {
-		pubKeyList = make(data.KeyList, 0, len(newKeys))
-		for _, keyID := range newKeys {
-			pubKey = r.GetCryptoService().GetKey(keyID)
-			if pubKey == nil {
-				return nil, fmt.Errorf("unable to find key: %s", keyID)
-			}
-			pubKeyList = append(pubKeyList, pubKey)
-		}
-	}
-
-	// Convert to certs (for root keys)
 	if pubKeyList, err = r.pubKeysToCerts(role, pubKeyList); err != nil {
 		return nil, err
 	}
 
+	return pubKeyList, nil
+}
+
+// pubKeyListFromPrivAndPubKeys returns a list of consolidated public keys obtained by
+// merging the pubKeys with the public keys of the private keys
+func (r *repository) pubKeyListFromPrivAndPubKeys(privKIDs []string, pubKeys data.KeyList) (pubKeyList data.KeyList, err error) {
+
+	// Obtain a list of public keys corresponding to privKIDs and merge the list with pubKeys to
+	// Obtain a combined list of public keys
+	pubKeyIDs := make(map[string]struct{})
+	for _, k := range pubKeys {
+		kid, err := utils.CanonicalKeyID(k)
+		logrus.Debug("obtained public key ID %s for rotation", kid)
+		if err != nil {
+			return nil, fmt.Errorf("public key is invalid, %v", err)
+		}
+		pubKeyIDs[kid] = struct{}{}
+		pubKeyList = append(pubKeyList, k)
+	}
+
+	for _, id := range privKIDs {
+		if _, ok := pubKeyIDs[id]; !ok {
+			pubKey := r.GetCryptoService().GetKey(id)
+			if pubKey == nil {
+				return nil, fmt.Errorf("unable to find key: %s", id)
+			}
+			pubKeyList = append(pubKeyList, pubKey)
+		}
+	}
 	return pubKeyList, nil
 }
 
@@ -1203,16 +1235,19 @@ func (r *repository) pubKeysToCerts(role data.RoleName, pubKeyList data.KeyList)
 	}
 
 	for i, pubKey := range pubKeyList {
-		privKey, loadedRole, err := r.GetCryptoService().GetPrivateKey(pubKey.ID())
-		if err != nil {
-			return nil, err
-		}
-		if loadedRole != role {
-			return nil, fmt.Errorf("attempted to load root key but given %s key instead", loadedRole)
-		}
-		pubKey, err = rootCertKey(r.gun, privKey)
-		if err != nil {
-			return nil, err
+		// convert to x509 if pubKey is not already one
+		if !utils.IsX509Key(pubKey) {
+			privKey, loadedRole, err := r.GetCryptoService().GetPrivateKey(pubKey.ID())
+			if err != nil {
+				return nil, fmt.Errorf("error retrieving private key for corresponding public key with ID %s: %v", pubKey.ID(), err)
+			}
+			if loadedRole != role {
+				return nil, fmt.Errorf("attempted to load %s key but given %s key instead", role, loadedRole)
+			}
+			pubKey, err = rootCertKey(r.gun, privKey)
+			if err != nil {
+				return nil, err
+			}
 		}
 		pubKeyList[i] = pubKey
 	}
@@ -1269,7 +1304,7 @@ func DeleteTrustData(baseDir string, gun data.GUN, URL string, rt http.RoundTrip
 	if deleteRemote {
 		remote, err := getRemoteStore(URL, gun, rt)
 		if err != nil {
-			logrus.Error("unable to instantiate a remote store: %v", err)
+			logrus.Errorf("unable to instantiate a remote store: %v", err)
 			return err
 		}
 		if err := remote.RemoveAll(); err != nil {
