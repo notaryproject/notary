@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
 
 RUN useradd -ms /bin/bash notary \
 	&& pip install codecov \
-	&& go get github.com/golang/lint/golint github.com/fzipp/gocyclo github.com/client9/misspell/cmd/misspell github.com/gordonklaus/ineffassign github.com/securego/gosec/cmd/gosec/...
+	&& go get golang.org/x/lint/golint github.com/fzipp/gocyclo github.com/client9/misspell/cmd/misspell github.com/gordonklaus/ineffassign github.com/securego/gosec/cmd/gosec/...
 
 ENV NOTARYDIR /go/src/github.com/theupdateframework/notary
 
