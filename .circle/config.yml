@@ -1,0 +1,25 @@
+version: 2
+jobs:
+  build:
+    machine: true
+    parallelism: 4
+    steps:
+      - checkout
+      - run:
+          name: Install devtools so that pyyaml can be installed (needed for docker compose)
+          command: sudo apt-get -qyy update && sudo apt-get -qyy install python-dev
+      - run:
+          name: Upgrade Docker
+          command: curl -sSL https://s3.amazonaws.com/circle-downloads/install-circleci-docker.sh | bash -s -- 1.10.0
+      - run:
+          name: Upgrade docker-compose
+          command: sudo pip install --upgrade docker-compose
+      - run:
+          name: Build notary client container
+          command: docker build -t notary_client .
+      - run:
+          name: Run tests
+          command: buildscripts/circle_parallelism.sh
+      - run:
+          name: shutdown
+          command: docker-compose -f docker-compose.yml down -v && docker-compose -f docker-compose.rethink.yml down -v
