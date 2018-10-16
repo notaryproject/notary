@@ -1,0 +1,12 @@
+version: 2
+jobs:
+  build:
+    machine:
+      image: circleci/classic:201808-01
+    working_directory: ~/go/src/github.com/theupdateframework/notary
+    steps:
+      - add_ssh_keys
+      - checkout
+      - run: docker build -t notary_client .
+      - run: ./buildscripts/circle_parallelism.sh
+      - run: docker-compose -f docker-compose.yml down -v && docker-compose -f docker-compose.rethink.yml down -v
