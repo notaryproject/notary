@@ -380,9 +380,9 @@ func TestGetCacheConfig(t *testing.T) {
 
 func TestGetGUNPRefixes(t *testing.T) {
 	valids := map[string][]string{
-		`{}`: nil,
-		`{"repositories": {"gun_prefixes": []}}`:         nil,
-		`{"repositories": {}}`:                           nil,
+		`{}`:                                     nil,
+		`{"repositories": {"gun_prefixes": []}}`: nil,
+		`{"repositories": {}}`:                   nil,
 		`{"repositories": {"gun_prefixes": ["hello/"]}}`: {"hello/"},
 	}
 	invalids := []string{
