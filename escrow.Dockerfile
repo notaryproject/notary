@@ -1,4 +1,4 @@
-FROM golang:1.10.8-alpine
+FROM golang:1.11.2-alpine
 
 ENV NOTARYPKG github.com/theupdateframework/notary
 
