@@ -1,4 +1,4 @@
-FROM golang:1.10.3-alpine AS build-env
+FROM golang:1.10.8-alpine AS build-env
 RUN apk add --update git gcc libc-dev
 # Pin to the specific v3.0.0 version
 RUN go get -tags 'mysql postgres file' github.com/mattes/migrate/cli && mv /go/bin/cli /go/bin/migrate
