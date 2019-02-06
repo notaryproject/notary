@@ -85,29 +85,38 @@ func ParseServerTLS(configuration *viper.Viper, tlsRequired bool) (*tls.Config, 
 		return nil, err
 	}
 
+	// Get rotation information from config file
 	rotationPeriod, err := ParseCertRotation(configuration)
 	if err != nil {
 		return nil, err
 	}
+
+	return configureRotation(conf, tlsOpts.CertFile, tlsOpts.KeyFile, rotationPeriod)
+}
+
+// configureRotation updates the tlsConfig struct passed in to update an in-memory copy of a cert/key
+// at a configured rate. GetCertificate on that tlsConfig will then return a timely copy of the cert/key.
+func configureRotation(conf *tls.Config, cert, key string, period time.Duration) (*tls.Config, error) {
 	// Rotation period of 0 means no rotation
-	if rotationPeriod == 0 {
+	if period == 0 {
 		return conf, nil
 	}
-	// Setup rotation
+	// Setup a function that will continually call itself at some interval
 	var (
 		reloadCert *tls.Certificate
 		m          sync.RWMutex
 		resetCert  func()
+		err        error
 	)
 	resetCert = func() {
 		m.Lock()
 		defer m.Unlock()
-		reloadCert, err = loadCertificate(tlsOpts.CertFile, tlsOpts.KeyFile)
+		reloadCert, err = loadCertificate(cert, key)
 		if err != nil {
 			logrus.Warnf("failed to (re)load certificate %s", err)
 		}
-		// Re-run this function hourly
-		time.AfterFunc(rotationPeriod, resetCert)
+		// Re-run this function at configured rate
+		time.AfterFunc(period, resetCert)
 	}
 	resetCert()
 
