@@ -131,7 +131,7 @@ func (c *tufClient) updateRoot() error {
 
 	// Write newest to cache
 	if err := c.cache.Set(data.CanonicalRootRole.String(), raw); err != nil {
-		logrus.Debugf("unable to write %s to cache: %d.%s", newestVersion, data.CanonicalRootRole, err)
+		logrus.Debugf("unable to write %d.%s to cache: %s", newestVersion, data.CanonicalRootRole, err)
 	}
 	logrus.Debugf("finished updating root files")
 	return nil
