@@ -316,11 +316,12 @@ func TestGenerateSnapshotInvalidOperations(t *testing.T) {
 	for _, prevSnapshot := range []*data.SignedSnapshot{nil, repo.Snapshot} {
 		// copy keys, since we expect one of these generation attempts to succeed and we do
 		// some key deletion tests later
-		newCS := testutils.CopyKeys(t, cs, data.CanonicalSnapshotRole)
+		newCS, err := testutils.CopyKeys(cs, data.CanonicalSnapshotRole)
+		require.NoError(t, err)
 
 		// --- we can't generate a snapshot if the root isn't loaded
 		builder := tuf.NewRepoBuilder(gun, newCS, trustpinning.TrustPinConfig{})
-		_, _, err := builder.GenerateSnapshot(prevSnapshot)
+		_, _, err = builder.GenerateSnapshot(prevSnapshot)
 		require.IsType(t, tuf.ErrInvalidBuilderInput{}, err)
 		require.Contains(t, err.Error(), "root must be loaded first")
 		require.False(t, builder.IsLoaded(data.CanonicalSnapshotRole))
