@@ -38,7 +38,8 @@ func TestRunBadAddr(t *testing.T) {
 }
 
 func TestRunReservedPort(t *testing.T) {
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	err := Run(
 		ctx,
