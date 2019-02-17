@@ -1,6 +1,11 @@
 # Changelog
 
-## [v0.6.1](https://github.com/docker/notary/releases/tag/v0.6.0) 04/10/2018
+## [v0.6.2](https://github.com/docker/notary/releases/tag/v0.6.2) 02/18/2019
++ Bump go version to resolve a potential TLS denial of service vulnerability: [CVE-2018-16875](https://nvd.nist.gov/vuln/detail/CVE-2018-16875). [#1409](https://github.com/theupdateframework/notary/pull/1409)
++ Backported fix for leaking contexts. [#1358](https://github.com/theupdateframework/notary/pull/1358)
++ Backported fix for key files being created with exec permissions. [#1347](https://github.com/theupdateframework/notary/pull/1347)
+
+## [v0.6.1](https://github.com/docker/notary/releases/tag/v0.6.1) 04/10/2018
 + Fixed bug where CLI requested admin privileges for all metadata operations, including listing targets on a repo [#1315](https://github.com/theupdateframework/notary/pull/1315)
 + Prevented notary signer from being dumpable or ptraceable in Linux, except in debug mode [#1327](https://github.com/theupdateframework/notary/pull/1327)
 + Bumped JWT dependency to fix potential Invalid Curve Attack on NIST curves within ECDH key management [#1334](https://github.com/theupdateframework/notary/pull/1334)
