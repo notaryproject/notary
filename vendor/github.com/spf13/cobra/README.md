@@ -4,7 +4,7 @@ Cobra is both a library for creating powerful modern CLI applications as well as
 
 Many of the most widely used Go projects are built using Cobra including:
 
-* [Kubernetes](http://kubernetes.io/)
+* [Kubernetes](https://kubernetes.io/)
 * [Hugo](http://gohugo.io)
 * [rkt](https://github.com/coreos/rkt)
 * [etcd](https://github.com/coreos/etcd)
