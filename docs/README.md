@@ -6,7 +6,7 @@ draft = true
 
 # Contributing to the Docker Notary documentation
 
-The documentation in this directory is part of the [https://docs.docker.com](https://docs.docker.com) website.  Docker uses [the Hugo static generator](http://gohugo.io/overview/introduction/) to convert project Markdown files to a static HTML site. 
+The documentation in this directory is part of the [https://docs.docker.com](https://docs.docker.com) website.  Docker uses [the Hugo static generator](https://gohugo.io/getting-started/) to convert project Markdown files to a static HTML site.
 
 You don't need to be a Hugo expert to contribute to the Notary documentation. If you are familiar with Markdown, you can modify the content in the `docs` files.  
 
