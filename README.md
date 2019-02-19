@@ -70,7 +70,7 @@ For more advanced usage, see the
 
 To use the CLI against a local Notary server rather than against Docker Hub:
 
-1. Ensure that you have [docker and docker-compose](http://docs.docker.com/compose/install/) installed.
+1. Ensure that you have [docker and docker-compose](https://docs.docker.com/compose/install/) installed.
 1. `git clone https://github.com/theupdateframework/notary.git` and from the cloned repository path,
     start up a local Notary server and signer and copy the config file and testing certs to your
     local Notary config directory:
@@ -108,7 +108,7 @@ Prerequisites:
     - Ubuntu: `apt-get install libltdl-dev`
     - CentOS/RedHat: `yum install libtool-ltdl-devel`
     - Fedora: `dnf install libtool-ltdl-devel`
-    - Mac OS ([Homebrew](http://brew.sh/)): `brew install libtool`
+    - Mac OS ([Homebrew](https://brew.sh)): `brew install libtool`
 
 Set [```GOPATH```](https://golang.org/doc/code.html#GOPATH). Then, run:
 
