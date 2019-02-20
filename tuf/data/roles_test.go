@@ -11,9 +11,9 @@ import (
 
 func TestMergeStrSlicesExclusive(t *testing.T) {
 	orig := []string{"a"}
-	new := []string{"b"}
+	newStr := []string{"b"}
 
-	res := mergeStrSlices(orig, new)
+	res := mergeStrSlices(orig, newStr)
 	require.Len(t, res, 2)
 	require.Equal(t, "a", res[0])
 	require.Equal(t, "b", res[1])
@@ -21,9 +21,9 @@ func TestMergeStrSlicesExclusive(t *testing.T) {
 
 func TestMergeStrSlicesOverlap(t *testing.T) {
 	orig := []string{"a"}
-	new := []string{"a", "b"}
+	newStr := []string{"a", "b"}
 
-	res := mergeStrSlices(orig, new)
+	res := mergeStrSlices(orig, newStr)
 	require.Len(t, res, 2)
 	require.Equal(t, "a", res[0])
 	require.Equal(t, "b", res[1])
@@ -31,36 +31,36 @@ func TestMergeStrSlicesOverlap(t *testing.T) {
 
 func TestMergeStrSlicesEqual(t *testing.T) {
 	orig := []string{"a"}
-	new := []string{"a"}
+	newStr := []string{"a"}
 
-	res := mergeStrSlices(orig, new)
+	res := mergeStrSlices(orig, newStr)
 	require.Len(t, res, 1)
 	require.Equal(t, "a", res[0])
 }
 
 func TestSubtractStrSlicesExclusive(t *testing.T) {
 	orig := []string{"a"}
-	new := []string{"b"}
+	newStr := []string{"b"}
 
-	res := subtractStrSlices(orig, new)
+	res := subtractStrSlices(orig, newStr)
 	require.Len(t, res, 1)
 	require.Equal(t, "a", res[0])
 }
 
 func TestSubtractStrSlicesOverlap(t *testing.T) {
 	orig := []string{"a", "b"}
-	new := []string{"a"}
+	newStr := []string{"a"}
 
-	res := subtractStrSlices(orig, new)
+	res := subtractStrSlices(orig, newStr)
 	require.Len(t, res, 1)
 	require.Equal(t, "b", res[0])
 }
 
 func TestSubtractStrSlicesEqual(t *testing.T) {
 	orig := []string{"a"}
-	new := []string{"a"}
+	newStr := []string{"a"}
 
-	res := subtractStrSlices(orig, new)
+	res := subtractStrSlices(orig, newStr)
 	require.Len(t, res, 0)
 }
 
