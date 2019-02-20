@@ -204,7 +204,7 @@ func (k *keyCommander) keysGenerate(cmd *cobra.Command, args []string) error {
 	}
 
 	if !allowedCiphers[strings.ToLower(algorithm)] {
-		return fmt.Errorf("Algorithm not allowed, possible values are: ECDSA")
+		return fmt.Errorf("algorithm not allowed, possible values are: ECDSA")
 	}
 
 	config, err := k.configGetter()
@@ -222,7 +222,7 @@ func (k *keyCommander) keysGenerate(cmd *cobra.Command, args []string) error {
 
 		pubKey, err := cs.Create(data.RoleName(k.generateRole), "", algorithm)
 		if err != nil {
-			return fmt.Errorf("Failed to create a new %s key: %v", k.generateRole, err)
+			return fmt.Errorf("failed to create a new %s key: %v", k.generateRole, err)
 		}
 
 		cmd.Printf("Generated new %s %s key with keyID: %s\n", algorithm, k.generateRole, pubKey.ID())
@@ -288,7 +288,7 @@ func generateKeyToFile(role, algorithm string, retriever notary.PassRetriever, o
 func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 	if len(args) < 2 {
 		cmd.Usage()
-		return fmt.Errorf("Must specify a GUN and a key role to rotate")
+		return fmt.Errorf("must specify a GUN and a key role to rotate")
 	}
 
 	config, err := k.configGetter()
@@ -325,7 +325,7 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 		}
 		err = nRepo.GetCryptoService().AddKey(rotateKeyRole, gun, privKey)
 		if err != nil {
-			return fmt.Errorf("Error importing key: %v", err)
+			return fmt.Errorf("error importing key: %v", err)
 		}
 		keyList = append(keyList, privKey.ID())
 	}
@@ -365,7 +365,7 @@ func removeKeyInteractively(keyStores []trustmanager.KeyStore, keyID string,
 	}
 
 	if len(foundKeys) == 0 {
-		return fmt.Errorf("No key with ID %s found", keyID)
+		return fmt.Errorf("no key with ID %s found", keyID)
 	}
 
 	if len(foundKeys) > 1 {
@@ -562,7 +562,7 @@ func (k *keyCommander) exportKeys(cmd *cobra.Command, args []string) error {
 	}
 	if len(k.exportGUNs) > 0 {
 		if len(k.exportKeyIDs) > 0 {
-			return fmt.Errorf("Only the --gun or --key flag may be provided, not a mix of the two flags")
+			return fmt.Errorf("only the --gun or --key flag may be provided, not a mix of the two flags")
 		}
 		for _, gun := range k.exportGUNs {
 			return trustmanager.ExportKeysByGUN(out, fileStore, gun)

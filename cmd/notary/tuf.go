@@ -195,7 +195,7 @@ func (t *tufCommander) AddToCommand(cmd *cobra.Command) {
 func (t *tufCommander) tufWitness(cmd *cobra.Command, args []string) error {
 	if len(args) < 2 {
 		cmd.Usage()
-		return fmt.Errorf("Please provide a GUN and at least one role to witness")
+		return fmt.Errorf("please provide a GUN and at least one role to witness")
 	}
 	config, err := t.configGetter()
 	if err != nil {
@@ -269,7 +269,7 @@ func getTargetCustom(targetCustomFilename string) (*canonicaljson.RawMessage, er
 func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 	if len(args) < 3 || t.sha256 == "" && t.sha512 == "" {
 		cmd.Usage()
-		return fmt.Errorf("Must specify a GUN, target, byte size of target data, and at least one hash")
+		return fmt.Errorf("must specify a GUN, target, byte size of target data, and at least one hash")
 	}
 	config, err := t.configGetter()
 	if err != nil {
@@ -330,7 +330,7 @@ func (t *tufCommander) tufAddByHash(cmd *cobra.Command, args []string) error {
 func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 	if len(args) < 3 {
 		cmd.Usage()
-		return fmt.Errorf("Must specify a GUN, target, and path to target data")
+		return fmt.Errorf("must specify a GUN, target, and path to target data")
 	}
 	config, err := t.configGetter()
 	if err != nil {
@@ -373,7 +373,7 @@ func (t *tufCommander) tufAdd(cmd *cobra.Command, args []string) error {
 func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 {
 		cmd.Usage()
-		return fmt.Errorf("Must specify a GUN")
+		return fmt.Errorf("must specify a GUN")
 	}
 	config, err := t.configGetter()
 	if err != nil {
@@ -421,7 +421,7 @@ func importRootKey(cmd *cobra.Command, rootKey string, nRepo notaryclient.Reposi
 		// add root key to repo
 		err = nRepo.GetCryptoService().AddKey(data.CanonicalRootRole, "", privKey)
 		if err != nil {
-			return nil, fmt.Errorf("Error importing key: %v", err)
+			return nil, fmt.Errorf("error importing key: %v", err)
 		}
 		rootKeyList = []string{privKey.ID()}
 	} else {
@@ -462,7 +462,7 @@ func importRootCert(certFilePath string) ([]data.PublicKey, error) {
 	// convert the file to data.PublicKey
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		return nil, fmt.Errorf("Parsing certificate PEM bytes to x509 certificate: %v", err)
+		return nil, fmt.Errorf("parsing certificate PEM bytes to x509 certificate: %v", err)
 	}
 	publicKeys = append(publicKeys, tufutils.CertToKey(cert))
 
@@ -472,7 +472,7 @@ func importRootCert(certFilePath string) ([]data.PublicKey, error) {
 func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 {
 		cmd.Usage()
-		return fmt.Errorf("Must specify a GUN")
+		return fmt.Errorf("must specify a GUN")
 	}
 
 	config, err := t.configGetter()
@@ -514,7 +514,7 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 func readKey(role data.RoleName, keyFilename string, retriever notary.PassRetriever) (data.PrivateKey, error) {
 	pemBytes, err := ioutil.ReadFile(keyFilename)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading input root key file: %v", err)
+		return nil, fmt.Errorf("error reading input root key file: %v", err)
 	}
 	isEncrypted := true
 	if err = cryptoservice.CheckRootKeyIsEncrypted(pemBytes); err != nil {
@@ -539,7 +539,7 @@ func readKey(role data.RoleName, keyFilename string, retriever notary.PassRetrie
 func (t *tufCommander) tufList(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 {
 		cmd.Usage()
-		return fmt.Errorf("Must specify a GUN")
+		return fmt.Errorf("must specify a GUN")
 	}
 	config, err := t.configGetter()
 	if err != nil {
@@ -566,7 +566,7 @@ func (t *tufCommander) tufList(cmd *cobra.Command, args []string) error {
 func (t *tufCommander) tufLookup(cmd *cobra.Command, args []string) error {
 	if len(args) < 2 {
 		cmd.Usage()
-		return fmt.Errorf("Must specify a GUN and target")
+		return fmt.Errorf("must specify a GUN and target")
 	}
 	config, err := t.configGetter()
 	if err != nil {
@@ -594,7 +594,7 @@ func (t *tufCommander) tufLookup(cmd *cobra.Command, args []string) error {
 func (t *tufCommander) tufStatus(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 {
 		cmd.Usage()
-		return fmt.Errorf("Must specify a GUN")
+		return fmt.Errorf("must specify a GUN")
 	}
 
 	config, err := t.configGetter()
@@ -642,11 +642,11 @@ func (t *tufCommander) tufStatus(cmd *cobra.Command, args []string) error {
 func (t *tufCommander) tufReset(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 {
 		cmd.Usage()
-		return fmt.Errorf("Must specify a GUN")
+		return fmt.Errorf("must specify a GUN")
 	}
 	if !t.resetAll && len(t.deleteIdx) < 1 {
 		cmd.Usage()
-		return fmt.Errorf("Must specify changes to reset with -n or the --all flag")
+		return fmt.Errorf("must specify changes to reset with -n or the --all flag")
 	}
 
 	config, err := t.configGetter()
@@ -681,7 +681,7 @@ func (t *tufCommander) tufReset(cmd *cobra.Command, args []string) error {
 func (t *tufCommander) tufPublish(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 {
 		cmd.Usage()
-		return fmt.Errorf("Must specify a GUN")
+		return fmt.Errorf("must specify a GUN")
 	}
 
 	config, err := t.configGetter()
@@ -703,7 +703,7 @@ func (t *tufCommander) tufPublish(cmd *cobra.Command, args []string) error {
 
 func (t *tufCommander) tufRemove(cmd *cobra.Command, args []string) error {
 	if len(args) < 2 {
-		return fmt.Errorf("Must specify a GUN and target")
+		return fmt.Errorf("must specify a GUN and target")
 	}
 	config, err := t.configGetter()
 	if err != nil {
@@ -732,7 +732,7 @@ func (t *tufCommander) tufRemove(cmd *cobra.Command, args []string) error {
 func (t *tufCommander) tufVerify(cmd *cobra.Command, args []string) error {
 	if len(args) < 2 {
 		cmd.Usage()
-		return fmt.Errorf("Must specify a GUN and target")
+		return fmt.Errorf("must specify a GUN and target")
 	}
 
 	config, err := t.configGetter()
@@ -912,14 +912,14 @@ func tokenAuth(trustServerURL string, baseTransport *http.Transport, gun data.GU
 	}
 	endpoint, err := url.Parse(trustServerURL)
 	if err != nil {
-		return nil, fmt.Errorf("Could not parse remote trust server url (%s): %s", trustServerURL, err.Error())
+		return nil, fmt.Errorf("could not parse remote trust server url (%s): %s", trustServerURL, err.Error())
 	}
 	if endpoint.Scheme == "" {
-		return nil, fmt.Errorf("Trust server url has to be in the form of http(s)://URL:PORT. Got: %s", trustServerURL)
+		return nil, fmt.Errorf("trust server url has to be in the form of http(s)://URL:PORT. Got: %s", trustServerURL)
 	}
 	subPath, err := url.Parse(path.Join(endpoint.Path, "/v2") + "/")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse v2 subpath. This error should not have been reached. Please report it as an issue at https://github.com/theupdateframework/notary/issues: %s", err.Error())
+		return nil, fmt.Errorf("failed to parse v2 subpath. This error should not have been reached. Please report it as an issue at https://github.com/theupdateframework/notary/issues: %s", err.Error())
 	}
 	endpoint = endpoint.ResolveReference(subPath)
 	req, err := http.NewRequest("GET", endpoint.String(), nil)
@@ -960,7 +960,7 @@ func tokenAuth(trustServerURL string, baseTransport *http.Transport, gun data.GU
 	case readOnly:
 		actions = []string{"pull"}
 	default:
-		return nil, fmt.Errorf("Invalid permission requested for token authentication of gun %s", gun)
+		return nil, fmt.Errorf("invalid permission requested for token authentication of gun %s", gun)
 	}
 
 	tokenHandler := auth.NewTokenHandler(authTransport, ps, gun.String(), actions...)
