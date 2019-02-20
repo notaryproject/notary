@@ -24,7 +24,7 @@ func (ac TestingAccessController) Authorized(ctx context.Context, access ...auth
 
 // TestingAuthChallenge is for TEST USE ONLY!!!
 // It implements the auth.Challenge interface and allows a test to confirm
-// the the SetHeaders method was called.
+// the SetHeaders method was called.
 type TestingAuthChallenge struct {
 	SetHeadersCalled bool
 }
