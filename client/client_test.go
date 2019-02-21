@@ -311,7 +311,7 @@ func TestInitRepositoryManagedRolesIncludingTimestamp(t *testing.T) {
 func TestInitRepositoryWithCerts(t *testing.T) {
 	testCases := []struct {
 		name                    string
-		extraKeys               int    // the number of extra keys in addition the the first key
+		extraKeys               int    // the number of extra keys in addition the first key
 		numberOfCerts           int    // initializing with certificates ?
 		expectedError           string // error message
 		requiredSigningRootKeys int
@@ -1064,7 +1064,7 @@ func testRemoveTargetToTargetRoleByDefault(t *testing.T, clearCache bool) {
 
 // TestRemoveTargetFromSpecifiedValidRoles removes a target from the specified
 // roles. Confirms that the changelist is created correctly, one for each of
-// the the specified roles as scopes.
+// the specified roles as scopes.
 func TestRemoveTargetFromSpecifiedValidRoles(t *testing.T) {
 	testRemoveTargetFromSpecifiedValidRoles(t, false)
 	testRemoveTargetFromSpecifiedValidRoles(t, true)
