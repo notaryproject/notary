@@ -3,7 +3,6 @@ FROM golang:1.11.5
 RUN apt-get update && apt-get install -y \
 	curl \
 	clang \
-	libltdl-dev \
 	libsqlite3-dev \
 	patch \
 	tar \
