@@ -10,7 +10,7 @@ bin
 cross
 .cover
 *.swp
-.idea
+.idea/
 *.iml
 *.test
 coverage*.txt
