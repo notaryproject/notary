@@ -210,7 +210,7 @@ func checkValidity(block *pem.Block) (string, error) {
 		// check if the key is missing a gun header or has an empty gun and error out since we don't know what gun it belongs to
 		if block.Headers["gun"] == "" {
 			logrus.Warnf("failed to import key (%s) to store: Cannot have canonical role key without a gun, don't know what gun it belongs to", block.Headers["path"])
-			return "", errors.New("invalid key pem block")
+			return "", errors.New("invalid key pem block.")
 		}
 	default:
 		delete(block.Headers, "gun")
@@ -225,7 +225,9 @@ func checkValidity(block *pem.Block) (string, error) {
 
 		decodedKey, err := utils.ParsePEMPrivateKey(pem.EncodeToMemory(block), "")
 		if err != nil {
-			logrus.Warn("failed to import key to store: Invalid key generated, key may be encrypted and does not contain path header")
+			logrus.Warn("failed to import key to store: Invalid key generated, key may be encrypted and does not contain path header. \nCurrent pem block is skipped. \nImport will continue attempting to read the remaining pem blocks in the file.
+
+			")
 			return "", errors.New("invalid key pem block")
 		}
 		loc = decodedKey.ID()
