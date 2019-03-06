@@ -32,7 +32,7 @@ func (g TUFFile) TableName() string {
 	return TUFFileTableName
 }
 
-// SQLChange defines the the fields required for an object in the changefeed
+// SQLChange defines the fields required for an object in the changefeed
 type SQLChange struct {
 	ID        uint `gorm:"primary_key" sql:"not null" json:",string"`
 	CreatedAt time.Time
