@@ -237,7 +237,7 @@ func ParseViper(v *viper.Viper, configFile string) error {
 	return nil
 }
 
-// AdjustLogLevel increases/decreases the log level, return error if the operation is invaild.
+// AdjustLogLevel increases/decreases the log level, return error if the operation is invalid.
 func AdjustLogLevel(increment bool) error {
 	lvl := logrus.GetLevel()
 

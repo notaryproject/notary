@@ -159,7 +159,7 @@ func TestSQLDBCheckHealthDBConnectionFail(t *testing.T) {
 	require.Error(t, err, "Cannot access table:")
 }
 
-// TestSQLDBCheckHealthSuceeds asserts that if the DB is connectable and both
+// TestSQLDBCheckHealthSucceeds asserts that if the DB is connectable and both
 // tables exist, the health check succeeds.
 func TestSQLDBCheckHealthSucceeds(t *testing.T) {
 	dbStore, cleanup := sqldbSetup(t)
@@ -220,7 +220,7 @@ func TestSQLDBGetChecksum(t *testing.T) {
 	cDate, data, err := dbStore.GetChecksum("gun", data.CanonicalTimestampRole, checksum)
 	require.NoError(t, err)
 	require.EqualValues(t, j, data)
-	// the creation date was sometime wthin the last minute
+	// the creation date was sometime within the last minute
 	require.True(t, cDate.After(time.Now().Add(-1*time.Minute)))
 	require.True(t, cDate.Before(time.Now().Add(5*time.Second)))
 }

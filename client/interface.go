@@ -51,7 +51,7 @@ type Repository interface {
 
 	// ------------------- Publishing operations -------------------
 
-	// GetGUN returns the GUN assocated with the repository
+	// GetGUN returns the GUN associated with the repository
 	GetGUN() data.GUN
 
 	// SetLegacyVersion sets the number of versions back to fetch roots to sign with
