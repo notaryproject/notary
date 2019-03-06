@@ -30,7 +30,7 @@ func SetKeyStore(ks HardwareSpecificStore) {
 // Pkcs11LibLoader defines IPKCS11 which is an interface for wrapping github.com/miekg/pkcs11
 type Pkcs11LibLoader func(module string) IPKCS11Ctx
 
-// DefaultLoader returns pkcs11 witha given module
+// DefaultLoader returns pkcs11 with a given module
 func DefaultLoader(module string) IPKCS11Ctx {
 	return pkcs11.New(module)
 }
@@ -82,13 +82,14 @@ func (err ErrHSMNotPresent) Error() string {
 // HardwareSpecificStore is an interface that defines all the functions, a hardwarespecific keystore needs to implement to work with pkcs11
 type HardwareSpecificStore interface {
 	Name() string
-	AddECDSAKey(IPKCS11Ctx, pkcs11.SessionHandle, data.PrivateKey, HardwareSlot, notary.PassRetriever, data.RoleName) error
-	GetECDSAKey(IPKCS11Ctx, pkcs11.SessionHandle, HardwareSlot, notary.PassRetriever) (*data.ECDSAPublicKey, data.RoleName, error)
-	Sign(IPKCS11Ctx, pkcs11.SessionHandle, HardwareSlot, notary.PassRetriever, []byte) ([]byte, error)
-	HardwareRemoveKey(IPKCS11Ctx, pkcs11.SessionHandle, HardwareSlot, notary.PassRetriever, string) error
-	HardwareListKeys(IPKCS11Ctx, pkcs11.SessionHandle) (map[string]HardwareSlot, error)
-	GetNextEmptySlot(IPKCS11Ctx, pkcs11.SessionHandle) ([]byte, error)
-	SetupHSMEnv(Pkcs11LibLoader) (IPKCS11Ctx, pkcs11.SessionHandle, error)
+	AddECDSAKey(pkcs11.SessionHandle, data.PrivateKey, HardwareSlot, notary.PassRetriever, data.RoleName) error
+	GetECDSAKey(pkcs11.SessionHandle, HardwareSlot, notary.PassRetriever) (*data.ECDSAPublicKey, data.RoleName, error)
+	Sign(pkcs11.SessionHandle, HardwareSlot, notary.PassRetriever, []byte) ([]byte, error)
+	HardwareRemoveKey(pkcs11.SessionHandle, HardwareSlot, notary.PassRetriever, string) error
+	HardwareListKeys(pkcs11.SessionHandle) (map[string]HardwareSlot, error)
+	GetNextEmptySlot(pkcs11.SessionHandle) ([]byte, error)
+	SetupHSMEnv() (pkcs11.SessionHandle, error)
+	Cleanup(pkcs11.SessionHandle)
 }
 
 // ErrBackupFailed is returned when a YubiStore fails to back up a key that
@@ -103,45 +104,12 @@ func (err ErrBackupFailed) Error() string {
 
 // IsAccessible returns true if a Hardwarestore can be accessed
 func IsAccessible() bool {
-	ctx, session, err := hardwareKeyStore.SetupHSMEnv(DefaultLoader)
+	session, err := hardwareKeyStore.SetupHSMEnv()
 	if err != nil {
 		return false
 	}
-	defer Cleanup(ctx, session)
+	defer hardwareKeyStore.Cleanup(session)
 	return true
-}
-
-// Login is responsible for getting a working login on attached hardwarekeystore
-func Login(ctx IPKCS11Ctx, session pkcs11.SessionHandle, passRetriever notary.PassRetriever, userFlag uint, defaultPassw string, hardwareName string) error {
-	err := ctx.Login(session, userFlag, defaultPassw)
-	if err == nil {
-		return nil
-	}
-
-	for attempts := 0; ; attempts++ {
-		var (
-			giveup bool
-			err    error
-			user   string
-		)
-		if userFlag == pkcs11.CKU_SO {
-			user = "SO Pin"
-		} else {
-			user = "User Pin"
-		}
-		passwd, giveup, err := passRetriever(user, hardwareName, false, attempts)
-		if giveup || err != nil {
-			return trustmanager.ErrPasswordInvalid{}
-		}
-		if attempts > 2 {
-			return trustmanager.ErrAttemptsExceeded{}
-		}
-
-		err = ctx.Login(session, userFlag, passwd)
-		if err == nil {
-			return nil
-		}
-	}
 }
 
 //Cleanup is responsible for cleaning up the pkcs11 session on the hardware

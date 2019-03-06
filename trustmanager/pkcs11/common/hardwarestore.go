@@ -18,7 +18,6 @@ type HardwareStore struct {
 	PassRetriever notary.PassRetriever
 	Keys          map[string]HardwareSlot
 	BackupStore   trustmanager.KeyStore
-	LibLoader     Pkcs11LibLoader
 }
 
 // NewHardwareStore returns a Store, given a backup key store to write any
@@ -29,7 +28,6 @@ func NewHardwareStore(backupStore trustmanager.KeyStore, passphraseRetriever not
 		PassRetriever: passphraseRetriever,
 		Keys:          make(map[string]HardwareSlot),
 		BackupStore:   backupStore,
-		LibLoader:     DefaultLoader,
 	}
 	s.ListKeys() // populate keys field
 	return s, nil
@@ -40,24 +38,19 @@ func (s HardwareStore) Name() string {
 	return hardwareName
 }
 
-// SetLibLoader sets up the libloader for further usage
-func (s *HardwareStore) SetLibLoader(loader Pkcs11LibLoader) {
-	s.LibLoader = loader
-}
-
 // ListKeys returns a list of keys in the hardwarestore
 func (s *HardwareStore) ListKeys() map[string]trustmanager.KeyInfo {
 	if len(s.Keys) > 0 {
 		return BuildKeyMap(s.Keys)
 	}
-	ctx, session, err := hardwareKeyStore.SetupHSMEnv(s.LibLoader)
+	session, err := hardwareKeyStore.SetupHSMEnv()
 	if err != nil {
 		logrus.Debugf("No %s found, using alternative key storage: %s", hardwareName, err.Error())
 		return nil
 	}
-	defer Cleanup(ctx, session)
+	defer hardwareKeyStore.Cleanup(session)
 
-	keys, err := hardwareKeyStore.HardwareListKeys(ctx, session)
+	keys, err := hardwareKeyStore.HardwareListKeys(session)
 	if err != nil {
 		logrus.Debugf("Failed to list key from the %s: %s", hardwareName, err.Error())
 		return nil
@@ -93,12 +86,12 @@ func (s *HardwareStore) addKey(keyID string, role data.RoleName, privKey data.Pr
 			"%s only supports storing root keys, got %s for key: %s", hardwareName, role, keyID)
 	}
 
-	ctx, session, err := hardwareKeyStore.SetupHSMEnv(s.LibLoader)
+	session, err := hardwareKeyStore.SetupHSMEnv()
 	if err != nil {
 		logrus.Debugf("No %s found, using alternative key storage: %s", hardwareName, err.Error())
 		return false, err
 	}
-	defer Cleanup(ctx, session)
+	defer hardwareKeyStore.Cleanup(session)
 
 	if k, ok := s.Keys[keyID]; ok {
 		if k.Role == role {
@@ -106,7 +99,7 @@ func (s *HardwareStore) addKey(keyID string, role data.RoleName, privKey data.Pr
 		}
 	}
 
-	slot, err := hardwareKeyStore.GetNextEmptySlot(ctx, session)
+	slot, err := hardwareKeyStore.GetNextEmptySlot(session)
 	if err != nil {
 		logrus.Debugf("Failed to get an empty %s slot: %s", hardwareName, err.Error())
 		return false, err
@@ -117,7 +110,7 @@ func (s *HardwareStore) addKey(keyID string, role data.RoleName, privKey data.Pr
 		SlotID: slot,
 		KeyID:  keyID,
 	}
-	err = hardwareKeyStore.AddECDSAKey(ctx, session, privKey, key, s.PassRetriever, role)
+	err = hardwareKeyStore.AddECDSAKey(session, privKey, key, s.PassRetriever, role)
 	if err == nil {
 		s.Keys[privKey.ID()] = key
 		return true, nil
@@ -130,7 +123,7 @@ func (s *HardwareStore) addKey(keyID string, role data.RoleName, privKey data.Pr
 // GetKey retrieves a key from the Hardwarestore only (it does not look inside the
 // backup store)
 func (s *HardwareStore) GetKey(keyID string) (data.PrivateKey, data.RoleName, error) {
-	ctx, session, err := hardwareKeyStore.SetupHSMEnv(s.LibLoader)
+	session, err := hardwareKeyStore.SetupHSMEnv()
 	if err != nil {
 		logrus.Debugf("No %s found, using alternative key storage: %s", hardwareName, err.Error())
 		if _, ok := err.(ErrHSMNotPresent); ok {
@@ -138,14 +131,14 @@ func (s *HardwareStore) GetKey(keyID string) (data.PrivateKey, data.RoleName, er
 		}
 		return nil, "", err
 	}
-	defer Cleanup(ctx, session)
+	defer hardwareKeyStore.Cleanup(session)
 
 	key, ok := s.Keys[keyID]
 	if !ok {
 		return nil, "", trustmanager.ErrKeyNotFound{KeyID: keyID}
 	}
 
-	pubKey, alias, err := hardwareKeyStore.GetECDSAKey(ctx, session, key, s.PassRetriever)
+	pubKey, alias, err := hardwareKeyStore.GetECDSAKey(session, key, s.PassRetriever)
 	if err != nil {
 		logrus.Debugf("Failed to get key from slot %s: %s", key.SlotID, err.Error())
 		return nil, "", err
@@ -166,19 +159,19 @@ func (s *HardwareStore) GetKey(keyID string) (data.PrivateKey, data.RoleName, er
 // RemoveKey deletes a key from the Hardwarestore only (it does not remove it from the
 // backup store)
 func (s *HardwareStore) RemoveKey(keyID string) error {
-	ctx, session, err := hardwareKeyStore.SetupHSMEnv(s.LibLoader)
+	session, err := hardwareKeyStore.SetupHSMEnv()
 	if err != nil {
 		logrus.Debugf("No %s found, using alternative key storage: %s", hardwareName, err.Error())
 		return nil
 	}
-	defer Cleanup(ctx, session)
+	defer hardwareKeyStore.Cleanup(session)
 
 	key, ok := s.Keys[keyID]
 	if !ok {
 		e := fmt.Sprintf("Key not present in %s", hardwareName)
 		return errors.New(e)
 	}
-	err = hardwareKeyStore.HardwareRemoveKey(ctx, session, key, s.PassRetriever, keyID)
+	err = hardwareKeyStore.HardwareRemoveKey(session, key, s.PassRetriever, keyID)
 	if err == nil {
 		delete(s.Keys, keyID)
 	} else {

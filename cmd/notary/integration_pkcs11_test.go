@@ -10,24 +10,13 @@ import (
 	"github.com/theupdateframework/notary"
 	"github.com/theupdateframework/notary/passphrase"
 	"github.com/theupdateframework/notary/trustmanager/pkcs11/common"
-	"github.com/theupdateframework/notary/trustmanager/pkcs11/opencryptoki"
-	"github.com/theupdateframework/notary/trustmanager/pkcs11/yubikey"
 	"github.com/theupdateframework/notary/tuf/data"
 )
 
 var _retriever notary.PassRetriever
 
 func init() {
-	yubikey.SetYubikeyKeyMode(yubikey.KeymodeNone)
-	opencryptoki.SetPin("12345670")
-	opencryptoki.SetSlot(4)
-	regRetriver := passphrase.PromptRetriever()
-	_retriever := func(k, a string, c bool, n int) (string, bool, error) {
-		if k == "Yubikey" {
-			return regRetriver(k, a, c, n)
-		}
-		return testPassphrase, false, nil
-	}
+	_retriever := passphrase.PromptRetriever()
 
 	// best effort at removing keys here, so nil is fine
 	s, err := common.NewHardwareStore(nil, _retriever)

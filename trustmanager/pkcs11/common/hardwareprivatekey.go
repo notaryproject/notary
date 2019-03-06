@@ -23,7 +23,6 @@ type HardwarePrivateKey struct {
 	data.ECDSAPublicKey
 	passRetriever notary.PassRetriever
 	slot          HardwareSlot
-	libLoader     Pkcs11LibLoader
 }
 
 // hardwareSigner wraps a HardwarePrivateKey and implements the crypto.Signer interface
@@ -38,7 +37,6 @@ func NewHardwarePrivateKey(slot HardwareSlot, pubKey data.ECDSAPublicKey, passRe
 		ECDSAPublicKey: pubKey,
 		passRetriever:  passRetriever,
 		slot:           slot,
-		libLoader:      DefaultLoader,
 	}
 }
 
@@ -50,11 +48,6 @@ func (hs *hardwareSigner) Public() crypto.PublicKey {
 	}
 
 	return publicKey
-}
-
-// SetLibLoader sets up the pkcs library for further usage
-func (hpk *HardwarePrivateKey) SetLibLoader(loader Pkcs11LibLoader) {
-	hpk.libLoader = loader
 }
 
 // CryptoSigner returns a crypto.Signer that wraps the HardwarePrivateKey. Needed for
@@ -77,15 +70,15 @@ func (hpk HardwarePrivateKey) SignatureAlgorithm() data.SigAlgorithm {
 // Sign is a required method of the crypto.Signer interface and the data.PrivateKey
 // interface
 func (hpk *HardwarePrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) ([]byte, error) {
-	ctx, session, err := hardwareKeyStore.SetupHSMEnv(hpk.libLoader)
+	session, err := hardwareKeyStore.SetupHSMEnv()
 	if err != nil {
 		return nil, err
 	}
-	defer Cleanup(ctx, session)
+	defer hardwareKeyStore.Cleanup(session)
 
 	v := signed.Verifiers[data.ECDSASignature]
 	for i := 0; i < SigAttempts; i++ {
-		sig, err := hardwareKeyStore.Sign(ctx, session, hpk.slot, hpk.passRetriever, msg)
+		sig, err := hardwareKeyStore.Sign(session, hpk.slot, hpk.passRetriever, msg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to sign using %s: %v", hardwareName, err)
 		}
