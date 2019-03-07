@@ -103,12 +103,6 @@ branch and contains features for the next release.
 Prerequisites:
 
 - Go >= 1.7.1
-    - Fedora: `dnf install golang`
-- libtool development headers installed
-    - Ubuntu: `apt-get install libltdl-dev`
-    - CentOS/RedHat: `yum install libtool-ltdl-devel`
-    - Fedora: `dnf install libtool-ltdl-devel`
-    - Mac OS ([Homebrew](https://brew.sh)): `brew install libtool`
 
 Set [```GOPATH```](https://golang.org/doc/code.html#GOPATH). Then, run:
 
