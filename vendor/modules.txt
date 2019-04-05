@@ -101,9 +101,10 @@ github.com/konsorten/go-windows-terminal-sequences
 github.com/kr/pretty
 # github.com/kr/text v0.2.0
 github.com/kr/text
-# github.com/lib/pq v0.0.0-20150723085316-0dad96c0b94f
+# github.com/lib/pq v1.9.0
 github.com/lib/pq
 github.com/lib/pq/oid
+github.com/lib/pq/scram
 # github.com/magiconair/properties v1.5.3
 github.com/magiconair/properties
 # github.com/mattn/go-sqlite3 v1.6.0
