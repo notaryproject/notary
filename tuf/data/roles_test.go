@@ -111,8 +111,8 @@ func TestIsDelegation(t *testing.T) {
 	for val, check := range map[string]func(require.TestingT, bool, ...interface{}){
 		// false checks
 		path.Join(CanonicalTargetsRole.String(), strings.Repeat("x", 255-len(CanonicalTargetsRole.String()))): f,
-		"": f,
-		CanonicalRootRole.String():                                                                            f,
+		"":                         f,
+		CanonicalRootRole.String(): f,
 		path.Join(CanonicalRootRole.String(), "level1"):                                                       f,
 		CanonicalTargetsRole.String():                                                                         f,
 		CanonicalTargetsRole.String() + "/":                                                                   f,
@@ -143,12 +143,12 @@ func TestIsWildDelegation(t *testing.T) {
 	tr := require.True
 	for val, check := range map[string]func(require.TestingT, bool, ...interface{}){
 		// false checks
-		CanonicalRootRole.String():      f,
-		CanonicalTargetsRole.String():   f,
-		CanonicalSnapshotRole.String():  f,
-		CanonicalTimestampRole.String(): f,
-		"foo":   f,
-		"foo/*": f,
+		CanonicalRootRole.String():                           f,
+		CanonicalTargetsRole.String():                        f,
+		CanonicalSnapshotRole.String():                       f,
+		CanonicalTimestampRole.String():                      f,
+		"foo":                                                f,
+		"foo/*":                                              f,
 		path.Join(CanonicalRootRole.String(), "*"):           f,
 		path.Join(CanonicalSnapshotRole.String(), "*"):       f,
 		path.Join(CanonicalTimestampRole.String(), "*"):      f,

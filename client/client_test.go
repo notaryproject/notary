@@ -32,6 +32,7 @@ import (
 	"github.com/theupdateframework/notary/server/storage"
 	store "github.com/theupdateframework/notary/storage"
 	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/trustmanager/grpckeystore"
 	"github.com/theupdateframework/notary/trustpinning"
 	"github.com/theupdateframework/notary/tuf/data"
 	"github.com/theupdateframework/notary/tuf/signed"
@@ -192,7 +193,8 @@ func createRepoAndKey(t *testing.T, rootType, tempBaseDir, gun, url string) (*re
 
 	rec := newRoleRecorder()
 	r, err := NewFileCachedRepository(
-		tempBaseDir, data.GUN(gun), url, http.DefaultTransport, rec.retriever, trustpinning.TrustPinConfig{})
+		tempBaseDir, data.GUN(gun), url, http.DefaultTransport, rec.retriever,
+		trustpinning.TrustPinConfig{}, grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	repo := r.(*repository)
 
@@ -224,7 +226,8 @@ func newRepoToTestRepo(t *testing.T, existingRepo *repository, repoDir string) (
 	rec := newRoleRecorder()
 	r, err := NewFileCachedRepository(
 		repoDir, existingRepo.gun, existingRepo.baseURL,
-		http.DefaultTransport, rec.retriever, trustpinning.TrustPinConfig{})
+		http.DefaultTransport, rec.retriever, trustpinning.TrustPinConfig{},
+	  grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repository: %s", err)
 	repo := r.(*repository)
 	if err != nil && newDir {
@@ -311,7 +314,7 @@ func TestInitRepositoryManagedRolesIncludingTimestamp(t *testing.T) {
 func TestInitRepositoryWithCerts(t *testing.T) {
 	testCases := []struct {
 		name                    string
-		extraKeys               int    // the number of extra keys in addition the the first key
+		extraKeys               int    // the number of extra keys in addition the first key
 		numberOfCerts           int    // initializing with certificates ?
 		expectedError           string // error message
 		requiredSigningRootKeys int
@@ -700,7 +703,7 @@ func testInitRepoAttemptsExceeded(t *testing.T, rootType string) {
 	defer ts.Close()
 
 	retriever := passphrase.ConstantRetriever("password")
-	r, err := NewFileCachedRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
+	r, err := NewFileCachedRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{}, grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	repo := r.(*repository)
 
@@ -710,7 +713,7 @@ func testInitRepoAttemptsExceeded(t *testing.T, rootType string) {
 	retriever = passphrase.ConstantRetriever("incorrect password")
 	// repo.GetCryptoService’s FileKeyStore caches the unlocked private key, so to test
 	// private key unlocking we need a new repo instance.
-	r, err = NewFileCachedRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
+	r, err = NewFileCachedRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{}, grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	repo = r.(*repository)
 	err = repo.Initialize([]string{rootPubKey.ID()})
@@ -741,7 +744,7 @@ func testInitRepoPasswordInvalid(t *testing.T, rootType string) {
 	defer ts.Close()
 
 	retriever := passphrase.ConstantRetriever("password")
-	r, err := NewFileCachedRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
+	r, err := NewFileCachedRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{}, grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	repo := r.(*repository)
 
@@ -750,7 +753,7 @@ func testInitRepoPasswordInvalid(t *testing.T, rootType string) {
 
 	// repo.GetCryptoService’s FileKeyStore caches the unlocked private key, so to test
 	// private key unlocking we need a new repo instance.
-	r, err = NewFileCachedRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, giveUpPassphraseRetriever, trustpinning.TrustPinConfig{})
+	r, err = NewFileCachedRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, giveUpPassphraseRetriever, trustpinning.TrustPinConfig{}, grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	repo = r.(*repository)
 	err = repo.Initialize([]string{rootPubKey.ID()})
@@ -1064,7 +1067,7 @@ func testRemoveTargetToTargetRoleByDefault(t *testing.T, clearCache bool) {
 
 // TestRemoveTargetFromSpecifiedValidRoles removes a target from the specified
 // roles. Confirms that the changelist is created correctly, one for each of
-// the the specified roles as scopes.
+// the specified roles as scopes.
 func TestRemoveTargetFromSpecifiedValidRoles(t *testing.T) {
 	testRemoveTargetFromSpecifiedValidRoles(t, false)
 	testRemoveTargetFromSpecifiedValidRoles(t, true)
@@ -1805,7 +1808,8 @@ func TestPublishUninitializedRepo(t *testing.T) {
 	defer os.RemoveAll(tempBaseDir)
 
 	r, err := NewFileCachedRepository(tempBaseDir, gun, ts.URL,
-		http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
+		http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{},
+		grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repository: %s", err)
 	repo := r.(*repository)
 	err = repo.Publish()
@@ -2138,7 +2142,7 @@ func TestPublishSnapshotLocalKeysCreatedFirst(t *testing.T) {
 	defer ts.Close()
 
 	r, err := NewFileCachedRepository(
-		tempBaseDir, gun, ts.URL, http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
+		tempBaseDir, gun, ts.URL, http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{}, grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	repo := r.(*repository)
 
@@ -2678,7 +2682,7 @@ func TestRotateKeyInvalidRole(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, repo.AddDelegation("targets/releases", []data.PublicKey{pubKey}, []string{""}))
 	require.NoError(t, repo.Publish())
-	require.NoError(t, repo.Update(false))
+	require.NoError(t, repo.updateTUF(false))
 
 	// rotating a root key to the server fails
 	require.Error(t, repo.RotateKey(data.CanonicalRootRole, true, nil),
@@ -2805,7 +2809,7 @@ func requireRotationSuccessful(t *testing.T, repo1 *repository, keysToRotate map
 
 	// Download data from remote and check that keys have changed
 	for _, repo := range repos {
-		err := repo.Update(true)
+		err := repo.updateTUF(true)
 		require.NoError(t, err)
 
 		for roleName, isRemoteKey := range keysToRotate {
@@ -2983,7 +2987,7 @@ func TestRotateRootKey(t *testing.T) {
 	// Initialize an user, using the original root cert and key.
 	userRepo, _, baseDir := newRepoToTestRepo(t, authorRepo, "")
 	defer os.RemoveAll(baseDir)
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 
 	// Rotate root certificate and key.
@@ -2992,7 +2996,7 @@ func TestRotateRootKey(t *testing.T) {
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "post-rotate", authorRepo)
 
-	require.NoError(t, authorRepo.Update(false))
+	require.NoError(t, authorRepo.updateTUF(false))
 	newRootRole, err := authorRepo.tufRepo.GetBaseRole(data.CanonicalRootRole)
 	require.NoError(t, err)
 	require.False(t, newRootRole.Equals(oldRootRole))
@@ -3031,7 +3035,7 @@ func TestRotateRootKey(t *testing.T) {
 
 	// Verify that the user initialized with the original certificate eventually
 	// rotates to the new certificate.
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "user refresh 1", userRepo)
 	require.Equal(t, newRootCertID, rootRoleCertID(t, userRepo))
@@ -3055,7 +3059,7 @@ func TestRotateRootMultiple(t *testing.T) {
 	// Initialize a user, using the original root cert and key.
 	userRepo, _, baseDir := newRepoToTestRepo(t, authorRepo, "")
 	defer os.RemoveAll(baseDir)
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 
 	// Rotate root certificate and key.
@@ -3069,7 +3073,7 @@ func TestRotateRootMultiple(t *testing.T) {
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "post-rotate-again", authorRepo)
 
-	require.NoError(t, authorRepo.Update(false))
+	require.NoError(t, authorRepo.updateTUF(false))
 	newRootRole, err := authorRepo.tufRepo.GetBaseRole(data.CanonicalRootRole)
 	require.NoError(t, err)
 	require.False(t, newRootRole.Equals(oldRootRole))
@@ -3093,7 +3097,7 @@ func TestRotateRootMultiple(t *testing.T) {
 	logRepoTrustRoot(t, "post-publish", authorRepo)
 
 	// Verify the user can use the rotated repo, and see the added target.
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 	_, err = userRepo.GetTargetByName("current")
 	require.NoError(t, err)
@@ -3110,7 +3114,7 @@ func TestRotateRootMultiple(t *testing.T) {
 
 	// Verify that the user initialized with the original certificate eventually
 	// rotates to the new certificate.
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "user refresh 1", userRepo)
 	require.Equal(t, newRootCertID, rootRoleCertID(t, userRepo))
@@ -3134,7 +3138,7 @@ func TestRotateRootKeyProvided(t *testing.T) {
 	// Initialize an user, using the original root cert and key.
 	userRepo, _, baseDir := newRepoToTestRepo(t, authorRepo, "")
 	defer os.RemoveAll(baseDir)
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 
 	// Key loaded from file (just generating it here)
@@ -3153,7 +3157,7 @@ func TestRotateRootKeyProvided(t *testing.T) {
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "post-rotate", authorRepo)
 
-	require.NoError(t, authorRepo.Update(false))
+	require.NoError(t, authorRepo.updateTUF(false))
 	newRootRole, err := authorRepo.tufRepo.GetBaseRole(data.CanonicalRootRole)
 	require.False(t, newRootRole.Equals(oldRootRole))
 	require.NoError(t, err)
@@ -3193,7 +3197,7 @@ func TestRotateRootKeyProvided(t *testing.T) {
 
 	// Verify that the user initialized with the original certificate eventually
 	// rotates to the new certificate.
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "user refresh 1", userRepo)
 	require.Equal(t, newRootCertID, rootRoleCertID(t, userRepo))
@@ -3217,7 +3221,7 @@ func TestRotateRootKeyLegacySupport(t *testing.T) {
 	// Initialize a user, using the original root cert and key.
 	userRepo, _, baseDir := newRepoToTestRepo(t, authorRepo, "")
 	defer os.RemoveAll(baseDir)
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 
 	// Rotate root certificate and key.
@@ -3232,7 +3236,7 @@ func TestRotateRootKeyLegacySupport(t *testing.T) {
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "post-rotate-again", authorRepo)
 
-	require.NoError(t, authorRepo.Update(false))
+	require.NoError(t, authorRepo.updateTUF(false))
 	newRootRole, err := authorRepo.tufRepo.GetBaseRole(data.CanonicalRootRole)
 	require.NoError(t, err)
 	require.False(t, newRootRole.Equals(oldRootRole))
@@ -3256,7 +3260,7 @@ func TestRotateRootKeyLegacySupport(t *testing.T) {
 	logRepoTrustRoot(t, "post-publish", authorRepo)
 
 	// Verify the user can use the rotated repo, and see the added target.
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 	_, err = userRepo.GetTargetByName("current")
 	require.NoError(t, err)
@@ -3277,7 +3281,7 @@ func TestRotateRootKeyLegacySupport(t *testing.T) {
 
 	// Verify that the user initialized with the original certificate eventually
 	// rotates to the new certificate.
-	err = userRepo.Update(false)
+	err = userRepo.updateTUF(false)
 	require.NoError(t, err)
 	logRepoTrustRoot(t, "user refresh 1", userRepo)
 	require.Equal(t, newRootCertID, rootRoleCertID(t, userRepo))
@@ -3293,7 +3297,8 @@ func TestRemoteServerUnavailableNoLocalCache(t *testing.T) {
 	defer ts.Close()
 
 	r, err := NewFileCachedRepository(tempBaseDir, "docker.com/notary",
-		ts.URL, http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
+		ts.URL, http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{},
+	  grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	repo := r.(*repository)
 
@@ -3600,37 +3605,6 @@ func TestRemoveDelegationErrorWritingChanges(t *testing.T) {
 	})
 }
 
-// TestBootstrapClientBadURL checks that bootstrapClient correctly
-// returns an error when the URL is valid but does not point to
-// a TUF server
-func TestBootstrapClientBadURL(t *testing.T) {
-	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
-	require.NoError(t, err, "failed to create a temporary directory: %s", err)
-	r, err := NewFileCachedRepository(
-		tempBaseDir,
-		"testGun",
-		"http://localhost:9998",
-		http.DefaultTransport,
-		passphraseRetriever,
-		trustpinning.TrustPinConfig{},
-	)
-	require.NoError(t, err, "error creating repo: %s", err)
-	repo := r.(*repository)
-
-	c, err := repo.bootstrapClient(false)
-	require.Nil(t, c)
-	require.Error(t, err)
-
-	c, err2 := repo.bootstrapClient(true)
-	require.Nil(t, c)
-	require.Error(t, err2)
-
-	// same error should be returned because we don't have local data
-	// and are requesting remote root regardless of checkInitialized
-	// value
-	require.EqualError(t, err, err2.Error())
-}
-
 // TestClientInvalidURL checks that instantiating a new repository
 // correctly returns an error when the URL is valid but does not point to
 // a TUF server
@@ -3644,6 +3618,7 @@ func TestClientInvalidURL(t *testing.T) {
 		http.DefaultTransport,
 		passphraseRetriever,
 		trustpinning.TrustPinConfig{},
+		grpckeystore.GRPCClientConfig{},
 	)
 	// NewFileCachedRepository should fail and return an error
 	// since it initializes the cache but also the remote repository

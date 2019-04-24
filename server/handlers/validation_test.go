@@ -89,7 +89,7 @@ func TestValidateEmptyNew(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	updates, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.NoError(t, err)
 
@@ -119,7 +119,7 @@ func TestValidateRootCanContainOnlyx509KeysWithRightGun(t *testing.T) {
 	var gun data.GUN = "docker.com/notary"
 	repo, cs, err := testutils.EmptyRepo("wrong/gun")
 	require.NoError(t, err)
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 
 	// if the root has the wrong gun, the server will fail to validate
 	r, tg, sn, ts, err := testutils.Sign(repo)
@@ -166,7 +166,7 @@ func TestValidatePrevTimestamp(t *testing.T) {
 	store := storage.NewMemStorage()
 	store.UpdateCurrent(gun, timestamp)
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	updates, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.NoError(t, err)
 
@@ -202,7 +202,7 @@ func TestValidatePreviousTimestampCorrupt(t *testing.T) {
 	timestamp.Data = timestamp.Data[1:]
 	store.UpdateCurrent(gun, timestamp)
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, &json.SyntaxError{}, err)
@@ -225,7 +225,7 @@ func TestValidateGetCurrentTimestampBroken(t *testing.T) {
 		errsToReturn: map[string]error{data.CanonicalTimestampRole.String(): data.ErrNoSuchRole{}},
 	}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, data.ErrNoSuchRole{}, err)
@@ -245,7 +245,7 @@ func TestValidateNoNewRoot(t *testing.T) {
 	store.UpdateCurrent(gun, root)
 	updates := []storage.MetaUpdate{targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.NoError(t, err)
 }
@@ -264,7 +264,7 @@ func TestValidateNoNewTargets(t *testing.T) {
 	store.UpdateCurrent(gun, targets)
 	updates := []storage.MetaUpdate{root, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.NoError(t, err)
 }
@@ -285,7 +285,7 @@ func TestValidateOnlySnapshot(t *testing.T) {
 
 	updates := []storage.MetaUpdate{snapshot}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.NoError(t, err)
 }
@@ -304,7 +304,7 @@ func TestValidateOldRoot(t *testing.T) {
 	store.UpdateCurrent(gun, root)
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.NoError(t, err)
 }
@@ -328,7 +328,7 @@ func TestValidateOldRootCorrupt(t *testing.T) {
 	store.UpdateCurrent(gun, badRoot)
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, &json.SyntaxError{}, err)
@@ -361,7 +361,7 @@ func TestValidateOldRootCorruptRootRole(t *testing.T) {
 	store.UpdateCurrent(gun, badRoot)
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, data.ErrInvalidMetadata{}, err)
@@ -387,7 +387,7 @@ func TestValidateRootGetCurrentRootBroken(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, data.ErrNoSuchRole{}, err)
@@ -399,7 +399,7 @@ func TestValidateRootRotationWithOldSigs(t *testing.T) {
 	var gun data.GUN = "docker.com/notary"
 	repo, crypto, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
-	serverCrypto := testutils.CopyKeys(t, crypto, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, crypto, data.CanonicalTimestampRole)
 	store := storage.NewMemStorage()
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
@@ -492,7 +492,7 @@ func TestValidateRootRotationMultipleKeysThreshold1(t *testing.T) {
 	var gun data.GUN = "docker.com/notary"
 	repo, crypto, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
-	serverCrypto := testutils.CopyKeys(t, crypto, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, crypto, data.CanonicalTimestampRole)
 	store := storage.NewMemStorage()
 
 	// add a new root key to the root so that either can sign have to sign
@@ -560,7 +560,7 @@ func TestRootRotationNotSignedWithOldKeysForOldRole(t *testing.T) {
 	repo, crypto, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
 	store := storage.NewMemStorage()
-	serverCrypto := testutils.CopyKeys(t, crypto, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, crypto, data.CanonicalTimestampRole)
 
 	oldRootKeyID := repo.Root.Signed.Roles[data.CanonicalRootRole].KeyIDs[0]
 
@@ -636,7 +636,7 @@ func TestRootRotationVersionIncrement(t *testing.T) {
 	var gun data.GUN = "docker.com/notary"
 	repo, crypto, err := testutils.EmptyRepo(gun)
 	require.NoError(t, err)
-	serverCrypto := testutils.CopyKeys(t, crypto, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, crypto, data.CanonicalTimestampRole)
 	store := storage.NewMemStorage()
 
 	r, tg, sn, ts, err := testutils.Sign(repo)
@@ -687,7 +687,7 @@ func TestValidateNoRoot(t *testing.T) {
 
 	updates := []storage.MetaUpdate{targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, validation.ErrValidation{}, err)
@@ -706,7 +706,7 @@ func TestValidateSnapshotMissingNoSnapshotKey(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, validation.ErrBadHierarchy{}, err)
@@ -725,7 +725,7 @@ func TestValidateSnapshotGenerateNoPrev(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.NoError(t, err)
 }
@@ -750,7 +750,7 @@ func TestValidateSnapshotGenerateWithPrev(t *testing.T) {
 	prev, err := data.SnapshotFromSigned(sn)
 	require.NoError(t, err)
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
 	updates, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.NoError(t, err)
 
@@ -784,7 +784,7 @@ func TestValidateSnapshotGeneratePrevCorrupt(t *testing.T) {
 	// the next version
 	store.UpdateCurrent(gun, snapshot)
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, &json.SyntaxError{}, err)
@@ -807,7 +807,7 @@ func TestValidateSnapshotGenerateStoreGetCurrentSnapshotBroken(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, data.ErrNoSuchRole{}, err)
@@ -826,7 +826,7 @@ func TestValidateSnapshotGenerateNoTargets(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 }
@@ -846,7 +846,7 @@ func TestValidateSnapshotGenerate(t *testing.T) {
 
 	store.UpdateCurrent(gun, root)
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole, data.CanonicalSnapshotRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.NoError(t, err)
 }
@@ -925,7 +925,7 @@ func TestValidateRootInvalidTimestampThreshold(t *testing.T) {
 	store := storage.NewMemStorage()
 	updates := []storage.MetaUpdate{root, targets, snapshot}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, validation.ErrBadRoot{}, err)
@@ -949,7 +949,7 @@ func TestValidateRootInvalidZeroThreshold(t *testing.T) {
 		store := storage.NewMemStorage()
 		updates := []storage.MetaUpdate{root, targets, snapshot}
 
-		serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+		serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 		_, err = validateUpdate(serverCrypto, gun, updates, store)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid threshold")
@@ -974,7 +974,7 @@ func TestValidateRootRoleMissing(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, validation.ErrBadRoot{}, err)
@@ -995,7 +995,7 @@ func TestValidateTargetsRoleMissing(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, validation.ErrBadRoot{}, err)
@@ -1016,7 +1016,7 @@ func TestValidateSnapshotRoleMissing(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, validation.ErrBadRoot{}, err)
@@ -1043,7 +1043,7 @@ func TestValidateRootSigMissing(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, validation.ErrBadRoot{}, err)
@@ -1065,7 +1065,7 @@ func TestValidateTargetsSigMissing(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, validation.ErrBadTargets{}, err)
@@ -1087,7 +1087,7 @@ func TestValidateSnapshotSigMissing(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, validation.ErrBadSnapshot{}, err)
@@ -1112,7 +1112,7 @@ func TestValidateRootCorrupt(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, validation.ErrBadRoot{}, err)
@@ -1134,7 +1134,7 @@ func TestValidateTargetsCorrupt(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, validation.ErrBadTargets{}, err)
@@ -1156,7 +1156,7 @@ func TestValidateSnapshotCorrupt(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, validation.ErrBadSnapshot{}, err)
@@ -1185,7 +1185,7 @@ func TestValidateRootModifiedSize(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, validation.ErrBadRoot{}, err)
@@ -1208,7 +1208,7 @@ func TestValidateTargetsModifiedSize(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, validation.ErrBadSnapshot{}, err)
@@ -1238,7 +1238,7 @@ func TestValidateRootModifiedHash(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, validation.ErrBadSnapshot{}, err)
@@ -1265,7 +1265,7 @@ func TestValidateTargetsModifiedHash(t *testing.T) {
 
 	updates := []storage.MetaUpdate{root, targets, snapshot, timestamp}
 
-	serverCrypto := testutils.CopyKeys(t, cs, data.CanonicalTimestampRole)
+	serverCrypto := mustCopyKeys(t, cs, data.CanonicalTimestampRole)
 	_, err = validateUpdate(serverCrypto, gun, updates, store)
 	require.Error(t, err)
 	require.IsType(t, validation.ErrBadSnapshot{}, err)

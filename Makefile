@@ -17,14 +17,6 @@ GOOSES = darwin linux windows
 NOTARY_BUILDTAGS ?= pkcs11
 NOTARYDIR := /go/src/github.com/theupdateframework/notary
 
-GO_VERSION := $(shell go version | grep "1\.\(7\|8\|9\|10\)\(\.[0-9]+\)*\|devel")
-# check to make sure we have the right version. development versions of Go are
-# not officially supported, but allowed for building
-
-ifeq ($(strip $(GO_VERSION))$(SKIPENVCHECK),)
-$(error Bad Go version - please install Go >= 1.7)
-endif
-
 # check to be sure pkcs11 lib is always imported with a build tag
 GO_LIST_PKCS11 := $(shell go list -tags "${NOTARY_BUILDTAGS}" -e -f '{{join .Deps "\n"}}' ./... | grep -v /vendor/ | xargs go list -e -f '{{if not .Standard}}{{.ImportPath}}{{end}}' | grep -q pkcs11)
 ifeq ($(GO_LIST_PKCS11),)

@@ -87,7 +87,7 @@ func (k keyInfoSorter) Less(i, j int) bool {
 		case orderedI[x] > orderedJ[x]:
 			return false
 		}
-		// continue on and evalulate the next item
+		// continue on and evaluate the next item
 	}
 	// this shouldn't happen - that means two values are exactly equal
 	return false

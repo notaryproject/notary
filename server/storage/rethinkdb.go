@@ -38,7 +38,7 @@ func (r RDBTUFFile) TableName() string {
 	return TUFFileTableName
 }
 
-// Change defines the the fields required for an object in the changefeed
+// Change defines the fields required for an object in the changefeed
 type Change struct {
 	ID        string    `gorethink:"id,omitempty" gorm:"primary_key" sql:"not null"`
 	CreatedAt time.Time `gorethink:"created_at"`

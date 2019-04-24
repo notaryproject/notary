@@ -105,7 +105,7 @@ class CoverageRunner(object):
 
     def run(self, pkgs=(), testopts="", covermode="atomic", debug=False):
         """
-        Run go test with coverage over the the given packages, with the following given options
+        Run go test with coverage over the given packages, with the following given options
         """
         pkgs = pkgs or self.test_imports.keys()
         pkgs.sort()
