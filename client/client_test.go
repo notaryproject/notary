@@ -32,6 +32,7 @@ import (
 	"github.com/theupdateframework/notary/server/storage"
 	store "github.com/theupdateframework/notary/storage"
 	"github.com/theupdateframework/notary/trustmanager"
+	"github.com/theupdateframework/notary/trustmanager/grpckeystore"
 	"github.com/theupdateframework/notary/trustpinning"
 	"github.com/theupdateframework/notary/tuf/data"
 	"github.com/theupdateframework/notary/tuf/signed"
@@ -192,7 +193,8 @@ func createRepoAndKey(t *testing.T, rootType, tempBaseDir, gun, url string) (*re
 
 	rec := newRoleRecorder()
 	r, err := NewFileCachedRepository(
-		tempBaseDir, data.GUN(gun), url, http.DefaultTransport, rec.retriever, trustpinning.TrustPinConfig{})
+		tempBaseDir, data.GUN(gun), url, http.DefaultTransport, rec.retriever,
+		trustpinning.TrustPinConfig{}, grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	repo := r.(*repository)
 
@@ -224,7 +226,8 @@ func newRepoToTestRepo(t *testing.T, existingRepo *repository, repoDir string) (
 	rec := newRoleRecorder()
 	r, err := NewFileCachedRepository(
 		repoDir, existingRepo.gun, existingRepo.baseURL,
-		http.DefaultTransport, rec.retriever, trustpinning.TrustPinConfig{})
+		http.DefaultTransport, rec.retriever, trustpinning.TrustPinConfig{},
+		grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repository: %s", err)
 	repo := r.(*repository)
 	if err != nil && newDir {
@@ -700,7 +703,7 @@ func testInitRepoAttemptsExceeded(t *testing.T, rootType string) {
 	defer ts.Close()
 
 	retriever := passphrase.ConstantRetriever("password")
-	r, err := NewFileCachedRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
+	r, err := NewFileCachedRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{}, grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	repo := r.(*repository)
 
@@ -710,7 +713,7 @@ func testInitRepoAttemptsExceeded(t *testing.T, rootType string) {
 	retriever = passphrase.ConstantRetriever("incorrect password")
 	// repo.GetCryptoService’s FileKeyStore caches the unlocked private key, so to test
 	// private key unlocking we need a new repo instance.
-	r, err = NewFileCachedRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
+	r, err = NewFileCachedRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{}, grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	repo = r.(*repository)
 	err = repo.Initialize([]string{rootPubKey.ID()})
@@ -741,7 +744,7 @@ func testInitRepoPasswordInvalid(t *testing.T, rootType string) {
 	defer ts.Close()
 
 	retriever := passphrase.ConstantRetriever("password")
-	r, err := NewFileCachedRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{})
+	r, err := NewFileCachedRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, retriever, trustpinning.TrustPinConfig{}, grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	repo := r.(*repository)
 
@@ -750,7 +753,7 @@ func testInitRepoPasswordInvalid(t *testing.T, rootType string) {
 
 	// repo.GetCryptoService’s FileKeyStore caches the unlocked private key, so to test
 	// private key unlocking we need a new repo instance.
-	r, err = NewFileCachedRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, giveUpPassphraseRetriever, trustpinning.TrustPinConfig{})
+	r, err = NewFileCachedRepository(tempBaseDir, gun, ts.URL, http.DefaultTransport, giveUpPassphraseRetriever, trustpinning.TrustPinConfig{}, grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	repo = r.(*repository)
 	err = repo.Initialize([]string{rootPubKey.ID()})
@@ -1805,7 +1808,8 @@ func TestPublishUninitializedRepo(t *testing.T) {
 	defer os.RemoveAll(tempBaseDir)
 
 	r, err := NewFileCachedRepository(tempBaseDir, gun, ts.URL,
-		http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
+		http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{},
+		grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repository: %s", err)
 	repo := r.(*repository)
 	err = repo.Publish()
@@ -2138,7 +2142,7 @@ func TestPublishSnapshotLocalKeysCreatedFirst(t *testing.T) {
 	defer ts.Close()
 
 	r, err := NewFileCachedRepository(
-		tempBaseDir, gun, ts.URL, http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
+		tempBaseDir, gun, ts.URL, http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{}, grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	repo := r.(*repository)
 
@@ -3293,7 +3297,8 @@ func TestRemoteServerUnavailableNoLocalCache(t *testing.T) {
 	defer ts.Close()
 
 	r, err := NewFileCachedRepository(tempBaseDir, "docker.com/notary",
-		ts.URL, http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{})
+		ts.URL, http.DefaultTransport, passphraseRetriever, trustpinning.TrustPinConfig{},
+		grpckeystore.GRPCClientConfig{})
 	require.NoError(t, err, "error creating repo: %s", err)
 	repo := r.(*repository)
 
@@ -3613,6 +3618,7 @@ func TestClientInvalidURL(t *testing.T) {
 		http.DefaultTransport,
 		passphraseRetriever,
 		trustpinning.TrustPinConfig{},
+		grpckeystore.GRPCClientConfig{},
 	)
 	// NewFileCachedRepository should fail and return an error
 	// since it initializes the cache but also the remote repository

@@ -25,6 +25,10 @@ func ConfigureRepo(v *viper.Viper, retriever notary.PassRetriever, onlineOperati
 		if err != nil {
 			return nil, err
 		}
+		grpcKeyStore, err := getGRPCKeyStore(v)
+		if err != nil {
+			return nil, err
+		}
 		if onlineOperation {
 			rt, err = getTransport(v, gun, permission)
 			if err != nil {
@@ -38,6 +42,7 @@ func ConfigureRepo(v *viper.Viper, retriever notary.PassRetriever, onlineOperati
 			rt,
 			retriever,
 			trustPin,
+			grpcKeyStore,
 		)
 	}
 

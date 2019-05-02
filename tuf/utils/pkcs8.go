@@ -45,6 +45,7 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"golang.org/x/crypto/pbkdf2"
 
@@ -338,4 +339,96 @@ func ConvertTUFKeyToPKCS8(priv data.PrivateKey, password []byte) ([]byte, error)
 		return convertTUFKeyToPKCS8(priv)
 	}
 	return convertTUFKeyToPKCS8Encrypted(priv, password)
+}
+
+// ParseECDSASignature accepts a raw R,S concatenated format or ASN.1 encoded
+// ECDSA signature and normalizes it to the raw R,S concatenated together format
+// that the verifiers want to see
+func ParseECDSASignature(signatureBytes []byte, pubKeyBytes []byte) ([]byte, error) {
+
+	// an ECDSA signature can be expressed several ways:
+	//
+	// 1) the raw format where R,S are concatenated together
+	//
+	// 2) ASN.1 encoded in RFC-3279 sec 2.2.3 format:
+	//
+	// SEQUENCE {
+	//      INTEGER
+	//      INTEGER
+	//   }
+	//
+	// 3) ASN.1 encoded with in RFC-3279 sec 2.2.3 format wrapped by an OID
+	// SEQUENCE {
+	//     OBJECTIDENTIFIER   (e.g. 1.2.840.10045.4.3.2 (ecdsa-with-SHA256)
+	//       BITSTRING
+	//     }
+	//
+	//  where the BITSTRING is an ASN.1 encoded signature in format 2
+	//
+	//  since the verifier wants the raw format (format 1), all received
+	//  ECDSA signature variants will be normalized to this format
+
+	// First determine the expected raw format length of a good signature.
+	// Parsing the public key will give this info.
+	pub, err := x509.ParsePKIXPublicKey(pubKeyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("pkcs8: ecdsa signature parser failed to parse public key: %s", err)
+	}
+
+	edcsapub := pub.(*ecdsa.PublicKey)
+	octetLength := (edcsapub.Params().BitSize + 7) >> 3
+	expectedRawSigLen := octetLength * 2
+
+	// check to see if we already have the expected raw signature length
+	if len(signatureBytes) == expectedRawSigLen {
+		// signature is already in the raw format that the verifier wants
+		return signatureBytes, nil
+	}
+
+	// Test Signature is too short error
+	if len(signatureBytes) < expectedRawSigLen {
+		return nil, fmt.Errorf("pkcs8: ecdsa signature too short for public key")
+	}
+
+	// At this point, the signature is longer than the normalized format, so
+	// it must be either ASN.1 encoded or invalid
+
+	// try to parse the signature looking for an OID (format #3).
+	// if this succeeds, we'll still need to parse the format #2 portion.  If
+	// it fails, it's OK, we might have just been given format #2 to begin with.
+	type ecdsaSigWithObjectID struct {
+		Oid asn1.ObjectIdentifier
+		S   asn1.BitString
+	}
+	var ecdsasigOID ecdsaSigWithObjectID
+	_, err = asn1.Unmarshal(signatureBytes, &ecdsasigOID)
+
+	// if asn.1 decoding for OID format (format #3) succeeded, update signature
+	// bytes to only include the format #2 part
+	if err == nil {
+		signatureBytes = ecdsasigOID.S.Bytes
+	}
+
+	// Attempt to parse as ASN.1 encoded in RFC-3279 sec 2.2.3 (format 2)
+	type ecdsaSig struct {
+		R *big.Int
+		S *big.Int
+	}
+	var ecdsasig ecdsaSig
+	_, err = asn1.Unmarshal(signatureBytes, &ecdsasig)
+
+	// if asn.1 decoding succeeded, get the signature bytes
+	if err == nil {
+		rBytes, sBytes := ecdsasig.R.Bytes(), ecdsasig.S.Bytes()
+
+		// MUST include leading zeros in the output
+		rBuf := make([]byte, octetLength-len(rBytes), octetLength)
+		sBuf := make([]byte, octetLength-len(sBytes), octetLength)
+		rBuf = append(rBuf, rBytes...)
+		sBuf = append(sBuf, sBytes...)
+		return append(rBuf, sBuf...), nil
+	}
+
+	// exhausted the formats we understand
+	return nil, fmt.Errorf("pkcs8: failed to parse ecdsa signature")
 }

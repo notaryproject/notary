@@ -103,6 +103,11 @@ func (d *delegationCommander) delegationPurgeKeys(cmd *cobra.Command, args []str
 		return err
 	}
 
+	grpcKeyStore, err := getGRPCKeyStore(config)
+	if err != nil {
+		return err
+	}
+
 	nRepo, err := notaryclient.NewFileCachedRepository(
 		config.GetString("trust_dir"),
 		gun,
@@ -110,6 +115,7 @@ func (d *delegationCommander) delegationPurgeKeys(cmd *cobra.Command, args []str
 		nil,
 		d.retriever,
 		trustPin,
+		grpcKeyStore,
 	)
 	if err != nil {
 		return err
@@ -152,9 +158,14 @@ func (d *delegationCommander) delegationsList(cmd *cobra.Command, args []string)
 		return err
 	}
 
+	grpcKeyStore, err := getGRPCKeyStore(config)
+	if err != nil {
+		return err
+	}
+
 	// initialize repo with transport to get latest state of the world before listing delegations
 	nRepo, err := notaryclient.NewFileCachedRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, d.retriever, trustPin)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, d.retriever, trustPin, grpcKeyStore)
 	if err != nil {
 		return err
 	}
@@ -182,10 +193,15 @@ func (d *delegationCommander) delegationRemove(cmd *cobra.Command, args []string
 		return err
 	}
 
+	grpcKeyStore, err := getGRPCKeyStore(config)
+	if err != nil {
+		return err
+	}
+
 	// no online operations are performed by add so the transport argument
 	// should be nil
 	nRepo, err := notaryclient.NewFileCachedRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, d.retriever, trustPin)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, d.retriever, trustPin, grpcKeyStore)
 	if err != nil {
 		return err
 	}
@@ -312,10 +328,15 @@ func (d *delegationCommander) delegationAdd(cmd *cobra.Command, args []string) e
 		return err
 	}
 
+	grpcKeyStore, err := getGRPCKeyStore(config)
+	if err != nil {
+		return err
+	}
+
 	// no online operations are performed by add so the transport argument
 	// should be nil
 	nRepo, err := notaryclient.NewFileCachedRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, d.retriever, trustPin)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, d.retriever, trustPin, grpcKeyStore)
 	if err != nil {
 		return err
 	}
