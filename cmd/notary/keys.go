@@ -309,14 +309,9 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	grpcKeyStore, err := getGRPCKeyStore(config)
-	if err != nil {
-		return err
-	}
-
 	nRepo, err := notaryclient.NewFileCachedRepository(
 		config.GetString("trust_dir"), gun, getRemoteTrustServer(config),
-		rt, k.getRetriever(), trustPin, grpcKeyStore)
+		rt, k.getRetriever(), trustPin, getGRPCKeyStore(config))
 	if err != nil {
 		return err
 	}

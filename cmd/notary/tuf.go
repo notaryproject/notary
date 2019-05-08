@@ -1013,7 +1013,7 @@ func getTrustPinning(config *viper.Viper) (trustpinning.TrustPinConfig, error) {
 	}, nil
 }
 
-func getGRPCKeyStore(config *viper.Viper) (grpckeystore.GRPCClientConfig, error) {
+func getGRPCKeyStore(config *viper.Viper) grpckeystore.GRPCClientConfig {
 	return grpckeystore.GRPCClientConfig{
 		Server:          config.GetString("grpc_keystore.url"),
 		TLSCertFile:     config.GetString("grpc_keystore.tls_client_cert"),
@@ -1022,7 +1022,7 @@ func getGRPCKeyStore(config *viper.Viper) (grpckeystore.GRPCClientConfig, error)
 		DialTimeout:     config.GetDuration("grpc_keystore.dial_timeout"),
 		BlockingTimeout: config.GetDuration("grpc_keystore.blocking_timeout"),
 		Metadata:        metadata.New(config.GetStringMapString("grpc_keystore.metadata")),
-	}, nil
+	}
 }
 
 // authRoundTripper tries to authenticate the requests via multiple HTTP transactions (until first succeed)
@@ -1073,13 +1073,9 @@ func maybeAutoPublish(cmd *cobra.Command, doPublish bool, gun data.GUN, config *
 		return err
 	}
 
-	grpcKeyStore, err := getGRPCKeyStore(config)
-	if err != nil {
-		return err
-	}
-
 	nRepo, err := notaryclient.NewFileCachedRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, passRetriever, trustPin, grpcKeyStore)
+		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt,
+		passRetriever, trustPin, getGRPCKeyStore(config))
 	if err != nil {
 		return err
 	}
