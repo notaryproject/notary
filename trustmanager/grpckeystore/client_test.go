@@ -91,9 +91,7 @@ func setupTestServer(t *testing.T, config *testServerConfig,
 	go func() {
 		err := s.Serve(l)
 		// likely not a real error - most likely a timeing window on closing the server
-		if serverLog {
-			t.Logf("grpc key store test server error: %s", err)
-		}
+		testLog(t, "grpc key store test server error: %s", err)
 	}()
 	return func() {
 		// waiting 10 milliseconds in the closer function can allow the
@@ -224,6 +222,20 @@ const logReturningErrorMsgStr = "grpc key store server returning a test error"
 const serverLog bool = false
 const verboseServerLog bool = false
 
+// testLog wraps t.Logf making it easy to turn logging on and off
+func testLog(t *testing.T, format string, a ...interface{}) {
+	if serverLog {
+		t.Logf(format, a...)
+	}
+}
+
+// testLogVerbose wraps t.Logf making it easy to turn verbose logging on and off
+func testLogVerbose(t *testing.T, format string, a ...interface{}) {
+	if verboseServerLog {
+		t.Logf(format, a...)
+	}
+}
+
 // newGRPCKeyStoreSrvr instantiates a the GRPC keystore server for testing
 func newGRPCKeyStoreSrvr(t *testing.T, testServerData *testServerData,
 	testKeys map[string]testKeyData) *GRPCKeyStoreSrvr {
@@ -290,13 +302,9 @@ func (st *GRPCKeyStoreSrvr) GenerateKey(ctx context.Context, msg *GenerateKeyReq
 	var keyFound = false
 	var rsp = &GenerateKeyRsp{}
 
-	if serverLog {
-		t.Logf(logReceivedMsgStr, msg)
-	}
-	if verboseServerLog {
-		t.Logf("     Gun: %s", msg.Gun)
-		t.Logf("     Role: %s", msg.Role)
-	}
+	testLog(t, logReceivedMsgStr, msg)
+	testLogVerbose(t, "     Gun: %s", msg.Gun)
+	testLogVerbose(t, "     Role: %s", msg.Role)
 
 	for _, tkd = range st.testKeys {
 		if (msg.Role == string(tkd.keyInfo.Role)) && (msg.Gun == string(tkd.keyInfo.Gun)) {
@@ -312,9 +320,7 @@ func (st *GRPCKeyStoreSrvr) GenerateKey(ctx context.Context, msg *GenerateKeyReq
 
 	// if an error injection is reqeusted for testing, return it now.
 	if tsd.injectErrorGenerateKey {
-		if serverLog {
-			t.Logf(logReturningErrorMsgStr)
-		}
+		testLog(t, logReturningErrorMsgStr)
 		err = fmt.Errorf(tsd.injectErrorStr)
 	}
 
@@ -325,15 +331,12 @@ func (st *GRPCKeyStoreSrvr) GenerateKey(ctx context.Context, msg *GenerateKeyReq
 		SignatureAlgorithm: string(tkd.privateKey.SignatureAlgorithm()),
 	}
 
-	if serverLog {
-		t.Logf(logReturningMsgStr, rsp)
-	}
-	if verboseServerLog {
-		t.Logf("     RemoteKeyId: %s", rsp.RemoteKeyId)
-		t.Logf("     Alogrithm: %s", rsp.Algorithm)
-		t.Logf("     SignatureAlgorithm: %s", rsp.SignatureAlgorithm)
-		t.Logf("     PublicKey: %x", rsp.PublicKey)
-	}
+	testLog(t, logReturningErrorMsgStr)
+	testLogVerbose(t, "     RemoteKeyId: %s", rsp.RemoteKeyId)
+	testLogVerbose(t, "     Algorithm: %s", rsp.Algorithm)
+	testLogVerbose(t, "     SignatureAlgorithm: %s", rsp.SignatureAlgorithm)
+	testLogVerbose(t, "     PublicKey: %x", rsp.PublicKey)
+
 	return rsp, err
 }
 
@@ -347,13 +350,9 @@ func (st *GRPCKeyStoreSrvr) AssociateKey(ctx context.Context, msg *AssociateKeyR
 	var keyFound = false
 	var rsp = &AssociateKeyRsp{}
 
-	if serverLog {
-		t.Logf(logReceivedMsgStr, msg)
-	}
-	if verboseServerLog {
-		t.Logf("     KeyId: %s", msg.KeyId)
-		t.Logf("     RemoteKeyId: %s", msg.RemoteKeyId)
-	}
+	testLog(t, logReceivedMsgStr, msg)
+	testLogVerbose(t, "     KeyId: %s", msg.KeyId)
+	testLogVerbose(t, "     RemoteKeyId: %s", msg.RemoteKeyId)
 
 	for i, tkd = range st.testKeys {
 		if msg.RemoteKeyId == tkd.remoteKeyID {
@@ -369,9 +368,7 @@ func (st *GRPCKeyStoreSrvr) AssociateKey(ctx context.Context, msg *AssociateKeyR
 
 	// if an error injection is reqeusted for testing, return it now.
 	if tsd.injectErrorAssociateKey {
-		if serverLog {
-			t.Logf(logReturningErrorMsgStr)
-		}
+		testLog(t, logReturningErrorMsgStr)
 		err = fmt.Errorf(tsd.injectErrorStr)
 	}
 
@@ -379,9 +376,7 @@ func (st *GRPCKeyStoreSrvr) AssociateKey(ctx context.Context, msg *AssociateKeyR
 	tkd.associated = true
 	st.testKeys[i] = tkd
 
-	if serverLog {
-		t.Logf(logReturningMsgStr, rsp)
-	}
+	testLog(t, logReturningMsgStr, rsp)
 
 	return rsp, err
 }
@@ -396,18 +391,14 @@ func (st *GRPCKeyStoreSrvr) AddKey(ctx context.Context, msg *AddKeyReq) (*AddKey
 	var keyFound = false
 	var rsp = &AddKeyRsp{}
 
-	if serverLog {
-		t.Logf(logReceivedMsgStr, msg)
-	}
-	if verboseServerLog {
-		t.Logf("     KeyID: %s", msg.KeyId)
-		t.Logf("     Gun: %s", msg.Gun)
-		t.Logf("     Role: %s", msg.Role)
-		t.Logf("     Alogrithm: %s", msg.Algorithm)
-		t.Logf("     SignatureAlgorithm: %s", msg.SignatureAlgorithm)
-		t.Logf("     PublicKey: %x", msg.PublicKey)
-		t.Logf("     PrivateKey: %x", msg.PrivateKey)
-	}
+	testLog(t, logReceivedMsgStr, msg)
+	testLogVerbose(t, "     KeyID: %s", msg.KeyId)
+	testLogVerbose(t, "     Gun: %s", msg.Gun)
+	testLogVerbose(t, "     Role: %s", msg.Role)
+	testLogVerbose(t, "     Algorithm: %s", msg.Algorithm)
+	testLogVerbose(t, "     SignatureAlgorithm: %s", msg.SignatureAlgorithm)
+	testLogVerbose(t, "     PublicKey: %x", msg.PublicKey)
+	testLogVerbose(t, "     PrivateKey: %x", msg.PrivateKey)
 
 	// search the test keys.  for addkey basically the only thing we are retrieving
 	// is the remote key id.
@@ -425,9 +416,7 @@ func (st *GRPCKeyStoreSrvr) AddKey(ctx context.Context, msg *AddKeyReq) (*AddKey
 
 	// if an error injection is reqeusted for testing, return it now.
 	if tsd.injectErrorAddKey {
-		if serverLog {
-			t.Logf(logReturningErrorMsgStr)
-		}
+		testLog(t, logReturningErrorMsgStr)
 		err = fmt.Errorf(tsd.injectErrorStr)
 	}
 
@@ -439,12 +428,9 @@ func (st *GRPCKeyStoreSrvr) AddKey(ctx context.Context, msg *AddKeyReq) (*AddKey
 		RemoteKeyId: tkd.remoteKeyID,
 	}
 
-	if serverLog {
-		t.Logf(logReturningMsgStr, rsp)
-	}
-	if verboseServerLog {
-		t.Logf("     RemoteKeyId: %s", rsp.RemoteKeyId)
-	}
+	testLog(t, logReturningMsgStr, rsp)
+	testLogVerbose(t, "     RemoteKeyId: %s", rsp.RemoteKeyId)
+
 	return rsp, err
 }
 
@@ -457,13 +443,10 @@ func (st *GRPCKeyStoreSrvr) GetKey(ctx context.Context, msg *GetKeyReq) (*GetKey
 	var keyFound = false
 	var rsp = &GetKeyRsp{}
 
-	if serverLog {
-		t.Logf(logReceivedMsgStr, msg)
-	}
-	if verboseServerLog {
-		t.Logf("     KeyID: %s", msg.KeyId)
-		t.Logf("     RemoteID: %s", msg.RemoteKeyId)
-	}
+	testLog(t, logReceivedMsgStr, msg)
+	testLogVerbose(t, "     KeyID: %s", msg.KeyId)
+	testLogVerbose(t, "     RemoteID: %s", msg.RemoteKeyId)
+
 	for _, tkd = range st.testKeys {
 		if (msg.RemoteKeyId == tkd.remoteKeyID) && (tkd.associated) {
 			keyFound = true
@@ -478,9 +461,7 @@ func (st *GRPCKeyStoreSrvr) GetKey(ctx context.Context, msg *GetKeyReq) (*GetKey
 
 	// if an error injection is reqeusted for testing, return it now.
 	if tsd.injectErrorGetKey {
-		if serverLog {
-			t.Logf(logReturningErrorMsgStr)
-		}
+		testLog(t, logReturningErrorMsgStr)
 		err = fmt.Errorf(tsd.injectErrorStr)
 	}
 
@@ -491,15 +472,11 @@ func (st *GRPCKeyStoreSrvr) GetKey(ctx context.Context, msg *GetKeyReq) (*GetKey
 		PublicKey:          tkd.privateKey.Public(),
 	}
 
-	if serverLog {
-		t.Logf(logReturningMsgStr, rsp)
-	}
-	if verboseServerLog {
-		t.Logf("     Role: %s", rsp.Role)
-		t.Logf("     Alogrithm: %s", rsp.Algorithm)
-		t.Logf("     SignatureAlgorithm: %s", rsp.SignatureAlgorithm)
-		t.Logf("     PublicKey: %x", rsp.PublicKey)
-	}
+	testLog(t, logReturningMsgStr, rsp)
+	testLogVerbose(t, "     Role: %s", rsp.Role)
+	testLogVerbose(t, "     Algorithm: %s", rsp.Algorithm)
+	testLogVerbose(t, "     SignatureAlgorithm: %s", rsp.SignatureAlgorithm)
+	testLogVerbose(t, "     PublicKey: %x", rsp.PublicKey)
 
 	return rsp, err
 }
@@ -513,9 +490,7 @@ func (st *GRPCKeyStoreSrvr) ListKeys(ctx context.Context, msg *ListKeysReq) (*Li
 	var keyDataList []*ListKeysRsp_KeyInfo
 	var rsp = &ListKeysRsp{}
 
-	if serverLog {
-		t.Logf(logReceivedMsgStr, msg)
-	}
+	testLog(t, logReceivedMsgStr, msg)
 
 	// verify the metadata made it through
 	md, _ := metadata.FromContext(ctx)
@@ -537,11 +512,9 @@ func (st *GRPCKeyStoreSrvr) ListKeys(ctx context.Context, msg *ListKeysReq) (*Li
 		}
 	}
 	if err != nil {
-		if serverLog {
-			t.Logf("Expected metadata pairs not received on server")
-			t.Logf("Received metadata: %v", md)
-			t.Logf("Expected metadata: %v", tsd.metadata)
-		}
+		testLog(t, "Expected metadata pairs not received on server")
+		testLog(t, "Received metadata: %v", md)
+		testLog(t, "Expected metadata: %v", tsd.metadata)
 		return rsp, err
 	}
 
@@ -560,9 +533,7 @@ func (st *GRPCKeyStoreSrvr) ListKeys(ctx context.Context, msg *ListKeysReq) (*Li
 
 	// if an error injection is reqeusted for testing, return it now.
 	if tsd.injectErrorListKeys {
-		if serverLog {
-			t.Logf(logReturningErrorMsgStr)
-		}
+		testLog(t, logReturningErrorMsgStr)
 		err = fmt.Errorf(tsd.injectErrorStr)
 	}
 
@@ -570,17 +541,14 @@ func (st *GRPCKeyStoreSrvr) ListKeys(ctx context.Context, msg *ListKeysReq) (*Li
 		KeyData: keyDataList,
 	}
 
-	if serverLog {
-		t.Logf(logReturningMsgStr, rsp)
-	}
-	if verboseServerLog {
-		for i, key := range rsp.KeyData {
-			t.Logf("     Key %d", i)
-			t.Logf("        KeyId: %s", key.KeyId)
-			t.Logf("RemoteKeyId: %s", key.RemoteKeyId)
-			t.Logf("        Gun: %s", key.Gun)
-			t.Logf("        Role: %s", key.Role)
-		}
+	testLog(t, logReturningMsgStr, rsp)
+
+	for i, key := range rsp.KeyData {
+		testLogVerbose(t, "  Key %d", i)
+		testLogVerbose(t, "    KeyId: %s", key.KeyId)
+		testLogVerbose(t, "    RemoteKeyId: %s", key.RemoteKeyId)
+		testLogVerbose(t, "    Gun: %s", key.Gun)
+		testLogVerbose(t, "    Role: %s", key.Role)
 	}
 
 	return rsp, err
@@ -596,13 +564,9 @@ func (st *GRPCKeyStoreSrvr) RemoveKey(ctx context.Context, msg *RemoveKeyReq) (*
 	var keyFound = false
 	var rsp = &RemoveKeyRsp{}
 
-	if serverLog {
-		t.Logf(logReceivedMsgStr, msg)
-	}
-	if verboseServerLog {
-		t.Logf("     KeyID: %s", msg.KeyId)
-		t.Logf("     RemoteID: %s", msg.RemoteKeyId)
-	}
+	testLog(t, logReceivedMsgStr, msg)
+	testLogVerbose(t, "     KeyID: %s", msg.KeyId)
+	testLogVerbose(t, "     RemoteID: %s", msg.RemoteKeyId)
 
 	for i, tkd = range st.testKeys {
 		if (msg.RemoteKeyId == tkd.remoteKeyID) && (tkd.associated) {
@@ -621,15 +585,11 @@ func (st *GRPCKeyStoreSrvr) RemoveKey(ctx context.Context, msg *RemoveKeyReq) (*
 
 	// if an error injection is reqeusted for testing, return it now.
 	if tsd.injectErrorRemoveKey {
-		if serverLog {
-			t.Logf(logReturningErrorMsgStr)
-		}
+		testLog(t, logReturningErrorMsgStr)
 		err = fmt.Errorf(tsd.injectErrorStr)
 	}
 
-	if serverLog {
-		t.Logf(logReturningMsgStr, rsp)
-	}
+	testLog(t, logReturningMsgStr, rsp)
 
 	return rsp, err
 }
@@ -643,15 +603,11 @@ func (st *GRPCKeyStoreSrvr) Sign(ctx context.Context, msg *SignReq) (*SignRsp, e
 	var keyFound = false
 	var rsp = &SignRsp{}
 
-	if serverLog {
-		t.Logf(logReceivedMsgStr, msg)
-	}
-	if verboseServerLog {
-		t.Logf("     KeyID: %s", msg.KeyId)
-		t.Logf("     RemoteID: %s", msg.RemoteKeyId)
-		t.Logf("     HashAlgorithm: %s", msg.HashAlgorithm)
-		t.Logf("     Message: %x", msg.Message)
-	}
+	testLog(t, logReceivedMsgStr, msg)
+	testLogVerbose(t, "     KeyID: %s", msg.KeyId)
+	testLogVerbose(t, "     RemoteID: %s", msg.RemoteKeyId)
+	testLogVerbose(t, "     HashAlgorithm: %s", msg.HashAlgorithm)
+	testLogVerbose(t, "     Message: %x", msg.Message)
 
 	for _, tkd = range st.testKeys {
 		if msg.RemoteKeyId == tkd.remoteKeyID {
@@ -672,9 +628,7 @@ func (st *GRPCKeyStoreSrvr) Sign(ctx context.Context, msg *SignReq) (*SignRsp, e
 
 	// if an error injection is reqeusted for testing, return it now.
 	if tsd.injectErrorSign {
-		if serverLog {
-			t.Logf(logReturningErrorMsgStr)
-		}
+		testLog(t, logReturningErrorMsgStr)
 		err = fmt.Errorf(tsd.injectErrorStr)
 	}
 
@@ -682,12 +636,8 @@ func (st *GRPCKeyStoreSrvr) Sign(ctx context.Context, msg *SignReq) (*SignRsp, e
 		Signature: signature,
 	}
 
-	if serverLog {
-		t.Logf(logReturningMsgStr, rsp)
-	}
-	if verboseServerLog {
-		t.Logf("     Signature: %x", rsp.Signature)
-	}
+	testLog(t, logReturningMsgStr, rsp)
+	testLogVerbose(t, "     Signature: %x", rsp.Signature)
 
 	return rsp, err
 }
@@ -952,7 +902,7 @@ func TestAddKey(t *testing.T) {
 	require.Equal(t, pk.Public(), tkd.privateKey.Public())
 
 	// Test a Signing Operation...
-	// The Sign operation does verfication so we know the signature is good
+	// The Sign operation does verification so we know the signature is good
 	msg := []byte("Sign this data")
 	_, err = pk.Sign(rand.Reader, msg, nil)
 	require.NoError(t, err)
@@ -1043,7 +993,7 @@ func TestKeysAlreadyInStore(t *testing.T) {
 	require.Equal(t, pk.Public(), tkd.privateKey.Public())
 
 	// Test a Signing Operation...
-	// The Sign operation does verfication so we know the signature is good
+	// The Sign operation does verification so we know the signature is good
 	msg := []byte("Sign this data")
 	_, err = pk.Sign(rand.Reader, msg, nil)
 	require.NoError(t, err)
@@ -1198,6 +1148,56 @@ func TestKeyTypes(t *testing.T) {
 	c.closeClient()
 }
 
+// TestConfigErrors
+// Test TLS - Client CA cert doesn't match server.  An error is expected in this
+// case since the client ca_cert doesn't match the server
+// Client configures ca
+// Server configures cert, key
+//
+func TestConfigErrors(t *testing.T) {
+	var err error
+	testKeys := make(map[string]testKeyData)
+
+	serverConfig, testServerData, clientConfig := setupClientandServerConfig(t, false, false)
+
+	// start the GRPC test server
+	closer := setupTestServer(t, serverConfig, testServerData, testKeys)
+	defer closer()
+
+	// Test with no CA file configured on client case
+	_, err = NewGRPCKeyStore(clientConfig)
+	// we expect an config error: no TLS CA file configured
+	require.Error(t, err)
+
+	// Test with CA file on client and client cert but no client key
+	clientConfig.TLSCAFile = filepath.Join(getCertsDir(t), "root-ca.crt")
+	clientConfig.TLSCertFile = filepath.Join(getCertsDir(t), "notary-escrow.crt")
+	_, err = NewGRPCKeyStore(clientConfig)
+	// we expect an config error: coding client cert requires coding client key
+	require.Error(t, err)
+
+	// Test with CA file on client and client key but no client cert
+	clientConfig.TLSCertFile = ""
+	clientConfig.TLSKeyFile = filepath.Join(getCertsDir(t), "notary-escrow.key")
+	_, err = NewGRPCKeyStore(clientConfig)
+	// we expect an config error: coding client key requires coding client cert
+	require.Error(t, err)
+
+	// Test with non-existent cert file
+	clientConfig.TLSCertFile = filepath.Join(getCertsDir(t), "noexistantfile.crt")
+	clientConfig.TLSKeyFile = filepath.Join(getCertsDir(t), "notary-escrow.key")
+	_, err = NewGRPCKeyStore(clientConfig)
+	// we expect an config error: cert file must be valid
+	require.Error(t, err)
+
+	// Test with non-existent cert file
+	clientConfig.TLSCertFile = filepath.Join(getCertsDir(t), "notary-escrow.crt")
+	clientConfig.TLSKeyFile = filepath.Join(getCertsDir(t), "noexistantfile.key")
+	_, err = NewGRPCKeyStore(clientConfig)
+	// we expect an config error: key file must be valid
+	require.Error(t, err)
+}
+
 // Test TLS - Server Auth
 // Client configures root ca
 // Server configures cert, key
@@ -1207,28 +1207,6 @@ func TestTLSServerAuth(t *testing.T) {
 
 	// setting verifyServerCert to true and mutualAuth to false
 	serverConfig, testServerData, clientConfig := setupClientandServerConfig(t, true, false)
-
-	// start the GRPC test server
-	closer := setupTestServer(t, serverConfig, testServerData, testKeys)
-	defer closer()
-
-	// start the client for testing
-	c, err := NewGRPCKeyStore(clientConfig)
-	require.NoError(t, err)
-
-	// close the client GRPC connection
-	c.closeClient()
-}
-
-// Test TLS - Server with TLS but without Server Verification
-// Client configures nothing
-// Server configures cert, key
-func TestTLSNoServerVerification(t *testing.T) {
-	var err error
-	testKeys := make(map[string]testKeyData)
-
-	// setting verifyServerCert to false is the key difference for this test
-	serverConfig, testServerData, clientConfig := setupClientandServerConfig(t, false, false)
 
 	// start the GRPC test server
 	closer := setupTestServer(t, serverConfig, testServerData, testKeys)
@@ -1252,7 +1230,7 @@ func TestTLSMutualAuth(t *testing.T) {
 	testKeys := make(map[string]testKeyData)
 
 	// setting mutualAuth to true is the key difference for this test
-	serverConfig, testServerData, clientConfig := setupClientandServerConfig(t, false, false)
+	serverConfig, testServerData, clientConfig := setupClientandServerConfig(t, true, true)
 
 	// start the GRPC test server
 	closer := setupTestServer(t, serverConfig, testServerData, testKeys)
@@ -1266,16 +1244,62 @@ func TestTLSMutualAuth(t *testing.T) {
 	c.closeClient()
 }
 
-// Test TLS - no TLS on server case.  An error is expected in this case since
-// the client does not allow the server to not have TLS configured.
-// Client configures nothing
-// Server configures nothing
-func TestTLSNoTLSConfiguredError(t *testing.T) {
+// Test TLS - Client CA cert doesn't match server.  An error is expected in this
+// case since the client ca_cert doesn't match the server
+// Client configures ca
+// Server configures cert, key
+//
+func TestTLSServerVerificationFailure(t *testing.T) {
 	var err error
 	testKeys := make(map[string]testKeyData)
 
-	// start with minimum permissable config
+	// setting client ca file that doesn't match the server config
 	serverConfig, testServerData, clientConfig := setupClientandServerConfig(t, false, false)
+	clientConfig.TLSCAFile = filepath.Join(getCertsDir(t), "secure.example.com.crt")
+	// start the GRPC test server
+	closer := setupTestServer(t, serverConfig, testServerData, testKeys)
+	defer closer()
+
+	// start the client for testing
+	_, err = NewGRPCKeyStore(clientConfig)
+
+	// we expect an error from TLS here...client cert doesn't match server
+	require.Error(t, err)
+}
+
+// Test TLS - configured Client CA file doesn't exist
+// case since the client ca_cert doesn't match the server
+// Client configures ca
+// Server configures cert, key
+//
+func TestTLSClientCAFileNotFound(t *testing.T) {
+	var err error
+	testKeys := make(map[string]testKeyData)
+
+	// setting client ca file that doesn't match the server config
+	serverConfig, testServerData, clientConfig := setupClientandServerConfig(t, false, false)
+	clientConfig.TLSCAFile = filepath.Join(getCertsDir(t), "noexistantfile.crt")
+	// start the GRPC test server
+	closer := setupTestServer(t, serverConfig, testServerData, testKeys)
+	defer closer()
+
+	// start the client for testing
+	_, err = NewGRPCKeyStore(clientConfig)
+
+	// we expect an error from TLS here...client CA file not found
+	require.Error(t, err)
+}
+
+// Test TLS - no TLS on server case.  An error is expected in this case since
+// the client does not allow the server to not have TLS configured.
+// Client configures ca cert
+// Server configures nothing
+func TestTLSNoServerTLSConfiguredError(t *testing.T) {
+	var err error
+	testKeys := make(map[string]testKeyData)
+
+	// start with minimum permissible config
+	serverConfig, testServerData, clientConfig := setupClientandServerConfig(t, true, false)
 
 	// then reset the server config to nothing...
 	serverConfig.tlsKeyFile = ""
@@ -1301,7 +1325,7 @@ func TestErrorsFromServer(t *testing.T) {
 	// use an ecdsa Key for error testing
 	err = setupTestKey(t, &testKeys, "testerrorkey", data.ECDSAKey,
 		data.CanonicalTargetsRole, "myreg.com/myorg/gun1", true)
-
+	require.NoError(t, err)
 	serverConfig, testServerData, clientConfig := setupClientandServerConfig(t, true, false)
 
 	// start the GRPC test server

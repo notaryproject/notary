@@ -109,7 +109,7 @@ func (g GRPCPrivateKey) SignatureAlgorithm() data.SigAlgorithm {
 }
 
 // DefaultDialTimeout controls the initial connection timeout with the
-// server.  If a grpckeystore server is configured, but not accessable,
+// server.  If a grpckeystore server is configured, but not accessible,
 // notary keystore initialization will be delayed by this value
 const DefaultDialTimeout = time.Second * 5
 
@@ -133,9 +133,9 @@ func GetGRPCCredentials(config *GRPCClientConfig) (credentials.TransportCredenti
 			"grpc key store: configure both tls_client_cert and tls_client_key, or neither")
 	}
 
-	if cert != "" && key != "" && ca == "" {
+	if ca == "" {
 		return nil, fmt.Errorf(
-			"grpc key store: root_ca required when tls_client_cert and tls_client_key are configured")
+			"grpc key store: root_ca configuration required")
 	}
 
 	// set up client auth if configured
@@ -164,9 +164,8 @@ func GetGRPCCredentials(config *GRPCClientConfig) (credentials.TransportCredenti
 	}
 
 	creds := credentials.NewTLS(&tls.Config{
-		Certificates:       certificates,
-		InsecureSkipVerify: (ca == ""),
-		RootCAs:            certPool,
+		Certificates: certificates,
+		RootCAs:      certPool,
 	})
 
 	return creds, nil
