@@ -266,10 +266,12 @@ func TestDoAuthNonWildcardImage(t *testing.T) {
 		auth: ac,
 	}
 	rec := httptest.NewRecorder()
+	req := &http.Request{URL: &url.URL{Path: "/"}, Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 	_, err := r.doAuth(
 		context.Background(),
 		"docker.io/library/alpine",
 		rec,
+		req,
 	)
 	require.NoError(t, err)
 	require.Equal(t, 200, rec.Code)
@@ -283,10 +285,12 @@ func TestDoAuthNonWildcardImage(t *testing.T) {
 		auth: ac,
 	}
 	rec = httptest.NewRecorder()
+	req = &http.Request{URL: &url.URL{Path: "/"}, Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 	_, err = r.doAuth(
 		context.Background(),
 		"docker.io/library/alpine",
 		rec,
+		req,
 	)
 	require.Error(t, err)
 	require.True(t, e.SetHeadersCalled)
@@ -300,10 +304,12 @@ func TestDoAuthNonWildcardImage(t *testing.T) {
 		auth: ac,
 	}
 	rec = httptest.NewRecorder()
+	req = &http.Request{URL: &url.URL{Path: "/"}, Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 	_, err = r.doAuth(
 		context.Background(),
 		"docker.io/library/alpine",
 		rec,
+		req,
 	)
 	require.Error(t, err)
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
@@ -316,10 +322,12 @@ func TestDoAuthWildcardImage(t *testing.T) {
 		auth: ac,
 	}
 	rec := httptest.NewRecorder()
+	req := &http.Request{URL: &url.URL{Path: "/"}, Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 	_, err := r.doAuth(
 		context.Background(),
 		"",
 		rec,
+		req,
 	)
 	require.NoError(t, err)
 	require.Equal(t, 200, rec.Code)
@@ -333,10 +341,12 @@ func TestDoAuthWildcardImage(t *testing.T) {
 		auth: ac,
 	}
 	rec = httptest.NewRecorder()
+	req = &http.Request{URL: &url.URL{Path: "/"}, Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 	_, err = r.doAuth(
 		context.Background(),
 		"",
 		rec,
+		req,
 	)
 	require.Error(t, err)
 	require.True(t, e.SetHeadersCalled)
@@ -350,10 +360,12 @@ func TestDoAuthWildcardImage(t *testing.T) {
 		auth: ac,
 	}
 	rec = httptest.NewRecorder()
+	req = &http.Request{URL: &url.URL{Path: "/"}, Body: ioutil.NopCloser(bytes.NewBuffer(nil))}
 	_, err = r.doAuth(
 		context.Background(),
 		"",
 		rec,
+		req,
 	)
 	require.Error(t, err)
 	require.Equal(t, http.StatusUnauthorized, rec.Code)

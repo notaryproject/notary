@@ -66,7 +66,7 @@ func (root *rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if root.auth != nil {
 		ctx = context.WithValue(ctx, notary.CtxKeyRepo, vars["gun"])
-		if ctx, err = root.doAuth(ctx, vars["gun"], w); err != nil {
+		if ctx, err = root.doAuth(ctx, vars["gun"], w, r); err != nil {
 			// errors have already been logged/output to w inside doAuth
 			// just return
 			return
@@ -95,7 +95,7 @@ func serveError(log ctxu.Logger, w http.ResponseWriter, err error) {
 	return
 }
 
-func (root *rootHandler) doAuth(ctx context.Context, gun string, w http.ResponseWriter) (context.Context, error) {
+func (root *rootHandler) doAuth(ctx context.Context, gun string, w http.ResponseWriter, r *http.Request) (context.Context, error) {
 	var access []auth.Access
 	if gun == "" {
 		access = buildCatalogRecord(root.actions...)
@@ -109,7 +109,7 @@ func (root *rootHandler) doAuth(ctx context.Context, gun string, w http.Response
 	if authCtx, err = root.auth.Authorized(ctx, access...); err != nil {
 		if challenge, ok := err.(auth.Challenge); ok {
 			// Let the challenge write the response.
-			challenge.SetHeaders(w)
+			challenge.SetHeaders(r, w)
 
 			if err := errcode.ServeJSON(w, errcode.ErrorCodeUnauthorized.WithDetail(access)); err != nil {
 				log.Errorf("failed to serve challenge response: %s", err.Error())

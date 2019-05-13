@@ -36,6 +36,6 @@ func (c TestingAuthChallenge) Error() string {
 }
 
 // SetHeaders just records that the function was called for the purpose of testing
-func (c *TestingAuthChallenge) SetHeaders(w http.ResponseWriter) {
+func (c *TestingAuthChallenge) SetHeaders(r *http.Request, w http.ResponseWriter) {
 	c.SetHeadersCalled = true
 }
