@@ -485,6 +485,7 @@ func ConvertPrivateKeyToPKCS8(key data.PrivateKey, role data.RoleName, gun data.
 		headers["gun"] = gun.String()
 	}
 
+	headers["path"] = key.ID()
 	return pem.EncodeToMemory(&pem.Block{Bytes: der, Type: blockType, Headers: headers}), nil
 }
 
