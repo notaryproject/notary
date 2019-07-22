@@ -196,14 +196,14 @@ func (k *keyCommander) keysGenerate(cmd *cobra.Command, args []string) error {
 
 	// If we were provided an argument lets attempt to use it as an algorithm
 	if len(args) > 0 {
-		algorithm = args[0]
+		algorithm = strings.ToLower(args[0])
 	}
 
 	allowedCiphers := map[string]bool{
 		data.ECDSAKey: true,
 	}
 
-	if !allowedCiphers[strings.ToLower(algorithm)] {
+	if !allowedCiphers[algorithm] {
 		return fmt.Errorf("Algorithm not allowed, possible values are: ECDSA")
 	}
 
