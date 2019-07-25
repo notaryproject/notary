@@ -13,6 +13,7 @@ import (
 	"crypto/sha512"
 	"crypto/x509"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -1802,6 +1803,7 @@ func tempDirWithConfig(t *testing.T, config string) string {
 }
 
 func TestMain(m *testing.M) {
+	flag.Parse()
 	if testing.Short() {
 		// skip
 		os.Exit(0)
