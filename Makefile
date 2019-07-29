@@ -96,7 +96,7 @@ ifeq ($(shell uname -s), Darwin)
 else
 	@test -z "$(shell find . -iname *test*.go | grep -v _test.go | grep -v vendor | xargs -r echo "This file should end with '_test':"  | tee /dev/stderr)"
 endif
-	@test -z "$$(go tool vet -printf=false . 2>&1 | grep -v vendor/ | tee /dev/stderr)"
+	@test -z "$$(go vet -printf=false . 2>&1 | grep -v vendor/ | tee /dev/stderr)"
 	# gocyclo - we require cyclomatic complexity to be < 16
 	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec gocyclo -over 15 {} \; | tee /dev/stderr)"
 	# misspell - requires that the following be run first:
