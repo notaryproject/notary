@@ -70,7 +70,7 @@ var cmdKeyPasswdTemplate = usageTemplate{
 var cmdKeyImportTemplate = usageTemplate{
 	Use:   "import pemfile [ pemfile ... ]",
 	Short: "Imports all keys from all provided .pem files",
-	Long:  "Imports all keys from all provided .pem files by reading each PEM block from the file and writing that block to a unique object in the local keystore. A Yubikey will be the prefferred import location for root keys if present.",
+	Long:  "Imports all keys from all provided .pem files by reading each PEM block from the file and writing that block to a unique object in the local keystore. A Yubikey will be the preferred import location for root keys if present.",
 }
 
 var cmdKeyExportTemplate = usageTemplate{
