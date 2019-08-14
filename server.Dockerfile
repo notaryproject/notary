@@ -3,7 +3,7 @@ FROM golang:1.11.5-alpine
 RUN apk add --update git gcc libc-dev
 
 # Pin to the specific v3.0.0 version
-RUN go get -tags 'mysql postgres file' github.com/mattes/migrate/cli && mv /go/bin/cli /go/bin/migrate
+RUN go get -tags 'mysql postgres file' github.com/golang-migrate/migrate/cli && mv /go/bin/cli /go/bin/migrate
 
 ENV NOTARYPKG github.com/theupdateframework/notary
 
