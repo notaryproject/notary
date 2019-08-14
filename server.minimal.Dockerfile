@@ -1,4 +1,4 @@
-FROM golang:1.11.5-alpine AS build-env
+FROM golang:1.12.10-alpine AS build-env
 RUN apk add --update git gcc libc-dev
 
 ARG MIGRATE_VER=v4.6.2
