@@ -62,6 +62,7 @@ type notaryCommander struct {
 	// these are for command line parsing - no need to set
 	debug             bool
 	verbose           bool
+	version           bool
 	trustDir          string
 	configFile        string
 	remoteTrustServer string
@@ -144,7 +145,13 @@ func (n *notaryCommander) GetCommand() *cobra.Command {
 		Long:          "Notary allows the creation and management of collections of signed targets, allowing the signing and validation of arbitrary content.",
 		SilenceUsage:  true, // we don't want to print out usage for EVERY error
 		SilenceErrors: true, // we do our own error reporting with fatalf
-		Run:           func(cmd *cobra.Command, args []string) { cmd.Usage() },
+		Run: func(cmd *cobra.Command, args []string) {
+			if n.version {
+				fmt.Printf("notary Version: %s, Git commit: %s, Go version: %s\n", version.NotaryVersion, version.GitCommit, runtime.Version())
+				os.Exit(0)
+			}
+			cmd.Usage()
+		},
 	}
 	notaryCmd.SetOutput(os.Stdout)
 	notaryCmd.AddCommand(&cobra.Command{
@@ -161,6 +168,7 @@ func (n *notaryCommander) GetCommand() *cobra.Command {
 	notaryCmd.PersistentFlags().StringVarP(
 		&n.configFile, "configFile", "c", "", "Path to the configuration file to use")
 	notaryCmd.PersistentFlags().BoolVarP(&n.verbose, "verbose", "v", false, "Verbose output")
+	notaryCmd.Flags().BoolVar(&n.version, "version", false, "Print the version number of notary")
 	notaryCmd.PersistentFlags().BoolVarP(&n.debug, "debug", "D", false, "Debug output")
 	notaryCmd.PersistentFlags().StringVarP(&n.remoteTrustServer, "server", "s", "", "Remote trust server location")
 	notaryCmd.PersistentFlags().StringVar(&n.tlsCAFile, "tlscacert", "", "Trust certs signed only by this CA")
