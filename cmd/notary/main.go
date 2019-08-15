@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -151,7 +152,7 @@ func (n *notaryCommander) GetCommand() *cobra.Command {
 		Short: "Print the version number of notary",
 		Long:  "Print the version number of notary",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("notary\n Version:    %s\n Git commit: %s\n", version.NotaryVersion, version.GitCommit)
+			fmt.Printf("notary\n Version:    %s\n Git commit: %s\n Go version: %s\n", version.NotaryVersion, version.GitCommit, runtime.Version())
 		},
 	})
 

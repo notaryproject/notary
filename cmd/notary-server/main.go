@@ -8,6 +8,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"runtime"
 
 	"github.com/docker/distribution/health"
 	"github.com/sirupsen/logrus"
@@ -56,7 +57,7 @@ func main() {
 	}
 
 	// when the server starts print the version for debugging and issue logs later
-	logrus.Infof("Version: %s, Git commit: %s", version.NotaryVersion, version.GitCommit)
+	logrus.Infof("Version: %s, Git commit: %s, Go version: %s", version.NotaryVersion, version.GitCommit, runtime.Version())
 
 	ctx, serverConfig, err := parseServerConfig(flagStorage.configFile, health.RegisterPeriodicFunc, flagStorage.doBootstrap)
 	if err != nil {

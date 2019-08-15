@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
@@ -58,7 +59,7 @@ func main() {
 	}
 
 	// when the signer starts print the version for debugging and issue logs later
-	logrus.Infof("Version: %s, Git commit: %s", version.NotaryVersion, version.GitCommit)
+	logrus.Infof("Version: %s, Git commit: %s, Go version: %s", version.NotaryVersion, version.GitCommit, runtime.Version())
 
 	signerConfig, err := parseSignerConfig(flagStorage.configFile, flagStorage.doBootstrap)
 	if err != nil {
