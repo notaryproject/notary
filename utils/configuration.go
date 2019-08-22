@@ -1,4 +1,4 @@
-// Common configuration elements that may be resused
+// Common configuration elements that may be reused
 
 package utils
 
