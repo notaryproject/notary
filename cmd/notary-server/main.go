@@ -8,6 +8,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"runtime"
 
 	"github.com/docker/distribution/health"
 	"github.com/sirupsen/logrus"
@@ -28,6 +29,7 @@ type cmdFlags struct {
 	logFormat   string
 	configFile  string
 	doBootstrap bool
+	version     bool
 }
 
 func setupFlags(flagStorage *cmdFlags) {
@@ -36,6 +38,7 @@ func setupFlags(flagStorage *cmdFlags) {
 	flag.BoolVar(&flagStorage.debug, "debug", false, "Enable the debugging server on localhost:8080")
 	flag.StringVar(&flagStorage.logFormat, "logf", "json", "Set the format of the logs. Only 'json' and 'logfmt' are supported at the moment.")
 	flag.BoolVar(&flagStorage.doBootstrap, "bootstrap", false, "Do any necessary setup of configured backend storage services")
+	flag.BoolVar(&flagStorage.version, "version", false, "Print the version number of notary-server")
 
 	// this needs to be in init so that _ALL_ logs are in the correct format
 	if flagStorage.logFormat == jsonLogFormat {
@@ -51,12 +54,17 @@ func main() {
 
 	flag.Parse()
 
+	if flagStorage.version {
+		fmt.Println("notary-server " + getVersion())
+		os.Exit(0)
+	}
+
 	if flagStorage.debug {
 		go debugServer(DebugAddress)
 	}
 
 	// when the server starts print the version for debugging and issue logs later
-	logrus.Infof("Version: %s, Git commit: %s", version.NotaryVersion, version.GitCommit)
+	logrus.Info(getVersion())
 
 	ctx, serverConfig, err := parseServerConfig(flagStorage.configFile, health.RegisterPeriodicFunc, flagStorage.doBootstrap)
 	if err != nil {
@@ -84,6 +92,10 @@ func main() {
 func usage() {
 	fmt.Println("usage:", os.Args[0])
 	flag.PrintDefaults()
+}
+
+func getVersion() string {
+	return fmt.Sprintf("Version: %s, Git commit: %s, Go version: %s", version.NotaryVersion, version.GitCommit, runtime.Version())
 }
 
 // debugServer starts the debug server with pprof, expvar among other

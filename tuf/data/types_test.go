@@ -297,4 +297,5 @@ func TestFileMetaEquals(t *testing.T) {
 	for _, meta := range f2[1:] {
 		require.False(t, f2[0].Equals(meta))
 	}
+	require.False(t, FileMeta{Length: 1}.Equals(f1[0]))
 }
