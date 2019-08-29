@@ -544,11 +544,11 @@ func (st *GRPCKeyStoreSrvr) ListKeys(ctx context.Context, msg *ListKeysReq) (*Li
 	testLog(t, logReturningMsgStr, rsp)
 
 	for i, key := range rsp.KeyData {
-		testLogVerbose(t, "  Key %d", i)
-		testLogVerbose(t, "    KeyId: %s", key.KeyId)
-		testLogVerbose(t, "    RemoteKeyId: %s", key.RemoteKeyId)
-		testLogVerbose(t, "    Gun: %s", key.Gun)
-		testLogVerbose(t, "    Role: %s", key.Role)
+		testLogVerbose(t, "     Key %d", i)
+		testLogVerbose(t, "        KeyId: %s", key.KeyId)
+		testLogVerbose(t, "RemoteKeyId: %s", key.RemoteKeyId)
+		testLogVerbose(t, "        Gun: %s", key.Gun)
+		testLogVerbose(t, "        Role: %s", key.Role)
 	}
 
 	return rsp, err
@@ -646,6 +646,7 @@ func (st *GRPCKeyStoreSrvr) Sign(ctx context.Context, msg *SignReq) (*SignRsp, e
 //  Here are the Tests!
 //
 
+// Actual tests for utilizing GRPC client
 // TestGenerateKey is a full test of GPRC keystore operations
 // using GenerateKey to populate the keys
 func TestGenerateKey(t *testing.T) {
@@ -675,8 +676,8 @@ func TestGenerateKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// test the location
-	// loc := c.Location()
-	// require.Equal(t, "Remote GRPC KeyStore @ "+addr, loc)
+	loc := c.Location()
+	require.Equal(t, "Remote GRPC Key Store @ "+clientConfig.Server, loc)
 
 	// test the name
 	name := c.Name()
@@ -703,6 +704,7 @@ func TestGenerateKey(t *testing.T) {
 	require.Equal(t, k.role, tkd.keyInfo.Role)
 	require.Equal(t, k.remoteKeyID, tkd.remoteKeyID)
 	require.NoError(t, err)
+
 
 	// GenerateKey for gun 1
 	tkd = testKeys["testtargetkeygun1"]
@@ -734,6 +736,8 @@ func TestGenerateKey(t *testing.T) {
 	require.Equal(t, k.remoteKeyID, tkd.remoteKeyID)
 	require.NoError(t, err)
 
+
+
 	// ListKeys - verifiy all three keys listed
 	km = c.ListKeys()
 	require.Equal(t, 3, len(km))
@@ -742,6 +746,13 @@ func TestGenerateKey(t *testing.T) {
 		tkd = testKeys[i]
 		require.Equal(t, tkd.keyInfo, km[tkd.privateKey.ID()])
 	}
+
+  // Test GetKeyInfo for the test root key (should succeed)
+  var ki trustmanager.KeyInfo
+	tkd = testKeys["testrootkey"]
+  ki, err = c.GetKeyInfo(tkd.privateKey.ID())
+	require.NoError(t, err)
+  require.Equal(t, tkd.keyInfo, ki)
 
 	// GetKey for all three keys
 	var role data.RoleName
@@ -769,10 +780,25 @@ func TestGenerateKey(t *testing.T) {
 	require.Equal(t, pk.SignatureAlgorithm(), tkd.privateKey.SignatureAlgorithm())
 	require.Equal(t, pk.Public(), tkd.privateKey.Public())
 
+	// Test getting the crypto.Singer
+	//gs := pk.CrytoSigner()
+
+	// Test GRPCkeySigner.Public()
+	//publicKey, err := gs.Public()
+	//require.NoError(t, err)
+	//parsedPublicKey, err := x509.ParsePKIXPublicKey(pk.Public())
+	//require.Equal(t, publicKey, parsedPublicKey)
+
+  // Test GRPCPrivateKey.Private()... should return nil
+  privateKey := pk.Private()
+	require.Empty(t, privateKey)
+
 	// Test a Signing Operation...
 	msg := []byte("Sign this data")
 	_, err = pk.Sign(rand.Reader, msg, nil)
 	require.NoError(t, err)
+
+
 
 	// RemoveKey  for all three keys
 	tkd = testKeys["testrootkey"]
@@ -1126,7 +1152,7 @@ func TestKeyTypes(t *testing.T) {
 	require.Equal(t, pk.Public(), tkd.privateKey.Public())
 
 	// Test a Signing Operation with the ECDSA key type
-	msg = []byte("Sign this with they ECDSA Key")
+	msg = []byte("Sign this with the ECDSA Key")
 	_, err = pk.Sign(rand.Reader, msg, nil)
 	require.NoError(t, err)
 
@@ -1315,9 +1341,10 @@ func TestTLSNoServerTLSConfiguredError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// TestErrorsFromServer
-// Server will inject an error into each grpc response
-func TestErrorsFromServer(t *testing.T) {
+// TestErrors
+// Test Various Error Cases
+// Server will inject an error into all grpc responses
+func TestErrors(t *testing.T) {
 	var tkd testKeyData
 	var err error
 	testKeys := make(map[string]testKeyData)
@@ -1328,11 +1355,14 @@ func TestErrorsFromServer(t *testing.T) {
 	require.NoError(t, err)
 	serverConfig, testServerData, clientConfig := setupClientandServerConfig(t, true, false)
 
-	// start the GRPC test server
+	// start the GRPC test server with all errors turned on place
 	testServerData.injectErrorGenerateKey = true
+	testServerData.injectErrorAssociateKey = true
 	testServerData.injectErrorAddKey = true
+	testServerData.injectErrorListKeys = true
 	testServerData.injectErrorGetKey = true
 	testServerData.injectErrorRemoveKey = true
+	testServerData.injectErrorSign = true
 
 	closer := setupTestServer(t, serverConfig, testServerData, testKeys)
 	defer closer()
@@ -1341,6 +1371,11 @@ func TestErrorsFromServer(t *testing.T) {
 	c, err := NewGRPCKeyStore(clientConfig)
 	require.NoError(t, err)
 	tkd = testKeys["testerrorkey"]
+
+	// Test GetKeyInfo for a bogus key (should fail)
+	_, err = c.GetKeyInfo("bogus")
+	require.Error(t, err)
+
 	// GenerateKey Error Test
 	pk, err := c.GenerateKey(tkd.keyInfo)
 	require.Equal(t, nil, pk)
@@ -1360,6 +1395,58 @@ func TestErrorsFromServer(t *testing.T) {
 
 	// close the client GRPC connection
 	c.closeClient()
+}
+
+// TestSubsequentErrors
+// Test Various Error Cases
+// In this case we let the Server get things started without errors so we
+// can get a bet farther, but then generate grpc error responses that we 
+// couldn't get to above.
+func TestSubsequentErrors(t *testing.T) {
+	var tkd testKeyData
+	var err error
+	testKeys := make(map[string]testKeyData)
+
+	// use an ecdsa Key for error testing
+	err = setupTestKey(t, &testKeys, "testerrorkey", data.ECDSAKey,
+		data.CanonicalTargetsRole, "myreg.com/myorg/gun1", true)
+	require.NoError(t, err)
+	serverConfig, testServerData, clientConfig := setupClientandServerConfig(t, true, false)
+
+	// start the GRPC test server with all errors turned on place
+	testServerData.injectErrorAssociateKey = true
+	testServerData.injectErrorRemoveKey = true
+	testServerData.injectErrorSign = true
+
+	closer := setupTestServer(t, serverConfig, testServerData, testKeys)
+	defer closer()
+
+	// start the client
+	c, err := NewGRPCKeyStore(clientConfig)
+	require.NoError(t, err)
+	tkd = testKeys["testerrorkey"]
+
+	// GenerateKey Error Test should still fail on the associate failure
+	pk, err := c.GenerateKey(tkd.keyInfo)
+	require.Equal(t, nil, pk)
+	require.Error(t, err)
+
+	// Add key should succeed (we want to get one key in there)
+	err = c.AddKey(tkd.keyInfo, tkd.privateKey)
+	require.NoError(t, err)
+
+	// GetKey Should succeed
+	pk, _, err = c.GetKey(tkd.privateKey.ID())
+	require.NoError(t, err)
+
+	// Test a Signing Operation with the ECDSA key type
+	msg := []byte("Sign this with the ECDSA Key")
+	_, err = pk.Sign(rand.Reader, msg, nil)
+	require.Error(t, err)
+
+  // Remove Key should fail
+	err = c.RemoveKey(string(tkd.privateKey.ID()))
+	require.Error(t, err)
 }
 
 // TestMetadata
