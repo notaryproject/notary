@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"time"
 	"math/big"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/theupdateframework/notary"
@@ -332,7 +332,6 @@ func parseECDSASignature(signatureBytes []byte, pubKeyBytes []byte) ([]byte, err
 	// exhausted the formats we understand
 	return nil, fmt.Errorf("pkcs8: failed to parse ecdsa signature")
 }
-
 
 // The following methods implement the PrivateKey inteface
 

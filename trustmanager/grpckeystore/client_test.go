@@ -705,7 +705,6 @@ func TestGenerateKey(t *testing.T) {
 	require.Equal(t, k.remoteKeyID, tkd.remoteKeyID)
 	require.NoError(t, err)
 
-
 	// GenerateKey for gun 1
 	tkd = testKeys["testtargetkeygun1"]
 	pk, err = c.GenerateKey(tkd.keyInfo)
@@ -736,8 +735,6 @@ func TestGenerateKey(t *testing.T) {
 	require.Equal(t, k.remoteKeyID, tkd.remoteKeyID)
 	require.NoError(t, err)
 
-
-
 	// ListKeys - verifiy all three keys listed
 	km = c.ListKeys()
 	require.Equal(t, 3, len(km))
@@ -747,12 +744,12 @@ func TestGenerateKey(t *testing.T) {
 		require.Equal(t, tkd.keyInfo, km[tkd.privateKey.ID()])
 	}
 
-  // Test GetKeyInfo for the test root key (should succeed)
-  var ki trustmanager.KeyInfo
+	// Test GetKeyInfo for the test root key (should succeed)
+	var ki trustmanager.KeyInfo
 	tkd = testKeys["testrootkey"]
-  ki, err = c.GetKeyInfo(tkd.privateKey.ID())
+	ki, err = c.GetKeyInfo(tkd.privateKey.ID())
 	require.NoError(t, err)
-  require.Equal(t, tkd.keyInfo, ki)
+	require.Equal(t, tkd.keyInfo, ki)
 
 	// GetKey for all three keys
 	var role data.RoleName
@@ -789,16 +786,14 @@ func TestGenerateKey(t *testing.T) {
 	//parsedPublicKey, err := x509.ParsePKIXPublicKey(pk.Public())
 	//require.Equal(t, publicKey, parsedPublicKey)
 
-  // Test GRPCPrivateKey.Private()... should return nil
-  privateKey := pk.Private()
+	// Test GRPCPrivateKey.Private()... should return nil
+	privateKey := pk.Private()
 	require.Empty(t, privateKey)
 
 	// Test a Signing Operation...
 	msg := []byte("Sign this data")
 	_, err = pk.Sign(rand.Reader, msg, nil)
 	require.NoError(t, err)
-
-
 
 	// RemoveKey  for all three keys
 	tkd = testKeys["testrootkey"]
@@ -1400,7 +1395,7 @@ func TestErrors(t *testing.T) {
 // TestSubsequentErrors
 // Test Various Error Cases
 // In this case we let the Server get things started without errors so we
-// can get a bet farther, but then generate grpc error responses that we 
+// can get a bet farther, but then generate grpc error responses that we
 // couldn't get to above.
 func TestSubsequentErrors(t *testing.T) {
 	var tkd testKeyData
@@ -1444,7 +1439,7 @@ func TestSubsequentErrors(t *testing.T) {
 	_, err = pk.Sign(rand.Reader, msg, nil)
 	require.Error(t, err)
 
-  // Remove Key should fail
+	// Remove Key should fail
 	err = c.RemoveKey(string(tkd.privateKey.ID()))
 	require.Error(t, err)
 }
