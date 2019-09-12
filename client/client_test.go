@@ -2174,7 +2174,7 @@ func createKey(t *testing.T, repo *repository, role data.RoleName, x509 bool) da
 
 // Publishing delegations works so long as the delegation parent exists by the
 // time that delegation addition change is applied.  Most of the tests for
-// applying delegation changes in in helpers_test.go (applyTargets tests), so
+// applying delegation changes in helpers_test.go (applyTargets tests), so
 // this is just a sanity test to make sure Publish calls it correctly
 func TestPublishDelegations(t *testing.T) {
 	testPublishDelegations(t, true, false)
