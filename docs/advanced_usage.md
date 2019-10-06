@@ -138,7 +138,7 @@ $ notary key rotate example.com/collection snapshot -r
 
 Here, `-r` specifies to rotate the key to the remote server.
 
-When adding a delegation, your must acquire a x509 certificate with the public
+When adding a delegation, you must acquire a x509 certificate with the public
 key of the user you wish to delegate to. The user who will assume this
 delegation role must hold the private key to sign content with notary.
 
