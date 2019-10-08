@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "notary.fullname" . }}-notarysigner
+spec:
+  ports:
+  - name: https
+    port: 7899
+    targetPort: 7899
+  selector:
+    service: {{ template "notary.fullname" . }}-signer
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "notary.fullname" . }}-server
+spec:
+  ports:
+  - name: https
+    port: 4443
+    targetPort: 4443
+  selector:
+    service: {{ template "notary.fullname" . }}-server
+
+---
+
+{{- if .Values.databaseContainer.enabled }}
+{{- if eq .Values.databaseContainer.engine "mysql" }}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "notary.fullname" . }}-db
+spec:
+  ports:
+  - name: mysql
+    port: 3306
+    targetPort: 3306
+  selector:
+    service: {{ template "notary.fullname" . }}-db
+
+---
+
+{{- else if eq .Values.databaseContainer.engine "postgres" }}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "notary.fullname" . }}-db
+spec:
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+  selector:
+    service: {{ template "notary.fullname" . }}-db
+
+---
+
+{{- end }}
+{{- end }}

@@ -1,0 +1,31 @@
+ingress:
+  enabled: true
+  tls:
+    enabled: true
+  hosts:
+  - localhost
+  path: /
+
+databaseContainer:
+  enabled: true
+  engine: mysql
+
+server:
+  runMigrateContainer: true
+  port: 4443
+  trust:
+    type: remote
+    hostname: notarysigner
+    port: 7899
+  storage:
+    type: mysql
+
+signer:
+  runMigrateContainer: true
+  port: 7899
+  defaultAlias: alias
+  storage:
+    type: mysql
+
+logging:
+  level: debug

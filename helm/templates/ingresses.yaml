@@ -1,0 +1,23 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ template "notary.fullname" . }}-notary-server
+spec:
+  rules:
+  {{- range $host := .Values.ingress.hosts }}
+  - host: {{ $host }}
+    http:
+      paths:
+      - backend:
+          serviceName: {{ template "notary.fullname" $ }}-server
+          servicePort: https
+  {{- end }}
+  {{- if .Values.ingress.tls.enabled }}
+  {{- range $host := .Values.ingress.hosts }}
+  tls:
+    - hosts:
+        - {{ $host }}
+  {{- end }}
+  {{- end }}
+{{- end }}
