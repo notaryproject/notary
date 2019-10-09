@@ -3,6 +3,10 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: {{ template "notary.fullname" . }}-notary-server
+  {{- if .Values.ingress.annotations }}
+  annotations:
+{{ .Values.ingress.annotations | toYaml | trim | indent 4 }}
+  {{- end }}
 spec:
   rules:
   {{- range $host := .Values.ingress.hosts }}
