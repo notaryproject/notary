@@ -7,8 +7,8 @@ metadata:
 spec:
   ports:
   - name: https
-    port: 7899
-    targetPort: 7899
+    port: {{ .Values.signer.port }}
+    targetPort: {{ .Values.signer.port }}
   selector:
     service: {{ template "notary.fullname" . }}-signer
 
@@ -23,8 +23,8 @@ metadata:
 spec:
   ports:
   - name: https
-    port: 4443
-    targetPort: 4443
+    port: {{ .Values.server.port }}
+    targetPort: {{ .Values.server.port }}
   selector:
     service: {{ template "notary.fullname" . }}-server
 
