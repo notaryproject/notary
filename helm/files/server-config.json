@@ -19,5 +19,8 @@
 	"storage": {
 		"backend": "{{ .Values.storage.type }}",
 		"db_url": "{{ template "notary.serverdburl" . }}"
+	},
+	"repositories": {
+		"gun_prefixes": {{ .Values.server.gunPrefixes | toJson }}
 	}
 }

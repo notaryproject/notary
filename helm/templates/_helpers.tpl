@@ -30,3 +30,7 @@ root@tcp({{ template "notary.fullname" . }}-db:3306)/notarysigner
 signer@{{ template "notary.fullname" . }}-db:5432/notarysigner?sslmode=verify-ca&sslrootcert=/tls/database-ca.pem&sslcert=/tls/notary-signer.pem&sslkey=/tls/notary-signer-key.pem"
 {{- end -}}
 {{- end -}}
+
+{{- define "notary.gunprefixes" -}}
+{{- .Values.server.gunPrefixes | toJson -}}
+{{ end -}}

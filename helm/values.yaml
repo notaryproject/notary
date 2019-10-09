@@ -11,6 +11,9 @@ storage:
 
 server:
   port: 4443
+  gunPrefixes:
+  - "docker.io/"
+  - "mydomain.com/"
   trust:
     type: remote
     hostname: notarysigner
