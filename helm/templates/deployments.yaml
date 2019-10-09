@@ -100,7 +100,7 @@ spec:
         image: notary:{{ .Values.server.version }}
         name: server
         ports:
-        - containerPort: 4443
+        - containerPort: {{ .Values.server.port }}
           name: https
         volumeMounts:
         - mountPath: /config
@@ -168,7 +168,7 @@ spec:
               name: {{ template "notary.fullname" . }}-alias-secret
               key: alias-secret
         ports:
-        - containerPort: 7899
+        - containerPort: {{ .Values.signer.port }}
           name: https
         volumeMounts:
         - mountPath: /config
