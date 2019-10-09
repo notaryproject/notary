@@ -27,7 +27,6 @@ spec:
 ---
 
 {{- if .Values.databaseContainer.enabled }}
-{{- if eq .Values.databaseContainer.engine "mysql" }}
 
 apiVersion: v1
 kind: Service
@@ -35,29 +34,16 @@ metadata:
   name: {{ template "notary.fullname" . }}-db
 spec:
   ports:
+  {{- if eq .Values.databaseContainer.engine "mysql" }}
   - name: mysql
     port: 3306
     targetPort: 3306
-  selector:
-    service: {{ template "notary.fullname" . }}-db
-
----
-
-{{- else if eq .Values.databaseContainer.engine "postgres" }}
-
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ template "notary.fullname" . }}-db
-spec:
-  ports:
+  {{- else if eq .Values.databaseContainer.engine "postgres" }}
   - name: postgres
     port: 5432
     targetPort: 5432
+  {{- end }}
   selector:
     service: {{ template "notary.fullname" . }}-db
 
----
-
-{{- end }}
 {{- end }}

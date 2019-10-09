@@ -1,6 +1,4 @@
 {{- if .Values.databaseContainer.enabled }}
-{{- if eq .Values.databaseContainer.engine "mysql" }}
-
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -16,14 +14,13 @@ spec:
         service: {{ template "notary.fullname" . }}-db
     spec:
       containers:
+      {{- if eq .Values.databaseContainer.engine "mysql" }}
       - args:
         - mysqld
         - --innodb_file_per_table
         env:
         - name: MYSQL_ALLOW_EMPTY_PASSWORD
           value: "yes"
-        - name: TERM
-          value: dumb
         image: mariadb:10.1.28
         name: mysql
         ports:
@@ -32,35 +29,7 @@ spec:
         volumeMounts:
         - mountPath: /var/lib/mysql
           name: notary-data
-        - mountPath: /docker-entrypoint-initdb.d
-          name: notarysql
-      volumes:
-      - name: notary-data
-        persistentVolumeClaim:
-          claimName: {{ template "notary.fullname" . }}-notary-data
-      - name: notarysql
-        configMap:
-          name: {{ template "notary.fullname" . }}-notarysql
-
----
-
-{{- else if eq .Values.databaseContainer.engine "postgres" }}
-
-apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-  labels:
-    service: {{ template "notary.fullname" . }}-db
-  name: {{ template "notary.fullname" . }}-db
-spec:
-  strategy:
-    type: Recreate
-  template:
-    metadata:
-      labels:
-        service: {{ template "notary.fullname" . }}-db
-    spec:
-      containers:
+      {{- else if eq .Values.databaseContainer.engine "postgres" }}
       - env:
         - name: PGDATA
           value: /var/lib/postgresql/data/pgdata
@@ -78,6 +47,7 @@ spec:
         volumeMounts:
         - mountPath: /var/lib/postgresql/data/pgdata
           name: notary-data
+      {{- end }}
         - mountPath: /docker-entrypoint-initdb.d
           name: notarysql
       volumes:
@@ -90,7 +60,6 @@ spec:
 
 ---
 
-{{- end }}
 {{- end }}
 
 apiVersion: extensions/v1beta1
