@@ -162,8 +162,11 @@ spec:
         image: notary:signer
         name: signer
         env:
-        - name: NOTARY_SIGNER_ALIAS
-          value: alias
+        - name: NOTARY_SIGNER_{{ .Values.signer.defaultAlias | upper }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "notary.fullname" . }}-alias-secret
+              key: alias-secret
         ports:
         - containerPort: 7899
           name: https
