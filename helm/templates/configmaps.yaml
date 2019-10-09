@@ -1,3 +1,5 @@
+{{- if not (eq .Values.storage.type "memory") }}
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -35,6 +37,9 @@ data:
   {{- end }}
   {{- end }}
 
+
+{{- if eq .Values.server.trust.type "remote" }}
+
 ---
 
 apiVersion: v1
@@ -54,7 +59,11 @@ data:
   {{- end }}
   {{- end }}
 
+{{- end }}
+
 ---
+
+{{- end }}
 
 apiVersion: v1
 kind: ConfigMap

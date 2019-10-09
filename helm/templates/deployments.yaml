@@ -108,15 +108,19 @@ spec:
         - mountPath: /tls
           name: tls
       volumes:
+      {{- if not (eq .Values.storage.type "memory") }}
       - configMap:
           name: {{ template "notary.fullname" . }}-migrations-server
         name: migrations-server
+      {{- end }}
       - configMap:
           name: {{ template "notary.fullname" . }}-config
         name: config
       - secret:
           secretName: {{ template "notary.fullname" . }}-tls
         name: tls
+
+{{- if eq .Values.server.trust.type "remote" }}
 
 ---
 
@@ -169,12 +173,16 @@ spec:
         - mountPath: /tls
           name: tls
       volumes:
+      {{- if not (eq .Values.storage.type "memory") }}
       - configMap:
           name: {{ template "notary.fullname" . }}-migrations-signer
         name: migrations-signer
+      {{- end }}
       - configMap:
           name: {{ template "notary.fullname" . }}-config
         name: config
       - secret:
           secretName: {{ template "notary.fullname" . }}-tls
         name: tls
+
+{{- end }}

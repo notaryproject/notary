@@ -1,3 +1,5 @@
+{{- if eq .Values.server.trust.type "remote" }}
+
 apiVersion: v1
 kind: Service
 metadata:
@@ -11,6 +13,8 @@ spec:
     service: {{ template "notary.fullname" . }}-signer
 
 ---
+
+{{- end }}
 
 apiVersion: v1
 kind: Service
