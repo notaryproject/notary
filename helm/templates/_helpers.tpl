@@ -16,8 +16,8 @@
 {{- end -}}
 
 {{- define "notary.serverdbhostname" -}}
-{{- if .Values.server.storage.host -}}
-{{ .Values.server.storage.host }}
+{{- if .Values.storage.host -}}
+{{ .Values.storage.host }}
 {{- else -}}
 {{ include "notary.fullname" . }}-db
 {{- end -}}
@@ -25,32 +25,32 @@
 
 
 {{- define "notary.signerdbhostname" -}}
-{{- if .Values.signer.storage.host -}}
-{{ .Values.signer.storage.host }}
+{{- if .Values.storage.host -}}
+{{ .Values.storage.host }}
 {{- else -}}
 {{ include "notary.fullname" . }}-db
 {{- end -}}
 {{- end -}}
 
 {{- define "notary.serverdburl" -}}
-{{- if .Values.server.storage.dbUrl -}}
-{{ .Values.server.storage.dbUrl }}
+{{- if .Values.storage.dbUrl -}}
+{{ .Values.storage.dbUrl }}
 {{- else -}}
-{{- if eq .Values.server.storage.type "mysql" -}}
+{{- if eq .Values.storage.type "mysql" -}}
 root@tcp({{ template "notary.serverdbhostname" . }}:3306)/notaryserver
-{{- else if eq .Values.server.storage.type "postgres" -}}
+{{- else if eq .Values.storage.type "postgres" -}}
 server@{{ template "notary.serverdbhostname" . }}:5432/notaryserver?sslmode=verify-ca&sslrootcert=/tls/database-ca.pem&sslcert=/tls/notary-server.pem&sslkey=/tls/notary-server-key.pem
 {{- end -}}
 {{- end -}}
 {{- end -}}
 
 {{- define "notary.signerdburl" -}}
-{{- if .Values.signer.storage.dbUrl -}}
-{{ .Values.signer.storage.dbUrl }}
+{{- if .Values.storage.dbUrl -}}
+{{ .Values.storage.dbUrl }}
 {{- else -}}
-{{- if eq .Values.signer.storage.type "mysql" -}}
+{{- if eq .Values.storage.type "mysql" -}}
 root@tcp({{ template "notary.signerdbhostname" . }}:3306)/notarysigner
-{{- else if eq .Values.signer.storage.type "postgres" -}}
+{{- else if eq .Values.storage.type "postgres" -}}
 signer@{{ template "notary.signerdbhostname" . }}:5432/notarysigner?sslmode=verify-ca&sslrootcert=/tls/database-ca.pem&sslcert=/tls/notary-signer.pem&sslkey=/tls/notary-signer-key.pem"
 {{- end -}}
 {{- end -}}

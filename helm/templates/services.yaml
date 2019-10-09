@@ -26,7 +26,7 @@ spec:
 
 ---
 
-{{- if .Values.databaseContainer.enabled }}
+{{- if not (eq .Values.storage.type "memory") }}
 
 apiVersion: v1
 kind: Service
@@ -34,11 +34,11 @@ metadata:
   name: {{ template "notary.fullname" . }}-db
 spec:
   ports:
-  {{- if eq .Values.databaseContainer.engine "mysql" }}
+  {{- if eq .Values.storage.type "mysql" }}
   - name: mysql
     port: 3306
     targetPort: 3306
-  {{- else if eq .Values.databaseContainer.engine "postgres" }}
+  {{- else if eq .Values.storage.type "postgres" }}
   - name: postgres
     port: 5432
     targetPort: 5432

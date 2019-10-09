@@ -3,12 +3,12 @@ kind: ConfigMap
 metadata:
   name: {{ template "notary.fullname" . }}-notarysql
 data:
-  {{- if eq .Values.databaseContainer.engine "mysql" }}
+  {{- if eq .Values.storage.type "mysql" }}
   {{- range $path, $bytes := .Files.Glob "notarysql/mysql-initdb.d/**" }}
   {{ base $path }}: |
 {{ $.Files.Get $path | indent 4 }}
   {{- end }}
-  {{- else if eq .Values.databaseContainer.engine "postgres" }}
+  {{- else if eq .Values.storage.type "postgres" }}
   {{- range $path, $bytes := .Files.Glob "notarysql/postgresql-initdb.d/**" }}
   {{ base $path }}: |
 {{ $.Files.Get $path | indent 4 }}
@@ -23,12 +23,12 @@ kind: ConfigMap
 metadata:
   name: {{ template "notary.fullname" . }}-migrations-server
 data:
-  {{- if eq .Values.databaseContainer.engine "mysql" }}
+  {{- if eq .Values.storage.type "mysql" }}
   {{- range $path, $bytes := .Files.Glob "migrations/server/mysql/**" }}
   {{ base $path }}: |
 {{ $.Files.Get $path | indent 4 }}
   {{- end }}
-  {{- else if eq .Values.databaseContainer.engine "postgres" }}
+  {{- else if eq .Values.storage.type "postgres" }}
   {{- range $path, $bytes := .Files.Glob "migrations/server/postgresql/**" }}
   {{ base $path }}: |
 {{ $.Files.Get $path | indent 4 }}
@@ -42,12 +42,12 @@ kind: ConfigMap
 metadata:
   name: {{ template "notary.fullname" . }}-migrations-signer
 data:
-  {{- if eq .Values.databaseContainer.engine "mysql" }}
+  {{- if eq .Values.storage.type "mysql" }}
   {{- range $path, $bytes := .Files.Glob "migrations/signer/mysql/**" }}
   {{ base $path }}: |
 {{ $.Files.Get $path | indent 4 }}
   {{- end }}
-  {{- else if eq .Values.databaseContainer.engine "postgres" }}
+  {{- else if eq .Values.storage.type "postgres" }}
   {{- range $path, $bytes := .Files.Glob "migrations/signer/postgresql/**" }}
   {{ base $path }}: |
 {{ $.Files.Get $path | indent 4 }}

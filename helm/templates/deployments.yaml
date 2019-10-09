@@ -1,4 +1,4 @@
-{{- if .Values.databaseContainer.enabled }}
+{{- if not (eq .Values.storage.type "memory") }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -14,7 +14,7 @@ spec:
         service: {{ template "notary.fullname" . }}-db
     spec:
       containers:
-      {{- if eq .Values.databaseContainer.engine "mysql" }}
+      {{- if eq .Values.storage.type "mysql" }}
       - args:
         - mysqld
         - --innodb_file_per_table
@@ -29,7 +29,7 @@ spec:
         volumeMounts:
         - mountPath: /var/lib/mysql
           name: notary-data
-      {{- else if eq .Values.databaseContainer.engine "postgres" }}
+      {{- else if eq .Values.storage.type "postgres" }}
       - env:
         - name: PGDATA
           value: /var/lib/postgresql/data/pgdata
@@ -74,17 +74,17 @@ spec:
       labels:
         service: {{ template "notary.fullname" . }}-server
     spec:
-      {{- if .Values.server.runMigrateContainer }}
+      {{- if not (eq .Values.storage.type "memory") }}
       initContainers:
       - command:
         - /migrate
-        - -path=/migrations/server/{{ .Values.server.storage.type }}
-        - -database={{ .Values.server.storage.type }}://{{ template "notary.serverdburl" . }}
+        - -path=/migrations/server/{{ .Values.storage.type }}
+        - -database={{ .Values.storage.type }}://{{ template "notary.serverdburl" . }}
         - up
         image: migrate/migrate:latest
         name: migrate
         volumeMounts:
-        - mountPath: /migrations/server/{{ .Values.server.storage.type }}
+        - mountPath: /migrations/server/{{ .Values.storage.type }}
           name: migrations-server
         - mountPath: /tls
           name: tls
@@ -132,17 +132,17 @@ spec:
       labels:
         service: {{ template "notary.fullname" . }}-signer
     spec:
-      {{- if .Values.signer.runMigrateContainer }}
+      {{- if not (eq .Values.storage.type "memory") }}
       initContainers:
       - command:
         - /migrate
-        - -path=/migrations/signer/{{ .Values.signer.storage.type }}
-        - -database={{ .Values.signer.storage.type }}://{{ template "notary.signerdburl" . }}
+        - -path=/migrations/signer/{{ .Values.storage.type }}
+        - -database={{ .Values.storage.type }}://{{ template "notary.signerdburl" . }}
         - up
         image: migrate/migrate:latest
         name: migrate
         volumeMounts:
-        - mountPath: /migrations/signer/{{ .Values.signer.storage.type }}
+        - mountPath: /migrations/signer/{{ .Values.storage.type }}
           name: migrations-signer
         - mountPath: /tls
           name: tls

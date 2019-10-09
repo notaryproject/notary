@@ -17,7 +17,7 @@
 		"level": "{{ .Values.logging.level }}"
 	},
 	"storage": {
-		"backend": "{{ .Values.server.storage.type }}",
+		"backend": "{{ .Values.storage.type }}",
 		"db_url": "{{ template "notary.serverdburl" . }}"
 	}
 }
