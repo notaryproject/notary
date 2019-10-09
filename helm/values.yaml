@@ -9,8 +9,10 @@ ingress:
 storage:
   type: mysql
   pvcSize: 100Mi
+  migrateVersion: v4.6.2
 
 server:
+  version: server-0.6.1-2
   port: 4443
   gunPrefixes:
   - "docker.io/"
@@ -21,6 +23,7 @@ server:
     port: 7899
 
 signer:
+  version: signer-0.6.1-2
   port: 7899
   defaultAlias: alias
 

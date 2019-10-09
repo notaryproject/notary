@@ -81,7 +81,7 @@ spec:
         - -path=/migrations/server/{{ .Values.storage.type }}
         - -database={{ .Values.storage.type }}://{{ template "notary.serverdburl" . }}
         - up
-        image: migrate/migrate:latest
+        image: migrate/migrate:{{ .Values.storage.migrateVersion }}
         name: migrate
         volumeMounts:
         - mountPath: /migrations/server/{{ .Values.storage.type }}
@@ -97,7 +97,7 @@ spec:
         args:
         - -c
         - notary-server -config=/config/server-config.json
-        image: notary:server
+        image: notary:{{ .Values.server.version }}
         name: server
         ports:
         - containerPort: 4443
@@ -143,7 +143,7 @@ spec:
         - -path=/migrations/signer/{{ .Values.storage.type }}
         - -database={{ .Values.storage.type }}://{{ template "notary.signerdburl" . }}
         - up
-        image: migrate/migrate:latest
+        image: migrate/migrate:{{ .Values.storage.migrateVersion }}
         name: migrate
         volumeMounts:
         - mountPath: /migrations/signer/{{ .Values.storage.type }}
@@ -159,7 +159,7 @@ spec:
         command:
         - /usr/bin/env
         - sh
-        image: notary:signer
+        image: notary:{{ .Values.signer.version }}
         name: signer
         env:
         - name: NOTARY_SIGNER_{{ .Values.signer.defaultAlias | upper }}
