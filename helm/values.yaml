@@ -29,6 +29,7 @@ signer:
   version: signer-0.6.1-2
   port: 7899
   defaultAlias: alias
+  aliasSecret: alias123
 
 logging:
   level: debug
