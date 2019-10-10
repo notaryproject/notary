@@ -71,6 +71,6 @@ metadata:
   name: notary-config
 data:
   server-config.json: |
-{{ tpl (.Files.Get "files/server-config.json") . | indent 4 }}
+{{ tpl (.Files.Get "files/server-config.json.tpl") . | indent 4 }}
   signer-config.json: |
-{{ tpl (.Files.Get "files/signer-config.json") . | indent 4 }}
+{{ tpl (.Files.Get "files/signer-config.json.tpl") . | indent 4 }}
