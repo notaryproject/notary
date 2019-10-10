@@ -3,7 +3,8 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    service: notary-db
+    app.kubernetes.io/name: notary
+    app.kubernetes.io/component: notary-db
   name: notary-db
 spec:
   strategy:
@@ -11,7 +12,8 @@ spec:
   template:
     metadata:
       labels:
-        service: notary-db
+        app.kubernetes.io/name: notary
+        app.kubernetes.io/component: notary-db
     spec:
       containers:
       {{- if eq .Values.storage.type "mysql" }}
@@ -66,13 +68,15 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    service: notaryserver
+    app.kubernetes.io/name: notary
+    app.kubernetes.io/component: notaryserver
   name: notaryserver
 spec:
   template:
     metadata:
       labels:
-        service: notaryserver
+        app.kubernetes.io/name: notary
+        app.kubernetes.io/component: notaryserver
     spec:
       {{- if not (eq .Values.storage.type "memory") }}
       initContainers:
@@ -128,13 +132,15 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    service: notarysigner
+    app.kubernetes.io/name: notary
+    app.kubernetes.io/component: notarysigner
   name: notarysigner
 spec:
   template:
     metadata:
       labels:
-        service: notarysigner
+        app.kubernetes.io/name: notary
+        app.kubernetes.io/component: notarysigner
     spec:
       {{- if not (eq .Values.storage.type "memory") }}
       initContainers:
