@@ -96,11 +96,8 @@ spec:
       {{- end }}
       containers:
       - command:
-        - /usr/bin/env
-        - sh
-        args:
-        - -c
-        - notary-server -config=/config/server-config.json
+        - notary-server
+        - -config=/config/server-config.json
         image: notary:{{ .Values.server.version }}
         name: server
         ports:
@@ -159,12 +156,9 @@ spec:
           readOnly: true
       {{- end }}
       containers:
-      - args:
-        - -c
-        - notary-signer -config=/config/signer-config.json
-        command:
-        - /usr/bin/env
-        - sh
+      - command:
+        - notary-signer
+        - -config=/config/signer-config.json
         image: notary:{{ .Values.signer.version }}
         name: signer
         env:
