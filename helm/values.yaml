@@ -6,6 +6,9 @@ ingress:
   - localhost
   path: /
 
+loadBalancer:
+  enabled: true
+
 storage:
   type: mysql
   pvcSize: 100Mi

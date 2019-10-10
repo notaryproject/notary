@@ -29,6 +29,11 @@ spec:
   selector:
     app.kubernetes.io/name: notary
     app.kubernetes.io/component: notaryserver
+  {{- if .Values.loadBalancer.enabled }}
+  type: LoadBalancer
+  loadBalancerIP: 127.0.0.1
+  {{- end }}
+
 
 ---
 
