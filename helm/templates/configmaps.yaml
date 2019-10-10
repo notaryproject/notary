@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ template "notary.fullname" . }}-notarysql
+  name: notarysql
 data:
   {{- if eq .Values.storage.type "mysql" }}
   {{- range $path, $bytes := .Files.Glob "notarysql/mysql-initdb.d/**" }}
@@ -23,7 +23,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ template "notary.fullname" . }}-migrations-server
+  name: notary-migrations-server
 data:
   {{- if eq .Values.storage.type "mysql" }}
   {{- range $path, $bytes := .Files.Glob "migrations/server/mysql/**" }}
@@ -45,7 +45,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ template "notary.fullname" . }}-migrations-signer
+  name: notary-migrations-signer
 data:
   {{- if eq .Values.storage.type "mysql" }}
   {{- range $path, $bytes := .Files.Glob "migrations/signer/mysql/**" }}
@@ -68,7 +68,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ template "notary.fullname" . }}-config
+  name: notary-config
 data:
   server-config.json: |
 {{ tpl (.Files.Get "files/server-config.json") . | indent 4 }}

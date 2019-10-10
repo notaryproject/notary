@@ -17,17 +17,17 @@
 
 {{- define "notary.serverdburl" -}}
 {{- if eq .Values.storage.type "mysql" -}}
-root@tcp({{ template "notary.fullname" . }}-db:3306)/notaryserver
+root@tcp(notary-db:3306)/notaryserver
 {{- else if eq .Values.storage.type "postgres" -}}
-server@{{ template "notary.fullname" . }}-db:5432/notaryserver?sslmode=verify-ca&sslrootcert=/tls/database-ca.pem&sslcert=/tls/notary-server.pem&sslkey=/tls/notary-server-key.pem
+server@notary-db:5432/notaryserver?sslmode=verify-ca&sslrootcert=/tls/database-ca.pem&sslcert=/tls/notary-server.pem&sslkey=/tls/notary-server-key.pem
 {{- end -}}
 {{- end -}}
 
 {{- define "notary.signerdburl" -}}
 {{- if eq .Values.storage.type "mysql" -}}
-root@tcp({{ template "notary.fullname" . }}-db:3306)/notarysigner
+root@tcp(notary-db:3306)/notarysigner
 {{- else if eq .Values.storage.type "postgres" -}}
-signer@{{ template "notary.fullname" . }}-db:5432/notarysigner?sslmode=verify-ca&sslrootcert=/tls/database-ca.pem&sslcert=/tls/notary-signer.pem&sslkey=/tls/notary-signer-key.pem"
+signer@notary-db:5432/notarysigner?sslmode=verify-ca&sslrootcert=/tls/database-ca.pem&sslcert=/tls/notary-signer.pem&sslkey=/tls/notary-signer-key.pem"
 {{- end -}}
 {{- end -}}
 

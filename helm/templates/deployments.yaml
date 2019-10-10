@@ -3,15 +3,15 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    service: {{ template "notary.fullname" . }}-db
-  name: {{ template "notary.fullname" . }}-db
+    service: notary-db
+  name: notary-db
 spec:
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        service: {{ template "notary.fullname" . }}-db
+        service: notary-db
     spec:
       containers:
       {{- if eq .Values.storage.type "mysql" }}
@@ -53,10 +53,10 @@ spec:
       volumes:
       - name: notary-data
         persistentVolumeClaim:
-          claimName: {{ template "notary.fullname" . }}-notary-data
+          claimName: notary-data
       - name: notarysql
         configMap:
-          name: {{ template "notary.fullname" . }}-notarysql
+          name: notarysql
 
 ---
 
@@ -66,13 +66,13 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    service: {{ template "notary.fullname" . }}-server
-  name: {{ template "notary.fullname" . }}-server
+    service: notaryserver
+  name: notaryserver
 spec:
   template:
     metadata:
       labels:
-        service: {{ template "notary.fullname" . }}-server
+        service: notaryserver
     spec:
       {{- if not (eq .Values.storage.type "memory") }}
       initContainers:
@@ -110,14 +110,14 @@ spec:
       volumes:
       {{- if not (eq .Values.storage.type "memory") }}
       - configMap:
-          name: {{ template "notary.fullname" . }}-migrations-server
+          name: notary-migrations-server
         name: migrations-server
       {{- end }}
       - configMap:
-          name: {{ template "notary.fullname" . }}-config
+          name: notary-config
         name: config
       - secret:
-          secretName: {{ template "notary.fullname" . }}-tls
+          secretName: notary-tls
         name: tls
 
 {{- if eq .Values.server.trust.type "remote" }}
@@ -128,13 +128,13 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    service: {{ template "notary.fullname" . }}-signer
-  name: {{ template "notary.fullname" . }}-signer
+    service: notarysigner
+  name: notarysigner
 spec:
   template:
     metadata:
       labels:
-        service: {{ template "notary.fullname" . }}-signer
+        service: notarysigner
     spec:
       {{- if not (eq .Values.storage.type "memory") }}
       initContainers:
@@ -165,7 +165,7 @@ spec:
         - name: NOTARY_SIGNER_{{ .Values.signer.defaultAlias | upper }}
           valueFrom:
             secretKeyRef:
-              name: {{ template "notary.fullname" . }}-alias-secret
+              name: notarysigner-alias-secret
               key: alias-secret
         ports:
         - containerPort: {{ .Values.signer.port }}
@@ -178,14 +178,14 @@ spec:
       volumes:
       {{- if not (eq .Values.storage.type "memory") }}
       - configMap:
-          name: {{ template "notary.fullname" . }}-migrations-signer
+          name: notary-migrations-signer
         name: migrations-signer
       {{- end }}
       - configMap:
-          name: {{ template "notary.fullname" . }}-config
+          name: notary-config
         name: config
       - secret:
-          secretName: {{ template "notary.fullname" . }}-tls
+          secretName: notary-tls
         name: tls
 
 {{- end }}

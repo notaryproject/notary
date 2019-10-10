@@ -10,7 +10,7 @@ spec:
     port: {{ .Values.signer.port }}
     targetPort: {{ .Values.signer.port }}
   selector:
-    service: {{ template "notary.fullname" . }}-signer
+    service: notarysigner
 
 ---
 
@@ -19,14 +19,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ template "notary.fullname" . }}-server
+  name: notaryserver
 spec:
   ports:
   - name: https
     port: {{ .Values.server.port }}
     targetPort: {{ .Values.server.port }}
   selector:
-    service: {{ template "notary.fullname" . }}-server
+    service: notaryserver
 
 ---
 
@@ -35,7 +35,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ template "notary.fullname" . }}-db
+  name: notary-db
 spec:
   ports:
   {{- if eq .Values.storage.type "mysql" }}
@@ -48,6 +48,6 @@ spec:
     targetPort: 5432
   {{- end }}
   selector:
-    service: {{ template "notary.fullname" . }}-db
+    service: notary-db
 
 {{- end }}
