@@ -1,0 +1,16 @@
+.cover
+.dockerignore
+.vscode
+Dockerfile
+*.Dockerfile
+cmd/notary-server/notary-server
+cmd/notary-server/local.config.*
+cmd/notary-signer/notary-signer
+cmd/notary-signer/local.config.*
+cmd/escrow/escrow
+cmd/escrow/local.config.*
+cross
+.idea
+*.test
+coverage*.txt
+*_output.csv
