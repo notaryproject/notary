@@ -14,4 +14,4 @@ cross
 *.iml
 *.test
 coverage*.txt
-gas_output.csv
+gosec_output.csv
