@@ -18,10 +18,9 @@ RUN useradd -ms /bin/bash notary \
 	&& go get golang.org/x/lint/golint github.com/fzipp/gocyclo github.com/client9/misspell/cmd/misspell github.com/gordonklaus/ineffassign github.com/securego/gosec/cmd/gosec/...
 
 ENV NOTARYDIR /go/src/github.com/theupdateframework/notary
-
-COPY . ${NOTARYDIR}
-RUN chmod -R a+rw /go && chmod 0600 ${NOTARYDIR}/fixtures/database/*
-
 ENV GO111MODULE=on
 
 WORKDIR ${NOTARYDIR}
+COPY . .
+RUN chown -R notary /go && chmod -R a+rw /go && chmod 0600 ./fixtures/database/*
+USER notary
