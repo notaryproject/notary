@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	_ "net/http/pprof"
+	_ "net/http/pprof" // #nosec G108 // false positive as it's only listening through debugServer()
 	"os"
 	"os/signal"
 	"runtime"
