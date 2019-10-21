@@ -1,9 +1,9 @@
-FROM golang:1.11.5-alpine
+FROM golang:1.12.10-alpine
 
 RUN apk add --update git gcc libc-dev
 
-# Pin to the specific v3.0.0 version
-RUN go get -tags 'mysql postgres file' github.com/mattes/migrate/cli && mv /go/bin/cli /go/bin/migrate
+ARG MIGRATE_VER=v4.6.2
+RUN GO111MODULE=on go get -tags 'mysql postgres file' github.com/golang-migrate/migrate/v4/cli@${MIGRATE_VER} && mv /go/bin/cli /go/bin/migrate
 
 ENV NOTARYPKG github.com/theupdateframework/notary
 
