@@ -141,7 +141,7 @@ protos:
 # be run first
 gen-cover:
 gen-cover:
-	@python -u buildscripts/covertest.py --tags "$(NOTARY_BUILDTAGS)" --pkgs="$(PKGS)" --testopts="${TESTOPTS}" --debug
+	@python -u buildscripts/covertest.py --tags "$(NOTARY_BUILDTAGS)" --pkgs="$(PKGS)" --testopts="${TESTOPTS}"
 
 # Generates the cover binaries and runs them all in serial, so this can be used
 # run all tests with a yubikey without any problems
