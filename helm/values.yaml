@@ -1,35 +1,85 @@
 ingress:
+  # When enabled, the chart will create an 'Ingress' object to expose the notary server externally.
   enabled: true
+
+  # When tls is enabled, the chart will add a 'tls' section to the Ingress object,
+  # with the list of 'hosts' below.
   tls:
     enabled: true
+
+  # The list of hosts to add to the ingress 'rules', and optionally the 'tls' section, if
+  # tls.enabled is set to true.
   hosts:
   - localhost
+
+  # The path to use for routing traffic to the notary server service.
   path: /
 
+  # A set of extra annotations to be added to the Ingress object.
+  annotations: null
+
 loadBalancer:
+  # Expose the notary server via a load balancer. Setting this to true doesn't necessarily disable
+  # the ingress.enabled setting, but there's usually no need to set them both to true.
   enabled: true
 
+  # Sets the 'loadBalancerIP' field of the 'Service' object. Useful if running on local distributions, like minikube.
+  loadBalancerIP: null
+
 storage:
+  # Sets the type of storage that the persistence layer will use.
+  # Valid values are 'mysql', 'postgres', or 'memory'.
+  # If set to 'mysql' or 'postgres', a single database service will be launched for both server and signer.
+  # If set to 'memory', no db instance will be launched.
   type: mysql
+
+  # The size of the volume to be used by the database instance. Ignored if 'type: memory'.
   pvcSize: 100Mi
+
+  # The version of the 'migrate' image to use for the init container. Ignored if 'type: memory'.
   migrateVersion: v4.6.2
 
+  # The storage class name to use for the PersistentVolumeClaim. If unset, the 'storageClassName' won't be set and the PVC
+  # will use the cluster's default 'StorageClass'.
+  storageClass: null
+
 server:
+  # The version of the image to use for the server component.
   version: server-0.6.1-2
+
+  # The port to expose the server component on. Keep in mind that this applies to the 'Service' object and won't
+  # be exposed externally unless you have 'loadBalancer.enabled: true'
   port: 4443
+
+  # The list of GUN prefixes to pass to the 'repositories.gun_prefixes' field of the server configuration file.
+  # Add or remove prefixes as you require.
   gunPrefixes:
   - "docker.io/"
   - "mydomain.com/"
+
+  # Set 'trust: local' if you don't want to spin up a signer instance. Otherwise, the remote signer service is made
+  # available at the 'hostname' and 'port' specified here.
   trust:
     type: remote
     hostname: notarysigner
     port: 7899
 
 signer:
+  # The version of the image to use for the signer component.
   version: signer-0.6.1-2
+
+  # The port to expose the signer service on. This is just for the internal service, it's not exposed externally
+  # even if 'ingress.enabled: true' or loadBalancer.enabled: true'.
   port: 7899
+
+  # This is the value passed to the 'storage.default_alias' field of the signer configuration file.
   defaultAlias: alias
+
+  # The value to set the 'NOTARY_SIGNER_<DEFAULT_ALIAS>' environment variable to.
+  # This is set as a Kubernetes 'Secret', and the default will work out of the box, but never
+  # set plain-text secrets in source control.
   aliasSecret: alias123
 
 logging:
+  # The logging level to set the 'logging.level' field in both the notary and signer config files.
   level: debug
