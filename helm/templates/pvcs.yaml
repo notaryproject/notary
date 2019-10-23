@@ -5,6 +5,9 @@ kind: PersistentVolumeClaim
 metadata:
   name: notary-data
 spec:
+  {{- if .Values.storage.className }}
+  storageClassName: {{ .Values.storage.className }}
+  {{- end }}
   accessModes:
   - ReadWriteOnce
   resources:
