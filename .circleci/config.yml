@@ -2,11 +2,22 @@ version: 2
 jobs:
   build:
     machine:
-      image: circleci/classic:201808-01
+      image: ubuntu-1604:201903-01
+      # not supported in the free plan
+      # docker_layer_caching: true
     working_directory: ~/go/src/github.com/theupdateframework/notary
+    environment:
+      DOCKER_BUILDKIT: 1
     steps:
       - add_ssh_keys
       - checkout
-      - run: docker build -t notary_client .
+      - run:
+          name: "Docker Info"
+          command: |
+            docker version
+            docker info
+      - run:
+          name: "Build image"
+          command: docker build --progress=plain -t notary_client .
       - run: ./buildscripts/circle_parallelism.sh
       - run: docker-compose -f docker-compose.yml down -v && docker-compose -f docker-compose.rethink.yml down -v
