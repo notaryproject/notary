@@ -31,7 +31,9 @@ spec:
     app.kubernetes.io/component: notaryserver
   {{- if .Values.loadBalancer.enabled }}
   type: LoadBalancer
-  loadBalancerIP: 127.0.0.1
+  {{- if .Values.loadBalancer.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.loadBalancer.loadBalancerIP }}
+  {{- end }}
   {{- end }}
 
 
