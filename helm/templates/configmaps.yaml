@@ -93,6 +93,12 @@ data:
         "backend": "{{ .Values.storage.type }}",
         "db_url": "{{ template "notary.serverdburl" . }}"
       },
+      {{- if .Values.authentication.enabled }}
+      "authentication": {
+        "type": "{{ .Values.authentication.type }}",
+        "options": {{ toPrettyJson .Values.authentication.options | indent 8 }}
+      },
+      {{- end }}
       "repositories": {
         "gun_prefixes": {{ .Values.server.gunPrefixes | toJson }}
       }

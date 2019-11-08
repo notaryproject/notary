@@ -156,3 +156,25 @@ tls:
         dns:
         - postgresql
         - mysql
+
+authentication:
+
+  # Disabled by default
+  enabled: false
+
+  # As of version 0.6.1, Notary only supports token authentication
+  type: "token"
+
+  # Deploying the authentication server and configuring it (including the signing certificate) is outside of the scope
+  # of this chart, but you can set this value to the public signing certificate (base64-encoded) and it'll get injected
+  # in the same Secret (notary-tls) as the rest of the TLS certificates (and mounted on the server pods).
+  authSigningBundle: null
+
+  # These options are documented here (https://github.com/docker/distribution/blob/master/docs/configuration.md#token),
+  # and should match the settings for the authentication server you point to.
+  options:
+    realm: "https://my.auth.com/token"
+    service: "Notary"
+    issuer: "my.auth.com"
+    rootcertbundle: "/tls/auth.crt"
+    autoredirect: false
