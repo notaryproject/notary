@@ -39,7 +39,7 @@ spec:
 
 ---
 
-{{- if not (eq .Values.storage.flavor "memory") }}
+{{- if (and (not .Values.storage.remote.enabled) (not (eq .Values.storage.flavor "memory"))) }}
 
 apiVersion: v1
 kind: Service

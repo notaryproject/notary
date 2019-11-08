@@ -1,4 +1,4 @@
-{{- if not (eq .Values.storage.flavor "memory") }}
+{{- if (and (not .Values.storage.remote.enabled) (not (eq .Values.storage.flavor "memory"))) }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -78,7 +78,7 @@ spec:
         app.kubernetes.io/name: notary
         app.kubernetes.io/component: notaryserver
     spec:
-      {{- if not (eq .Values.storage.flavor "memory") }}
+      {{- if (and (not .Values.storage.remote.enabled) (not (eq .Values.storage.flavor "memory"))) }}
       initContainers:
       - command:
         - /migrate
@@ -109,7 +109,7 @@ spec:
         - mountPath: /tls
           name: tls
       volumes:
-      {{- if not (eq .Values.storage.flavor "memory") }}
+      {{- if (and (not .Values.storage.remote.enabled) (not (eq .Values.storage.flavor "memory"))) }}
       - configMap:
           name: notary-migrations-server
         name: migrations-server
@@ -139,7 +139,7 @@ spec:
         app.kubernetes.io/name: notary
         app.kubernetes.io/component: notarysigner
     spec:
-      {{- if not (eq .Values.storage.flavor "memory") }}
+      {{- if (and (not .Values.storage.remote.enabled) (not (eq .Values.storage.flavor "memory"))) }}
       initContainers:
       - command:
         - /migrate
@@ -176,7 +176,7 @@ spec:
         - mountPath: /tls
           name: tls
       volumes:
-      {{- if not (eq .Values.storage.flavor "memory") }}
+      {{- if (and (not .Values.storage.remote.enabled) (not (eq .Values.storage.flavor "memory"))) }}
       - configMap:
           name: notary-migrations-signer
         name: migrations-signer

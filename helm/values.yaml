@@ -40,6 +40,10 @@ storage:
     # If this is set to 'true', only the values under this section are used.
     enabled: false
 
+    # The host and port where the remote storage server is running
+    host: notarydb.example.com
+    port: 3306
+
   kubernetes:
     # The Docker image used to run the storage containers
     image: mariadb:10.1.28

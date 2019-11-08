@@ -1,4 +1,4 @@
-{{- if not (eq .Values.storage.flavor "memory") }}
+{{- if (and (not .Values.storage.remote.enabled) (not (eq .Values.storage.flavor "memory"))) }}
 
 apiVersion: v1
 kind: ConfigMap
@@ -16,7 +16,6 @@ data:
 {{ $.Files.Get $path | indent 4 }}
   {{- end }}
   {{- end }}
-
 
 ---
 
@@ -36,7 +35,6 @@ data:
 {{ $.Files.Get $path | indent 4 }}
   {{- end }}
   {{- end }}
-
 
 {{- if eq .Values.server.trust.type "remote" }}
 
