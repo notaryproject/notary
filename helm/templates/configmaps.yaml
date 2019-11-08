@@ -99,6 +99,14 @@ data:
         "options": {{ toPrettyJson .Values.authentication.options | indent 8 }}
       },
       {{- end }}
+      {{- if .Values.caching.enabled }}
+      "caching": {
+        "max_age": {
+          "current_metadata": "{{ int .Values.caching.currentMetadata }}",
+          "consistent_metadata": "{{ int .Values.caching.consistentMetadata }}"
+        }
+      },
+      {{- end }}
       "repositories": {
         "gun_prefixes": {{ .Values.server.gunPrefixes | toJson }}
       }

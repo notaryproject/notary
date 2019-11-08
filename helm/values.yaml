@@ -178,3 +178,12 @@ authentication:
     issuer: "my.auth.com"
     rootcertbundle: "/tls/auth.crt"
     autoredirect: false
+
+caching:
+
+  # Disabled by default
+  enabled: true
+
+  # These correspond to the options documented here (https://github.com/theupdateframework/notary/blob/master/docs/reference/server-config.md#caching-section-optional)
+  currentMetadata: 300
+  consistentMetadata: 31536000
