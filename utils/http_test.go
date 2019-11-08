@@ -270,6 +270,7 @@ func TestDoAuthNonWildcardImage(t *testing.T) {
 		context.Background(),
 		"docker.io/library/alpine",
 		rec,
+		&http.Request{URL: &url.URL{Path: "library/alpine"}, Body: ioutil.NopCloser(bytes.NewBuffer(nil))},
 	)
 	require.NoError(t, err)
 	require.Equal(t, 200, rec.Code)
@@ -287,6 +288,7 @@ func TestDoAuthNonWildcardImage(t *testing.T) {
 		context.Background(),
 		"docker.io/library/alpine",
 		rec,
+		&http.Request{URL: &url.URL{Path: "library/alpine"}, Body: ioutil.NopCloser(bytes.NewBuffer(nil))},
 	)
 	require.Error(t, err)
 	require.True(t, e.SetHeadersCalled)
@@ -304,6 +306,7 @@ func TestDoAuthNonWildcardImage(t *testing.T) {
 		context.Background(),
 		"docker.io/library/alpine",
 		rec,
+		&http.Request{URL: &url.URL{Path: "library/alpine"}, Body: ioutil.NopCloser(bytes.NewBuffer(nil))},
 	)
 	require.Error(t, err)
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
@@ -320,6 +323,7 @@ func TestDoAuthWildcardImage(t *testing.T) {
 		context.Background(),
 		"",
 		rec,
+		&http.Request{URL: &url.URL{}, Body: ioutil.NopCloser(bytes.NewBuffer(nil))},
 	)
 	require.NoError(t, err)
 	require.Equal(t, 200, rec.Code)
@@ -337,6 +341,7 @@ func TestDoAuthWildcardImage(t *testing.T) {
 		context.Background(),
 		"",
 		rec,
+		&http.Request{URL: &url.URL{}, Body: ioutil.NopCloser(bytes.NewBuffer(nil))},
 	)
 	require.Error(t, err)
 	require.True(t, e.SetHeadersCalled)
@@ -354,6 +359,7 @@ func TestDoAuthWildcardImage(t *testing.T) {
 		context.Background(),
 		"",
 		rec,
+		&http.Request{URL: &url.URL{}, Body: ioutil.NopCloser(bytes.NewBuffer(nil))},
 	)
 	require.Error(t, err)
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
