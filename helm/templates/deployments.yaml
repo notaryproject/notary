@@ -1,4 +1,4 @@
-{{- if not (eq .Values.storage.type "memory") }}
+{{- if not (eq .Values.storage.flavor "memory") }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -16,14 +16,14 @@ spec:
         app.kubernetes.io/component: notary-db
     spec:
       containers:
-      {{- if eq .Values.storage.type "mysql" }}
+      {{- if eq .Values.storage.flavor "mysql" }}
       - args:
         - mysqld
         - --innodb_file_per_table
         env:
         - name: MYSQL_ALLOW_EMPTY_PASSWORD
           value: "yes"
-        image: mariadb:10.1.28
+        image: {{ .Values.storage.kubernetes.image }}
         name: mysql
         ports:
         - containerPort: 3306
@@ -31,7 +31,7 @@ spec:
         volumeMounts:
         - mountPath: /var/lib/mysql
           name: notary-data
-      {{- else if eq .Values.storage.type "postgres" }}
+      {{- else if eq .Values.storage.flavor "postgres" }}
       - env:
         - name: PGDATA
           value: /var/lib/postgresql/data/pgdata
@@ -41,7 +41,7 @@ spec:
           value: postgres
         - name: POSTGRES_DB
           value: postgres
-        image: postgres:9.5.4
+        image: {{ .Values.storage.kubernetes.image }}
         name: postgres
         ports:
         - containerPort: 5432
@@ -78,17 +78,17 @@ spec:
         app.kubernetes.io/name: notary
         app.kubernetes.io/component: notaryserver
     spec:
-      {{- if not (eq .Values.storage.type "memory") }}
+      {{- if not (eq .Values.storage.flavor "memory") }}
       initContainers:
       - command:
         - /migrate
-        - -path=/migrations/server/{{ .Values.storage.type }}
-        - -database={{ .Values.storage.type }}://{{ template "notary.serverdburl" . }}
+        - -path=/migrations/server/{{ .Values.storage.flavor }}
+        - -database={{ .Values.storage.flavor }}://{{ template "notary.serverdburl" . }}
         - up
-        image: migrate/migrate:{{ .Values.storage.migrateVersion }}
+        image: migrate/migrate:{{ .Values.storage.kubernetes.migrateVersion }}
         name: migrate
         volumeMounts:
-        - mountPath: /migrations/server/{{ .Values.storage.type }}
+        - mountPath: /migrations/server/{{ .Values.storage.flavor }}
           name: migrations-server
         - mountPath: /tls
           name: tls
@@ -109,7 +109,7 @@ spec:
         - mountPath: /tls
           name: tls
       volumes:
-      {{- if not (eq .Values.storage.type "memory") }}
+      {{- if not (eq .Values.storage.flavor "memory") }}
       - configMap:
           name: notary-migrations-server
         name: migrations-server
@@ -139,17 +139,17 @@ spec:
         app.kubernetes.io/name: notary
         app.kubernetes.io/component: notarysigner
     spec:
-      {{- if not (eq .Values.storage.type "memory") }}
+      {{- if not (eq .Values.storage.flavor "memory") }}
       initContainers:
       - command:
         - /migrate
-        - -path=/migrations/signer/{{ .Values.storage.type }}
-        - -database={{ .Values.storage.type }}://{{ template "notary.signerdburl" . }}
+        - -path=/migrations/signer/{{ .Values.storage.flavor }}
+        - -database={{ .Values.storage.flavor }}://{{ template "notary.signerdburl" . }}
         - up
-        image: migrate/migrate:{{ .Values.storage.migrateVersion }}
+        image: migrate/migrate:{{ .Values.storage.kubernetes.migrateVersion }}
         name: migrate
         volumeMounts:
-        - mountPath: /migrations/signer/{{ .Values.storage.type }}
+        - mountPath: /migrations/signer/{{ .Values.storage.flavor }}
           name: migrations-signer
         - mountPath: /tls
           name: tls
@@ -176,7 +176,7 @@ spec:
         - mountPath: /tls
           name: tls
       volumes:
-      {{- if not (eq .Values.storage.type "memory") }}
+      {{- if not (eq .Values.storage.flavor "memory") }}
       - configMap:
           name: notary-migrations-signer
         name: migrations-signer

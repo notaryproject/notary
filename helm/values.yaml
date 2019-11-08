@@ -27,21 +27,32 @@ loadBalancer:
   loadBalancerIP: null
 
 storage:
-  # Sets the type of storage that the persistence layer will use.
+
+  # Defines the type of storage the persistence layer runs. It's used to decide how to configure and/or initialize
+  # the database (and launch it if running it in Kubernetes with remote.enabled set to false, and the values under storage.kubernetes).
   # Valid values are 'mysql', 'postgres', or 'memory'.
-  # If set to 'mysql' or 'postgres', a single database service will be launched for both server and signer.
-  # If set to 'memory', no db instance will be launched.
-  type: mysql
+  # If set to 'memory', no db instance will be launched and both server and signer will use in-memory persistence.
+  flavor: mysql
 
-  # The size of the volume to be used by the database instance. Ignored if 'type: memory'.
-  pvcSize: 100Mi
+  remote:
+    # If the storage layer is deployed on a remote database (like Amazon RDS) this should be set to 'true' and the
+    # chart will skip deploying the database containers.
+    # If this is set to 'true', only the values under this section are used.
+    enabled: false
 
-  # The version of the 'migrate' image to use for the init container. Ignored if 'type: memory'.
-  migrateVersion: v4.6.2
+  kubernetes:
+    # The Docker image used to run the storage containers
+    image: mariadb:10.1.28
 
-  # The storage class name to use for the PersistentVolumeClaim. If unset, the 'storageClassName' won't be set and the PVC
-  # will use the cluster's default 'StorageClass'.
-  storageClass: null
+    # The size of the volume to be used by the database instance. Ignored if 'type: memory'.
+    pvcSize: 100Mi
+
+    # The version of the 'migrate' image to use for the init container. Ignored if 'type: memory'.
+    migrateVersion: v4.6.2
+
+    # The storage class name to use for the PersistentVolumeClaim. If unset, the 'storageClassName' won't be set and the PVC
+    # will use the cluster's default 'StorageClass'.
+    storageClass: null
 
 server:
   # The version of the image to use for the server component.

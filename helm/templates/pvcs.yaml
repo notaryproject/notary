@@ -1,17 +1,17 @@
-{{- if not (eq .Values.storage.type "memory") }}
+{{- if not (eq .Values.storage.flavor "memory") }}
 
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: notary-data
 spec:
-  {{- if .Values.storage.className }}
-  storageClassName: {{ .Values.storage.className }}
+  {{- if .Values.storage.kubernetes.className }}
+  storageClassName: {{ .Values.storage.kubernetes.className }}
   {{- end }}
   accessModes:
   - ReadWriteOnce
   resources:
     requests:
-      storage: {{ .Values.storage.pvcSize }}
+      storage: {{ .Values.storage.kubernetes.pvcSize }}
 
 {{- end }}
