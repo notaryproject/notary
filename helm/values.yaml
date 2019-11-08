@@ -57,6 +57,7 @@ server:
   - "docker.io/"
   - "mydomain.com/"
 
+
   # Set 'trust: local' if you don't want to spin up a signer instance. Otherwise, the remote signer service is made
   # available at the 'hostname' and 'port' specified here.
   trust:
@@ -83,3 +84,75 @@ signer:
 logging:
   # The logging level to set the 'logging.level' field in both the notary and signer config files.
   level: debug
+
+tls:
+  # If this is set to true, the template will use the certificates and keys provided, otherwise it will automatically
+  # generate self-signed certificates based on the parameters passed to the 'generated' map.
+  # If using custom certificates, they should be base64-encoded. And both the public certificate and the private key
+  # must be provided.
+  custom: false
+
+  # The CA that signed the server/signer certificates. It's assumed that the same CA is used for bother server
+  # and signer certificates.
+  # It doesn't need to strictly be a root CA, it can be an intermediate one.
+  rootCACert: null
+
+  # The public certificate and corresponding private key for the server.
+  server:
+    cert: null
+    key: null
+
+  # The public certificate and corresponding private key for the signer.
+  signer:
+    cert: null
+    key: null
+
+  # The CA that signed the server/signer database certificates. It's assumed that the same CA is used for bother server
+  # and signer database certificates.
+  # It doesn't need to strictly be a root CA, it can be an intermediate one.
+  database:
+    rootCACert: null
+
+    # The public certificate and corresponding private key for the server database.
+    server:
+      cert: null
+      key: null
+
+    # The public certificate and corresponding private key for the signer database.
+    signer:
+      cert: null
+      key: null
+
+  # If Helm auto-generates the certificates, it'll create a self-signed CA and sign certificates off that CA.
+  # The key of that root CA is thrown away, and only the public certificate is stored as a Kubernetes secret.
+  generated:
+
+    # The validity in days for the generated certificates.
+    # Note that rotating the certificates is outside of the scope of this chart!
+    validityDays: 365
+
+    server:
+      # The list of valid DNS host names that the server certificate will accept
+      dns:
+      - notary-server
+      - notaryserver
+
+    signer:
+      # The list of valid DNS host names that the signer certificate will accept
+      dns:
+      - notary-signer
+      - notarysigner
+
+    database:
+
+      server:
+        # The list of valid DNS host names that the server database certificate will accept
+        dns:
+        - postgresql
+        - mysql
+
+      signer:
+        # The list of valid DNS host names that the signer database certificate will accept
+        dns:
+        - postgresql
+        - mysql
