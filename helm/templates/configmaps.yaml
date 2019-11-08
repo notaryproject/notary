@@ -123,6 +123,6 @@ data:
       "storage": {
         "backend": "{{ .Values.storage.flavor }}",
         "db_url": "{{ template "notary.signerdburl" . }}",
-        "default_alias": "{{ .Values.signer.defaultAlias }}"
+        "default_alias": "{{ .Values.signer.alias.defaultAlias }}"
       }
     }

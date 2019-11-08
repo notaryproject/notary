@@ -88,13 +88,20 @@ signer:
   # even if 'ingress.enabled: true' or loadBalancer.enabled: true'.
   port: 7899
 
-  # This is the value passed to the 'storage.default_alias' field of the signer configuration file.
-  defaultAlias: alias
+  alias:
 
-  # The value to set the 'NOTARY_SIGNER_<DEFAULT_ALIAS>' environment variable to.
-  # This is set as a Kubernetes 'Secret', and the default will work out of the box, but never
-  # set plain-text secrets in source control.
-  aliasSecret: alias123
+    # This is the value passed to the 'storage.default_alias' field of the signer configuration file.
+    defaultAlias: alias
+
+    # A default alias passphrase to set the 'NOTARY_SIGNER_<DEFAULT_ALIAS>' environment variable to.
+    # If this value is set, the chart will create a Kubernetes secret called 'signer-alias' and set
+    # this secret there. If this is not set, the chart will require secret configured in aliasSecretName.
+    aliasPassphrase: null
+
+    # The name and key of the secret used to set the 'NOTARY_SIGNER_<DEFAULT_ALIAS>' environment variable to.
+    # This should be a pre-existing Kubernetes secret provided by you, this chart won't create it.
+    aliasSecretName: example-signer-alias
+    aliasSecretKey: example-secret-key
 
 logging:
   # The logging level to set the 'logging.level' field in both the notary and signer config files.
