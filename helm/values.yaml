@@ -80,6 +80,12 @@ server:
     hostname: notarysigner
     port: 7899
 
+  storageCredentials:
+    user: server
+    password: null
+    passwordSecretName: server-password
+    passwordSecretKey: password
+
 signer:
   # The version of the image to use for the signer component.
   version: signer-0.6.1-2
@@ -102,6 +108,12 @@ signer:
     # This should be a pre-existing Kubernetes secret provided by you, this chart won't create it.
     aliasSecretName: example-signer-alias
     aliasSecretKey: example-secret-key
+
+  storageCredentials:
+    user: signer
+    password: null
+    passwordSecretName: signer-password
+    passwordSecretKey: password
 
 logging:
   # The logging level to set the 'logging.level' field in both the notary and signer config files.

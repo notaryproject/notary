@@ -16,12 +16,40 @@ spec:
           app.kubernetes.io/name: notary
           app.kubernetes.io/component: notaryserver-migrate
     spec:
+      initContainers:
+      - command:
+        - /gomplate
+        - --left-delim
+        - '%'
+        - --right-delim
+        - '%'
+        - --in
+        - "{{ .Values.server.storageCredentials.user }}:% .Env.PASSWORD %@tcp(notary-db:3306)/notaryserver"
+        - --out
+        - /migrate-configuration/db-url
+        image: hairyhenderson/gomplate:v3
+        name: gomplate
+        env:
+        - name: PASSWORD
+          {{- if .Values.server.storageCredentials.password }}
+          valueFrom:
+            secretKeyRef:
+              name: server-password
+              key: password
+          {{- else }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.server.storageCredentials.passwordSecretName }}
+              key: {{ .Values.server.storageCredentials.passwordSecretKey }}
+          {{- end }}
+        volumeMounts:
+        - mountPath: /migrate-configuration
+          name: migrate-configuration
       containers:
       - command:
-        - /migrate
-        - -path=/migrations/server/{{ .Values.storage.flavor }}
-        - -database={{ .Values.storage.flavor }}://{{ template "notary.serverdburl" . }}
-        - up
+        - sh
+        - -c
+        - /migrate -path=/migrations/server/{{ .Values.storage.flavor }} -database={{ .Values.storage.flavor }}://$(cat /migrate-configuration/db-url) up
         image: migrate/migrate:{{ .Values.storage.kubernetes.migrateVersion }}
         name: migrate
         volumeMounts:
@@ -30,6 +58,8 @@ spec:
         - mountPath: /tls
           name: tls
           readOnly: true
+        - mountPath: /migrate-configuration
+          name: migrate-configuration
       restartPolicy: OnFailure
       volumes:
       - configMap:
@@ -38,6 +68,8 @@ spec:
       - secret:
           secretName: notary-tls
         name: tls
+      - emptyDir: {}
+        name: migrate-configuration
 
 ---
 
@@ -58,12 +90,40 @@ spec:
           app.kubernetes.io/name: notary
           app.kubernetes.io/component: notarysigner-migrate
     spec:
+      initContainers:
+      - command:
+        - /gomplate
+        - --left-delim
+        - '%'
+        - --right-delim
+        - '%'
+        - --in
+        - "{{ .Values.signer.storageCredentials.user }}:% .Env.PASSWORD %@tcp(notary-db:3306)/notarysigner"
+        - --out
+        - /migrate-configuration/db-url
+        image: hairyhenderson/gomplate:v3
+        name: gomplate
+        env:
+        - name: PASSWORD
+          {{- if .Values.signer.storageCredentials.password }}
+          valueFrom:
+            secretKeyRef:
+              name: signer-password
+              key: password
+          {{- else }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.signer.storageCredentials.passwordSecretName }}
+              key: {{ .Values.signer.storageCredentials.passwordSecretKey }}
+          {{- end }}
+        volumeMounts:
+        - mountPath: /migrate-configuration
+          name: migrate-configuration
       containers:
       - command:
-        - /migrate
-        - -path=/migrations/signer/{{ .Values.storage.flavor }}
-        - -database={{ .Values.storage.flavor }}://{{ template "notary.signerdburl" . }}
-        - up
+        - sh
+        - -c
+        - /migrate -path=/migrations/signer/{{ .Values.storage.flavor }} -database={{ .Values.storage.flavor }}://$(cat /migrate-configuration/db-url) up
         image: migrate/migrate:{{ .Values.storage.kubernetes.migrateVersion }}
         name: migrate
         volumeMounts:
@@ -72,6 +132,8 @@ spec:
         - mountPath: /tls
           name: tls
           readOnly: true
+        - mountPath: /migrate-configuration
+          name: migrate-configuration
       restartPolicy: OnFailure
       volumes:
       - configMap:
@@ -80,5 +142,7 @@ spec:
       - secret:
           secretName: notary-tls
         name: tls
+      - emptyDir: {}
+        name: migrate-configuration
 
 {{- end }}

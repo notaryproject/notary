@@ -6,14 +6,14 @@ metadata:
   name: notarysql
 data:
   {{- if eq .Values.storage.flavor "mysql" }}
-  {{- range $path, $bytes := .Files.Glob "notarysql/mysql-initdb.d/**" }}
+  {{- range $path, $bytes := .Files.Glob "sql/mysql-initdb.d/**" }}
   {{ base $path }}: |
-{{ $.Files.Get $path | indent 4 }}
+{{ tpl ($.Files.Get $path) $ | indent 4 }}
   {{- end }}
   {{- else if eq .Values.storage.flavor "postgres" }}
-  {{- range $path, $bytes := .Files.Glob "notarysql/postgresql-initdb.d/**" }}
+  {{- range $path, $bytes := .Files.Glob "sql/postgresql-initdb.d/**" }}
   {{ base $path }}: |
-{{ $.Files.Get $path | indent 4 }}
+{{ tpl ($.Files.Get $path) $ | indent 4 }}
   {{- end }}
   {{- end }}
 
