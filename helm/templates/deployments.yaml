@@ -15,6 +15,49 @@ spec:
         app.kubernetes.io/name: notary
         app.kubernetes.io/component: notary-db
     spec:
+      initContainers:
+      - command:
+        - /gomplate
+        - --left-delim
+        - '%%'
+        - --right-delim
+        - '%%'
+        - --input-dir
+        - /sql-init-templates
+        - --output-dir
+        - /docker-entrypoint-initdb.d
+        image: hairyhenderson/gomplate:v3
+        name: gomplate
+        env:
+        - name: SERVERPASSWORD
+          {{- if .Values.server.storageCredentials.password }}
+          valueFrom:
+            secretKeyRef:
+              name: server-password
+              key: password
+          {{- else }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.server.storageCredentials.passwordSecretName }}
+              key: {{ .Values.server.storageCredentials.passwordSecretKey }}
+          {{- end }}
+        - name: SIGNERPASSWORD
+          {{- if .Values.signer.storageCredentials.password }}
+          valueFrom:
+            secretKeyRef:
+              name: signer-password
+              key: password
+          {{- else }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.signer.storageCredentials.passwordSecretName }}
+              key: {{ .Values.signer.storageCredentials.passwordSecretKey }}
+          {{- end }}
+        volumeMounts:
+        - mountPath: /docker-entrypoint-initdb.d
+          name: sql-init
+        - mountPath: /sql-init-templates
+          name: notarysql
       containers:
       {{- if eq .Values.storage.flavor "mysql" }}
       - args:
@@ -51,6 +94,8 @@ spec:
           name: notary-data
       {{- end }}
         - mountPath: /docker-entrypoint-initdb.d
+          name: sql-init
+        - mountPath: /sql-init-templates
           name: notarysql
       volumes:
       - name: notary-data
@@ -59,6 +104,8 @@ spec:
       - name: notarysql
         configMap:
           name: notarysql
+      - name: sql-init
+        emptyDir: {}
 
 ---
 
