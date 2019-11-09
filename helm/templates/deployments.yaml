@@ -78,22 +78,6 @@ spec:
         app.kubernetes.io/name: notary
         app.kubernetes.io/component: notaryserver
     spec:
-      {{- if (and (not .Values.storage.remote.enabled) (not (eq .Values.storage.flavor "memory"))) }}
-      initContainers:
-      - command:
-        - /migrate
-        - -path=/migrations/server/{{ .Values.storage.flavor }}
-        - -database={{ .Values.storage.flavor }}://{{ template "notary.serverdburl" . }}
-        - up
-        image: migrate/migrate:{{ .Values.storage.kubernetes.migrateVersion }}
-        name: migrate
-        volumeMounts:
-        - mountPath: /migrations/server/{{ .Values.storage.flavor }}
-          name: migrations-server
-        - mountPath: /tls
-          name: tls
-          readOnly: true
-      {{- end }}
       containers:
       - command:
         - notary-server
@@ -139,22 +123,6 @@ spec:
         app.kubernetes.io/name: notary
         app.kubernetes.io/component: notarysigner
     spec:
-      {{- if (and (not .Values.storage.remote.enabled) (not (eq .Values.storage.flavor "memory"))) }}
-      initContainers:
-      - command:
-        - /migrate
-        - -path=/migrations/signer/{{ .Values.storage.flavor }}
-        - -database={{ .Values.storage.flavor }}://{{ template "notary.signerdburl" . }}
-        - up
-        image: migrate/migrate:{{ .Values.storage.kubernetes.migrateVersion }}
-        name: migrate
-        volumeMounts:
-        - mountPath: /migrations/signer/{{ .Values.storage.flavor }}
-          name: migrations-signer
-        - mountPath: /tls
-          name: tls
-          readOnly: true
-      {{- end }}
       containers:
       - command:
         - notary-signer
