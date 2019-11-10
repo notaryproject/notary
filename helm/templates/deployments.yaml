@@ -148,6 +148,24 @@ spec:
                   values:
                   - notary-server
           {{- end }}
+        {{- else if eq .Values.affinity.mode "node" }}
+        nodeAffinity:
+          {{- if .Values.affinity.required }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: {{ .Values.affinity.nodeSelectorKey }}
+                operator: {{ .Values.affinity.nodeSelectorOperator }}
+                values: {{ .Values.affinity.nodeSelectorValues }}
+          {{- else }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: {{ .Values.affinity.nodeSelectorKey }}
+                operator: {{ .Values.affinity.nodeSelectorOperator }}
+                values: {{ .Values.affinity.nodeSelectorValues }}
+          {{- end }}
         {{- end }}
       {{- end }}
       initContainers:
@@ -251,6 +269,24 @@ spec:
                   operator: In
                   values:
                   - notary-signer
+          {{- end }}
+        {{- else if eq .Values.affinity.mode "node" }}
+        nodeAffinity:
+          {{- if .Values.affinity.required }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: {{ .Values.affinity.nodeSelectorKey }}
+                operator: {{ .Values.affinity.nodeSelectorOperator }}
+                values: {{ .Values.affinity.nodeSelectorValues }}
+          {{- else }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: {{ .Values.affinity.nodeSelectorKey }}
+                operator: {{ .Values.affinity.nodeSelectorOperator }}
+                values: {{ .Values.affinity.nodeSelectorValues }}
           {{- end }}
         {{- end }}
       {{- end }}

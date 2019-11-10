@@ -234,7 +234,32 @@ caching:
   consistentMetadata: 31536000
 
 affinity:
-  enabled: true
+  # If 'true', the chart will enable 'affinity' options for both the server and signer deployments
+  enabled: false
+
+  # The options are "pod-anti" to enable podAntiAffinity, or "node" to enable nodeAffinity (https://kubernetes.io/docs/concepts/configuration/assign-pod-node/)
   mode: pod-anti
+
+  # If required set to 'true', the affinity will be set to requiredDuringSchedulingIgnoredDuringExecution,
+  # otherwise it will be set to preferredDuringSchedulingIgnoredDuringExecution.
   required: false
+
+  # The topology key to be used for podAntiAffinity. Ignored if mode is "node"
+  # E.g. use topologyKey: kubernetes.io/hostname to spread the replicas across different hosts,
+  # or topologyKey: failure-domain.beta.kubernetes.io/zone to spread across zones.
+  # Keep in mind that these keys depend on how your cluster is provisioned and they're not standard
+  # across providers.
   topologyKey: kubernetes.io/hostname
+
+  # The label to be used for node affinity. Ignored if mode is "pod-anti".
+  nodeSelectorKey: null
+
+  # The list of allowed values for the nodeSelectorKey. Ignored if mode is "pod-anti".
+  nodeSelectorValues: []
+
+  # The operator to be used in conjunction with nodeSelectorKey and nodeSelectorValues.
+  # E.g. use nodeSelectorKey: kubernetes.io/role and nodeSelectorValues: ["master"] to only schedule pods on masters,
+  # or nodeSelectorKey: kubernetes.io/os and nodeSelectorValues: ["linux"] to only schedule pods on Linux hosts.
+  # Keep in mind that these labels depend on how your cluster is provisioned and they're not standard
+  # across providers.
+  nodeSelectorOperator: In
