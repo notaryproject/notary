@@ -20,11 +20,11 @@ spec:
       - command:
         - /gomplate
         - --left-delim
-        - '%'
+        - '%%'
         - --right-delim
-        - '%'
+        - '%%'
         - --in
-        - "{{ .Values.server.storageCredentials.user }}:% .Env.PASSWORD %@tcp(notary-db:3306)/notaryserver"
+        - "{{ .Values.server.storageCredentials.user }}:%% .Env.PASSWORD %%@tcp(notary-db:3306)/notaryserver"
         - --out
         - /migrate-configuration/db-url
         image: hairyhenderson/gomplate:v3
@@ -94,11 +94,11 @@ spec:
       - command:
         - /gomplate
         - --left-delim
-        - '%'
+        - '%%'
         - --right-delim
-        - '%'
+        - '%%'
         - --in
-        - "{{ .Values.signer.storageCredentials.user }}:% .Env.PASSWORD %@tcp(notary-db:3306)/notarysigner"
+        - "{{ .Values.signer.storageCredentials.user }}:%% .Env.PASSWORD %%@tcp(notary-db:3306)/notarysigner"
         - --out
         - /migrate-configuration/db-url
         image: hairyhenderson/gomplate:v3
