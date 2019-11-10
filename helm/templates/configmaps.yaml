@@ -77,7 +77,7 @@ data:
       },
       "trust_service": {
         "type": "{{ .Values.server.trust.type }}",
-        "hostname": "notarysigner",
+        "hostname": "{{ .Values.server.trust.hostname }}",
         "port": "{{ .Values.server.trust.port }}",
         "tls_ca_file": "/tls/root-ca.crt",
         "key_algorithm": "ecdsa",

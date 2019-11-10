@@ -74,7 +74,7 @@ server:
   # available at the 'hostname' and 'port' specified here.
   trust:
     type: remote
-    hostname: notarysigner
+    hostname: notary-signer
     port: 7899
 
   # The credentials configuration for server storage

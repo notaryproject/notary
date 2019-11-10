@@ -111,7 +111,7 @@ metadata:
   labels:
     app.kubernetes.io/name: notary
     app.kubernetes.io/component: notaryserver
-  name: notaryserver
+  name: notary-server
 spec:
   template:
     metadata:
@@ -184,7 +184,7 @@ metadata:
   labels:
     app.kubernetes.io/name: notary
     app.kubernetes.io/component: notarysigner
-  name: notarysigner
+  name: notary-signer
 spec:
   template:
     metadata:

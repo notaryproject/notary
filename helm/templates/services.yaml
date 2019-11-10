@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: notarysigner
+  name: notary-signer
 spec:
   ports:
   - name: https
@@ -20,7 +20,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: notaryserver
+  name: notary-server
 spec:
   ports:
   - name: https
