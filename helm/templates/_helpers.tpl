@@ -17,32 +17,32 @@
 
 {{- define "notary.serverdburl" -}}
 {{- if eq .Values.storage.flavor "mysql" -}}
-{{- if .Values.storage.remote.enabled -}}
-{{ .Values.server.storageCredentials.user }}@tcp({{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }})/notaryserver
-{{- else -}}
+{{- if .Values.storage.enabled -}}
 {{ .Values.server.storageCredentials.user }}:%% .Env.PASSWORD %%@tcp(notary-db:3306)/notaryserver
+{{- else -}}
+{{ .Values.server.storageCredentials.user }}@tcp({{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }})/notaryserver
 {{- end }}
 {{- else if eq .Values.storage.flavor "postgres" -}}
-{{- if .Values.storage.remote.enabled -}}
-{{ .Values.server.storageCredentials.user }}@{{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }}/notaryserver
+{{- if .Values.storage.enabled -}}
+{{ .Values.server.storageCredentials.user }}:%% .Env.PASSWORD %%@notary-db:5432/notaryserver{{ .Values.storage.additionalDbUrlParameters }}
 {{- else -}}
-{{ .Values.server.storageCredentials.user }}:%% .Env.PASSWORD %%@notary-db:5432/notaryserver?sslmode=disable
+{{ .Values.server.storageCredentials.user }}@{{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }}/notaryserver
 {{- end -}}
 {{- end -}}
 {{- end -}}
 
 {{- define "notary.signerdburl" -}}
 {{- if eq .Values.storage.flavor "mysql" -}}
-{{- if .Values.storage.remote.enabled -}}
-{{ .Values.signer.storageCredentials.user }}@tcp({{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }})/notarysigner
-{{- else -}}
+{{- if .Values.storage.enabled -}}
 {{ .Values.signer.storageCredentials.user }}:%% .Env.PASSWORD %%@tcp(notary-db:3306)/notarysigner
+{{- else -}}
+{{ .Values.signer.storageCredentials.user }}@tcp({{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }})/notarysigner
 {{- end }}
 {{- else if eq .Values.storage.flavor "postgres" -}}
-{{- if .Values.storage.remote.enabled -}}
-{{ .Values.signer.storageCredentials.user }}@{{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }}/notarysigner
+{{- if .Values.storage.enabled -}}
+{{ .Values.signer.storageCredentials.user }}:%% .Env.PASSWORD %%@notary-db:5432/notarysigner{{ .Values.storage.additionalDbUrlParameters }}
 {{- else -}}
-{{ .Values.signer.storageCredentials.user }}:%% .Env.PASSWORD %%@notary-db:5432/notarysigner?sslmode=disable
+{{ .Values.signer.storageCredentials.user }}@{{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }}/notarysigner
 {{- end -}}
 {{- end -}}
 {{- end -}}

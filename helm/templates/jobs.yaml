@@ -1,4 +1,4 @@
-{{- if (and (not .Values.storage.remote.enabled) (not (eq .Values.storage.flavor "memory"))) }}
+{{- if (and .Values.storage.enabled (not (eq .Values.storage.flavor "memory"))) }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -50,7 +50,7 @@ spec:
         - sh
         - -c
         - /migrate -path=/migrations/server/{{ .Values.storage.flavor }} -database={{ .Values.storage.flavor }}://$(cat /migrate-configuration/db-url) up
-        image: migrate/migrate:{{ .Values.storage.kubernetes.migrateVersion }}
+        image: migrate/migrate:{{ .Values.storage.migrateVersion }}
         name: migrate
         volumeMounts:
         - mountPath: /migrations/server/{{ .Values.storage.flavor }}
@@ -124,7 +124,7 @@ spec:
         - sh
         - -c
         - /migrate -path=/migrations/signer/{{ .Values.storage.flavor }} -database={{ .Values.storage.flavor }}://$(cat /migrate-configuration/db-url) up
-        image: migrate/migrate:{{ .Values.storage.kubernetes.migrateVersion }}
+        image: migrate/migrate:{{ .Values.storage.migrateVersion }}
         name: migrate
         volumeMounts:
         - mountPath: /migrations/signer/{{ .Values.storage.flavor }}
