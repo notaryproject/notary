@@ -89,7 +89,7 @@ data:
       },
       "storage": {
         "backend": "{{ .Values.storage.flavor }}",
-        "db_url": "{{ template "notary.serverdburl" . }}"
+        "db_url": "{{ eq .Values.storage.flavor "postgres" | ternary "postgres://" "" }}{{ template "notary.serverdburl" . }}"
       },
       {{- if .Values.authentication.enabled }}
       "authentication": {
@@ -122,7 +122,7 @@ data:
       },
       "storage": {
         "backend": "{{ .Values.storage.flavor }}",
-        "db_url": "{{ template "notary.signerdburl" . }}",
+        "db_url": "{{ eq .Values.storage.flavor "postgres" | ternary "postgres://" "" }}{{ template "notary.signerdburl" . }}",
         "default_alias": "{{ .Values.signer.alias.defaultAlias }}"
       }
     }

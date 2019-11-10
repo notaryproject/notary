@@ -18,15 +18,15 @@
 {{- define "notary.serverdburl" -}}
 {{- if eq .Values.storage.flavor "mysql" -}}
 {{- if .Values.storage.remote.enabled -}}
-root@tcp({{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }})/notaryserver
+{{ .Values.server.storageCredentials.user }}@tcp({{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }})/notaryserver
 {{- else -}}
 {{ .Values.server.storageCredentials.user }}:%% .Env.PASSWORD %%@tcp(notary-db:3306)/notaryserver
 {{- end }}
 {{- else if eq .Values.storage.flavor "postgres" -}}
 {{- if .Values.storage.remote.enabled -}}
-server@{{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }}/notaryserver?sslmode=verify-ca&sslrootcert=/tls/database-ca.pem&sslcert=/tls/notary-server.pem&sslkey=/tls/notary-server-key.pem"
+{{ .Values.server.storageCredentials.user }}@{{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }}/notaryserver
 {{- else -}}
-server@notary-db:5432/notaryserver?sslmode=verify-ca&sslrootcert=/tls/database-ca.pem&sslcert=/tls/notary-server.pem&sslkey=/tls/notary-server-key.pem"
+{{ .Values.server.storageCredentials.user }}:%% .Env.PASSWORD %%@notary-db:5432/notaryserver?sslmode=disable
 {{- end -}}
 {{- end -}}
 {{- end -}}
@@ -34,15 +34,15 @@ server@notary-db:5432/notaryserver?sslmode=verify-ca&sslrootcert=/tls/database-c
 {{- define "notary.signerdburl" -}}
 {{- if eq .Values.storage.flavor "mysql" -}}
 {{- if .Values.storage.remote.enabled -}}
-root@tcp({{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }})/notarysigner
+{{ .Values.signer.storageCredentials.user }}@tcp({{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }})/notarysigner
 {{- else -}}
 {{ .Values.signer.storageCredentials.user }}:%% .Env.PASSWORD %%@tcp(notary-db:3306)/notarysigner
 {{- end }}
 {{- else if eq .Values.storage.flavor "postgres" -}}
 {{- if .Values.storage.remote.enabled -}}
-signer@{{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }}/notarysigner?sslmode=verify-ca&sslrootcert=/tls/database-ca.pem&sslcert=/tls/notary-signer.pem&sslkey=/tls/notary-signer-key.pem"
+{{ .Values.signer.storageCredentials.user }}@{{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }}/notarysigner
 {{- else -}}
-signer@notary-db:5432/notarysigner?sslmode=verify-ca&sslrootcert=/tls/database-ca.pem&sslcert=/tls/notary-signer.pem&sslkey=/tls/notary-signer-key.pem"
+{{ .Values.signer.storageCredentials.user }}:%% .Env.PASSWORD %%@notary-db:5432/notarysigner?sslmode=disable
 {{- end -}}
 {{- end -}}
 {{- end -}}

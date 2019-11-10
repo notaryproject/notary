@@ -64,7 +64,7 @@ spec:
         - mysqld
         - --innodb_file_per_table
         env:
-        - name: MYSQL_ALLOW_EMPTY_PASSWORD
+        - name: MYSQL_RANDOM_ROOT_PASSWORD
           value: "yes"
         image: {{ .Values.storage.kubernetes.image }}
         name: mysql
@@ -78,12 +78,6 @@ spec:
       - env:
         - name: PGDATA
           value: /var/lib/postgresql/data/pgdata
-        - name: POSTGRES_PASSWORD
-          value: postgres
-        - name: POSTGRES_USER
-          value: postgres
-        - name: POSTGRES_DB
-          value: postgres
         image: {{ .Values.storage.kubernetes.image }}
         name: postgres
         ports:

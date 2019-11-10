@@ -24,7 +24,7 @@ spec:
         - --right-delim
         - '%%'
         - --in
-        - "{{ .Values.server.storageCredentials.user }}:%% .Env.PASSWORD %%@tcp(notary-db:3306)/notaryserver"
+        - "{{ .Values.server.storageCredentials.user }}:%% .Env.PASSWORD %%@notary-db:5432/notaryserver?sslmode=disable"
         - --out
         - /migrate-configuration/db-url
         image: hairyhenderson/gomplate:v3
@@ -98,7 +98,7 @@ spec:
         - --right-delim
         - '%%'
         - --in
-        - "{{ .Values.signer.storageCredentials.user }}:%% .Env.PASSWORD %%@tcp(notary-db:3306)/notarysigner"
+        - "{{ .Values.signer.storageCredentials.user }}:%% .Env.PASSWORD %%@notary-db:5432/notarysigner?sslmode=disable"
         - --out
         - /migrate-configuration/db-url
         image: hairyhenderson/gomplate:v3
