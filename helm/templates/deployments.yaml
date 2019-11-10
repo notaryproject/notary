@@ -35,11 +35,13 @@ spec:
             secretKeyRef:
               name: server-password
               key: password
+              optional: false
           {{- else }}
           valueFrom:
             secretKeyRef:
               name: {{ .Values.server.storageCredentials.passwordSecretName }}
               key: {{ .Values.server.storageCredentials.passwordSecretKey }}
+              optional: false
           {{- end }}
         - name: SIGNERPASSWORD
           {{- if .Values.signer.storageCredentials.password }}
@@ -47,11 +49,13 @@ spec:
             secretKeyRef:
               name: signer-password
               key: password
+              optional: false
           {{- else }}
           valueFrom:
             secretKeyRef:
               name: {{ .Values.signer.storageCredentials.passwordSecretName }}
               key: {{ .Values.signer.storageCredentials.passwordSecretKey }}
+              optional: false
           {{- end }}
         volumeMounts:
         - mountPath: /docker-entrypoint-initdb.d
@@ -188,11 +192,13 @@ spec:
             secretKeyRef:
               name: server-password
               key: password
+              optional: false
           {{- else }}
           valueFrom:
             secretKeyRef:
               name: {{ .Values.server.storageCredentials.passwordSecretName }}
               key: {{ .Values.server.storageCredentials.passwordSecretKey }}
+              optional: false
           {{- end }}
         volumeMounts:
         - mountPath: /config
@@ -310,11 +316,13 @@ spec:
             secretKeyRef:
               name: signer-password
               key: password
+              optional: false
           {{- else }}
           valueFrom:
             secretKeyRef:
               name: {{ .Values.signer.storageCredentials.passwordSecretName }}
               key: {{ .Values.signer.storageCredentials.passwordSecretKey }}
+              optional: false
           {{- end }}
         volumeMounts:
         - mountPath: /config
@@ -334,11 +342,13 @@ spec:
             secretKeyRef:
               name: signer-alias
               key: alias-secret
+              optional: false
           {{- else }}
           valueFrom:
             secretKeyRef:
               name: {{ .Values.signer.alias.aliasSecretName }}
               key: {{ .Values.signer.alias.aliasSecretKey }}
+              optional: false
           {{- end }}
         ports:
         - containerPort: {{ .Values.signer.port }}

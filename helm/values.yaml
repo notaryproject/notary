@@ -87,7 +87,7 @@ server:
     password: null
 
     # If 'password' is null, then a secret name and key to discover the database credentials must be provided
-    passwordSecretName: server-password
+    passwordSecretName: server-db-password
     passwordSecretKey: password
 
 signer:
@@ -114,8 +114,8 @@ signer:
 
     # The name and key of the secret used to set the 'NOTARY_SIGNER_<DEFAULT_ALIAS>' environment variable to.
     # This should be a pre-existing Kubernetes secret provided by you, this chart won't create it.
-    aliasSecretName: example-signer-alias
-    aliasSecretKey: example-secret-key
+    aliasSecretName: signer-alias
+    aliasSecretKey: passphrase
 
   # The credentials configuration for server storage
   storageCredentials:
@@ -123,7 +123,7 @@ signer:
     password: null
 
     # If 'password' is null, then a secret name and key to discover the database credentials must be provided
-    passwordSecretName: signer-password
+    passwordSecretName: signer-db-password
     passwordSecretKey: password
 
 logging:
