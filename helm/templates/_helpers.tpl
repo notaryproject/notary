@@ -20,7 +20,7 @@
 {{- if .Values.storage.remote.enabled -}}
 root@tcp({{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }})/notaryserver
 {{- else -}}
-root@tcp(notary-db:3306)/notaryserver
+{{ .Values.server.storageCredentials.user }}:%% .Env.PASSWORD %%@tcp(notary-db:3306)/notaryserver
 {{- end }}
 {{- else if eq .Values.storage.flavor "postgres" -}}
 {{- if .Values.storage.remote.enabled -}}
@@ -36,7 +36,7 @@ server@notary-db:5432/notaryserver?sslmode=verify-ca&sslrootcert=/tls/database-c
 {{- if .Values.storage.remote.enabled -}}
 root@tcp({{ .Values.storage.remote.host }}:{{ .Values.storage.remote.port }})/notarysigner
 {{- else -}}
-root@tcp(notary-db:3306)/notarysigner
+{{ .Values.signer.storageCredentials.user }}:%% .Env.PASSWORD %%@tcp(notary-db:3306)/notarysigner
 {{- end }}
 {{- else if eq .Values.storage.flavor "postgres" -}}
 {{- if .Values.storage.remote.enabled -}}

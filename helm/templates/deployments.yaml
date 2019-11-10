@@ -125,6 +125,37 @@ spec:
         app.kubernetes.io/name: notary
         app.kubernetes.io/component: notaryserver
     spec:
+      initContainers:
+      - command:
+        - /gomplate
+        - --left-delim
+        - '%%'
+        - --right-delim
+        - '%%'
+        - --input-dir
+        - /config-template
+        - --output-dir
+        - /config
+        image: hairyhenderson/gomplate:v3
+        name: gomplate
+        env:
+        - name: PASSWORD
+          {{- if .Values.server.storageCredentials.password }}
+          valueFrom:
+            secretKeyRef:
+              name: server-password
+              key: password
+          {{- else }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.server.storageCredentials.passwordSecretName }}
+              key: {{ .Values.server.storageCredentials.passwordSecretKey }}
+          {{- end }}
+        volumeMounts:
+        - mountPath: /config
+          name: config-rendered
+        - mountPath: /config-template
+          name: config-template
       containers:
       - command:
         - notary-server
@@ -136,7 +167,7 @@ spec:
           name: https
         volumeMounts:
         - mountPath: /config
-          name: config
+          name: config-rendered
         - mountPath: /tls
           name: tls
       volumes:
@@ -147,10 +178,12 @@ spec:
       {{- end }}
       - configMap:
           name: notary-config
-        name: config
+        name: config-template
       - secret:
           secretName: notary-tls
         name: tls
+      - emptyDir: {}
+        name: config-rendered
 
 {{- if eq .Values.server.trust.type "remote" }}
 
@@ -170,6 +203,37 @@ spec:
         app.kubernetes.io/name: notary
         app.kubernetes.io/component: notarysigner
     spec:
+      initContainers:
+      - command:
+        - /gomplate
+        - --left-delim
+        - '%%'
+        - --right-delim
+        - '%%'
+        - --input-dir
+        - /config-template
+        - --output-dir
+        - /config
+        image: hairyhenderson/gomplate:v3
+        name: gomplate
+        env:
+        - name: PASSWORD
+          {{- if .Values.signer.storageCredentials.password }}
+          valueFrom:
+            secretKeyRef:
+              name: signer-password
+              key: password
+          {{- else }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.signer.storageCredentials.passwordSecretName }}
+              key: {{ .Values.signer.storageCredentials.passwordSecretKey }}
+          {{- end }}
+        volumeMounts:
+        - mountPath: /config
+          name: config-rendered
+        - mountPath: /config-template
+          name: config-template
       containers:
       - command:
         - notary-signer
@@ -194,7 +258,7 @@ spec:
           name: https
         volumeMounts:
         - mountPath: /config
-          name: config
+          name: config-rendered
         - mountPath: /tls
           name: tls
       volumes:
@@ -205,9 +269,11 @@ spec:
       {{- end }}
       - configMap:
           name: notary-config
-        name: config
+        name: config-template
       - secret:
           secretName: notary-tls
         name: tls
+      - emptyDir: {}
+        name: config-rendered
 
 {{- end }}
