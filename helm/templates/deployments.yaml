@@ -171,11 +171,6 @@ spec:
         - mountPath: /tls
           name: tls
       volumes:
-      {{- if (and (not .Values.storage.remote.enabled) (not (eq .Values.storage.flavor "memory"))) }}
-      - configMap:
-          name: notary-migrations-server
-        name: migrations-server
-      {{- end }}
       - configMap:
           name: notary-config
         name: config-template
@@ -262,11 +257,6 @@ spec:
         - mountPath: /tls
           name: tls
       volumes:
-      {{- if (and (not .Values.storage.remote.enabled) (not (eq .Values.storage.flavor "memory"))) }}
-      - configMap:
-          name: notary-migrations-signer
-        name: migrations-signer
-      {{- end }}
       - configMap:
           name: notary-config
         name: config-template
