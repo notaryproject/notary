@@ -113,6 +113,10 @@ metadata:
     app.kubernetes.io/component: notaryserver
   name: notary-server
 spec:
+  replicas: {{ .Values.signer.replicas }}
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
   template:
     metadata:
       labels:
@@ -186,6 +190,10 @@ metadata:
     app.kubernetes.io/component: notarysigner
   name: notary-signer
 spec:
+  replicas: {{ .Values.signer.replicas }}
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
   template:
     metadata:
       labels:

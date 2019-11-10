@@ -56,6 +56,10 @@ storage:
   storageClass: null
 
 server:
+
+  # The number of server replicas to create
+  replicas: 3
+
   # The version of the image to use for the server component.
   version: server-0.6.1-2
 
@@ -87,6 +91,10 @@ server:
     passwordSecretKey: password
 
 signer:
+
+  # The number of signer replicas to create
+  replicas: 3
+
   # The version of the image to use for the signer component.
   version: signer-0.6.1-2
 
