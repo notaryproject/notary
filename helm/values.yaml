@@ -80,9 +80,12 @@ server:
     hostname: notarysigner
     port: 7899
 
+  # The credentials configuration for server storage
   storageCredentials:
     user: server
     password: null
+
+    # If 'password' is null, then a secret name and key to discover the database credentials must be provided
     passwordSecretName: server-password
     passwordSecretKey: password
 
@@ -109,9 +112,12 @@ signer:
     aliasSecretName: example-signer-alias
     aliasSecretKey: example-secret-key
 
+  # The credentials configuration for server storage
   storageCredentials:
     user: signer
     password: null
+
+    # If 'password' is null, then a secret name and key to discover the database credentials must be provided
     passwordSecretName: signer-password
     passwordSecretKey: password
 
