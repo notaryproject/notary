@@ -110,7 +110,7 @@ kind: Deployment
 metadata:
   labels:
     app.kubernetes.io/name: notary
-    app.kubernetes.io/component: notaryserver
+    app.kubernetes.io/component: notary-server
   name: notary-server
 spec:
   replicas: {{ .Values.signer.replicas }}
@@ -121,8 +121,35 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: notary
-        app.kubernetes.io/component: notaryserver
+        app.kubernetes.io/component: notary-server
     spec:
+      {{- if .Values.affinity.enabled }}
+      affinity:
+        {{- if eq .Values.affinity.mode "pod-anti" }}
+        podAntiAffinity:
+          {{- if .Values.affinity.required }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: {{ .Values.affinity.topologyKey }}
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                  - notary-server
+          {{- else }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              topologyKey: {{ .Values.affinity.topologyKey }}
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                  - notary-server
+          {{- end }}
+        {{- end }}
+      {{- end }}
       initContainers:
       - command:
         - /gomplate
@@ -187,7 +214,7 @@ kind: Deployment
 metadata:
   labels:
     app.kubernetes.io/name: notary
-    app.kubernetes.io/component: notarysigner
+    app.kubernetes.io/component: notary-signer
   name: notary-signer
 spec:
   replicas: {{ .Values.signer.replicas }}
@@ -198,8 +225,35 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: notary
-        app.kubernetes.io/component: notarysigner
+        app.kubernetes.io/component: notary-signer
     spec:
+      {{- if .Values.affinity.enabled }}
+      affinity:
+        {{- if eq .Values.affinity.mode "pod-anti" }}
+        podAntiAffinity:
+          {{- if .Values.affinity.required }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: {{ .Values.affinity.topologyKey }}
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                  - notary-signer
+          {{- else }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              topologyKey: {{ .Values.affinity.topologyKey }}
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                  - notary-signer
+          {{- end }}
+        {{- end }}
+      {{- end }}
       initContainers:
       - command:
         - /gomplate

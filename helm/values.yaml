@@ -232,3 +232,9 @@ caching:
   # These correspond to the options documented here (https://github.com/theupdateframework/notary/blob/master/docs/reference/server-config.md#caching-section-optional)
   currentMetadata: 300
   consistentMetadata: 31536000
+
+affinity:
+  enabled: true
+  mode: pod-anti
+  required: false
+  topologyKey: kubernetes.io/hostname

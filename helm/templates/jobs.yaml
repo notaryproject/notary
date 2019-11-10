@@ -5,7 +5,7 @@ metadata:
   name: notary-server-migrate
   labels:
     app.kubernetes.io/name: notary
-    app.kubernetes.io/component: notaryserver-migrate
+    app.kubernetes.io/component: notary-server-migrate
 spec:
   completions: 1
   parallelism: 1
@@ -14,7 +14,7 @@ spec:
     metadata:
         labels:
           app.kubernetes.io/name: notary
-          app.kubernetes.io/component: notaryserver-migrate
+          app.kubernetes.io/component: notary-server-migrate
     spec:
       initContainers:
       - command:
@@ -79,7 +79,7 @@ metadata:
   name: notary-signer-migrate
   labels:
     app.kubernetes.io/name: notary
-    app.kubernetes.io/component: notarysigner-migrate
+    app.kubernetes.io/component: notary-signer-migrate
 spec:
   completions: 1
   parallelism: 1
@@ -88,7 +88,7 @@ spec:
     metadata:
         labels:
           app.kubernetes.io/name: notary
-          app.kubernetes.io/component: notarysigner-migrate
+          app.kubernetes.io/component: notary-signer-migrate
     spec:
       initContainers:
       - command:

@@ -11,7 +11,7 @@ spec:
     targetPort: {{ .Values.signer.port }}
   selector:
     app.kubernetes.io/name: notary
-    app.kubernetes.io/component: notarysigner
+    app.kubernetes.io/component: notary-signer
 
 ---
 
@@ -28,7 +28,7 @@ spec:
     targetPort: {{ .Values.server.port }}
   selector:
     app.kubernetes.io/name: notary
-    app.kubernetes.io/component: notaryserver
+    app.kubernetes.io/component: notary-server
   {{- if .Values.loadBalancer.enabled }}
   type: LoadBalancer
   {{- if .Values.loadBalancer.loadBalancerIP }}
