@@ -497,7 +497,7 @@ func (t *tufCommander) tufInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// if key is not defined but cert is, then clear the key to to allow key to be searched in keystore
+	// if key is not defined but cert is, then clear the key to allow key to be searched in keystore
 	if t.rootKey == "" && t.rootCert != "" {
 		rootKeyIDs = []string{}
 	}
