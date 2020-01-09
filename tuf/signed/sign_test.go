@@ -69,7 +69,7 @@ func (mts *FailingCryptoService) RemoveKey(keyID string) error {
 	return nil
 }
 
-// A CryptoService which only only allows using one key
+// A CryptoService which only allows using one key
 type MockCryptoService struct {
 	testKey data.PrivateKey
 }
