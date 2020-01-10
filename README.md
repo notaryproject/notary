@@ -93,7 +93,6 @@ URL is specified already in the configuration, file you copied.
 You can also leave off the `-d ~/.docker/trust` argument if you do not care
 to use `notary` with Docker images.
 
-
 ## Building Notary
 
 Note that Notary's [latest stable release](https://github.com/theupdateframework/notary/releases) is at the head of the
@@ -102,11 +101,12 @@ branch and contains features for the next release.
 
 Prerequisites:
 
-- Go >= 1.7.1
+* Go >= 1.12
 
 Set [```GOPATH```](https://golang.org/doc/code.html#GOPATH). Then, run:
 
 ```bash
+$ export GO111MODULE=on
 $ go get github.com/theupdateframework/notary
 # build with pkcs11 support by default to support yubikey
 $ go install -tags pkcs11 github.com/theupdateframework/notary/cmd/notary
@@ -115,6 +115,6 @@ $ notary
 
 To build the server and signer, run `docker-compose build`.
 
-
 ## License
+
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Ftheupdateframework%2Fnotary.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Ftheupdateframework%2Fnotary?ref=badge_large)
