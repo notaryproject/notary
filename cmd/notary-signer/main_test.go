@@ -136,7 +136,7 @@ func TestSetupCryptoServicesRethinkDBStoreConnectionFails(t *testing.T) {
 			notary.RethinkDBBackend)),
 		[]string{notary.RethinkDBBackend}, false)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "no such host")
+	require.Contains(t, err.Error(), "No address associated with hostname")
 }
 
 // If a default alias *is* provided to a valid DB backend, a valid
