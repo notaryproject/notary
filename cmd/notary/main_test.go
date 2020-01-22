@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	"github.com/theupdateframework/notary"
 	"github.com/theupdateframework/notary/passphrase"
@@ -30,7 +29,7 @@ func TestNotaryConfigFileDefault(t *testing.T) {
 
 	_, err := commander.parseConfig()
 	require.NoError(t, err)
-	configFileUsed := viper.ConfigFileUsed()
+	configFileUsed := commander.getConfigFile(filepath.Join(os.Getenv(homeEnv), filepath.Dir(configDir)))
 	require.True(t, strings.HasSuffix(configFileUsed,
 		filepath.Join(".notary", "config.json")), "Unknown config file: %s", configFileUsed)
 }

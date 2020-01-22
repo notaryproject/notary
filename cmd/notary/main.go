@@ -82,6 +82,15 @@ func unmarshalNotaryConfig(config *viper.Viper) (*client.NotaryConfig, error) {
 	return &notaryCfg, nil
 }
 
+func (n *notaryCommander) getConfigFile(defaultTrustDir string) string {
+	// If there was a commandline configFile set, we parse that.
+	// If there wasn't we attempt to find it on the default location ~/.notary/config.json
+	if n.configFile != "" {
+		return n.configFile
+	}
+	return filepath.Join(defaultTrustDir, "config.json")
+}
+
 func (n *notaryCommander) parseConfig() (*client.NotaryConfig, error) {
 	n.setVerbosityLevel()
 
@@ -97,18 +106,11 @@ func (n *notaryCommander) parseConfig() (*client.NotaryConfig, error) {
 
 	// By default our trust directory (where keys are stored) is in ~/.notary/
 	defaultTrustDir := filepath.Join(homeDir, filepath.Dir(configDir))
-
-	// If there was a commandline configFile set, we parse that.
-	// If there wasn't we attempt to find it on the default location ~/.notary/config.json
-	if n.configFile != "" {
-		viper.SetConfigFile(n.configFile)
-	} else {
-		viper.SetConfigFile(filepath.Join(defaultTrustDir, "config.json"))
-	}
+	viper.SetConfigFile(n.getConfigFile(defaultTrustDir))
 
 	// Setup the configuration details into viper
 	viper.SetDefault("trust_dir", defaultTrustDir)
-	viper.SetDefault("remote_server", client.RemoteServerConfig{URL: defaultServerURL})
+	viper.SetDefault("remote_server.url", defaultServerURL)
 
 	// Find and read the config file
 	if err := viper.ReadInConfig(); err != nil {
