@@ -254,7 +254,7 @@ func TestRotateKeyInvalidRoles(t *testing.T) {
 	for _, role := range invalids {
 		for _, serverManaged := range []bool{true, false} {
 			k := &keyCommander{
-				configGetter:           func() (*viper.Viper, error) { return viper.New(), nil },
+				configGetter:           func() (*client.NotaryConfig, error) { return &client.NotaryConfig{}, nil },
 				getRetriever:           func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
 				rotateKeyRole:          role,
 				rotateKeyServerManaged: serverManaged,
@@ -275,7 +275,7 @@ func TestRotateKeyInvalidRoles(t *testing.T) {
 func TestRotateKeyTargetCannotBeServerManaged(t *testing.T) {
 	setUp(t)
 	k := &keyCommander{
-		configGetter:           func() (*viper.Viper, error) { return viper.New(), nil },
+		configGetter:           func() (*client.NotaryConfig, error) { return &client.NotaryConfig{}, nil },
 		getRetriever:           func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
 		rotateKeyRole:          data.CanonicalTargetsRole.String(),
 		rotateKeyServerManaged: true,
@@ -289,7 +289,7 @@ func TestRotateKeyTargetCannotBeServerManaged(t *testing.T) {
 func TestRotateKeyTimestampCannotBeLocallyManaged(t *testing.T) {
 	setUp(t)
 	k := &keyCommander{
-		configGetter:           func() (*viper.Viper, error) { return viper.New(), nil },
+		configGetter:           func() (*client.NotaryConfig, error) { return &client.NotaryConfig{}, nil },
 		getRetriever:           func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
 		rotateKeyRole:          data.CanonicalTimestampRole.String(),
 		rotateKeyServerManaged: false,
@@ -303,7 +303,7 @@ func TestRotateKeyTimestampCannotBeLocallyManaged(t *testing.T) {
 func TestRotateKeyNoGUN(t *testing.T) {
 	setUp(t)
 	k := &keyCommander{
-		configGetter:  func() (*viper.Viper, error) { return viper.New(), nil },
+		configGetter:  func() (*client.NotaryConfig, error) { return &client.NotaryConfig{}, nil },
 		getRetriever:  func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
 		rotateKeyRole: data.CanonicalTargetsRole.String(),
 	}
@@ -365,11 +365,11 @@ func TestRotateKeyRemoteServerManagesKey(t *testing.T) {
 		require.Len(t, initialKeys, 3)
 
 		k := &keyCommander{
-			configGetter: func() (*viper.Viper, error) {
+			configGetter: func() (*client.NotaryConfig, error) {
 				v := viper.New()
 				v.SetDefault("trust_dir", tempBaseDir)
 				v.SetDefault("remote_server.url", ts.URL)
-				return v, nil
+				return unmarshalNotaryConfig(v)
 			},
 			getRetriever:           func() notary.PassRetriever { return ret },
 			rotateKeyServerManaged: true,
@@ -419,11 +419,11 @@ func TestRotateKeyBothKeys(t *testing.T) {
 	defer ts.Close()
 
 	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) {
+		configGetter: func() (*client.NotaryConfig, error) {
 			v := viper.New()
 			v.SetDefault("trust_dir", tempBaseDir)
 			v.SetDefault("remote_server.url", ts.URL)
-			return v, nil
+			return unmarshalNotaryConfig(v)
 		},
 		getRetriever: func() notary.PassRetriever { return ret },
 	}
@@ -478,11 +478,11 @@ func TestRotateKeyRootIsInteractive(t *testing.T) {
 	defer ts.Close()
 
 	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) {
+		configGetter: func() (*client.NotaryConfig, error) {
 			v := viper.New()
 			v.SetDefault("trust_dir", tempBaseDir)
 			v.SetDefault("remote_server.url", ts.URL)
-			return v, nil
+			return unmarshalNotaryConfig(v)
 		},
 		getRetriever: func() notary.PassRetriever { return ret },
 		input:        bytes.NewBuffer([]byte("\n")),
@@ -506,7 +506,7 @@ func TestRotateKeyRootIsInteractive(t *testing.T) {
 func TestChangeKeyPassphraseInvalidID(t *testing.T) {
 	setUp(t)
 	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) { return viper.New(), nil },
+		configGetter: func() (*client.NotaryConfig, error) { return &client.NotaryConfig{}, nil },
 		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
 	}
 	err := k.keyPassphraseChange(&cobra.Command{}, []string{"too_short"})
@@ -517,7 +517,7 @@ func TestChangeKeyPassphraseInvalidID(t *testing.T) {
 func TestChangeKeyPassphraseInvalidNumArgs(t *testing.T) {
 	setUp(t)
 	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) { return viper.New(), nil },
+		configGetter: func() (*client.NotaryConfig, error) { return &client.NotaryConfig{}, nil },
 		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
 	}
 	err := k.keyPassphraseChange(&cobra.Command{}, []string{})
@@ -528,7 +528,7 @@ func TestChangeKeyPassphraseInvalidNumArgs(t *testing.T) {
 func TestChangeKeyPassphraseNonexistentID(t *testing.T) {
 	setUp(t)
 	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) { return viper.New(), nil },
+		configGetter: func() (*client.NotaryConfig, error) { return &client.NotaryConfig{}, nil },
 		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
 	}
 	// Valid ID size, but does not exist as a key ID
@@ -546,10 +546,10 @@ func TestExportKeys(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(output.Name())
 	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) {
+		configGetter: func() (*client.NotaryConfig, error) {
 			v := viper.New()
 			v.SetDefault("trust_dir", tempBaseDir)
-			return v, nil
+			return unmarshalNotaryConfig(v)
 		},
 	}
 	k.outFile = output.Name()
@@ -620,10 +620,10 @@ func TestExportKeysByGUN(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(output.Name())
 	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) {
+		configGetter: func() (*client.NotaryConfig, error) {
 			v := viper.New()
 			v.SetDefault("trust_dir", tempBaseDir)
-			return v, nil
+			return unmarshalNotaryConfig(v)
 		},
 	}
 	k.outFile = output.Name()
@@ -712,10 +712,10 @@ func TestExportKeysByID(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(output.Name())
 	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) {
+		configGetter: func() (*client.NotaryConfig, error) {
 			v := viper.New()
 			v.SetDefault("trust_dir", tempBaseDir)
-			return v, nil
+			return unmarshalNotaryConfig(v)
 		},
 	}
 	k.outFile = output.Name()
@@ -773,10 +773,10 @@ func TestExportKeysBadFlagCombo(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(output.Name())
 	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) {
+		configGetter: func() (*client.NotaryConfig, error) {
 			v := viper.New()
 			v.SetDefault("trust_dir", tempBaseDir)
-			return v, nil
+			return unmarshalNotaryConfig(v)
 		},
 	}
 	k.outFile = output.Name()
@@ -797,10 +797,10 @@ func TestImportKeysNonexistentFile(t *testing.T) {
 	require.NoError(t, err)
 	k := &keyCommander{
 		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
-		configGetter: func() (*viper.Viper, error) {
+		configGetter: func() (*client.NotaryConfig, error) {
 			v := viper.New()
 			v.SetDefault("trust_dir", tempBaseDir)
-			return v, nil
+			return unmarshalNotaryConfig(v)
 		},
 	}
 

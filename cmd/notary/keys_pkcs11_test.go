@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/client"
 	"github.com/theupdateframework/notary/cryptoservice"
 	"github.com/theupdateframework/notary/passphrase"
 	store "github.com/theupdateframework/notary/storage"
@@ -33,10 +34,10 @@ func TestImportWithYubikey(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(input.Name())
 	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) {
+		configGetter: func() (*client.NotaryConfig, error) {
 			v := viper.New()
 			v.SetDefault("trust_dir", tempBaseDir)
-			return v, nil
+			return unmarshalNotaryConfig(v)
 		},
 		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
 	}

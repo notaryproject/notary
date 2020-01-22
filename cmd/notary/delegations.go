@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"github.com/theupdateframework/notary"
 	notaryclient "github.com/theupdateframework/notary/client"
 	"github.com/theupdateframework/notary/tuf/data"
@@ -46,7 +45,7 @@ var cmdDelegationAddTemplate = usageTemplate{
 
 type delegationCommander struct {
 	// these need to be set
-	configGetter func() (*viper.Viper, error)
+	configGetter func() (*notaryclient.NotaryConfig, error)
 	retriever    notary.PassRetriever
 
 	paths                         []string
@@ -104,7 +103,7 @@ func (d *delegationCommander) delegationPurgeKeys(cmd *cobra.Command, args []str
 	}
 
 	nRepo, err := notaryclient.NewFileCachedRepository(
-		config.GetString("trust_dir"),
+		config.TrustDir,
 		gun,
 		getRemoteTrustServer(config),
 		nil,
@@ -154,7 +153,7 @@ func (d *delegationCommander) delegationsList(cmd *cobra.Command, args []string)
 
 	// initialize repo with transport to get latest state of the world before listing delegations
 	nRepo, err := notaryclient.NewFileCachedRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, d.retriever, trustPin)
+		config.TrustDir, gun, getRemoteTrustServer(config), rt, d.retriever, trustPin)
 	if err != nil {
 		return err
 	}
@@ -185,7 +184,7 @@ func (d *delegationCommander) delegationRemove(cmd *cobra.Command, args []string
 	// no online operations are performed by add so the transport argument
 	// should be nil
 	nRepo, err := notaryclient.NewFileCachedRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, d.retriever, trustPin)
+		config.TrustDir, gun, getRemoteTrustServer(config), nil, d.retriever, trustPin)
 	if err != nil {
 		return err
 	}
@@ -226,7 +225,7 @@ func (d *delegationCommander) delegationRemove(cmd *cobra.Command, args []string
 }
 
 func delegationAddInput(d *delegationCommander, cmd *cobra.Command, args []string) (
-	config *viper.Viper, gun data.GUN, role data.RoleName, keyIDs []string, error error) {
+	config *notaryclient.NotaryConfig, gun data.GUN, role data.RoleName, keyIDs []string, error error) {
 	if len(args) < 2 {
 		cmd.Usage()
 		return nil, "", "", nil, fmt.Errorf("must specify the Global Unique Name and the role of the delegation along with optional keyIDs and/or a list of paths to remove")
@@ -315,7 +314,7 @@ func (d *delegationCommander) delegationAdd(cmd *cobra.Command, args []string) e
 	// no online operations are performed by add so the transport argument
 	// should be nil
 	nRepo, err := notaryclient.NewFileCachedRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), nil, d.retriever, trustPin)
+		config.TrustDir, gun, getRemoteTrustServer(config), nil, d.retriever, trustPin)
 	if err != nil {
 		return err
 	}

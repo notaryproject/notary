@@ -12,8 +12,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/client"
 	"github.com/theupdateframework/notary/passphrase"
 	"github.com/theupdateframework/notary/tuf/data"
+	"github.com/theupdateframework/notary/utils"
 	"github.com/theupdateframework/notary/version"
 )
 
@@ -72,7 +74,15 @@ type notaryCommander struct {
 	tlsKeyFile  string
 }
 
-func (n *notaryCommander) parseConfig() (*viper.Viper, error) {
+func unmarshalNotaryConfig(config *viper.Viper) (*client.NotaryConfig, error) {
+	var notaryCfg client.NotaryConfig
+	if err := config.Unmarshal(&notaryCfg); err != nil {
+		return nil, err
+	}
+	return &notaryCfg, nil
+}
+
+func (n *notaryCommander) parseConfig() (*client.NotaryConfig, error) {
 	n.setVerbosityLevel()
 
 	// Get home directory for current user
@@ -83,7 +93,7 @@ func (n *notaryCommander) parseConfig() (*viper.Viper, error) {
 		logrus.Warnf("notary will use %s to store configuration and keys", filepath.Join(pwd, configDir))
 	}
 
-	config := viper.New()
+	viper := viper.New()
 
 	// By default our trust directory (where keys are stored) is in ~/.notary/
 	defaultTrustDir := filepath.Join(homeDir, filepath.Dir(configDir))
@@ -91,17 +101,17 @@ func (n *notaryCommander) parseConfig() (*viper.Viper, error) {
 	// If there was a commandline configFile set, we parse that.
 	// If there wasn't we attempt to find it on the default location ~/.notary/config.json
 	if n.configFile != "" {
-		config.SetConfigFile(n.configFile)
+		viper.SetConfigFile(n.configFile)
 	} else {
-		config.SetConfigFile(filepath.Join(defaultTrustDir, "config.json"))
+		viper.SetConfigFile(filepath.Join(defaultTrustDir, "config.json"))
 	}
 
 	// Setup the configuration details into viper
-	config.SetDefault("trust_dir", defaultTrustDir)
-	config.SetDefault("remote_server", map[string]string{"url": defaultServerURL})
+	viper.SetDefault("trust_dir", defaultTrustDir)
+	viper.SetDefault("remote_server", client.RemoteServerConfig{URL: defaultServerURL})
 
 	// Find and read the config file
-	if err := config.ReadInConfig(); err != nil {
+	if err := viper.ReadInConfig(); err != nil {
 		logrus.Debugf("Configuration file not found, using defaults")
 
 		// If we were passed in a configFile via command linen flags, bail if it doesn't exist,
@@ -114,28 +124,35 @@ func (n *notaryCommander) parseConfig() (*viper.Viper, error) {
 	// At this point we either have the default value or the one set by the config.
 	// Either way, some command-line flags have precedence and overwrites the value
 	if n.trustDir != "" {
-		config.Set("trust_dir", pathRelativeToCwd(n.trustDir))
+		viper.Set("trust_dir", pathRelativeToCwd(n.trustDir))
 	}
 	if n.tlsCAFile != "" {
-		config.Set("remote_server.root_ca", pathRelativeToCwd(n.tlsCAFile))
+		viper.Set("remote_server.root_ca", pathRelativeToCwd(n.tlsCAFile))
 	}
 	if n.tlsCertFile != "" {
-		config.Set("remote_server.tls_client_cert", pathRelativeToCwd(n.tlsCertFile))
+		viper.Set("remote_server.tls_client_cert", pathRelativeToCwd(n.tlsCertFile))
 	}
 	if n.tlsKeyFile != "" {
-		config.Set("remote_server.tls_client_key", pathRelativeToCwd(n.tlsKeyFile))
+		viper.Set("remote_server.tls_client_key", pathRelativeToCwd(n.tlsKeyFile))
 	}
 	if n.remoteTrustServer != "" {
-		config.Set("remote_server.url", n.remoteTrustServer)
+		viper.Set("remote_server.url", n.remoteTrustServer)
 	}
 
 	// Expands all the possible ~/ that have been given, either through -d or config
 	// Otherwise just attempt to use whatever the user gave us
-	expandedTrustDir := homeExpand(homeDir, config.GetString("trust_dir"))
-	config.Set("trust_dir", expandedTrustDir)
-	logrus.Debugf("Using the following trust directory: %s", config.GetString("trust_dir"))
+	expandedTrustDir := homeExpand(homeDir, viper.GetString("trust_dir"))
+	viper.Set("trust_dir", expandedTrustDir)
+	logrus.Debugf("Using the following trust directory: %s", viper.GetString("trust_dir"))
 
-	return config, nil
+	setPathsRelativeToConfig(
+		viper,
+		"remote_server.root_ca",
+		"remote_server.tls_client_cert",
+		"remote_server.tls_client_key",
+	)
+
+	return unmarshalNotaryConfig(viper)
 }
 
 func (n *notaryCommander) GetCommand() *cobra.Command {
@@ -205,6 +222,12 @@ func main() {
 	if err := notaryCmd.Execute(); err != nil {
 		notaryCmd.Println("")
 		fatalf(err.Error())
+	}
+}
+
+func setPathsRelativeToConfig(config *viper.Viper, keys ...string) {
+	for _, key := range keys {
+		config.Set(key, utils.GetPathRelativeToConfig(config, key))
 	}
 }
 

@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"github.com/theupdateframework/notary"
 	notaryclient "github.com/theupdateframework/notary/client"
@@ -81,7 +80,7 @@ var cmdKeyExportTemplate = usageTemplate{
 
 type keyCommander struct {
 	// these need to be set
-	configGetter func() (*viper.Viper, error)
+	configGetter func() (*notaryclient.NotaryConfig, error)
 	getRetriever func() notary.PassRetriever
 
 	// these are for command line parsing - no need to set
@@ -310,7 +309,7 @@ func (k *keyCommander) keysRotate(cmd *cobra.Command, args []string) error {
 	}
 
 	nRepo, err := notaryclient.NewFileCachedRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config),
+		config.TrustDir, gun, getRemoteTrustServer(config),
 		rt, k.getRetriever(), trustPin)
 	if err != nil {
 		return err
@@ -485,7 +484,7 @@ func (k *keyCommander) keyPassphraseChange(cmd *cobra.Command, args []string) er
 		addingKeyStore, err = getYubiStore(nil, passChangeRetriever)
 		keyInfo = trustmanager.KeyInfo{Role: data.CanonicalRootRole}
 	default:
-		addingKeyStore, err = trustmanager.NewKeyFileStore(config.GetString("trust_dir"), passChangeRetriever)
+		addingKeyStore, err = trustmanager.NewKeyFileStore(config.TrustDir, passChangeRetriever)
 		if err != nil {
 			return err
 		}
@@ -512,7 +511,7 @@ func (k *keyCommander) importKeys(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	directory := config.GetString("trust_dir")
+	directory := config.TrustDir
 	importers, err := getImporters(directory, k.getRetriever())
 	if err != nil {
 		return err
@@ -555,7 +554,7 @@ func (k *keyCommander) exportKeys(cmd *cobra.Command, args []string) error {
 		out = f
 	}
 
-	directory := config.GetString("trust_dir")
+	directory := config.TrustDir
 	fileStore, err := store.NewPrivateKeyFileStorage(directory, notary.KeyExtension)
 	if err != nil {
 		return err
@@ -582,11 +581,11 @@ func (k *keyCommander) exportKeys(cmd *cobra.Command, args []string) error {
 }
 
 func (k *keyCommander) getKeyStores(
-	config *viper.Viper, withHardware, hardwareBackup bool) ([]trustmanager.KeyStore, error) {
+	config *notaryclient.NotaryConfig, withHardware, hardwareBackup bool) ([]trustmanager.KeyStore, error) {
 
 	retriever := k.getRetriever()
 
-	directory := config.GetString("trust_dir")
+	directory := config.TrustDir
 	fileKeyStore, err := trustmanager.NewKeyFileStore(directory, retriever)
 	if err != nil {
 		return nil, fmt.Errorf(

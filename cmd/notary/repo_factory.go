@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/spf13/viper"
-
 	"net/http"
 
 	"github.com/theupdateframework/notary"
@@ -18,7 +16,7 @@ type RepoFactory func(gun data.GUN) (client.Repository, error)
 // ConfigureRepo takes in the configuration parameters and returns a repoFactory that can
 // initialize new client.Repository objects with the correct upstreams and password
 // retrieval mechanisms.
-func ConfigureRepo(v *viper.Viper, retriever notary.PassRetriever, onlineOperation bool, permission httpAccess) RepoFactory {
+func ConfigureRepo(v *client.NotaryConfig, retriever notary.PassRetriever, onlineOperation bool, permission httpAccess) RepoFactory {
 	localRepo := func(gun data.GUN) (client.Repository, error) {
 		var rt http.RoundTripper
 		trustPin, err := getTrustPinning(v)
@@ -32,7 +30,7 @@ func ConfigureRepo(v *viper.Viper, retriever notary.PassRetriever, onlineOperati
 			}
 		}
 		return client.NewFileCachedRepository(
-			v.GetString("trust_dir"),
+			v.TrustDir,
 			gun,
 			getRemoteTrustServer(v),
 			rt,

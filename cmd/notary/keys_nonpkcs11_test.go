@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	"github.com/theupdateframework/notary"
+	"github.com/theupdateframework/notary/client"
 	"github.com/theupdateframework/notary/cryptoservice"
 	"github.com/theupdateframework/notary/passphrase"
 	store "github.com/theupdateframework/notary/storage"
@@ -28,10 +29,10 @@ func TestImportKeysNoYubikey(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(input.Name())
 	k := &keyCommander{
-		configGetter: func() (*viper.Viper, error) {
+		configGetter: func() (*client.NotaryConfig, error) {
 			v := viper.New()
 			v.SetDefault("trust_dir", tempBaseDir)
-			return v, nil
+			return unmarshalNotaryConfig(v)
 		},
 		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
 	}
@@ -92,10 +93,10 @@ func TestExportImportKeysNoYubikey(t *testing.T) {
 	tempfile.Close()
 	defer os.RemoveAll(tempfile.Name())
 	exportCommander := &keyCommander{
-		configGetter: func() (*viper.Viper, error) {
+		configGetter: func() (*client.NotaryConfig, error) {
 			v := viper.New()
 			v.SetDefault("trust_dir", exportTempDir)
-			return v, nil
+			return unmarshalNotaryConfig(v)
 		},
 		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
 	}
@@ -126,10 +127,10 @@ func TestExportImportKeysNoYubikey(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(importTempDir)
 	importCommander := &keyCommander{
-		configGetter: func() (*viper.Viper, error) {
+		configGetter: func() (*client.NotaryConfig, error) {
 			v := viper.New()
 			v.SetDefault("trust_dir", importTempDir)
-			return v, nil
+			return unmarshalNotaryConfig(v)
 		},
 		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
 	}

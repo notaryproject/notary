@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	"github.com/theupdateframework/notary"
 	"github.com/theupdateframework/notary/passphrase"
@@ -27,9 +28,9 @@ func TestNotaryConfigFileDefault(t *testing.T) {
 		getRetriever: func() notary.PassRetriever { return passphrase.ConstantRetriever("pass") },
 	}
 
-	config, err := commander.parseConfig()
+	_, err := commander.parseConfig()
 	require.NoError(t, err)
-	configFileUsed := config.ConfigFileUsed()
+	configFileUsed := viper.ConfigFileUsed()
 	require.True(t, strings.HasSuffix(configFileUsed,
 		filepath.Join(".notary", "config.json")), "Unknown config file: %s", configFileUsed)
 }
@@ -442,7 +443,7 @@ func TestConfigFileTrustPinning(t *testing.T) {
 	// Check that tofu was set correctly
 	config, err := commander.parseConfig()
 	require.NoError(t, err)
-	require.Equal(t, false, config.GetBool("trust_pinning.disable_tofu"))
+	require.Equal(t, false, config.TrustPinning.DisableTofu)
 	trustPin, err := getTrustPinning(config)
 	require.NoError(t, err)
 	require.Equal(t, false, trustPin.DisableTOFU)
@@ -464,7 +465,7 @@ func TestConfigFileTrustPinning(t *testing.T) {
 	// Check that tofu was correctly disabled
 	config, err = commander.parseConfig()
 	require.NoError(t, err)
-	require.Equal(t, true, config.GetBool("trust_pinning.disable_tofu"))
+	require.Equal(t, true, config.TrustPinning.DisableTofu)
 	trustPin, err = getTrustPinning(config)
 	require.NoError(t, err)
 	require.Equal(t, true, trustPin.DisableTOFU)
@@ -484,7 +485,7 @@ func TestConfigFileTrustPinning(t *testing.T) {
 
 	config, err = commander.parseConfig()
 	require.NoError(t, err)
-	require.Equal(t, []interface{}{strings.Repeat("x", notary.SHA256HexSize)}, config.GetStringMap("trust_pinning.certs")["repo3"])
+	require.Equal(t, []interface{}{strings.Repeat("x", notary.SHA256HexSize)}, config.TrustPinning.Certs["repo3"])
 	trustPin, err = getTrustPinning(config)
 	require.NoError(t, err)
 	require.Equal(t, strings.Repeat("x", notary.SHA256HexSize), trustPin.Certs["repo3"][0])
@@ -523,7 +524,7 @@ func TestConfigFileTrustPinning(t *testing.T) {
 
 	config, err = commander.parseConfig()
 	require.NoError(t, err)
-	require.Equal(t, "root-ca.crt", config.GetStringMap("trust_pinning.ca")["repo4"])
+	require.Equal(t, "root-ca.crt", config.TrustPinning.CA["repo4"])
 	trustPin, err = getTrustPinning(config)
 	require.NoError(t, err)
 	require.Equal(t, "root-ca.crt", trustPin.CA["repo4"])

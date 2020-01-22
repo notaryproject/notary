@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/client"
 	"github.com/theupdateframework/notary/tuf/data"
 )
 
@@ -225,8 +226,10 @@ func TestConfigureRepo(t *testing.T) {
 	v := viper.New()
 	v.SetDefault("trust_dir", tempBaseDir)
 	v.Set("remote_server.url", s.URL)
+	config, err := unmarshalNotaryConfig(v)
+	require.NoError(t, err)
 
-	repo, err := ConfigureRepo(v, nil, true, readOnly)("yes")
+	repo, err := ConfigureRepo(config, nil, true, readOnly)("yes")
 	require.NoError(t, err)
 	//perform an arbitrary action to trigger a call to the fake auth server
 	repo.ListRoles()
@@ -244,8 +247,10 @@ func TestConfigureRepoRW(t *testing.T) {
 	v := viper.New()
 	v.SetDefault("trust_dir", tempBaseDir)
 	v.Set("remote_server.url", s.URL)
+	config, err := unmarshalNotaryConfig(v)
+	require.NoError(t, err)
 
-	repo, err := ConfigureRepo(v, nil, true, readWrite)("yes")
+	repo, err := ConfigureRepo(config, nil, true, readWrite)("yes")
 	require.NoError(t, err)
 	//perform an arbitrary action to trigger a call to the fake auth server
 	repo.ListRoles()
@@ -263,8 +268,10 @@ func TestConfigureRepoAdmin(t *testing.T) {
 	v := viper.New()
 	v.SetDefault("trust_dir", tempBaseDir)
 	v.Set("remote_server.url", s.URL)
+	config, err := unmarshalNotaryConfig(v)
+	require.NoError(t, err)
 
-	repo, err := ConfigureRepo(v, nil, true, admin)("yes")
+	repo, err := ConfigureRepo(config, nil, true, admin)("yes")
 	require.NoError(t, err)
 	//perform an arbitrary action to trigger a call to the fake auth server
 	repo.ListRoles()
@@ -276,10 +283,10 @@ func TestStatusUnstageAndReset(t *testing.T) {
 	defer os.RemoveAll(tempBaseDir)
 
 	tc := &tufCommander{
-		configGetter: func() (*viper.Viper, error) {
+		configGetter: func() (*client.NotaryConfig, error) {
 			v := viper.New()
 			v.SetDefault("trust_dir", tempBaseDir)
-			return v, nil
+			return unmarshalNotaryConfig(v)
 		},
 	}
 
@@ -344,11 +351,11 @@ func TestGetTrustPinningErrors(t *testing.T) {
 
 	tc := &tufCommander{
 		// returns a nil pointer
-		configGetter: func() (*viper.Viper, error) {
+		configGetter: func() (*client.NotaryConfig, error) {
 			v := viper.New()
 			v.SetConfigFile(filepath.Join(invalidTrustPinConfig, "config.json"))
 			v.ReadInConfig()
-			return v, nil
+			return unmarshalNotaryConfig(v)
 		},
 	}
 	require.Error(t, tc.tufStatus(&cobra.Command{}, []string{"gun"}))

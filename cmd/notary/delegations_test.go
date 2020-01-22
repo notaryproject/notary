@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary/client"
 	"github.com/theupdateframework/notary/cryptoservice"
 	testutils "github.com/theupdateframework/notary/tuf/testutils/keys"
 	"github.com/theupdateframework/notary/tuf/utils"
@@ -17,10 +18,10 @@ import (
 
 func setup(trustDir string) *delegationCommander {
 	return &delegationCommander{
-		configGetter: func() (*viper.Viper, error) {
+		configGetter: func() (*client.NotaryConfig, error) {
 			mainViper := viper.New()
 			mainViper.Set("trust_dir", trustDir)
-			return mainViper, nil
+			return unmarshalNotaryConfig(mainViper)
 		},
 		retriever: nil,
 	}

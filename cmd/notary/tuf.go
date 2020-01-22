@@ -24,7 +24,6 @@ import (
 	canonicaljson "github.com/docker/go/canonical/json"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"github.com/theupdateframework/notary"
 	notaryclient "github.com/theupdateframework/notary/client"
 	"github.com/theupdateframework/notary/cryptoservice"
@@ -33,7 +32,6 @@ import (
 	"github.com/theupdateframework/notary/trustpinning"
 	"github.com/theupdateframework/notary/tuf/data"
 	tufutils "github.com/theupdateframework/notary/tuf/utils"
-	"github.com/theupdateframework/notary/utils"
 )
 
 var cmdTUFListTemplate = usageTemplate{
@@ -110,7 +108,7 @@ var cmdTUFDeleteTemplate = usageTemplate{
 
 type tufCommander struct {
 	// these need to be set
-	configGetter func() (*viper.Viper, error)
+	configGetter func() (*notaryclient.NotaryConfig, error)
 	retriever    notary.PassRetriever
 
 	// these are for command line parsing - no need to set
@@ -396,7 +394,7 @@ func (t *tufCommander) tufDeleteGUN(cmd *cobra.Command, args []string) error {
 	cmd.Printf("Deleting trust data for repository %s\n", gun)
 
 	if err := notaryclient.DeleteTrustData(
-		config.GetString("trust_dir"),
+		config.TrustDir,
 		gun,
 		getRemoteTrustServer(config),
 		rt,
@@ -860,16 +858,11 @@ const (
 // The readOnly flag indicates if the operation should be performed as an
 // anonymous read only operation. If the command entered requires write
 // permissions on the server, readOnly must be false
-func getTransport(config *viper.Viper, gun data.GUN, permission httpAccess) (http.RoundTripper, error) {
-	// Attempt to get a root CA from the config file. Nil is the host defaults.
-	rootCAFile := utils.GetPathRelativeToConfig(config, "remote_server.root_ca")
-	clientCert := utils.GetPathRelativeToConfig(config, "remote_server.tls_client_cert")
-	clientKey := utils.GetPathRelativeToConfig(config, "remote_server.tls_client_key")
-
-	insecureSkipVerify := false
-	if config.IsSet("remote_server.skipTLSVerify") {
-		insecureSkipVerify = config.GetBool("remote_server.skipTLSVerify")
-	}
+func getTransport(config *notaryclient.NotaryConfig, gun data.GUN, permission httpAccess) (http.RoundTripper, error) {
+	rootCAFile := config.RemoteServer.RootCA
+	clientCert := config.RemoteServer.TLSClientCert
+	clientKey := config.RemoteServer.TLSClientKey
+	insecureSkipVerify := config.RemoteServer.SkipTLSVerify
 
 	if clientCert == "" && clientKey != "" || clientCert != "" && clientKey == "" {
 		return nil, fmt.Errorf("either pass both client key and cert, or neither")
@@ -977,17 +970,17 @@ func tokenAuth(trustServerURL string, baseTransport *http.Transport, gun data.GU
 		transport.NewTransport(baseTransport, auth.NewAuthorizer(challengeManager, auth.NewTokenHandler(authTransport, passwordStore{anonymous: false}, gun.String(), actions...)))), nil
 }
 
-func getRemoteTrustServer(config *viper.Viper) string {
-	if configRemote := config.GetString("remote_server.url"); configRemote != "" {
+func getRemoteTrustServer(config *notaryclient.NotaryConfig) string {
+	if configRemote := config.RemoteServer.URL; configRemote != "" {
 		return configRemote
 	}
 	return defaultServerURL
 }
 
-func getTrustPinning(config *viper.Viper) (trustpinning.TrustPinConfig, error) {
+func getTrustPinning(config *notaryclient.NotaryConfig) (trustpinning.TrustPinConfig, error) {
 	var ok bool
 	// Need to parse out Certs section from config
-	certMap := config.GetStringMap("trust_pinning.certs")
+	certMap := config.TrustPinning.Certs
 	resultCertMap := make(map[string][]string)
 	for gun, certSlice := range certMap {
 		var castedCertSlice []interface{}
@@ -1005,8 +998,8 @@ func getTrustPinning(config *viper.Viper) (trustpinning.TrustPinConfig, error) {
 		resultCertMap[gun] = certsForGun
 	}
 	return trustpinning.TrustPinConfig{
-		DisableTOFU: config.GetBool("trust_pinning.disable_tofu"),
-		CA:          config.GetStringMapString("trust_pinning.ca"),
+		DisableTOFU: config.TrustPinning.DisableTofu,
+		CA:          config.TrustPinning.CA,
 		Certs:       resultCertMap,
 	}, nil
 }
@@ -1042,7 +1035,7 @@ func (a *authRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 	return resp, nil
 }
 
-func maybeAutoPublish(cmd *cobra.Command, doPublish bool, gun data.GUN, config *viper.Viper, passRetriever notary.PassRetriever) error {
+func maybeAutoPublish(cmd *cobra.Command, doPublish bool, gun data.GUN, config *notaryclient.NotaryConfig, passRetriever notary.PassRetriever) error {
 
 	if !doPublish {
 		return nil
@@ -1060,7 +1053,7 @@ func maybeAutoPublish(cmd *cobra.Command, doPublish bool, gun data.GUN, config *
 	}
 
 	nRepo, err := notaryclient.NewFileCachedRepository(
-		config.GetString("trust_dir"), gun, getRemoteTrustServer(config), rt, passRetriever, trustPin)
+		config.TrustDir, gun, getRemoteTrustServer(config), rt, passRetriever, trustPin)
 	if err != nil {
 		return err
 	}

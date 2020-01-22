@@ -1,3 +1,16 @@
+// Copyright 2018 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package procfs
 
 import (
@@ -46,7 +59,7 @@ func NewNetDev() (NetDev, error) {
 
 // NewNetDev returns kernel/system statistics read from /proc/net/dev.
 func (fs FS) NewNetDev() (NetDev, error) {
-	return newNetDev(fs.Path("net/dev"))
+	return newNetDev(fs.proc.Path("net/dev"))
 }
 
 // NewNetDev returns kernel/system statistics read from /proc/[pid]/net/dev.
@@ -171,7 +184,7 @@ func (nd NetDev) parseLine(rawLine string) (*NetDevLine, error) {
 }
 
 // Total aggregates the values across interfaces and returns a new NetDevLine.
-// The Name field will be a sorted comma seperated list of interface names.
+// The Name field will be a sorted comma separated list of interface names.
 func (nd NetDev) Total() NetDevLine {
 	total := NetDevLine{}
 
