@@ -35,6 +35,7 @@ require (
 	github.com/lib/pq v1.2.0
 	github.com/mattn/go-sqlite3 v1.6.0
 	github.com/miekg/pkcs11 v1.0.2
+	github.com/mitchellh/mapstructure v1.1.2
 	github.com/opencontainers/go-digest v0.0.0-20170106003457-a6d0ee40d420 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/pelletier/go-toml v1.6.0 // indirect

@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -74,9 +75,14 @@ type notaryCommander struct {
 	tlsKeyFile  string
 }
 
+var jsonTagDecoder = func(config *mapstructure.DecoderConfig) {
+	config.TagName = "json"
+}
+
 func unmarshalNotaryConfig(config *viper.Viper) (*client.NotaryConfig, error) {
 	var notaryCfg client.NotaryConfig
-	if err := config.Unmarshal(&notaryCfg); err != nil {
+
+	if err := config.Unmarshal(&notaryCfg, jsonTagDecoder); err != nil {
 		return nil, err
 	}
 	return &notaryCfg, nil
