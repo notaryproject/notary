@@ -1,4 +1,4 @@
-FROM dockercore/golang-cross:1.12.14
+FROM dockercore/golang-cross:1.12.15
 
 RUN apt-get update && apt-get install -y \
 	curl \
