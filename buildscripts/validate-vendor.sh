@@ -17,15 +17,10 @@
 
 set -eu -o pipefail
 
-if [ -f vendor.conf ]; then
+go mod tidy
+if [ -d vendor ]; then
   rm -rf vendor/
-  vndr |& grep -v -i clone
-else
-  go mod tidy
-  if [ -d vendor ]; then
-    rm -rf vendor/
-    go mod vendor
-  fi
+  go mod vendor
 fi
 
 DIFF_PATH="vendor/ go.mod go.sum"
