@@ -17,6 +17,9 @@ jobs:
             docker version
             docker info
       - run:
+          name: Check vendor modules
+          command: ./buildscripts/circle-validate-vendor.sh
+      - run:
           name: "Build image"
           command: docker build --progress=plain -t notary_client .
       - run: ./buildscripts/circle_parallelism.sh
