@@ -19,6 +19,7 @@ RUN useradd -ms /bin/bash notary \
 
 ENV NOTARYDIR /go/src/github.com/theupdateframework/notary
 ENV GO111MODULE=on
+ENV GOFLAGS=-mod=vendor
 
 COPY . ${NOTARYDIR}
 RUN chmod -R a+rw /go
