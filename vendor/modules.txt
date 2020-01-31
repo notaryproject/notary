@@ -14,42 +14,42 @@ github.com/bugsnag/panicwrap
 # github.com/cenkalti/backoff v1.0.0
 github.com/cenkalti/backoff
 # github.com/cloudflare/cfssl v0.0.0-20180223231731-4e2dcbde5004
-github.com/cloudflare/cfssl/auth
-github.com/cloudflare/cfssl/certdb
 github.com/cloudflare/cfssl/config
-github.com/cloudflare/cfssl/crypto/pkcs7
 github.com/cloudflare/cfssl/csr
-github.com/cloudflare/cfssl/errors
 github.com/cloudflare/cfssl/helpers
-github.com/cloudflare/cfssl/helpers/derhelpers
-github.com/cloudflare/cfssl/info
 github.com/cloudflare/cfssl/initca
-github.com/cloudflare/cfssl/log
-github.com/cloudflare/cfssl/ocsp/config
 github.com/cloudflare/cfssl/signer
 github.com/cloudflare/cfssl/signer/local
+github.com/cloudflare/cfssl/auth
+github.com/cloudflare/cfssl/errors
+github.com/cloudflare/cfssl/log
+github.com/cloudflare/cfssl/ocsp/config
+github.com/cloudflare/cfssl/crypto/pkcs7
+github.com/cloudflare/cfssl/helpers/derhelpers
+github.com/cloudflare/cfssl/certdb
+github.com/cloudflare/cfssl/info
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
 # github.com/docker/distribution v2.7.1+incompatible
-github.com/docker/distribution
-github.com/docker/distribution/context
-github.com/docker/distribution/digestset
-github.com/docker/distribution/health
-github.com/docker/distribution/metrics
-github.com/docker/distribution/reference
-github.com/docker/distribution/registry/api/errcode
-github.com/docker/distribution/registry/api/v2
-github.com/docker/distribution/registry/auth
-github.com/docker/distribution/registry/auth/htpasswd
-github.com/docker/distribution/registry/auth/silly
-github.com/docker/distribution/registry/auth/token
-github.com/docker/distribution/registry/client
+github.com/docker/distribution/uuid
 github.com/docker/distribution/registry/client/auth
 github.com/docker/distribution/registry/client/auth/challenge
 github.com/docker/distribution/registry/client/transport
+github.com/docker/distribution/health
+github.com/docker/distribution/registry/auth/htpasswd
+github.com/docker/distribution/registry/auth/token
+github.com/docker/distribution/registry/api/errcode
+github.com/docker/distribution/registry/auth
+github.com/docker/distribution/context
+github.com/docker/distribution/registry/client
+github.com/docker/distribution/registry/auth/silly
+github.com/docker/distribution
+github.com/docker/distribution/reference
+github.com/docker/distribution/registry/api/v2
 github.com/docker/distribution/registry/storage/cache
 github.com/docker/distribution/registry/storage/cache/memory
-github.com/docker/distribution/uuid
+github.com/docker/distribution/digestset
+github.com/docker/distribution/metrics
 # github.com/docker/go v1.5.1-1.0.20160303222718-d30aec9fd63c
 github.com/docker/go/canonical/json
 # github.com/docker/go-connections v0.4.0
@@ -73,19 +73,19 @@ github.com/go-sql-driver/mysql
 github.com/gogo/protobuf/proto
 # github.com/golang/protobuf v0.0.0-20160727172617-c3cefd437628
 github.com/golang/protobuf/proto
+github.com/golang/protobuf/ptypes/empty
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
-github.com/golang/protobuf/ptypes/empty
 github.com/golang/protobuf/ptypes/timestamp
 # github.com/google/certificate-transparency-go v1.0.10-0.20180222191210-5ab67e519c93
 github.com/google/certificate-transparency-go
-github.com/google/certificate-transparency-go/asn1
-github.com/google/certificate-transparency-go/client
-github.com/google/certificate-transparency-go/client/configpb
-github.com/google/certificate-transparency-go/jsonclient
 github.com/google/certificate-transparency-go/tls
+github.com/google/certificate-transparency-go/client
+github.com/google/certificate-transparency-go/jsonclient
 github.com/google/certificate-transparency-go/x509
+github.com/google/certificate-transparency-go/asn1
+github.com/google/certificate-transparency-go/client/configpb
 github.com/google/certificate-transparency-go/x509/pkix
 # github.com/gorilla/mux v1.7.0
 github.com/gorilla/mux
@@ -119,8 +119,8 @@ github.com/mitchellh/mapstructure
 # github.com/opencontainers/go-digest v0.0.0-20170106003457-a6d0ee40d420
 github.com/opencontainers/go-digest
 # github.com/opencontainers/image-spec v1.0.1
-github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
+github.com/opencontainers/image-spec/specs-go
 # github.com/pkg/errors v0.8.1
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
@@ -132,13 +132,13 @@ github.com/prometheus/client_golang/prometheus/promhttp
 github.com/prometheus/client_model/go
 # github.com/prometheus/common v0.0.0-20180110214958-89604d197083
 github.com/prometheus/common/expfmt
-github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 github.com/prometheus/common/model
+github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 # github.com/prometheus/procfs v0.0.0-20180125133057-cb4147076ac7
 github.com/prometheus/procfs
-github.com/prometheus/procfs/internal/util
 github.com/prometheus/procfs/nfs
 github.com/prometheus/procfs/xfs
+github.com/prometheus/procfs/internal/util
 # github.com/sirupsen/logrus v1.4.1
 github.com/sirupsen/logrus
 # github.com/spf13/cast v0.0.0-20150508191742-4d07383ffe94
@@ -151,46 +151,46 @@ github.com/spf13/jwalterweatherman
 github.com/spf13/pflag
 # github.com/spf13/viper v0.0.0-20150530192845-be5ff3e4840c
 github.com/spf13/viper
-# github.com/stretchr/testify v1.2.2
-github.com/stretchr/testify/assert
+# github.com/stretchr/testify v1.4.0
 github.com/stretchr/testify/require
-# golang.org/x/crypto v0.0.0-20180411161317-d6449816ce06
-golang.org/x/crypto/bcrypt
-golang.org/x/crypto/blowfish
-golang.org/x/crypto/cryptobyte
-golang.org/x/crypto/cryptobyte/asn1
+github.com/stretchr/testify/assert
+# golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+golang.org/x/crypto/ssh/terminal
 golang.org/x/crypto/ed25519
-golang.org/x/crypto/ed25519/internal/edwards25519
-golang.org/x/crypto/ocsp
 golang.org/x/crypto/pbkdf2
+golang.org/x/crypto/bcrypt
+golang.org/x/crypto/ed25519/internal/edwards25519
+golang.org/x/crypto/blowfish
+golang.org/x/crypto/ocsp
 golang.org/x/crypto/pkcs12
 golang.org/x/crypto/pkcs12/internal/rc2
-golang.org/x/crypto/ssh/terminal
+golang.org/x/crypto/cryptobyte
+golang.org/x/crypto/cryptobyte/asn1
 # golang.org/x/net v0.0.0-20160726221601-6a513affb38d
 golang.org/x/net/context
-golang.org/x/net/context/ctxhttp
 golang.org/x/net/http2
-golang.org/x/net/http2/hpack
-golang.org/x/net/internal/timeseries
-golang.org/x/net/lex/httplex
 golang.org/x/net/trace
-# golang.org/x/sys v0.0.0-20180905080454-ebe1bf3edb33
+golang.org/x/net/http2/hpack
+golang.org/x/net/lex/httplex
+golang.org/x/net/internal/timeseries
+golang.org/x/net/context/ctxhttp
+# golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 # google.golang.org/grpc v1.0.5
 google.golang.org/grpc
-google.golang.org/grpc/codes
 google.golang.org/grpc/credentials
-google.golang.org/grpc/grpclog
 google.golang.org/grpc/health
 google.golang.org/grpc/health/grpc_health_v1
+google.golang.org/grpc/codes
+google.golang.org/grpc/grpclog
 google.golang.org/grpc/internal
 google.golang.org/grpc/metadata
 google.golang.org/grpc/naming
-google.golang.org/grpc/peer
 google.golang.org/grpc/stats
 google.golang.org/grpc/tap
 google.golang.org/grpc/transport
+google.golang.org/grpc/peer
 # gopkg.in/fatih/pool.v2 v2.0.0-20150325163252-cba550ebf9bc
 gopkg.in/fatih/pool.v2
 # gopkg.in/gorethink/gorethink.v3 v3.0.5
@@ -198,5 +198,5 @@ gopkg.in/gorethink/gorethink.v3
 gopkg.in/gorethink/gorethink.v3/encoding
 gopkg.in/gorethink/gorethink.v3/ql2
 gopkg.in/gorethink/gorethink.v3/types
-# gopkg.in/yaml.v2 v2.2.1
+# gopkg.in/yaml.v2 v2.2.2
 gopkg.in/yaml.v2
