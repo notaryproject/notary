@@ -48,10 +48,10 @@ require (
 	github.com/spf13/jwalterweatherman v0.0.0-20141219030609-3d60171a6431
 	github.com/spf13/pflag v1.0.0
 	github.com/spf13/viper v0.0.0-20150530192845-be5ff3e4840c
-	github.com/stretchr/testify v0.0.0-20150620232711-089c7181b8c7
+	github.com/stretchr/testify v1.2.2
 	golang.org/x/crypto v0.0.0-20180411161317-d6449816ce06
 	golang.org/x/net v0.0.0-20160726221601-6a513affb38d
-	golang.org/x/sys v0.0.0-20170927054621-314a259e304f
+	golang.org/x/sys v0.0.0-20180905080454-ebe1bf3edb33
 	google.golang.org/grpc v1.0.5
 	gopkg.in/fatih/pool.v2 v2.0.0-20150325163252-cba550ebf9bc
 	gopkg.in/gorethink/gorethink.v3 v3.0.5
