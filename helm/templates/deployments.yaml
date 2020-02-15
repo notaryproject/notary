@@ -117,7 +117,7 @@ metadata:
     app.kubernetes.io/component: notary-server
   name: notary-server
 spec:
-  replicas: {{ .Values.signer.replicas }}
+  replicas: {{ .Values.server.replicas }}
   strategy:
     rollingUpdate:
       maxUnavailable: 0

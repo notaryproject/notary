@@ -14,7 +14,7 @@ spec:
     http:
       paths:
       - backend:
-          serviceName: notaryserver
+          serviceName: notary-server
           servicePort: https
   {{- end }}
   {{- if .Values.ingress.tls.enabled }}
