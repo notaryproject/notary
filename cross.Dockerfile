@@ -1,4 +1,4 @@
-FROM dockercore/golang-cross:1.12.12
+FROM dockercore/golang-cross:1.12.15
 
 RUN apt-get update && apt-get install -y \
 	curl \
@@ -18,6 +18,8 @@ RUN useradd -ms /bin/bash notary \
 	&& go get golang.org/x/lint/golint github.com/fzipp/gocyclo github.com/client9/misspell/cmd/misspell github.com/gordonklaus/ineffassign github.com/securego/gosec/cmd/gosec/...
 
 ENV NOTARYDIR /go/src/github.com/theupdateframework/notary
+ENV GO111MODULE=on
+ENV GOFLAGS=-mod=vendor
 
 COPY . ${NOTARYDIR}
 RUN chmod -R a+rw /go
