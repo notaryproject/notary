@@ -47,7 +47,7 @@ func feedback(t *tufCommander, payload []byte) error {
 
 	// Flag "quiet" was not "true", that's why we get here.
 	if t.output != "" {
-		return ioutil.WriteFile(t.output, payload, 0644)
+		return ioutil.WriteFile(t.output, payload, 0600)
 	}
 
 	os.Stdout.Write(payload)
