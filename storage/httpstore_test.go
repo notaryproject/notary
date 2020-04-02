@@ -393,7 +393,7 @@ func TestNetworkError(t *testing.T) {
 		Err: errors.New("abc%3Adef%3Aghi"),
 	}
 	networkErr := NetworkError{Wrapped: err}
-	require.Equal(t, http.MethodGet+" https://auth.docker.io: abc:def:ghi", networkErr.Error())
+	require.Equal(t, http.MethodGet+" \"https://auth.docker.io\": abc:def:ghi", networkErr.Error())
 
 	// expect QueryUnescape error because the last '%' is not
 	// followed by two hexadecimal digits
@@ -403,7 +403,7 @@ func TestNetworkError(t *testing.T) {
 		Err: errors.New("abc%3Adef%GAghi"),
 	}
 	networkErr2 := NetworkError{Wrapped: err2}
-	require.Equal(t, http.MethodGet+" https://auth.docker.io: abc%3Adef%GAghi", networkErr2.Error())
+	require.Equal(t, http.MethodGet+" \"https://auth.docker.io\": abc%3Adef%GAghi", networkErr2.Error())
 
 	err3 := errors.New("CPU usage 90%3A")
 	networkErr3 := NetworkError{Wrapped: err3}
