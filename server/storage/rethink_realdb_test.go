@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/theupdateframework/notary/storage/rethinkdb"
 	"github.com/theupdateframework/notary/tuf/data"
-	"gopkg.in/gorethink/gorethink.v3"
+	gorethink "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 var tlsOpts = tlsconfig.Options{InsecureSkipVerify: true, ExclusiveRootPools: true}

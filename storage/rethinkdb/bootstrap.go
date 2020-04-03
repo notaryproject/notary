@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"gopkg.in/gorethink/gorethink.v3"
+	gorethink "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 // Wait for 60 seconds maximum on Wait() calls for rethink
