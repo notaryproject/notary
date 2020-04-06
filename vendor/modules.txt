@@ -11,8 +11,6 @@ github.com/bugsnag/bugsnag-go/errors
 github.com/bugsnag/osext
 # github.com/bugsnag/panicwrap v0.0.0-20151223152923-e2c28503fcd0
 github.com/bugsnag/panicwrap
-# github.com/cenkalti/backoff v1.0.0
-github.com/cenkalti/backoff
 # github.com/cloudflare/cfssl v0.0.0-20180223231731-4e2dcbde5004
 github.com/cloudflare/cfssl/auth
 github.com/cloudflare/cfssl/certdb
@@ -71,7 +69,7 @@ github.com/dvsekhvalnov/jose2go/padding
 github.com/go-sql-driver/mysql
 # github.com/gogo/protobuf v1.0.0
 github.com/gogo/protobuf/proto
-# github.com/golang/protobuf v0.0.0-20160727172617-c3cefd437628
+# github.com/golang/protobuf v1.3.4
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
@@ -99,9 +97,9 @@ github.com/jinzhu/gorm
 github.com/jinzhu/inflection
 # github.com/konsorten/go-windows-terminal-sequences v1.0.2
 github.com/konsorten/go-windows-terminal-sequences
-# github.com/kr/pretty v0.0.0-20130510082846-bc9499caa0f4
+# github.com/kr/pretty v0.1.0
 github.com/kr/pretty
-# github.com/kr/text v0.0.0-20130911015532-6807e777504f
+# github.com/kr/text v0.2.0
 github.com/kr/text
 # github.com/lib/pq v0.0.0-20150723085316-0dad96c0b94f
 github.com/lib/pq
@@ -110,7 +108,7 @@ github.com/lib/pq/oid
 github.com/magiconair/properties
 # github.com/mattn/go-sqlite3 v1.6.0
 github.com/mattn/go-sqlite3
-# github.com/matttproud/golang_protobuf_extensions v0.0.0-20151011102529-d0c3fe89de86
+# github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/miekg/pkcs11 v1.0.2
 github.com/miekg/pkcs11
@@ -121,6 +119,10 @@ github.com/opencontainers/go-digest
 # github.com/opencontainers/image-spec v1.0.1
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
+# github.com/opentracing/opentracing-go v1.1.0
+github.com/opentracing/opentracing-go
+github.com/opentracing/opentracing-go/ext
+github.com/opentracing/opentracing-go/log
 # github.com/pkg/errors v0.8.1
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
@@ -151,10 +153,10 @@ github.com/spf13/jwalterweatherman
 github.com/spf13/pflag
 # github.com/spf13/viper v0.0.0-20150530192845-be5ff3e4840c
 github.com/spf13/viper
-# github.com/stretchr/testify v1.4.0
+# github.com/stretchr/testify v1.5.1
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
-# golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+# golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073
 golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/cryptobyte
@@ -166,17 +168,23 @@ golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/pkcs12
 golang.org/x/crypto/pkcs12/internal/rc2
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.0.0-20160726221601-6a513affb38d
+# golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
+golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
+golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
-golang.org/x/net/lex/httplex
 golang.org/x/net/trace
-# golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a
+# golang.org/x/sys v0.0.0-20191120155948-bd437916bb0e
 golang.org/x/sys/unix
 golang.org/x/sys/windows
+# golang.org/x/text v0.3.0
+golang.org/x/text/secure/bidirule
+golang.org/x/text/transform
+golang.org/x/text/unicode/bidi
+golang.org/x/text/unicode/norm
 # google.golang.org/grpc v1.0.5
 google.golang.org/grpc
 google.golang.org/grpc/codes
@@ -191,12 +199,12 @@ google.golang.org/grpc/peer
 google.golang.org/grpc/stats
 google.golang.org/grpc/tap
 google.golang.org/grpc/transport
-# gopkg.in/fatih/pool.v2 v2.0.0-20150325163252-cba550ebf9bc
-gopkg.in/fatih/pool.v2
-# gopkg.in/gorethink/gorethink.v3 v3.0.5
-gopkg.in/gorethink/gorethink.v3
-gopkg.in/gorethink/gorethink.v3/encoding
-gopkg.in/gorethink/gorethink.v3/ql2
-gopkg.in/gorethink/gorethink.v3/types
-# gopkg.in/yaml.v2 v2.2.2
+# gopkg.in/cenkalti/backoff.v2 v2.2.1
+gopkg.in/cenkalti/backoff.v2
+# gopkg.in/rethinkdb/rethinkdb-go.v6 v6.2.1
+gopkg.in/rethinkdb/rethinkdb-go.v6
+gopkg.in/rethinkdb/rethinkdb-go.v6/encoding
+gopkg.in/rethinkdb/rethinkdb-go.v6/ql2
+gopkg.in/rethinkdb/rethinkdb-go.v6/types
+# gopkg.in/yaml.v2 v2.2.8
 gopkg.in/yaml.v2
