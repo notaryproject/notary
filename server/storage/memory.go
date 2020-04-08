@@ -261,8 +261,10 @@ func (st *MemStorage) GetChanges(changeID string, records int, filterName string
 	if reversed {
 		if start > len(st.changes) {
 			toInspect = st.changes
-		} else {
+		} else if start > 0 {
 			toInspect = st.changes[:start-1]
+		} else {
+			toInspect = st.changes[:start]
 		}
 	} else {
 		toInspect = st.changes[start:]
