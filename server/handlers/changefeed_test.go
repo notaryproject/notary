@@ -54,6 +54,42 @@ func Test_changefeed(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 		},
+		{
+			name: "Empty changeID",
+			args: changefeedArgs{
+				logger:   logrus.New(),
+				store:    s,
+				gun:      "",
+				changeID: "",
+				pageSize: notary.DefaultPageSize,
+			},
+			want:    []byte("{\"count\":0,\"records\":null}"),
+			wantErr: false,
+		},
+		{
+			name: "Zero pageSize",
+			args: changefeedArgs{
+				logger:   logrus.New(),
+				store:    s,
+				gun:      "",
+				changeID: "0",
+				pageSize: 0,
+			},
+			want:    []byte("{\"count\":0,\"records\":null}"),
+			wantErr: false,
+		},
+		{
+			name: "Negative pageSize",
+			args: changefeedArgs{
+				logger:   logrus.New(),
+				store:    s,
+				gun:      "",
+				changeID: "0",
+				pageSize: -notary.DefaultPageSize,
+			},
+			want:    []byte("{\"count\":0,\"records\":null}"),
+			wantErr: false,
+		},
 	}
 	runChangefeedTests(t, tests)
 
