@@ -468,7 +468,7 @@ func TestInitRepositoryNeedsRemoteTimestampKey(t *testing.T) {
 	require.Error(t, err)
 	require.IsType(t, store.ErrMetaNotFound{}, err)
 
-	// locally managed keys are created first, to avoid unnecssary network calls,
+	// locally managed keys are created first, to avoid unnecessary network calls,
 	// so they would have been generated
 	rec.requireCreated(t, []string{data.CanonicalTargetsRole.String(), data.CanonicalSnapshotRole.String()})
 }
@@ -490,7 +490,7 @@ func TestInitRepositoryNeedsRemoteSnapshotKey(t *testing.T) {
 	require.Error(t, err)
 	require.IsType(t, store.ErrMetaNotFound{}, err)
 
-	// locally managed keys are created first, to avoid unnecssary network calls,
+	// locally managed keys are created first, to avoid unnecessary network calls,
 	// so they would have been generated
 	rec.requireCreated(t, []string{data.CanonicalTargetsRole.String()})
 }
