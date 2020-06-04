@@ -1,12 +1,14 @@
 version: 2
 jobs:
-  build:
+
+  job_01:
     machine:
       image: ubuntu-1604:201903-01
       # not supported in the free plan
       # docker_layer_caching: true
     working_directory: ~/go/src/github.com/theupdateframework/notary
     environment:
+      NOTARY_BUILDTAGS: pkcs11
       DOCKER_BUILDKIT: 1
     steps:
       - add_ssh_keys
@@ -16,11 +18,122 @@ jobs:
           command: |
             docker version
             docker info
+            docker-compose version
       - run:
           name: Check vendor modules
           command: ./buildscripts/circle-validate-vendor.sh
       - run:
           name: "Build image"
           command: docker build --progress=plain -t notary_client .
-      - run: ./buildscripts/circle_parallelism.sh
-      - run: docker-compose -f docker-compose.yml down -v && docker-compose -f docker-compose.rethink.yml down -v
+      - run:
+          name: "ci"
+          command: docker run --rm -e NOTARY_BUILDTAGS --env-file buildscripts/env.list --user notary notary_client bash -c "make ci && codecov"
+      - run:
+          name: "Teardown"
+          command: docker-compose -f docker-compose.yml down -v && docker-compose -f docker-compose.rethink.yml down -v
+
+  job_02:
+    machine:
+      image: ubuntu-1604:201903-01
+    working_directory: ~/go/src/github.com/theupdateframework/notary
+    environment:
+      NOTARY_BUILDTAGS: none
+      DOCKER_BUILDKIT: 1
+    steps:
+      - add_ssh_keys
+      - checkout
+      - run:
+          name: "Docker Info"
+          command: |
+            docker version
+            docker info
+            docker-compose version
+      - run:
+          name: "Build image"
+          command: docker build --progress=plain -t notary_client .
+      - run:
+          name: "ci"
+          command: docker run --rm -e NOTARY_BUILDTAGS --env-file buildscripts/env.list --user notary notary_client bash -c "make ci && codecov"
+      - run:
+          name: "Teardown"
+          command: docker-compose -f docker-compose.yml down -v && docker-compose -f docker-compose.rethink.yml down -v
+
+  job_03:
+    machine:
+      image: ubuntu-1604:201903-01
+    working_directory: ~/go/src/github.com/theupdateframework/notary
+    environment:
+      SKIPENVCHECK: 1
+      DOCKER_BUILDKIT: 1
+    steps:
+      - add_ssh_keys
+      - checkout
+      - run:
+          name: "Docker Info"
+          command: |
+            docker version
+            docker info
+            docker-compose version
+      - run:
+          name: "Build image"
+          command: docker build --progress=plain -t notary_client .
+      - run:
+          name: "Lint"
+          command: docker run --rm -e NOTARY_BUILDTAGS=pkcs11 notary_client make lint
+      - run:
+          name: "MySQL testdb"
+          command: make TESTDB=mysql testdb
+      - run:
+          name: "MySQL integration"
+          command: make TESTDB=mysql integration
+      - run:
+          name: "Cross"
+          command: make cross  # just trying not to exceed 4 builders
+      - run:
+          name: "Teardown"
+          command: docker-compose -f docker-compose.yml down -v && docker-compose -f docker-compose.rethink.yml down -v
+
+
+  job_04:
+    machine:
+      image: ubuntu-1604:201903-01
+    working_directory: ~/go/src/github.com/theupdateframework/notary
+    environment:
+      SKIPENVCHECK: 1
+      DOCKER_BUILDKIT: 1
+    steps:
+      - add_ssh_keys
+      - checkout
+      - run:
+          name: "Docker Info"
+          command: |
+            docker version
+            docker info
+            docker-compose version
+      - run:
+          name: "Build image"
+          command: docker build --progress=plain -t notary_client .
+      - run:
+          name: "RethinkDB testdb"
+          command: make TESTDB=rethink testdb
+      - run:
+          name: "RethinkDB integration"
+          command: make TESTDB=rethink integration
+      - run:
+          name: "PostgreSQL testdb"
+          command: make TESTDB=postgresql testdb
+      - run:
+          name: "PostgreSQL integration"
+          command: make TESTDB=postgresql integration
+      - run:
+          name: "Teardown"
+          command: docker-compose -f docker-compose.yml down -v && docker-compose -f docker-compose.rethink.yml down -v
+
+workflows:
+  version: 2
+  ci:
+    jobs:
+      - job_01
+      - job_02
+      - job_03
+      - job_04
