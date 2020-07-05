@@ -10,7 +10,7 @@ import (
 	"github.com/theupdateframework/notary/storage/rethinkdb"
 	"github.com/theupdateframework/notary/trustmanager"
 	"github.com/theupdateframework/notary/tuf/data"
-	"gopkg.in/gorethink/gorethink.v3"
+	gorethink "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 // RethinkDBKeyStore persists and manages private keys on a RethinkDB database

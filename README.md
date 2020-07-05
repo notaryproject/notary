@@ -93,6 +93,20 @@ URL is specified already in the configuration, file you copied.
 You can also leave off the `-d ~/.docker/trust` argument if you do not care
 to use `notary` with Docker images.
 
+## Upgrading dependencies
+
+To prevent mistakes in vendoring the go modules a buildscript has been added to properly vendor the modules using the correct version of Go to mitigate differences in CI and development environment.
+
+Following procedure should be executed to upgrade a dependency. Preferably keep dependency upgrades in a separate commit from your code changes.
+
+```bash
+go get -u github.com/spf13/viper
+buildscripts/circle-validate-vendor.sh
+git add .
+git commit -m "Upgraded github.com/spf13/viper"
+```
+
+The `buildscripts/circle-validate-vendor.sh` runs `go mod tidy` and `go mod vendor` using the given version of Go to prevent differences if you are for example running on a different version of Go.
 
 ## Building Notary
 
@@ -102,11 +116,12 @@ branch and contains features for the next release.
 
 Prerequisites:
 
-- Go >= 1.7.1
+* Go >= 1.12
 
 Set [```GOPATH```](https://golang.org/doc/code.html#GOPATH). Then, run:
 
 ```bash
+$ export GO111MODULE=on
 $ go get github.com/theupdateframework/notary
 # build with pkcs11 support by default to support yubikey
 $ go install -tags pkcs11 github.com/theupdateframework/notary/cmd/notary
@@ -128,6 +143,6 @@ The chart's default [values.yaml](helm/values.yaml) can give you an idea of the 
 While this chart provides a way to automatically generate working TLS certificates for you, it is highly recommended that you manage your own (which you can also pass to this chart).
 
 If you are looking to deploy Notary in Kubernetes in production, you should make sure that your secrets are distributed properly and securely (with [KMS](https://aws.amazon.com/kms/), [Vault](https://www.vaultproject.io), etc.). You're also highly encouraged to use your own TLS certs, preferably created and distributed dynamically (like with [Let's Encrypt](https://letsencrypt.org)).
-
 ## License
+
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Ftheupdateframework%2Fnotary.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Ftheupdateframework%2Fnotary?ref=badge_large)

@@ -1,6 +1,7 @@
-FROM golang:1.12.12-alpine
+FROM golang:1.14.1-alpine
 
 ENV NOTARYPKG github.com/theupdateframework/notary
+ENV GO111MODULE=on
 
 # Copy the local repo to the expected go path
 COPY . /go/src/${NOTARYPKG}

@@ -1,6 +1,8 @@
 # Set an output prefix, which is the local directory if not specified
 PREFIX?=$(shell pwd)
 
+GOFLAGS := -mod=vendor
+
 # Populate version variables
 # Add to compile time flags
 NOTARY_PKG := github.com/theupdateframework/notary

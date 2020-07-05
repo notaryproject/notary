@@ -25,7 +25,7 @@ import (
 	"github.com/theupdateframework/notary/tuf/signed"
 	"github.com/theupdateframework/notary/utils"
 	"golang.org/x/net/context"
-	"gopkg.in/gorethink/gorethink.v3"
+	gorethink "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 // gets the required gun prefixes accepted by this server

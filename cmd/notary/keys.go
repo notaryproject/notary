@@ -522,7 +522,9 @@ func (k *keyCommander) importKeys(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		defer from.Close()
+		defer func() {
+			_ = from.Close()
+		}()
 		if err = trustmanager.ImportKeys(from, importers, k.importRole, k.keysImportGUN, k.getRetriever()); err != nil {
 			return err
 		}
@@ -551,7 +553,9 @@ func (k *keyCommander) exportKeys(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close()
+		}()
 		out = f
 	}
 
