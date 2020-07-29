@@ -7,6 +7,7 @@ package storage
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -17,7 +18,7 @@ func sqlite3Setup(t *testing.T) (*SQLStorage, func()) {
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)
 
-	dbStore := SetupSQLDB(t, "sqlite3", tempBaseDir+"test_db")
+	dbStore := SetupSQLDB(t, "sqlite3", filepath.Join(tempBaseDir, "test_db"))
 	var cleanup = func() {
 		dbStore.DB.Close()
 		os.RemoveAll(tempBaseDir)
