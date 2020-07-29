@@ -2931,7 +2931,7 @@ func TestExportImportFlow(t *testing.T) {
 
 	// now setup new filestore
 	newTempDir := tempDirWithConfig(t, "{}")
-	defer os.Remove(newTempDir)
+	defer os.RemoveAll(newTempDir)
 
 	// and new server
 	newServer := setupServer()
@@ -2997,10 +2997,10 @@ func TestDelegationKeyImportExport(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	tempExportedDir := tempDirWithConfig(t, "{}")
-	defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(tempExportedDir)
 
 	tempImportingDir := tempDirWithConfig(t, "{}")
-	defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(tempImportingDir)
 
 	// Setup key in a file for import
 	keyFile, err := ioutil.TempFile("", "pemfile")
