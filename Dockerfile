@@ -1,4 +1,4 @@
-FROM golang:1.12.7
+FROM golang:1.14.1
 
 RUN apt-get update && apt-get install -y \
 	curl \
@@ -21,5 +21,7 @@ ENV NOTARYDIR /go/src/github.com/theupdateframework/notary
 
 COPY . ${NOTARYDIR}
 RUN chmod -R a+rw /go && chmod 0600 ${NOTARYDIR}/fixtures/database/*
+
+ENV GO111MODULE=on
 
 WORKDIR ${NOTARYDIR}

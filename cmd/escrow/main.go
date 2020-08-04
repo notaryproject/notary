@@ -17,10 +17,10 @@ func init() {
 		"config.toml",
 		"path to configuration file; supported formats are JSON, YAML, and TOML",
 	)
-	flag.Parse()
 }
 
 func main() {
+	flag.Parse()
 	v, err := parseConfig(configPath)
 	if err != nil {
 		logrus.Fatalf("could not parse config file (%s): %s", configPath, err)

@@ -144,7 +144,9 @@ func (f *FilesystemStore) GetSized(name string, size int64) ([]byte, error) {
 		}
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	if size == NoSizeLimit {
 		size = notary.MaxDownloadSize

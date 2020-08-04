@@ -1,6 +1,8 @@
 # Set an output prefix, which is the local directory if not specified
 PREFIX?=$(shell pwd)
 
+GOFLAGS := -mod=vendor
+
 # Populate version variables
 # Add to compile time flags
 NOTARY_PKG := github.com/theupdateframework/notary
@@ -107,7 +109,8 @@ endif
 	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec ineffassign {} \; | tee /dev/stderr)"
 	# gosec - requires that the following be run first:
 	#    go get -u github.com/securego/gosec/cmd/gosec/...
-	@gosec -fmt=csv -out=gas_output.csv -exclude=G104,G304 ./... && test -z "$$(cat gas_output.csv | tee /dev/stderr)"
+	@rm -f gosec_output.csv
+	@gosec -fmt=csv -out=gosec_output.csv -exclude=G104,G304 ./... || (cat gosec_output.csv >&2; exit 1)
 
 build:
 	@echo "+ $@"
@@ -140,7 +143,7 @@ protos:
 # be run first
 gen-cover:
 gen-cover:
-	@python -u buildscripts/covertest.py --tags "$(NOTARY_BUILDTAGS)" --pkgs="$(PKGS)" --testopts="${TESTOPTS}" --debug
+	@python -u buildscripts/covertest.py --tags "$(NOTARY_BUILDTAGS)" --pkgs="$(PKGS)" --testopts="${TESTOPTS}"
 
 # Generates the cover binaries and runs them all in serial, so this can be used
 # run all tests with a yubikey without any problems

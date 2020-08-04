@@ -32,7 +32,7 @@ import (
 	"github.com/theupdateframework/notary/utils"
 	ghealth "google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"gopkg.in/gorethink/gorethink.v3"
+	gorethink "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 const (
