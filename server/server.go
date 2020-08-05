@@ -12,6 +12,7 @@ import (
 	"github.com/docker/distribution/registry/auth"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"github.com/theupdateframework/notary/server/errors"
 	"github.com/theupdateframework/notary/server/handlers"
@@ -23,14 +24,6 @@ import (
 
 func init() {
 	data.SetDefaultExpiryTimes(data.NotaryDefaultExpiries)
-}
-
-func prometheusOpts(operation string) prometheus.SummaryOpts {
-	return prometheus.SummaryOpts{
-		Namespace:   "notary_server",
-		Subsystem:   "http",
-		ConstLabels: prometheus.Labels{"operation": operation},
-	}
 }
 
 // Config tells Run how to configure a server
@@ -124,7 +117,93 @@ func CreateHandler(operationName string, serverHandler utils.ContextHandler, err
 		wrapped = utils.WrapWithCacheHandler(cacheControlConfig, wrapped)
 	}
 	wrapped = filterImagePrefixes(repoPrefixes, errorIfGUNInvalid, wrapped)
-	return prometheus.InstrumentHandlerWithOpts(prometheusOpts(operationName), wrapped)
+	return wrapMetrics(operationName, wrapped)
+}
+
+type handlerMetrics struct {
+	inFlightGauge          prometheus.Gauge
+	counter                *prometheus.CounterVec
+	duration, responseSize *prometheus.HistogramVec
+}
+
+func newHandlerMetrics(operation string) handlerMetrics {
+	const (
+		namespace = "notary_server"
+		subsystem = "http"
+	)
+
+	inFlightGauge := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name:        "in_flight_requests",
+		Namespace:   namespace,
+		Subsystem:   subsystem,
+		ConstLabels: prometheus.Labels{"operation": operation},
+		Help:        "A gauge of requests currently being served by the wrapped handler.",
+	})
+
+	counter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name:        "api_requests_total",
+			Namespace:   namespace,
+			Subsystem:   subsystem,
+			ConstLabels: prometheus.Labels{"operation": operation},
+			Help:        "A counter for requests to the wrapped handler.",
+		},
+		[]string{"code", "method"},
+	)
+
+	duration := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:        "request_duration_seconds",
+			Namespace:   namespace,
+			Subsystem:   subsystem,
+			ConstLabels: prometheus.Labels{"operation": operation},
+			Help:        "A histogram of latencies for requests.",
+			Buckets:     []float64{.25, .5, 1, 2.5, 5, 10},
+		},
+		[]string{"handler", "method"},
+	)
+
+	responseSize := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:        "response_size_bytes",
+			Namespace:   namespace,
+			Subsystem:   subsystem,
+			ConstLabels: prometheus.Labels{"operation": operation},
+			Help:        "A histogram of response sizes for requests.",
+			Buckets:     []float64{200, 500, 900, 1500},
+		},
+		[]string{},
+	)
+
+	prometheus.MustRegister(inFlightGauge, counter, duration, responseSize)
+
+	return handlerMetrics{
+		inFlightGauge: inFlightGauge,
+		counter:       counter,
+		duration:      duration,
+		responseSize:  responseSize,
+	}
+}
+
+// handlerMetricsRegister is needed because some handlers have the same
+// operation string and duplicate metrics are invalid.
+var handlerMetricsRegister = make(map[string]handlerMetrics)
+
+// wrapMetrics wraps the given server handler with prometheus metrics middleware
+func wrapMetrics(operation string, next http.Handler) http.Handler {
+	m, ok := handlerMetricsRegister[operation]
+	if !ok {
+		m = newHandlerMetrics(operation)
+		handlerMetricsRegister[operation] = m
+	}
+
+	return promhttp.InstrumentHandlerInFlight(m.inFlightGauge,
+		promhttp.InstrumentHandlerDuration(m.duration.MustCurryWith(prometheus.Labels{"handler": operation}),
+			promhttp.InstrumentHandlerCounter(m.counter,
+				promhttp.InstrumentHandlerResponseSize(m.responseSize, next),
+			),
+		),
+	)
 }
 
 // RootHandler returns the handler that routes all the paths from / for the
@@ -232,7 +311,7 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 		repoPrefixes,
 	))
 	r.Methods("GET").Path("/_notary_server/health").HandlerFunc(health.StatusHandler)
-	r.Methods("GET").Path("/metrics").Handler(prometheus.Handler())
+	r.Methods("GET").Path("/metrics").Handler(promhttp.Handler())
 	r.Methods("GET", "POST", "PUT", "HEAD", "DELETE").Path("/{other:.*}").Handler(
 		authWrapper(handlers.NotFoundHandler))
 
