@@ -27,24 +27,24 @@ message CreateKeyRequest {
   string role = 3;
 }
 
-// KeyInfo holds a KeyID that is used to reference the key and it's algorithm
+// KeyInfo holds a KeyID that is used to reference the key and its algorithm
 message KeyInfo {
   KeyID keyID = 1;
   Algorithm algorithm = 2;
 }
 
-// KeyID holds an ID that is used to reference the key
+// KeyID holds an ID that is used to reference the key.
 message KeyID {
   string ID = 1;
 }
 
-// Type holds the type of crypto algorithm used
+// Algorithm holds the type of crypto algorithm used.
 message Algorithm {
   string algorithm = 1;
 }
 
 // GetKeyInfoResponse returns the public key, the role, and the algorithm and key ID.
-// For backwards compatibility, it doesn't embed a PublicKey object
+// For backwards compatibility, it doesn't embed a PublicKey object.
 message GetKeyInfoResponse {
   KeyInfo keyInfo = 1;
   bytes publicKey = 2;
@@ -52,25 +52,25 @@ message GetKeyInfoResponse {
 }
 
 
-// PublicKey has a KeyInfo that is used to reference the key, and opaque bytes of a publicKey
+// PublicKey has a KeyInfo that is used to reference the key, and opaque bytes of a publicKey.
 message PublicKey {
   KeyInfo keyInfo = 1;
   bytes publicKey = 2;
 }
 
-// Signature specifies a KeyInfo that was used for signing and signed content
+// Signature specifies a KeyInfo that was used for signing and signed content.
 message Signature {
   KeyInfo keyInfo = 1;
   Algorithm algorithm = 2;
   bytes content = 3;
 }
 
-// SignatureRequests specifies a KeyInfo, and content to be signed
+// SignatureRequests specifies a KeyID, and content to be signed.
 message SignatureRequest {
   KeyID keyID = 1;
   bytes content = 2;
 }
 
-// Void represents an empty message type
+// Void represents an empty message type.
 message Void {
 }
