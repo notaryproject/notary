@@ -30,7 +30,7 @@ require (
 	github.com/jinzhu/now v1.1.1 // indirect
 	github.com/juju/loggo v0.0.0-20190526231331-6e530bcce5d8 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
-	github.com/lib/pq v0.0.0-20150723085316-0dad96c0b94f
+	github.com/lib/pq v1.9.0
 	github.com/magiconair/properties v1.5.3 // indirect
 	github.com/mattn/go-sqlite3 v1.6.0
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
