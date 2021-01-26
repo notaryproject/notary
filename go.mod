@@ -19,7 +19,7 @@ require (
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/dvsekhvalnov/jose2go v0.0.0-20170216131308-f21a8cedbbae
 	github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5 // indirect
-	github.com/go-sql-driver/mysql v1.3.0
+	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gogo/protobuf v1.0.0 // indirect
 	github.com/golang/protobuf v1.3.4
 	github.com/google/certificate-transparency-go v1.0.10-0.20180222191210-5ab67e519c93 // indirect
