@@ -7,8 +7,13 @@ import (
 
 	"github.com/theupdateframework/notary"
 	"github.com/theupdateframework/notary/trustmanager"
-	"github.com/theupdateframework/notary/trustmanager/yubikey"
+	"github.com/theupdateframework/notary/trustmanager/pkcs11"
+	"github.com/theupdateframework/notary/trustmanager/pkcs11/common"
 )
+
+func init() {
+	pkcs11.Setup()
+}
 
 func getKeyStores(baseDir string, retriever notary.PassRetriever) ([]trustmanager.KeyStore, error) {
 	fileKeyStore, err := trustmanager.NewKeyFileStore(baseDir, retriever)
@@ -17,9 +22,10 @@ func getKeyStores(baseDir string, retriever notary.PassRetriever) ([]trustmanage
 	}
 
 	keyStores := []trustmanager.KeyStore{fileKeyStore}
-	yubiKeyStore, _ := yubikey.NewYubiStore(fileKeyStore, retriever)
-	if yubiKeyStore != nil {
-		keyStores = []trustmanager.KeyStore{yubiKeyStore, fileKeyStore}
+	hardwareKeyStore, _ := common.NewHardwareStore(fileKeyStore, retriever)
+	if hardwareKeyStore != nil {
+		keyStores = []trustmanager.KeyStore{hardwareKeyStore, fileKeyStore}
+		return keyStores, nil
 	}
 	return keyStores, nil
 }
