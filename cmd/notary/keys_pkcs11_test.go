@@ -17,13 +17,14 @@ import (
 	"github.com/theupdateframework/notary/passphrase"
 	store "github.com/theupdateframework/notary/storage"
 	"github.com/theupdateframework/notary/trustmanager"
-	"github.com/theupdateframework/notary/trustmanager/yubikey"
+	"github.com/theupdateframework/notary/trustmanager/pkcs11/common"
 	"github.com/theupdateframework/notary/tuf/data"
 )
 
-func TestImportWithYubikey(t *testing.T) {
-	if !yubikey.IsAccessible() {
-		t.Skip("Must have Yubikey access.")
+func TestImportWithHardwareStore(t *testing.T) {
+
+	if !common.IsAccessible() {
+		t.Skip("Must have Hardwarestore access.")
 	}
 	setUp(t)
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
@@ -47,7 +48,7 @@ func TestImportWithYubikey(t *testing.T) {
 
 	pubK, err := cs.Create(data.CanonicalRootRole, "ankh", data.ECDSAKey)
 	require.NoError(t, err)
-	bID := pubK.ID() // need to check presence in yubikey later
+	bID := pubK.ID() // need to check presence in hardwarestore later
 	bytes, err := memStore.Get(pubK.ID())
 	require.NoError(t, err)
 	b, _ := pem.Decode(bytes)
@@ -74,17 +75,17 @@ func TestImportWithYubikey(t *testing.T) {
 	err = k.importKeys(&cobra.Command{}, []string{file})
 	require.NoError(t, err)
 
-	yks, err := yubikey.NewYubiStore(nil, k.getRetriever())
+	yks, err := common.NewHardwareStore(nil, k.getRetriever())
 	require.NoError(t, err)
 	_, _, err = yks.GetKey(bID)
 	require.NoError(t, err)
 	_, _, err = yks.GetKey(cID)
-	require.Error(t, err) // c is non-root, should not be in yubikey
+	require.Error(t, err) // c is non-root, should not be in hardwarestore
 
 	fileStore, err := store.NewPrivateKeyFileStorage(tempBaseDir, notary.KeyExtension)
 	require.NoError(t, err)
 	_, err = fileStore.Get("ankh")
-	require.Error(t, err) // b should only be in yubikey, not in filestore
+	require.Error(t, err) // b should only be in hardwarestore, not in filestore
 
 	cResult, err := fileStore.Get("morpork")
 	require.NoError(t, err)
@@ -95,8 +96,8 @@ func TestImportWithYubikey(t *testing.T) {
 }
 
 func TestGetImporters(t *testing.T) {
-	if !yubikey.IsAccessible() {
-		t.Skip("Must have Yubikey access.")
+	if !common.IsAccessible() {
+		t.Skip("Must have Hardwarestore access.")
 	}
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err)

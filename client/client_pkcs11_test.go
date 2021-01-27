@@ -2,15 +2,19 @@
 
 package client
 
-import "github.com/theupdateframework/notary/trustmanager/yubikey"
+import (
+	"github.com/theupdateframework/notary/trustmanager/pkcs11/common"
+	"github.com/theupdateframework/notary/trustmanager/pkcs11/externalstore"
+)
 
 // clear out all keys
 func init() {
-	yubikey.SetYubikeyKeyMode(0)
-	if !yubikey.IsAccessible() {
+	ks := externalstore.NewKeyStore()
+	common.SetKeyStore(ks)
+	if !common.IsAccessible() {
 		return
 	}
-	store, err := yubikey.NewYubiStore(nil, nil)
+	store, err := common.NewHardwareStore(nil, nil)
 	if err == nil {
 		for k := range store.ListKeys() {
 			store.RemoveKey(k)

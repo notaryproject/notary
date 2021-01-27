@@ -6,4 +6,4 @@
 
 // See https://github.com/golang/go/issues/11246
 
-package yubikey
+package externalstore
