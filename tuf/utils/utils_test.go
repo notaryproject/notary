@@ -68,3 +68,17 @@ func TestFindRoleIndexNotFound(t *testing.T) {
 		FindRoleIndex(nil, role.Name),
 	)
 }
+
+func TestStrSliceContains(t *testing.T) {
+	require.Equal(t, true, StrSliceContains([]string{"foo", "bar"}, "foo"))
+	require.Equal(t, false, StrSliceContains([]string{"foo", "bar"}, "foobar"))
+}
+
+func TestRoleNameSliceContains(t *testing.T) {
+	require.Equal(t, true, RoleNameSliceContains([]data.RoleName{"foo", "bar"}, "foo"))
+	require.Equal(t, false, RoleNameSliceContains([]data.RoleName{"foo", "bar"}, "foobar"))
+}
+
+func TestRoleNameSliceRemove(t *testing.T) {
+	require.Equal(t, []data.RoleName{"bar"}, RoleNameSliceRemove([]data.RoleName{"foo", "bar"}, "foo"))
+}

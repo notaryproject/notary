@@ -29,7 +29,7 @@ Changes to the [Repo Guidelines](#repo-guidelines) require a simple majority.
 
 ## Removing maintainers
 
-It is preferrable that a maintainer gracefully removes themselves from the MAINTAINERS file if they are
+It is preferable that a maintainer gracefully removes themselves from the MAINTAINERS file if they are
 aware they will no longer have the time or motivation to contribute to the project. Maintainers that
 have been inactive in the repo for a period of at least one year should be contacted to ask if they
 wish to be removed.

@@ -468,7 +468,7 @@ func TestInitRepositoryNeedsRemoteTimestampKey(t *testing.T) {
 	require.Error(t, err)
 	require.IsType(t, store.ErrMetaNotFound{}, err)
 
-	// locally managed keys are created first, to avoid unnecssary network calls,
+	// locally managed keys are created first, to avoid unnecessary network calls,
 	// so they would have been generated
 	rec.requireCreated(t, []string{data.CanonicalTargetsRole.String(), data.CanonicalSnapshotRole.String()})
 }
@@ -490,7 +490,7 @@ func TestInitRepositoryNeedsRemoteSnapshotKey(t *testing.T) {
 	require.Error(t, err)
 	require.IsType(t, store.ErrMetaNotFound{}, err)
 
-	// locally managed keys are created first, to avoid unnecssary network calls,
+	// locally managed keys are created first, to avoid unnecessary network calls,
 	// so they would have been generated
 	rec.requireCreated(t, []string{data.CanonicalTargetsRole.String()})
 }
@@ -654,6 +654,7 @@ func testInitRepoSigningKeys(t *testing.T, rootType string, serverManagesSnapsho
 	// Temporary directory where test files will be created
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
+	defer os.RemoveAll(tempBaseDir)
 
 	repo, _, rootPubKeyID := createRepoAndKey(
 		t, data.ECDSAKey, tempBaseDir, "docker.com/notary", ts.URL)
@@ -3606,6 +3607,7 @@ func TestRemoveDelegationErrorWritingChanges(t *testing.T) {
 func TestClientInvalidURL(t *testing.T) {
 	tempBaseDir, err := ioutil.TempDir("", "notary-test-")
 	require.NoError(t, err, "failed to create a temporary directory: %s", err)
+	defer os.RemoveAll(tempBaseDir)
 	r, err := NewFileCachedRepository(
 		tempBaseDir,
 		"testGun",
