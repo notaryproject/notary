@@ -33,7 +33,7 @@ require (
 	github.com/magiconair/properties v1.5.3 // indirect
 	github.com/mattn/go-sqlite3 v1.6.0
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
-	github.com/miekg/pkcs11 v1.0.2
+	github.com/miekg/pkcs11 v1.0.3
 	github.com/mitchellh/mapstructure v0.0.0-20150613213606-2caf8efc9366 // indirect
 	github.com/opencontainers/go-digest v0.0.0-20170106003457-a6d0ee40d420 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
