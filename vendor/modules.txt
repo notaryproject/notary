@@ -113,7 +113,7 @@ github.com/matttproud/golang_protobuf_extensions/pbutil
 github.com/miekg/pkcs11
 # github.com/mitchellh/mapstructure v1.0.0
 github.com/mitchellh/mapstructure
-# github.com/opencontainers/go-digest v0.0.0-20170106003457-a6d0ee40d420
+# github.com/opencontainers/go-digest v1.0.0
 github.com/opencontainers/go-digest
 # github.com/opencontainers/image-spec v1.0.1
 github.com/opencontainers/image-spec/specs-go
