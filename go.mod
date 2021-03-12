@@ -5,7 +5,7 @@ go 1.12
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/Shopify/logrus-bugsnag v0.0.0-20170309145241-6dbc35f2c30d
-	github.com/beorn7/perks v0.0.0-20150223135152-b965b613227f // indirect
+	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bitly/go-simplejson v0.5.0 // indirect
 	github.com/bugsnag/bugsnag-go v1.0.5
 	github.com/bugsnag/osext v0.0.0-20130617224835-0dd3f918b21b // indirect
