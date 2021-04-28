@@ -170,8 +170,8 @@ done
 
 # Postgresql keys for testing server/client auth
 
-command -v cfssljson  >/dev/null 2>&1 || { 
-    echo >&2 "Installing cfssl tools"; go get -u github.com/cloudflare/cfssl/cmd/...;
+command -v cfssljson  >/dev/null 2>&1 || {
+    echo >&2 "Installing cfssl tools"; go get github.com/cloudflare/cfssl/cmd/...;
 }
 
 # Create a dir to store keys generated temporarily
