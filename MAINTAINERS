@@ -11,14 +11,8 @@
 [Org]
 	[Org."Core maintainers"]
 		people = [
-			"cyli",
-			"diogomonica",
-			"endophage",
-			"ecordell",
 			"hukeping",
 			"justincormack",
-			"nathanmccauley",
-			"riyazdf",
 		]
 
 [people]
@@ -29,26 +23,6 @@
 
 	# ADD YOURSELF HERE IN ALPHABETICAL ORDER
 
-	[people.cyli]
-	Name = "Ying Li"
-	Email = "ying.li@docker.com"
-	GitHub = "cyli"
-
-	[people.diogomonica]
-	Name = "Diogo Monica"
-	Email = "diogo@docker.com"
-	GitHub = "diogomonica"
-
-	[people.endophage]
-	Name = "David Lawrence"
-	Email = "david.lawrence@docker.com"
-	GitHub = "endophage"
-
-	[people.ecordell]
-	Name = "Evan Cordell"
-	Email = "evan.cordell@coreos.com"
-	GitHub = "ecordell"
-
 	[people.hukeping]
 	Name = "Hu Keping"
 	Email = "hukeping@huawei.com"
@@ -58,13 +32,3 @@
 	Name = "Justin Cormack"
 	Email = "justin.cormack@docker.com"
 	GitHub = "justincormack"
-
-	[people.nathanmccauley]
-	Name = "Nathan McCauley"
-	Email = "nathan.mccauley@docker.com"
-	GitHub = "nathanmccauley"
-
-	[people.riyazdf]
-	Name = "Riyaz Faizullabhoy"
-	Email = "riyazdf@berkeley.edu"
-	GitHub = "riyazdf"
