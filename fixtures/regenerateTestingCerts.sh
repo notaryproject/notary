@@ -4,7 +4,7 @@
 # Will also create a root-ca and intermediate-ca, deleting those keys when finished
 
 OPENSSLCNF=
-for path in /etc/openssl/openssl.cnf /etc/ssl/openssl.cnf /usr/local/etc/openssl/openssl.cnf; do
+for path in /etc/openssl/openssl.cnf /etc/ssl/openssl.cnf /usr/local/etc/openssl/openssl.cnf /etc/pki/tls/openssl.cnf; do
     if [[ -e ${path} ]]; then
         OPENSSLCNF=${path}
     fi
