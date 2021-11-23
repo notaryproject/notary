@@ -185,7 +185,7 @@ func MatchCNToGun(commonName string, gun data.GUN) bool {
 		logrus.Debugf("checking gun %s against wildcard prefix %s", gun, prefix)
 		return strings.HasPrefix(gun.String(), prefix)
 	}
-	return commonName == gun.String()
+	return strings.EqualFold(commonName, gun.String())
 }
 
 // validRootLeafCerts returns a list of possibly (if checkExpiry is true) non-expired, non-sha1 certificates
