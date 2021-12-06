@@ -1,4 +1,4 @@
-module github.com/theupdateframework/notary
+module github.com/docker/notary
 
 go 1.12
 
