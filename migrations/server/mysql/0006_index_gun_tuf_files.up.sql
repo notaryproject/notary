@@ -1,0 +1,1 @@
+ALTER TABLE `tuf_files` ADD INDEX `gun_idx` (`gun`);
