@@ -10,7 +10,7 @@ The Notary project consists of several repositories known as subprojects that en
 
 There are two types of maintainers in the Notary project organized hierarchically. Notary org maintainers oversee the overall project and its health. Subproject maintainers focus on a single codebase or a group of related codebases. 
 
-Changes in maintainership have to be annouced via an [issue](https://github.com/notaryproject/notaryproject/issues/new).
+Changes in maintainership have to be announced via an [issue](https://github.com/notaryproject/notaryproject/issues/new).
 
 ### Maintainer Responsibility
 Notary maintainers adhere to the requirements and responsibilities set forth in the respective [Notary Org Maintainers](#notary-org-maintainers) and [Subproject Maintainers](#subproject-maintainers). They further pledge the following:
