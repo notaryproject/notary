@@ -85,6 +85,10 @@ func (alg *AesGcm) Decrypt(aad, cek, iv, cipherText, authTag []byte) (plainText 
 
 	cipherWithTag:=append(cipherText,authTag...)
 
+	if nonceSize := len(iv); nonceSize != aesgcm.NonceSize() {
+		return nil, errors.New(fmt.Sprintf("AesGcm.Decrypt(): expected nonce of size %v bits, but was given %v bits.", aesgcm.NonceSize()<<3, nonceSize<<3))
+	}
+	
 	if plainText,err = aesgcm.Open(nil, iv, cipherWithTag, aad);err!=nil {
 		return nil,err
 	}

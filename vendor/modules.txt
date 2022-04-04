@@ -1,17 +1,26 @@
 # github.com/BurntSushi/toml v0.3.1
+## explicit
 github.com/BurntSushi/toml
 # github.com/Shopify/logrus-bugsnag v0.0.0-20170309145241-6dbc35f2c30d
+## explicit
 github.com/Shopify/logrus-bugsnag
 # github.com/beorn7/perks v1.0.1
+## explicit
 github.com/beorn7/perks/quantile
+# github.com/bitly/go-simplejson v0.5.0
+## explicit
 # github.com/bugsnag/bugsnag-go v1.0.5
+## explicit
 github.com/bugsnag/bugsnag-go
 github.com/bugsnag/bugsnag-go/errors
 # github.com/bugsnag/osext v0.0.0-20130617224835-0dd3f918b21b
+## explicit
 github.com/bugsnag/osext
 # github.com/bugsnag/panicwrap v0.0.0-20151223152923-e2c28503fcd0
+## explicit
 github.com/bugsnag/panicwrap
 # github.com/cloudflare/cfssl v0.0.0-20180223231731-4e2dcbde5004
+## explicit
 github.com/cloudflare/cfssl/auth
 github.com/cloudflare/cfssl/certdb
 github.com/cloudflare/cfssl/config
@@ -28,7 +37,10 @@ github.com/cloudflare/cfssl/signer
 github.com/cloudflare/cfssl/signer/local
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
+# github.com/denisenkom/go-mssqldb v0.0.0-20191128021309-1d7a30a10f73
+## explicit
 # github.com/docker/distribution v2.7.1+incompatible
+## explicit
 github.com/docker/distribution
 github.com/docker/distribution/context
 github.com/docker/distribution/digestset
@@ -49,14 +61,19 @@ github.com/docker/distribution/registry/storage/cache
 github.com/docker/distribution/registry/storage/cache/memory
 github.com/docker/distribution/uuid
 # github.com/docker/go v1.5.1-1.0.20160303222718-d30aec9fd63c
+## explicit
 github.com/docker/go/canonical/json
 # github.com/docker/go-connections v0.4.0
+## explicit
 github.com/docker/go-connections/tlsconfig
 # github.com/docker/go-metrics v0.0.0-20180209012529-399ea8c73916
+## explicit
 github.com/docker/go-metrics
 # github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7
+## explicit
 github.com/docker/libtrust
-# github.com/dvsekhvalnov/jose2go v0.0.0-20170216131308-f21a8cedbbae
+# github.com/dvsekhvalnov/jose2go v0.0.0-20200901110807-248326c1351b
+## explicit
 github.com/dvsekhvalnov/jose2go
 github.com/dvsekhvalnov/jose2go/aes
 github.com/dvsekhvalnov/jose2go/arrays
@@ -65,11 +82,16 @@ github.com/dvsekhvalnov/jose2go/compact
 github.com/dvsekhvalnov/jose2go/kdf
 github.com/dvsekhvalnov/jose2go/keys/ecc
 github.com/dvsekhvalnov/jose2go/padding
+# github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5
+## explicit
 # github.com/go-sql-driver/mysql v1.5.0
+## explicit
 github.com/go-sql-driver/mysql
 # github.com/gogo/protobuf v1.0.0
+## explicit
 github.com/gogo/protobuf/proto
 # github.com/golang/protobuf v1.3.4
+## explicit
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
@@ -77,6 +99,7 @@ github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/empty
 github.com/golang/protobuf/ptypes/timestamp
 # github.com/google/certificate-transparency-go v1.0.10-0.20180222191210-5ab67e519c93
+## explicit
 github.com/google/certificate-transparency-go
 github.com/google/certificate-transparency-go/asn1
 github.com/google/certificate-transparency-go/client
@@ -86,36 +109,52 @@ github.com/google/certificate-transparency-go/tls
 github.com/google/certificate-transparency-go/x509
 github.com/google/certificate-transparency-go/x509/pkix
 # github.com/gorilla/mux v1.7.0
+## explicit
 github.com/gorilla/mux
 # github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed
 github.com/hailocab/go-hostpool
 # github.com/inconshreveable/mousetrap v1.0.0
+## explicit
 github.com/inconshreveable/mousetrap
 # github.com/jinzhu/gorm v0.0.0-20170222002820-5409931a1bb8
+## explicit
 github.com/jinzhu/gorm
 # github.com/jinzhu/inflection v0.0.0-20170102125226-1c35d901db3d
+## explicit
 github.com/jinzhu/inflection
+# github.com/jinzhu/now v1.1.1
+## explicit
+# github.com/juju/loggo v0.0.0-20190526231331-6e530bcce5d8
+## explicit
 # github.com/kr/pretty v0.1.0
 github.com/kr/pretty
 # github.com/kr/text v0.2.0
 github.com/kr/text
 # github.com/lib/pq v1.9.0
+## explicit
 github.com/lib/pq
 github.com/lib/pq/oid
 github.com/lib/pq/scram
 # github.com/magiconair/properties v1.5.3
+## explicit
 github.com/magiconair/properties
 # github.com/mattn/go-sqlite3 v1.6.0
+## explicit
 github.com/mattn/go-sqlite3
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
+## explicit
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/miekg/pkcs11 v1.0.3
+## explicit
 github.com/miekg/pkcs11
 # github.com/mitchellh/mapstructure v1.0.0
+## explicit
 github.com/mitchellh/mapstructure
 # github.com/opencontainers/go-digest v1.0.0
+## explicit
 github.com/opencontainers/go-digest
 # github.com/opencontainers/image-spec v1.0.1
+## explicit
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
 # github.com/opentracing/opentracing-go v1.1.0
@@ -123,39 +162,52 @@ github.com/opentracing/opentracing-go
 github.com/opentracing/opentracing-go/ext
 github.com/opentracing/opentracing-go/log
 # github.com/pkg/errors v0.9.1
+## explicit
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
 # github.com/prometheus/client_golang v0.9.0-pre1.0.20180209125602-c332b6f63c06
+## explicit
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/promhttp
 # github.com/prometheus/client_model v0.0.0-20171117100541-99fa1f4be8e5
+## explicit
 github.com/prometheus/client_model/go
 # github.com/prometheus/common v0.0.0-20180110214958-89604d197083
+## explicit
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 github.com/prometheus/common/model
 # github.com/prometheus/procfs v0.0.0-20180125133057-cb4147076ac7
+## explicit
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/util
 github.com/prometheus/procfs/nfs
 github.com/prometheus/procfs/xfs
 # github.com/sirupsen/logrus v1.8.1
+## explicit
 github.com/sirupsen/logrus
 # github.com/spf13/cast v0.0.0-20150508191742-4d07383ffe94
+## explicit
 github.com/spf13/cast
 # github.com/spf13/cobra v0.0.1
+## explicit
 github.com/spf13/cobra
 # github.com/spf13/jwalterweatherman v0.0.0-20141219030609-3d60171a6431
+## explicit
 github.com/spf13/jwalterweatherman
 # github.com/spf13/pflag v1.0.0
+## explicit
 github.com/spf13/pflag
 # github.com/spf13/viper v0.0.0-20150530192845-be5ff3e4840c
+## explicit
 github.com/spf13/viper
 # github.com/stretchr/testify v1.5.1
+## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
 # golang.org/x/crypto v0.0.0-20201117144127-c1f2f97bffc9
+## explicit
 golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/cryptobyte
@@ -167,6 +219,7 @@ golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/pkcs12
 golang.org/x/crypto/pkcs12/internal/rc2
 # golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3
+## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
@@ -176,10 +229,12 @@ golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
 # golang.org/x/sys v0.0.0-20191120155948-bd437916bb0e
+## explicit
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 # golang.org/x/term v0.0.0-20201117132131-f5c789dd3221
+## explicit
 golang.org/x/term
 # golang.org/x/text v0.3.0
 golang.org/x/text/secure/bidirule
@@ -187,6 +242,7 @@ golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
 # google.golang.org/grpc v1.0.5
+## explicit
 google.golang.org/grpc
 google.golang.org/grpc/codes
 google.golang.org/grpc/credentials
@@ -203,6 +259,7 @@ google.golang.org/grpc/transport
 # gopkg.in/cenkalti/backoff.v2 v2.2.1
 gopkg.in/cenkalti/backoff.v2
 # gopkg.in/rethinkdb/rethinkdb-go.v6 v6.2.1
+## explicit
 gopkg.in/rethinkdb/rethinkdb-go.v6
 gopkg.in/rethinkdb/rethinkdb-go.v6/encoding
 gopkg.in/rethinkdb/rethinkdb-go.v6/ql2

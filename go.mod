@@ -1,6 +1,6 @@
 module github.com/theupdateframework/notary
 
-go 1.12
+go 1.16
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
@@ -17,7 +17,7 @@ require (
 	github.com/docker/go-connections v0.4.0
 	github.com/docker/go-metrics v0.0.0-20180209012529-399ea8c73916 // indirect
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
-	github.com/dvsekhvalnov/jose2go v0.0.0-20170216131308-f21a8cedbbae
+	github.com/dvsekhvalnov/jose2go v0.0.0-20200901110807-248326c1351b
 	github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5 // indirect
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gogo/protobuf v1.0.0 // indirect
