@@ -12,7 +12,6 @@ type sqlite3 struct {
 }
 
 func init() {
-	RegisterDialect("sqlite", &sqlite3{})
 	RegisterDialect("sqlite3", &sqlite3{})
 }
 
@@ -29,15 +28,15 @@ func (s *sqlite3) DataTypeOf(field *StructField) string {
 		case reflect.Bool:
 			sqlType = "bool"
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uintptr:
-			if field.IsPrimaryKey {
-				field.TagSettings["AUTO_INCREMENT"] = "AUTO_INCREMENT"
+			if s.fieldCanAutoIncrement(field) {
+				field.TagSettingsSet("AUTO_INCREMENT", "AUTO_INCREMENT")
 				sqlType = "integer primary key autoincrement"
 			} else {
 				sqlType = "integer"
 			}
 		case reflect.Int64, reflect.Uint64:
-			if field.IsPrimaryKey {
-				field.TagSettings["AUTO_INCREMENT"] = "AUTO_INCREMENT"
+			if s.fieldCanAutoIncrement(field) {
+				field.TagSettingsSet("AUTO_INCREMENT", "AUTO_INCREMENT")
 				sqlType = "integer primary key autoincrement"
 			} else {
 				sqlType = "bigint"
@@ -55,7 +54,7 @@ func (s *sqlite3) DataTypeOf(field *StructField) string {
 				sqlType = "datetime"
 			}
 		default:
-			if _, ok := dataValue.Interface().([]byte); ok {
+			if IsByteArrayOrSlice(dataValue) {
 				sqlType = "blob"
 			}
 		}

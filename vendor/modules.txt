@@ -82,8 +82,6 @@ github.com/dvsekhvalnov/jose2go/compact
 github.com/dvsekhvalnov/jose2go/kdf
 github.com/dvsekhvalnov/jose2go/keys/ecc
 github.com/dvsekhvalnov/jose2go/padding
-# github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5
-## explicit
 # github.com/go-sql-driver/mysql v1.5.0
 ## explicit
 github.com/go-sql-driver/mysql
@@ -116,13 +114,12 @@ github.com/hailocab/go-hostpool
 # github.com/inconshreveable/mousetrap v1.0.0
 ## explicit
 github.com/inconshreveable/mousetrap
-# github.com/jinzhu/gorm v0.0.0-20170222002820-5409931a1bb8
+# github.com/jinzhu/gorm v1.9.16
 ## explicit
 github.com/jinzhu/gorm
-# github.com/jinzhu/inflection v0.0.0-20170102125226-1c35d901db3d
-## explicit
+# github.com/jinzhu/inflection v1.0.0
 github.com/jinzhu/inflection
-# github.com/jinzhu/now v1.1.1
+# github.com/jinzhu/now v1.1.4
 ## explicit
 # github.com/juju/loggo v0.0.0-20190526231331-6e530bcce5d8
 ## explicit
@@ -138,7 +135,7 @@ github.com/lib/pq/scram
 # github.com/magiconair/properties v1.5.3
 ## explicit
 github.com/magiconair/properties
-# github.com/mattn/go-sqlite3 v1.6.0
+# github.com/mattn/go-sqlite3 v1.14.0
 ## explicit
 github.com/mattn/go-sqlite3
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
@@ -218,7 +215,7 @@ golang.org/x/crypto/ocsp
 golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/pkcs12
 golang.org/x/crypto/pkcs12/internal/rc2
-# golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3
+# golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -228,7 +225,7 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sys v0.0.0-20191120155948-bd437916bb0e
+# golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
 ## explicit
 golang.org/x/sys/plan9
 golang.org/x/sys/unix

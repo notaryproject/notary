@@ -3,6 +3,7 @@ package gorm
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -33,7 +34,7 @@ func assignUpdatingAttributesCallback(scope *Scope) {
 // beforeUpdateCallback will invoke `BeforeSave`, `BeforeUpdate` method before updating
 func beforeUpdateCallback(scope *Scope) {
 	if scope.DB().HasBlockGlobalUpdate() && !scope.hasConditions() {
-		scope.Err(errors.New("Missing WHERE clause while updating"))
+		scope.Err(errors.New("missing WHERE clause while updating"))
 		return
 	}
 	if _, ok := scope.Get("gorm:update_column"); !ok {
@@ -49,7 +50,7 @@ func beforeUpdateCallback(scope *Scope) {
 // updateTimeStampForUpdateCallback will set `UpdatedAt` when updating
 func updateTimeStampForUpdateCallback(scope *Scope) {
 	if _, ok := scope.Get("gorm:update_column"); !ok {
-		scope.SetColumn("UpdatedAt", NowFunc())
+		scope.SetColumn("UpdatedAt", scope.db.nowFunc())
 	}
 }
 
@@ -59,14 +60,25 @@ func updateCallback(scope *Scope) {
 		var sqls []string
 
 		if updateAttrs, ok := scope.InstanceGet("gorm:update_attrs"); ok {
-			for column, value := range updateAttrs.(map[string]interface{}) {
+			// Sort the column names so that the generated SQL is the same every time.
+			updateMap := updateAttrs.(map[string]interface{})
+			var columns []string
+			for c := range updateMap {
+				columns = append(columns, c)
+			}
+			sort.Strings(columns)
+
+			for _, column := range columns {
+				value := updateMap[column]
 				sqls = append(sqls, fmt.Sprintf("%v = %v", scope.Quote(column), scope.AddToVars(value)))
 			}
 		} else {
 			for _, field := range scope.Fields() {
 				if scope.changeableField(field) {
-					if !field.IsPrimaryKey && field.IsNormal {
-						sqls = append(sqls, fmt.Sprintf("%v = %v", scope.Quote(field.DBName), scope.AddToVars(field.Field.Interface())))
+					if !field.IsPrimaryKey && field.IsNormal && (field.Name != "CreatedAt" || !field.IsBlank) {
+						if !field.IsForeignKey || !field.IsBlank || !field.HasDefaultValue {
+							sqls = append(sqls, fmt.Sprintf("%v = %v", scope.Quote(field.DBName), scope.AddToVars(field.Field.Interface())))
+						}
 					} else if relationship := field.Relationship; relationship != nil && relationship.Kind == "belongs_to" {
 						for _, foreignKey := range relationship.ForeignDBNames {
 							if foreignField, ok := scope.FieldByName(foreignKey); ok && !scope.changeableField(foreignField) {
