@@ -9,6 +9,8 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
+	"github.com/lib/pq"
+	"github.com/mattn/go-sqlite3"
 	"github.com/sirupsen/logrus"
 	"github.com/theupdateframework/notary/tuf/data"
 )
@@ -31,7 +33,7 @@ func NewSQLStorage(dialect string, args ...interface{}) (*SQLStorage, error) {
 }
 
 // translateOldVersionError captures DB errors, and attempts to translate
-// duplicate entry - currently only supports MySQL and Sqlite3
+// duplicate entry
 func translateOldVersionError(err error) error {
 	switch err := err.(type) {
 	case *mysql.MySQLError:
@@ -39,6 +41,16 @@ func translateOldVersionError(err error) error {
 		// 1022 = Can't write; duplicate key in table '%s'
 		// 1062 = Duplicate entry '%s' for key %d
 		if err.Number == 1022 || err.Number == 1062 {
+			return ErrOldVersion{}
+		}
+	case pq.Error:
+		// https://www.postgresql.org/docs/10/errcodes-appendix.html
+		// 23505 = unique_violation
+		if err.Code == "23505" {
+			return ErrOldVersion{}
+		}
+	case sqlite3.Error:
+		if err.ExtendedCode == sqlite3.ErrConstraintUnique {
 			return ErrOldVersion{}
 		}
 	}
@@ -53,8 +65,10 @@ func (db *SQLStorage) UpdateCurrent(gun data.GUN, update MetaUpdate) error {
 	exists := db.Where("gun = ? and role = ? and version >= ?",
 		gun.String(), update.Role.String(), update.Version).First(&TUFFile{})
 
-	if !exists.RecordNotFound() {
+	if exists.Error == nil {
 		return ErrOldVersion{}
+	} else if !exists.RecordNotFound() {
+		return exists.Error
 	}
 
 	// only take out the transaction once we're about to start writing
@@ -113,56 +127,81 @@ func (db *SQLStorage) getTransaction() (*gorm.DB, rollback, error) {
 
 // UpdateMany atomically updates many TUF records in a single transaction
 func (db *SQLStorage) UpdateMany(gun data.GUN, updates []MetaUpdate) error {
+	if !allUpdatesUnique(updates) {
+		// We would fail with a unique constraint violation later, so just bail out now
+		return ErrOldVersion{}
+	}
+
+	minVersionsByRole := make(map[data.RoleName]int)
+	for _, u := range updates {
+		cur, ok := minVersionsByRole[u.Role]
+		if !ok || u.Version < cur {
+			minVersionsByRole[u.Role] = u.Version
+		}
+	}
+
+	for role, minVersion := range minVersionsByRole {
+		// If there are any files with version equal or higher than the minimum
+		// version we're trying to insert, bail out now
+		exists := db.Where("gun = ? and role = ? and version >= ?",
+			gun.String(), role.String(), minVersion).First(&TUFFile{})
+
+		if exists.Error == nil {
+			return ErrOldVersion{}
+		} else if !exists.RecordNotFound() {
+			return exists.Error
+		}
+	}
+
 	tx, rb, err := db.getTransaction()
 	if err != nil {
 		return err
 	}
-	var (
-		query *gorm.DB
-		added = make(map[uint]bool)
-	)
+
 	if err := func() error {
 		for _, update := range updates {
-			// This looks like the same logic as UpdateCurrent, but if we just
-			// called, version ordering in the updates list must be enforced
-			// (you cannot insert the version 2 before version 1).  And we do
-			// not care about monotonic ordering in the updates.
-			query = db.Where("gun = ? and role = ? and version >= ?",
-				gun.String(), update.Role.String(), update.Version).First(&TUFFile{})
-
-			if !query.RecordNotFound() {
-				return ErrOldVersion{}
-			}
-
-			var row TUFFile
 			checksum := sha256.Sum256(update.Data)
 			hexChecksum := hex.EncodeToString(checksum[:])
-			query = tx.Where(map[string]interface{}{
-				"gun":     gun.String(),
-				"role":    update.Role.String(),
-				"version": update.Version,
-			}).Attrs("data", update.Data).Attrs("sha256", hexChecksum).FirstOrCreate(&row)
 
-			if query.Error != nil {
-				return translateOldVersionError(query.Error)
+			result := tx.Create(&TUFFile{
+				Gun:     gun.String(),
+				Role:    update.Role.String(),
+				Version: update.Version,
+				Data:    update.Data,
+				SHA256:  hexChecksum,
+			})
+
+			if result.Error != nil {
+				return translateOldVersionError(result.Error)
 			}
-			// it's previously been added, which means it's a duplicate entry
-			// in the same transaction
-			if _, ok := added[row.ID]; ok {
-				return ErrOldVersion{}
-			}
+
 			if update.Role == data.CanonicalTimestampRole {
 				if err := db.writeChangefeed(tx, gun, update.Version, hexChecksum); err != nil {
 					return err
 				}
 			}
-			added[row.ID] = true
 		}
 		return nil
 	}(); err != nil {
 		return rb(err)
 	}
 	return tx.Commit().Error
+}
+
+func allUpdatesUnique(updates []MetaUpdate) bool {
+	type roleVersion struct {
+		Role    data.RoleName
+		Version int
+	}
+	roleVersions := make(map[roleVersion]bool)
+	for _, u := range updates {
+		rv := roleVersion{u.Role, u.Version}
+		if roleVersions[rv] {
+			return false
+		}
+		roleVersions[rv] = true
+	}
+	return true
 }
 
 func (db *SQLStorage) writeChangefeed(tx *gorm.DB, gun data.GUN, version int, checksum string) error {
