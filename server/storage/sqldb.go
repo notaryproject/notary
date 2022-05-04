@@ -18,7 +18,7 @@ import (
 // SQLStorage implements a versioned store using a relational database.
 // See server/storage/models.go
 type SQLStorage struct {
-	gorm.DB
+	*gorm.DB
 }
 
 // NewSQLStorage is a convenience method to create a SQLStorage
@@ -28,7 +28,7 @@ func NewSQLStorage(dialect string, args ...interface{}) (*SQLStorage, error) {
 		return nil, err
 	}
 	return &SQLStorage{
-		DB: *gormDB,
+		DB: gormDB,
 	}, nil
 }
 
@@ -311,7 +311,7 @@ func (db *SQLStorage) CheckHealth() error {
 func (db *SQLStorage) GetChanges(changeID string, records int, filterName string) ([]Change, error) {
 	var (
 		changes []Change
-		query   = &db.DB
+		query   = db.DB
 		id      int64
 		err     error
 	)

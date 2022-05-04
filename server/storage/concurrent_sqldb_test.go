@@ -49,7 +49,7 @@ func init() {
 		gormDB.Close()
 		dbStore := SetupSQLDB(t, backend, dburl)
 		return dbStore, func() {
-			dropTables(&dbStore.DB)
+			dropTables(dbStore.DB)
 			dbStore.Close()
 		}
 	}

@@ -35,7 +35,7 @@ type sqldbSetupFunc func(*testing.T) (*SQLStorage, func())
 
 var sqldbSetup sqldbSetupFunc
 
-func assertExpectedGormTUFMeta(t *testing.T, expected []StoredTUFMeta, gormDB gorm.DB) {
+func assertExpectedGormTUFMeta(t *testing.T, expected []StoredTUFMeta, gormDB *gorm.DB) {
 	expectedGorm := make([]TUFFile, len(expected))
 	for i, tufObj := range expected {
 		expectedGorm[i] = TUFFile{
