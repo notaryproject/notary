@@ -1,3 +1,4 @@
+//go:build mysqldb
 // +build mysqldb
 
 // Initializes a MySQL DB for testing purposes
@@ -13,6 +14,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"github.com/theupdateframework/notary"
 )
 
 func init() {
@@ -37,19 +39,19 @@ func init() {
 	}
 
 	sqldbSetup = func(t *testing.T) (*SQLStorage, func()) {
-		var cleanup1 = func() {
-			gormDB, err := gorm.Open("mysql", dburl)
-			require.NoError(t, err)
-
+		var dropTables = func(gormDB *gorm.DB) {
 			// drop all tables, if they exist
 			gormDB.DropTable(&TUFFile{})
 			gormDB.DropTable(&SQLChange{})
 		}
-		cleanup1()
-		dbStore := SetupSQLDB(t, "mysql", dburl)
+		gormDB, err := gorm.Open(notary.MySQLBackend, dburl)
+		require.NoError(t, err)
+		dropTables(gormDB)
+		gormDB.Close()
+		dbStore := SetupSQLDB(t, notary.MySQLBackend, dburl)
 		return dbStore, func() {
-			dbStore.DB.Close()
-			cleanup1()
+			dropTables(&dbStore.DB)
+			dbStore.Close()
 		}
 	}
 }

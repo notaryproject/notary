@@ -1,3 +1,4 @@
+//go:build postgresqldb
 // +build postgresqldb
 
 // Initializes a PostgreSQL DB for testing purposes
@@ -38,19 +39,19 @@ func init() {
 	}
 
 	sqldbSetup = func(t *testing.T) (*SQLStorage, func()) {
-		var cleanup1 = func() {
-			gormDB, err := gorm.Open(notary.PostgresBackend, dburl)
-			require.NoError(t, err)
-
+		var dropTables = func(gormDB *gorm.DB) {
 			// drop all tables, if they exist
 			gormDB.DropTable(&TUFFile{})
 			gormDB.DropTable(&SQLChange{})
 		}
-		cleanup1()
+		gormDB, err := gorm.Open(notary.PostgresBackend, dburl)
+		require.NoError(t, err)
+		dropTables(gormDB)
+		gormDB.Close()
 		dbStore := SetupSQLDB(t, notary.PostgresBackend, dburl)
 		return dbStore, func() {
-			dbStore.DB.Close()
-			cleanup1()
+			dropTables(&dbStore.DB)
+			dbStore.Close()
 		}
 	}
 }

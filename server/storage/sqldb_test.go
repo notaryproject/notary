@@ -67,8 +67,6 @@ func TestSQLUpdateCurrentEmpty(t *testing.T) {
 
 	expected := testUpdateCurrentEmptyStore(t, dbStore)
 	assertExpectedGormTUFMeta(t, expected, dbStore.DB)
-
-	dbStore.DB.Close()
 }
 
 // TestSQLUpdateCurrentVersionCheckOldVersionExists asserts that UpdateCurrent will add a
@@ -80,8 +78,6 @@ func TestSQLUpdateCurrentVersionCheckOldVersionExists(t *testing.T) {
 
 	expected := testUpdateCurrentVersionCheck(t, dbStore, true)
 	assertExpectedGormTUFMeta(t, expected, dbStore.DB)
-
-	dbStore.DB.Close()
 }
 
 // TestSQLUpdateCurrentVersionCheckOldVersionNotExist asserts that UpdateCurrent will add a
@@ -93,8 +89,6 @@ func TestSQLUpdateCurrentVersionCheckOldVersionNotExist(t *testing.T) {
 
 	expected := testUpdateCurrentVersionCheck(t, dbStore, false)
 	assertExpectedGormTUFMeta(t, expected, dbStore.DB)
-
-	dbStore.DB.Close()
 }
 
 // TestSQLUpdateManyNoConflicts asserts that inserting multiple updates succeeds if the
@@ -106,8 +100,6 @@ func TestSQLUpdateManyNoConflicts(t *testing.T) {
 
 	expected := testUpdateManyNoConflicts(t, dbStore)
 	assertExpectedGormTUFMeta(t, expected, dbStore.DB)
-
-	dbStore.DB.Close()
 }
 
 // TestSQLUpdateManyConflictRollback asserts that no data ends up in the DB if there is
@@ -118,8 +110,6 @@ func TestSQLUpdateManyConflictRollback(t *testing.T) {
 
 	expected := testUpdateManyConflictRollback(t, dbStore)
 	assertExpectedGormTUFMeta(t, expected, dbStore.DB)
-
-	dbStore.DB.Close()
 }
 
 // TestSQLDelete asserts that Delete will remove all TUF metadata, all versions,
@@ -130,8 +120,6 @@ func TestSQLDelete(t *testing.T) {
 
 	testDeleteSuccess(t, dbStore)
 	assertExpectedGormTUFMeta(t, nil, dbStore.DB)
-
-	dbStore.DB.Close()
 }
 
 // TestSQLDBCheckHealthTableMissing asserts that the health check fails if the table is missing
