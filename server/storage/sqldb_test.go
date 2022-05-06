@@ -1,3 +1,4 @@
+//go:build !rethinkdb
 // +build !rethinkdb
 
 package storage
