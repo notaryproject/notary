@@ -5,21 +5,21 @@ db="$1"
 case ${db} in
   mysql*)
     db="mysql"
-    dbContainerOpts="--name mysql_tests mysql mysqld --innodb_file_per_table"
-    DBURL="server@tcp(mysql_tests:3306)/notaryserver?parseTime=True"
+    dbContainerOpts="mysql mysqld --innodb_file_per_table"
+    DBURL="server@tcp(mysql:3306)/notaryserver?parseTime=True"
     ;;
   rethink*)
     db="rethink"
-    dbContainerOpts="--name rethinkdb_tests rdb-01 --bind all --driver-tls-key /tls/key.pem --driver-tls-cert /tls/cert.pem"
-    DBURL="rethinkdb_tests"
+    dbContainerOpts="rdb-01 --bind all --driver-tls-key /tls/key.pem --driver-tls-cert /tls/cert.pem"
+    DBURL="rdb-01.rdb"
     ;;
   postgresql*)
     db="postgresql"
-    dbContainerOpts="--name postgresql_tests postgresql -l"
-    DBURL="postgres://server@postgresql_tests:5432/notaryserver?sslmode=verify-ca&sslrootcert=/go/src/github.com/theupdateframework/notary/fixtures/database/ca.pem&sslcert=/go/src/github.com/theupdateframework/notary/fixtures/database/notary-server.pem&sslkey=/go/src/github.com/theupdateframework/notary/fixtures/database/notary-server-key.pem"
+    dbContainerOpts="postgresql -l"
+    DBURL="postgres://server@postgresql:5432/notaryserver?sslmode=verify-ca&sslrootcert=/go/src/github.com/theupdateframework/notary/fixtures/database/ca.pem&sslcert=/go/src/github.com/theupdateframework/notary/fixtures/database/notary-server.pem&sslkey=/go/src/github.com/theupdateframework/notary/fixtures/database/notary-server-key.pem"
     ;;
   *)
-    echo "Usage: $0 (mysql|rethink)"
+    echo "Usage: $0 (mysql|rethink|postgresql)"
     exit 1
     ;;
 esac
@@ -29,10 +29,10 @@ project=dbtests
 
 function cleanup {
     rm -f bin/notary
-    docker-compose -p "${project}_${db}" -f "${composeFile}" kill
+    docker-compose -p "${project}_${db}" -f "${composeFile}" kill ||:
     # if we're in CircleCI, we cannot remove any containers
     if [[ -z "${CIRCLECI}" ]]; then
-        docker-compose -p "${project}_${db}" -f "${composeFile}" down -v --remove-orphans
+        docker-compose -p "${project}_${db}" -f "${composeFile}" down -v --remove-orphans ||:
     fi
 }
 
@@ -54,7 +54,7 @@ trap cleanup SIGINT SIGTERM EXIT
 
 # run the unit tests that require a DB
 
-docker-compose -p "${project}_${db}" -f "${composeFile}" run --no-deps -d ${dbContainerOpts}
+docker-compose -p "${project}_${db}" -f "${composeFile}" run --no-deps --use-aliases -d ${dbContainerOpts}
 docker-compose -p "${project}_${db}" -f "${composeFile}" run --no-deps \
     -e NOTARY_BUILDTAGS="${db}db" -e DBURL="${DBURL}" \
     -e PKGS="github.com/theupdateframework/notary/server/storage github.com/theupdateframework/notary/signer/keydbstore" \
