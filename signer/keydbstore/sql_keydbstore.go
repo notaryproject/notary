@@ -229,7 +229,13 @@ func (s *SQLKeyDBStore) GetKey(keyID string) data.PublicKey {
 }
 
 // HealthCheck verifies that DB exists and is query-able
-func (s *SQLKeyDBStore) HealthCheck() error {
+func (s *SQLKeyDBStore) HealthCheck() (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("Panic checking db health: %v", r)
+		}
+	}()
+
 	dbPrivateKey := GormPrivateKey{}
 	tableOk := s.db.HasTable(&dbPrivateKey)
 	switch {

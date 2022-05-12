@@ -295,7 +295,13 @@ func (db *SQLStorage) Delete(gun data.GUN) error {
 }
 
 // CheckHealth asserts that the tuf_files table is present
-func (db *SQLStorage) CheckHealth() error {
+func (db *SQLStorage) CheckHealth() (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("Panic checking db health: %v", r)
+		}
+	}()
+
 	tableOk := db.HasTable(&TUFFile{})
 	if db.Error != nil {
 		return db.Error
