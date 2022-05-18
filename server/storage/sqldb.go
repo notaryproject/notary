@@ -10,7 +10,6 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	"github.com/lib/pq"
-	"github.com/mattn/go-sqlite3"
 	"github.com/sirupsen/logrus"
 	"github.com/theupdateframework/notary/tuf/data"
 )
@@ -47,10 +46,6 @@ func translateOldVersionError(err error) error {
 		// https://www.postgresql.org/docs/10/errcodes-appendix.html
 		// 23505 = unique_violation
 		if err.Code == "23505" {
-			return ErrOldVersion{}
-		}
-	case sqlite3.Error:
-		if err.ExtendedCode == sqlite3.ErrConstraintUnique {
 			return ErrOldVersion{}
 		}
 	}
