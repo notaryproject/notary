@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-go_version=1.16.9
+go_version=1.17.13
 
 docker run --rm --env GO111MODULE=on -w /notary --volume ${PWD}:/notary \
     golang:${go_version}-alpine \

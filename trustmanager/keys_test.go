@@ -412,7 +412,7 @@ func TestImportKeys2InOneFile(t *testing.T) {
 	require.Equal(t, b.Bytes, bFinal.Bytes)
 	_, ok := bFinal.Headers["path"]
 	require.False(t, ok, "expected no path header, should have been removed at import")
-	role, _ := bFinal.Headers["role"]
+	role := bFinal.Headers["role"]
 	require.Equal(t, notary.DefaultImportRole, role)
 
 	b2Final, b2Rest := pem.Decode(bRest)

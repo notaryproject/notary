@@ -12,6 +12,7 @@ import (
 // the requested operations to an underlying trustmanager.Storage instance, translating
 // between the Go and GRPC interfaces.
 type GRPCStorage struct {
+	UnimplementedStoreServer
 	backend trustmanager.Storage
 }
 

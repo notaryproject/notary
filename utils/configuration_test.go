@@ -200,8 +200,7 @@ func TestParseInvalidDBSourceInSQLStorage(t *testing.T) {
 	}`)
 	_, err := ParseSQLStorage(config)
 	require.Error(t, err)
-	require.Contains(t, err.Error(),
-		fmt.Sprintf("failed to parse the database source for mysql"))
+	require.Contains(t, err.Error(), "failed to parse the database source for mysql")
 }
 
 // A supported backend with DB source will be successfully parsed.
@@ -482,7 +481,7 @@ func TestParseViperWithInvalidFile(t *testing.T) {
 
 	err := ParseViper(v, "Chronicle_Of_Dark_Secrets.json")
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Could not read config")
+	require.Contains(t, err.Error(), "could not read config")
 }
 
 func TestParseViperWithValidFile(t *testing.T) {

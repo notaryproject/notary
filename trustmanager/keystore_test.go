@@ -111,7 +111,7 @@ func TestKeyStoreInternalState(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, store.keyInfoMap, 4)
 	for _, role := range roles {
-		keyID, _ := roleToID[role.String()]
+		keyID := roleToID[role.String()]
 		// make sure this keyID is the right length
 		require.Len(t, keyID, notary.SHA256HexSize)
 		require.Equal(t, role, store.keyInfoMap[keyID].Role)
@@ -176,8 +176,7 @@ func TestGet(t *testing.T) {
 }
 
 func testGetKeyWithRole(t *testing.T, gun data.GUN, role data.RoleName) {
-	var testPEM []byte
-	testPEM = []byte(`-----BEGIN PRIVATE KEY-----
+	testPEM := []byte(`-----BEGIN PRIVATE KEY-----
 MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC2cL8WamG24ihl
 JSVG8ZVel05lPqYD0S8ol1L+zzwsHkim2DS+a5BLX5+QJtCfZrR+Pzo+4pCrjU+N
 R/71aYNm/M95h/JSJxdEoTgYCCHNJD8IYpTc6lXyy49lSQh7svLpZ2dQwHoGB5VC

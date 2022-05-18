@@ -124,7 +124,7 @@ func CreateHandler(operationName string, serverHandler utils.ContextHandler, err
 		wrapped = utils.WrapWithCacheHandler(cacheControlConfig, wrapped)
 	}
 	wrapped = filterImagePrefixes(repoPrefixes, errorIfGUNInvalid, wrapped)
-	return prometheus.InstrumentHandlerWithOpts(prometheusOpts(operationName), wrapped)
+	return prometheus.InstrumentHandlerWithOpts(prometheusOpts(operationName), wrapped) //lint:ignore SA1019 TODO update prometheus API
 }
 
 // RootHandler returns the handler that routes all the paths from / for the
@@ -232,7 +232,7 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 		repoPrefixes,
 	))
 	r.Methods("GET").Path("/_notary_server/health").HandlerFunc(health.StatusHandler)
-	r.Methods("GET").Path("/metrics").Handler(prometheus.Handler())
+	r.Methods("GET").Path("/metrics").Handler(prometheus.Handler()) //lint:ignore SA1019 TODO update prometheus API
 	r.Methods("GET", "POST", "PUT", "HEAD", "DELETE").Path("/{other:.*}").Handler(
 		authWrapper(handlers.NotFoundHandler))
 

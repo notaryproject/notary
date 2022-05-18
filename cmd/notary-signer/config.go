@@ -135,7 +135,7 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, d
 			sess, err = rethinkdb.UserConnection(tlsOpts, storeConfig.Source, storeConfig.Username, storeConfig.Password)
 		}
 		if err != nil {
-			return nil, fmt.Errorf("Error starting %s driver: %s", backend, err.Error())
+			return nil, fmt.Errorf("error starting %s driver: %w", backend, err)
 		}
 		s := keydbstore.NewRethinkDBKeyStore(storeConfig.DBName, storeConfig.Username, storeConfig.Password, passphraseRetriever, defaultAlias, sess)
 		health.RegisterPeriodicFunc("DB operational", time.Minute, s.CheckHealth)

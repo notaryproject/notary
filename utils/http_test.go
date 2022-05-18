@@ -82,9 +82,10 @@ func TestWrapWithCacheHeaderNon200Response(t *testing.T) {
 		rw := httptest.NewRecorder()
 		wrapped.ServeHTTP(rw, req)
 
-		require.Equal(t, "", rw.HeaderMap.Get("Cache-Control"))
-		require.Equal(t, "", rw.HeaderMap.Get("Last-Modified"))
-		require.Equal(t, "", rw.HeaderMap.Get("Pragma"))
+		h := rw.Result().Header
+		require.Equal(t, "", h.Get("Cache-Control"))
+		require.Equal(t, "", h.Get("Last-Modified"))
+		require.Equal(t, "", h.Get("Pragma"))
 	}
 }
 
@@ -116,12 +117,14 @@ func TestWrapWithCacheHeaderPublicCacheControlNoCacheHeaders(t *testing.T) {
 			if revalidate {
 				cacheControl = cacheControl + ", must-revalidate"
 			}
-			require.Equal(t, cacheControl, rw.HeaderMap.Get("Cache-Control"))
 
-			lastModified, err := time.Parse(time.RFC1123, rw.HeaderMap.Get("Last-Modified"))
+			h := rw.Result().Header
+			require.Equal(t, cacheControl, h.Get("Cache-Control"))
+
+			lastModified, err := time.Parse(time.RFC1123, h.Get("Last-Modified"))
 			require.NoError(t, err)
 			require.True(t, lastModified.Equal(time.Time{}))
-			require.Equal(t, "", rw.HeaderMap.Get("Pragma"))
+			require.Equal(t, "", h.Get("Pragma"))
 		}
 	}
 }
@@ -144,13 +147,14 @@ func TestWrapWithCacheHeaderPublicCacheControlLastModifiedHeader(t *testing.T) {
 	rw := httptest.NewRecorder()
 	wrapped.ServeHTTP(rw, req)
 
-	require.Equal(t, "public, max-age=10, s-maxage=10, must-revalidate", rw.HeaderMap.Get("Cache-Control"))
-	lastModified, err := time.Parse(time.RFC1123, rw.HeaderMap.Get("Last-Modified"))
+	h := rw.Result().Header
+	require.Equal(t, "public, max-age=10, s-maxage=10, must-revalidate", h.Get("Cache-Control"))
+	lastModified, err := time.Parse(time.RFC1123, h.Get("Last-Modified"))
 	require.NoError(t, err)
 	// RFC1123 does not include nanoseconds
 	nowToNearestSecond := now.Add(time.Duration(-1 * now.Nanosecond()))
 	require.True(t, lastModified.Equal(nowToNearestSecond))
-	require.Equal(t, "", rw.HeaderMap.Get("Pragma"))
+	require.Equal(t, "", h.Get("Pragma"))
 }
 
 // If the wrapped handler writes a Cache-Control header, even if the last modified
@@ -170,9 +174,10 @@ func TestWrapWithCacheHeaderPublicCacheControlCacheControlHeader(t *testing.T) {
 	rw := httptest.NewRecorder()
 	wrapped.ServeHTTP(rw, req)
 
-	require.Equal(t, "some invalid cache control value", rw.HeaderMap.Get("Cache-Control"))
-	require.Equal(t, "", rw.HeaderMap.Get("Last-Modified"))
-	require.Equal(t, "invalid value", rw.HeaderMap.Get("Pragma"))
+	h := rw.Result().Header
+	require.Equal(t, "some invalid cache control value", h.Get("Cache-Control"))
+	require.Equal(t, "", h.Get("Last-Modified"))
+	require.Equal(t, "invalid value", h.Get("Pragma"))
 }
 
 // If the wrapped handler writes no cache headers whatsoever, and NoCacheControl
@@ -190,9 +195,10 @@ func TestWrapWithCacheHeaderNoCacheControlNoCacheHeaders(t *testing.T) {
 	rw := httptest.NewRecorder()
 	wrapped.ServeHTTP(rw, req)
 
-	require.Equal(t, "max-age=0, no-cache, no-store", rw.HeaderMap.Get("Cache-Control"))
-	require.Equal(t, "", rw.HeaderMap.Get("Last-Modified"))
-	require.Equal(t, "no-cache", rw.HeaderMap.Get("Pragma"))
+	h := rw.Result().Header
+	require.Equal(t, "max-age=0, no-cache, no-store", h.Get("Cache-Control"))
+	require.Equal(t, "", h.Get("Last-Modified"))
+	require.Equal(t, "no-cache", h.Get("Pragma"))
 }
 
 // If the wrapped handler writes a last modified header, and NoCacheControl
@@ -212,10 +218,11 @@ func TestWrapWithCacheHeaderNoCacheControlLastModifiedHeader(t *testing.T) {
 	rw := httptest.NewRecorder()
 	wrapped.ServeHTTP(rw, req)
 
-	require.Equal(t, "max-age=0, no-cache, no-store", rw.HeaderMap.Get("Cache-Control"))
-	require.Equal(t, "no-cache", rw.HeaderMap.Get("Pragma"))
+	h := rw.Result().Header
+	require.Equal(t, "max-age=0, no-cache, no-store", h.Get("Cache-Control"))
+	require.Equal(t, "no-cache", h.Get("Pragma"))
 
-	lastModified, err := time.Parse(time.RFC1123, rw.HeaderMap.Get("Last-Modified"))
+	lastModified, err := time.Parse(time.RFC1123, h.Get("Last-Modified"))
 	require.NoError(t, err)
 	// RFC1123 does not include nanoseconds
 	nowToNearestSecond := now.Add(time.Duration(-1 * now.Nanosecond()))
@@ -240,10 +247,11 @@ func TestWrapWithCacheHeaderNoCacheControlCacheControlHeader(t *testing.T) {
 	rw := httptest.NewRecorder()
 	wrapped.ServeHTTP(rw, req)
 
-	require.Equal(t, "some invalid cache control value", rw.HeaderMap.Get("Cache-Control"))
-	require.Equal(t, "", rw.HeaderMap.Get("Pragma"))
+	h := rw.Result().Header
+	require.Equal(t, "some invalid cache control value", h.Get("Cache-Control"))
+	require.Equal(t, "", h.Get("Pragma"))
 
-	lastModified, err := time.Parse(time.RFC1123, rw.HeaderMap.Get("Last-Modified"))
+	lastModified, err := time.Parse(time.RFC1123, h.Get("Last-Modified"))
 	require.NoError(t, err)
 	// RFC1123 does not include nanoseconds
 	nowToNearestSecond := now.Add(time.Duration(-1 * now.Nanosecond()))
