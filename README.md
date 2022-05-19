@@ -1,16 +1,16 @@
 <img src="docs/images/notary-blk.svg" alt="Notary" width="400px"/>
 
 [![GoDoc](https://godoc.org/github.com/theupdateframework/notary?status.svg)](https://godoc.org/github.com/theupdateframework/notary)
-[![Circle CI](https://circleci.com/gh/theupdateframework/notary/tree/master.svg?style=shield)](https://circleci.com/gh/theupdateframework/notary/tree/master) [![CodeCov](https://codecov.io/github/theupdateframework/notary/coverage.svg?branch=master)](https://codecov.io/github/theupdateframework/notary) [![GoReportCard](https://goreportcard.com/badge/theupdateframework/notary)](https://goreportcard.com/report/github.com/theupdateframework/notary)
+[![CircleCI](https://circleci.com/gh/circleci/circleci-docs.svg?style=shield)](https://circleci.com/gh/circleci/circleci-docs) [![CodeCov](https://codecov.io/github/theupdateframework/notary/coverage.svg?branch=master)](https://codecov.io/github/theupdateframework/notary) [![GoReportCard](https://goreportcard.com/badge/theupdateframework/notary)](https://goreportcard.com/report/github.com/theupdateframework/notary)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Ftheupdateframework%2Fnotary.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Ftheupdateframework%2Fnotary?ref=badge_shield)
 
 # Notice
 
-The Notary project has officially been accepted in to the Cloud Native Computing Foundation (CNCF).
+The Notary project has officially been accepted into the Cloud Native Computing Foundation (CNCF).
 It has moved to https://github.com/theupdateframework/notary. Any downstream consumers should update
 their Go imports to use this new location, which will be the canonical location going forward.
 
-We have moved the repo in GitHub, which will allow existing importers to continue using the old
+We have moved the repo to GitHub, which will allow existing importers to continue using the old
 location via GitHub's redirect.
 
 # Overview
@@ -35,11 +35,11 @@ received content.
 
 ## Goals
 
-Notary is based on [The Update Framework](https://www.theupdateframework.com/), a secure general design for the problem of software distribution and updates. By using TUF, Notary achieves a number of key advantages:
+The Notary is based on [The Update Framework](https://www.theupdateframework.com/), a secure general design for the problem of software distribution and updates. By using TUF, Notary achieves several key advantages:
 
-* **Survivable Key Compromise**: Content publishers must manage keys in order to sign their content. Signing keys may be compromised or lost so systems must be designed in order to be flexible and recoverable in the case of key compromise. TUF's notion of key roles is utilized to separate responsibilities across a hierarchy of keys such that loss of any particular key (except the root role) by itself is not fatal to the security of the system.
-* **Freshness Guarantees**: Replay attacks are a common problem in designing secure systems, where previously valid payloads are replayed to trick another system. The same problem exists in the software update systems, where old signed can be presented as the most recent. Notary makes use of timestamping on publishing so that consumers can know that they are receiving the most up to date content. This is particularly important when dealing with software update where old vulnerable versions could be used to attack users.
-* **Configurable Trust Thresholds**: Oftentimes there are a large number of publishers that are allowed to publish a particular piece of content. For example, open source projects where there are a number of core maintainers. Trust thresholds can be used so that content consumers require a configurable number of signatures on a piece of content in order to trust it. Using thresholds increases security so that loss of individual signing keys doesn't allow publishing of malicious content.
+* **Survivable Key Compromise**: Content publishers must manage keys in order to sign their content. Signing keys may be compromised or lost so systems must be designed in order to be flexible and recoverable in the case of key compromise. TUF's notion of key roles is utilized to separate responsibilities across a hierarchy of keys such that the loss of any particular key (except the root role) by itself is not fatal to the security of the system.
+* **Freshness Guarantees**: Replay attacks are a common problem in designing secure systems, where previously valid payloads are replayed to trick another system. The same problem exists in the software update systems, where old signed can be presented as the most recent. Notary makes use of timestamping on publishing so that consumers can know that they are receiving the most up to date content. This is particularly important when dealing with software updates where old vulnerable versions could be used to attack users.
+* **Configurable Trust Thresholds**: Oftentimes there are a large number of publishers that are allowed to publish a particular piece of content. For example, open-source projects where there are a number of core maintainers. Trust thresholds can be used so that content consumers require a configurable number of signatures on a piece of content in order to trust it. Using thresholds increases security so that the loss of individual signing keys doesn't allow the publishing of malicious content.
 * **Signing Delegation**: To allow for flexible publishing of trusted collections, a content publisher can delegate part of their collection to another signer. This delegation is represented as signed metadata so that a consumer of the content can verify both the content and the delegation.
 * **Use of Existing Distribution**: Notary's trust guarantees are not tied at all to particular distribution channels from which content is delivered. Therefore, trust can be added to any existing content delivery mechanism.
 * **Untrusted Mirrors and Transport**: All of the notary metadata can be mirrored and distributed via arbitrary channels.
@@ -88,7 +88,7 @@ You can run through the examples in the
 [getting started docs](docs/getting_started.md) and
 [advanced usage docs](docs/advanced_usage.md), but
 without the `-s` (server URL) argument to the `notary` command since the server
-URL is specified already in the configuration, file you copied.
+URL is specified already in the configuration, the file you copied.
 
 You can also leave off the `-d ~/.docker/trust` argument if you do not care
 to use `notary` with Docker images.
@@ -97,7 +97,7 @@ to use `notary` with Docker images.
 
 To prevent mistakes in vendoring the go modules a buildscript has been added to properly vendor the modules using the correct version of Go to mitigate differences in CI and development environment.
 
-Following procedure should be executed to upgrade a dependency. Preferably keep dependency upgrades in a separate commit from your code changes.
+The following procedure should be executed to upgrade a dependency. Preferably keep dependency upgrades in a separate commit from your code changes.
 
 ```bash
 go get -u github.com/spf13/viper
