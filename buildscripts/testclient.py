@@ -294,7 +294,7 @@ class Tester(object):
         for test_func in (self.basic_repo_test, self.add_delegation_test, self.root_rotation_test):
             _, tempfile = mkstemp()
             with open(tempfile, 'wb') as handle:
-                handle.write(test_func.__name__ + "\n")
+                handle.write(bytes(str(test_func.__name__ + "\n").encode("utf-8")))
 
             tempdir = mkdtemp(suffix="_temp")
 
