@@ -1,7 +1,6 @@
 package gorm
 
 import (
-	"database/sql"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -10,12 +9,14 @@ import (
 	"time"
 )
 
+var keyNameRegex = regexp.MustCompile("[^a-zA-Z0-9]+")
+
 // DefaultForeignKeyNamer contains the default foreign key name generator method
 type DefaultForeignKeyNamer struct {
 }
 
 type commonDialect struct {
-	db *sql.DB
+	db SQLCommon
 	DefaultForeignKeyNamer
 }
 
@@ -27,16 +28,23 @@ func (commonDialect) GetName() string {
 	return "common"
 }
 
-func (s *commonDialect) SetDB(db *sql.DB) {
+func (s *commonDialect) SetDB(db SQLCommon) {
 	s.db = db
 }
 
 func (commonDialect) BindVar(i int) string {
-	return "$$" // ?
+	return "$$$" // ?
 }
 
 func (commonDialect) Quote(key string) string {
 	return fmt.Sprintf(`"%s"`, key)
+}
+
+func (s *commonDialect) fieldCanAutoIncrement(field *StructField) bool {
+	if value, ok := field.TagSettingsGet("AUTO_INCREMENT"); ok {
+		return strings.ToLower(value) != "false"
+	}
+	return field.IsPrimaryKey
 }
 
 func (s *commonDialect) DataTypeOf(field *StructField) string {
@@ -47,13 +55,13 @@ func (s *commonDialect) DataTypeOf(field *StructField) string {
 		case reflect.Bool:
 			sqlType = "BOOLEAN"
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uintptr:
-			if _, ok := field.TagSettings["AUTO_INCREMENT"]; ok {
+			if s.fieldCanAutoIncrement(field) {
 				sqlType = "INTEGER AUTO_INCREMENT"
 			} else {
 				sqlType = "INTEGER"
 			}
 		case reflect.Int64, reflect.Uint64:
-			if _, ok := field.TagSettings["AUTO_INCREMENT"]; ok {
+			if s.fieldCanAutoIncrement(field) {
 				sqlType = "BIGINT AUTO_INCREMENT"
 			} else {
 				sqlType = "BIGINT"
@@ -93,7 +101,8 @@ func (s *commonDialect) DataTypeOf(field *StructField) string {
 
 func (s commonDialect) HasIndex(tableName string, indexName string) bool {
 	var count int
-	s.db.QueryRow("SELECT count(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema = ? AND table_name = ? AND index_name = ?", s.CurrentDatabase(), tableName, indexName).Scan(&count)
+	currentDatabase, tableName := currentDatabaseAndTable(&s, tableName)
+	s.db.QueryRow("SELECT count(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema = ? AND table_name = ? AND index_name = ?", currentDatabase, tableName, indexName).Scan(&count)
 	return count > 0
 }
 
@@ -108,14 +117,21 @@ func (s commonDialect) HasForeignKey(tableName string, foreignKeyName string) bo
 
 func (s commonDialect) HasTable(tableName string) bool {
 	var count int
-	s.db.QueryRow("SELECT count(*) FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = ? AND table_name = ?", s.CurrentDatabase(), tableName).Scan(&count)
+	currentDatabase, tableName := currentDatabaseAndTable(&s, tableName)
+	s.db.QueryRow("SELECT count(*) FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = ? AND table_name = ?", currentDatabase, tableName).Scan(&count)
 	return count > 0
 }
 
 func (s commonDialect) HasColumn(tableName string, columnName string) bool {
 	var count int
-	s.db.QueryRow("SELECT count(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema = ? AND table_name = ? AND column_name = ?", s.CurrentDatabase(), tableName, columnName).Scan(&count)
+	currentDatabase, tableName := currentDatabaseAndTable(&s, tableName)
+	s.db.QueryRow("SELECT count(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema = ? AND table_name = ? AND column_name = ?", currentDatabase, tableName, columnName).Scan(&count)
 	return count > 0
+}
+
+func (s commonDialect) ModifyColumn(tableName string, columnName string, typ string) error {
+	_, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %v ALTER COLUMN %v TYPE %v", tableName, columnName, typ))
+	return err
 }
 
 func (s commonDialect) CurrentDatabase() (name string) {
@@ -123,14 +139,19 @@ func (s commonDialect) CurrentDatabase() (name string) {
 	return
 }
 
-func (commonDialect) LimitAndOffsetSQL(limit, offset interface{}) (sql string) {
+// LimitAndOffsetSQL return generated SQL with Limit and Offset
+func (s commonDialect) LimitAndOffsetSQL(limit, offset interface{}) (sql string, err error) {
 	if limit != nil {
-		if parsedLimit, err := strconv.ParseInt(fmt.Sprint(limit), 0, 0); err == nil && parsedLimit > 0 {
+		if parsedLimit, err := s.parseInt(limit); err != nil {
+			return "", err
+		} else if parsedLimit >= 0 {
 			sql += fmt.Sprintf(" LIMIT %d", parsedLimit)
 		}
 	}
 	if offset != nil {
-		if parsedOffset, err := strconv.ParseInt(fmt.Sprint(offset), 0, 0); err == nil && parsedOffset > 0 {
+		if parsedOffset, err := s.parseInt(offset); err != nil {
+			return "", err
+		} else if parsedOffset >= 0 {
 			sql += fmt.Sprintf(" OFFSET %d", parsedOffset)
 		}
 	}
@@ -141,12 +162,35 @@ func (commonDialect) SelectFromDummyTable() string {
 	return ""
 }
 
+func (commonDialect) LastInsertIDOutputInterstitial(tableName, columnName string, columns []string) string {
+	return ""
+}
+
 func (commonDialect) LastInsertIDReturningSuffix(tableName, columnName string) string {
 	return ""
 }
 
-func (DefaultForeignKeyNamer) BuildForeignKeyName(tableName, field, dest string) string {
-	keyName := fmt.Sprintf("%s_%s_%s_foreign", tableName, field, dest)
-	keyName = regexp.MustCompile("(_*[^a-zA-Z]+_*|_+)").ReplaceAllString(keyName, "_")
+func (commonDialect) DefaultValueStr() string {
+	return "DEFAULT VALUES"
+}
+
+// BuildKeyName returns a valid key name (foreign key, index key) for the given table, field and reference
+func (DefaultForeignKeyNamer) BuildKeyName(kind, tableName string, fields ...string) string {
+	keyName := fmt.Sprintf("%s_%s_%s", kind, tableName, strings.Join(fields, "_"))
+	keyName = keyNameRegex.ReplaceAllString(keyName, "_")
 	return keyName
+}
+
+// NormalizeIndexAndColumn returns argument's index name and column name without doing anything
+func (commonDialect) NormalizeIndexAndColumn(indexName, columnName string) (string, string) {
+	return indexName, columnName
+}
+
+func (commonDialect) parseInt(value interface{}) (int64, error) {
+	return strconv.ParseInt(fmt.Sprint(value), 0, 0)
+}
+
+// IsByteArrayOrSlice returns true of the reflected value is an array or slice
+func IsByteArrayOrSlice(value reflect.Value) bool {
+	return (value.Kind() == reflect.Array || value.Kind() == reflect.Slice) && value.Type().Elem() == reflect.TypeOf(uint8(0))
 }

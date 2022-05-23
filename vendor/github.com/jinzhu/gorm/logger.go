@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"strconv"
 	"time"
 	"unicode"
 )
@@ -38,6 +39,15 @@ var LogFormatter = func(values ...interface{}) (messages []interface{}) {
 
 		messages = []interface{}{source, currentTime}
 
+		if len(values) == 2 {
+			//remove the line break
+			currentTime = currentTime[1:]
+			//remove the brackets
+			source = fmt.Sprintf("\033[35m%v\033[0m", values[1])
+
+			messages = []interface{}{currentTime, source}
+		}
+
 		if level == "sql" {
 			// duration
 			messages = append(messages, fmt.Sprintf(" \033[36;1m[%.2fms]\033[0m ", float64(values[2].(time.Duration).Nanoseconds()/1e4)/100.0))
@@ -48,7 +58,11 @@ var LogFormatter = func(values ...interface{}) (messages []interface{}) {
 				if indirectValue.IsValid() {
 					value = indirectValue.Interface()
 					if t, ok := value.(time.Time); ok {
-						formattedValues = append(formattedValues, fmt.Sprintf("'%v'", t.Format("2006-01-02 15:04:05")))
+						if t.IsZero() {
+							formattedValues = append(formattedValues, fmt.Sprintf("'%v'", "0000-00-00 00:00:00"))
+						} else {
+							formattedValues = append(formattedValues, fmt.Sprintf("'%v'", t.Format("2006-01-02 15:04:05")))
+						}
 					} else if b, ok := value.([]byte); ok {
 						if str := string(b); isPrintable(str) {
 							formattedValues = append(formattedValues, fmt.Sprintf("'%v'", str))
@@ -62,7 +76,12 @@ var LogFormatter = func(values ...interface{}) (messages []interface{}) {
 							formattedValues = append(formattedValues, "NULL")
 						}
 					} else {
-						formattedValues = append(formattedValues, fmt.Sprintf("'%v'", value))
+						switch value.(type) {
+						case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool:
+							formattedValues = append(formattedValues, fmt.Sprintf("%v", value))
+						default:
+							formattedValues = append(formattedValues, fmt.Sprintf("'%v'", value))
+						}
 					}
 				} else {
 					formattedValues = append(formattedValues, "NULL")
@@ -87,6 +106,7 @@ var LogFormatter = func(values ...interface{}) (messages []interface{}) {
 			}
 
 			messages = append(messages, sql)
+			messages = append(messages, fmt.Sprintf(" \n\033[36;31m[%v]\033[0m ", strconv.FormatInt(values[5].(int64), 10)+" rows affected or returned "))
 		} else {
 			messages = append(messages, "\033[31;1m")
 			messages = append(messages, values[2:]...)
@@ -115,3 +135,7 @@ type Logger struct {
 func (logger Logger) Print(values ...interface{}) {
 	logger.Println(LogFormatter(values...)...)
 }
+
+type nopLogger struct{}
+
+func (nopLogger) Print(values ...interface{}) {}

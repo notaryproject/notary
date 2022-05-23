@@ -18,7 +18,7 @@ import (
 // SQLStorage implements a versioned store using a relational database.
 // See server/storage/models.go
 type SQLStorage struct {
-	gorm.DB
+	*gorm.DB
 }
 
 // NewSQLStorage is a convenience method to create a SQLStorage
@@ -28,7 +28,7 @@ func NewSQLStorage(dialect string, args ...interface{}) (*SQLStorage, error) {
 		return nil, err
 	}
 	return &SQLStorage{
-		DB: *gormDB,
+		DB: gormDB,
 	}, nil
 }
 
@@ -63,7 +63,7 @@ func (db *SQLStorage) UpdateCurrent(gun data.GUN, update MetaUpdate) error {
 	// struct, because that only works with non-zero values, and Version
 	// can be 0.
 	exists := db.Where("gun = ? and role = ? and version >= ?",
-		gun.String(), update.Role.String(), update.Version).First(&TUFFile{})
+		gun.String(), update.Role.String(), update.Version).Take(&TUFFile{})
 
 	if exists.Error == nil {
 		return ErrOldVersion{}
@@ -144,7 +144,7 @@ func (db *SQLStorage) UpdateMany(gun data.GUN, updates []MetaUpdate) error {
 		// If there are any files with version equal or higher than the minimum
 		// version we're trying to insert, bail out now
 		exists := db.Where("gun = ? and role = ? and version >= ?",
-			gun.String(), role.String(), minVersion).First(&TUFFile{})
+			gun.String(), role.String(), minVersion).Take(&TUFFile{})
 
 		if exists.Error == nil {
 			return ErrOldVersion{}
@@ -218,7 +218,7 @@ func (db *SQLStorage) writeChangefeed(tx *gorm.DB, gun data.GUN, version int, ch
 func (db *SQLStorage) GetCurrent(gun data.GUN, tufRole data.RoleName) (*time.Time, []byte, error) {
 	var row TUFFile
 	q := db.Select("updated_at, data").Where(
-		&TUFFile{Gun: gun.String(), Role: tufRole.String()}).Order("version desc").Limit(1).First(&row)
+		&TUFFile{Gun: gun.String(), Role: tufRole.String()}).Order("version desc").Take(&row)
 	if err := isReadErr(q, row); err != nil {
 		return nil, nil, err
 	}
@@ -234,7 +234,7 @@ func (db *SQLStorage) GetChecksum(gun data.GUN, tufRole data.RoleName, checksum 
 			Role:   tufRole.String(),
 			SHA256: checksum,
 		},
-	).First(&row)
+	).Take(&row)
 	if err := isReadErr(q, row); err != nil {
 		return nil, nil, err
 	}
@@ -250,7 +250,7 @@ func (db *SQLStorage) GetVersion(gun data.GUN, tufRole data.RoleName, version in
 			Role:    tufRole.String(),
 			Version: version,
 		},
-	).First(&row)
+	).Take(&row)
 	if err := isReadErr(q, row); err != nil {
 		return nil, nil, err
 	}
@@ -295,7 +295,13 @@ func (db *SQLStorage) Delete(gun data.GUN) error {
 }
 
 // CheckHealth asserts that the tuf_files table is present
-func (db *SQLStorage) CheckHealth() error {
+func (db *SQLStorage) CheckHealth() (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("Panic checking db health: %v", r)
+		}
+	}()
+
 	tableOk := db.HasTable(&TUFFile{})
 	if db.Error != nil {
 		return db.Error
@@ -311,7 +317,7 @@ func (db *SQLStorage) CheckHealth() error {
 func (db *SQLStorage) GetChanges(changeID string, records int, filterName string) ([]Change, error) {
 	var (
 		changes []Change
-		query   = &db.DB
+		query   = db.DB
 		id      int64
 		err     error
 	)

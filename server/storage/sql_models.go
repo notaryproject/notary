@@ -48,7 +48,7 @@ func (c SQLChange) TableName() string {
 }
 
 // CreateTUFTable creates the DB table for TUFFile
-func CreateTUFTable(db gorm.DB) error {
+func CreateTUFTable(db *gorm.DB) error {
 	// TODO: gorm
 	query := db.AutoMigrate(&TUFFile{})
 	if query.Error != nil {
@@ -60,7 +60,7 @@ func CreateTUFTable(db gorm.DB) error {
 }
 
 // CreateChangefeedTable creates the DB table for Changefeed
-func CreateChangefeedTable(db gorm.DB) error {
+func CreateChangefeedTable(db *gorm.DB) error {
 	query := db.AutoMigrate(&SQLChange{})
 	return query.Error
 }
