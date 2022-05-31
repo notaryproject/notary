@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"mime"
 	"net/http"
 	"strings"
 
@@ -72,7 +73,12 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 		if err == io.EOF {
 			break
 		}
-		role := data.RoleName(strings.TrimSuffix(part.FileName(), ".json"))
+		_, params, err := mime.ParseMediaType(part.Header.Get("Content-Disposition"))
+		if err != nil {
+			logger.Infof("400 POST error parsing Content-Disposition header: %s", err)
+			return errors.ErrNoFilename.WithDetail(nil)
+		}
+		role := data.RoleName(strings.TrimSuffix(params["filename"], ".json"))
 		if role.String() == "" {
 			logger.Info("400 POST empty role")
 			return errors.ErrNoFilename.WithDetail(nil)
