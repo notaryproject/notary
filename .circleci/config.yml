@@ -1,6 +1,5 @@
 version: 2
 jobs:
-
   job_01:
     machine:
       image: ubuntu-1604:201903-01
@@ -52,6 +51,9 @@ jobs:
           name: "Build image"
           command: docker build --progress=plain -t notary_client .
       - run:
+          name: "Build static binaries"
+          command: docker run --rm -e NOTARY_BUILDTAGS --env-file buildscripts/env.list --user notary notary_client bash -c "make static"
+      - run:
           name: "ci"
           command: docker run --rm -e NOTARY_BUILDTAGS --env-file buildscripts/env.list --user notary notary_client bash -c "make ci && codecov"
       - run:
@@ -88,11 +90,10 @@ jobs:
           command: make TESTDB=mysql integration
       - run:
           name: "Cross"
-          command: make cross  # just trying not to exceed 4 builders
+          command: make cross # just trying not to exceed 4 builders
       - run:
           name: "Teardown"
           command: docker-compose -f docker-compose.yml down -v && docker-compose -f docker-compose.rethink.yml down -v
-
 
   job_04:
     machine:
