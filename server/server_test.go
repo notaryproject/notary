@@ -7,11 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
+	"time"
 
 	_ "github.com/docker/distribution/registry/auth/silly"
 	"github.com/stretchr/testify/require"
@@ -27,36 +26,29 @@ import (
 )
 
 func TestRunBadAddr(t *testing.T) {
-	err := Run(
-		context.Background(),
-		Config{
-			Addr:  "testAddr",
-			Trust: signed.NewEd25519(),
-		},
-	)
-	require.Error(t, err, "Passed bad addr, Run should have failed")
-}
+	done := make(chan bool)
+	var err error
 
-func TestRunReservedPort(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
 
-	err := Run(
-		ctx,
-		Config{
-			Addr:  "localhost:80",
-			Trust: signed.NewEd25519(),
-		},
-	)
+	go func() {
+		err = Run(
+			context.Background(),
+			Config{
+				Addr:  "testAddr",
+				Trust: signed.NewEd25519(),
+			},
+		)
+		done <- true
+	}()
 
-	require.Error(t, err)
-	require.IsType(t, &net.OpError{}, err)
-	require.True(
-		t,
-		strings.Contains(err.Error(), "bind: permission denied"),
-		"Received unexpected err: %s",
-		err.Error(),
-	)
+	select {
+	case <-done:
+		require.Error(t, err, "Passed bad addr, Run should have failed")
+	case <-timer.C:
+		require.Fail(t, "Passed bad addr, Run should have failed")
+	}
 }
 
 func TestRepoPrefixMatches(t *testing.T) {
