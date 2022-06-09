@@ -2,7 +2,7 @@ version: 2
 jobs:
   job_01:
     machine:
-      image: ubuntu-1604:201903-01
+      image: ubuntu-2204:2022.04.1
       # not supported in the free plan
       # docker_layer_caching: true
     working_directory: ~/go/src/github.com/theupdateframework/notary
@@ -33,7 +33,7 @@ jobs:
 
   job_02:
     machine:
-      image: ubuntu-1604:201903-01
+      image: ubuntu-2204:2022.04.1
     working_directory: ~/go/src/github.com/theupdateframework/notary
     environment:
       NOTARY_BUILDTAGS: none
@@ -62,7 +62,7 @@ jobs:
 
   job_03:
     machine:
-      image: ubuntu-1604:201903-01
+      image: ubuntu-2204:2022.04.1
     working_directory: ~/go/src/github.com/theupdateframework/notary
     environment:
       SKIPENVCHECK: 1
@@ -97,7 +97,7 @@ jobs:
 
   job_04:
     machine:
-      image: ubuntu-1604:201903-01
+      image: ubuntu-2204:2022.04.1
     working_directory: ~/go/src/github.com/theupdateframework/notary
     environment:
       SKIPENVCHECK: 1
