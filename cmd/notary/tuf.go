@@ -949,8 +949,6 @@ func tokenAuth(trustServerURL string, baseTransport *http.Transport, gun data.GU
 		return nil, err
 	}
 
-	ps := passwordStore{anonymous: permission == readOnly}
-
 	var actions []string
 	switch permission {
 	case admin:
@@ -963,8 +961,8 @@ func tokenAuth(trustServerURL string, baseTransport *http.Transport, gun data.GU
 		return nil, fmt.Errorf("Invalid permission requested for token authentication of gun %s", gun)
 	}
 
-	tokenHandler := auth.NewTokenHandler(authTransport, ps, gun.String(), actions...)
-	basicHandler := auth.NewBasicHandler(ps)
+	tokenHandler := auth.NewTokenHandler(authTransport, passwordStore{anonymous: permission == readOnly}, gun.String(), actions...)
+	basicHandler := auth.NewBasicHandler(passwordStore{anonymous: false}) // non-anonymous access will be required when basic challenge is returned
 
 	modifier := auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler)
 
