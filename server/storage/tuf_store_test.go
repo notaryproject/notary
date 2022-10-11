@@ -74,22 +74,6 @@ func testTUFMetaStoreGetCurrent(t *testing.T, s MetaStore) {
 	require.NoError(t, s.UpdateMany(gun, updates))
 	_, _, err = s.GetCurrent(gun, data.CanonicalSnapshotRole)
 	require.IsType(t, ErrNotFound{}, err)
-
-	// GetCurrent on all roles should still succeed - snapshot lookup because of caching,
-	// and targets and root because the snapshot is cached
-	for _, tufobj := range tufMetaByRole {
-		ConsistentGetCurrentFoundTest(t, tufDBStore, tufobj)
-	}
-
-	// add another orphaned root, but ensure that we still get the previous root
-	// since the new root isn't in a timestamp/snapshot chain
-	orphanedRootTUF := SampleCustomTUFObj(gun, data.CanonicalRootRole, 3, []byte("orphanedRoot"))
-	require.NoError(t, s.UpdateCurrent(gun, MakeUpdate(orphanedRootTUF)), "unable to create orphaned root in store")
-
-	// a GetCurrent for this gun and root gets us the previous root, which is linked in timestamp and snapshot
-	ConsistentGetCurrentFoundTest(t, tufDBStore, tufMetaByRole[data.CanonicalRootRole.String()])
-	// the orphaned root fails on a GetCurrent even though it's in the underlying store
-	ConsistentTSAndSnapGetDifferentCurrentTest(t, tufDBStore, orphanedRootTUF)
 }
 
 func ConsistentGetCurrentFoundTest(t *testing.T, s *TUFMetaStorage, rec StoredTUFMeta) {
