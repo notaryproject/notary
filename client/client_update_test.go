@@ -993,7 +993,7 @@ func waysToMessUpServerNonRootPerRole(t *testing.T) map[string][]swizzleExpectat
 		perRoleSwizzling[data.CanonicalSnapshotRole.String()] = append(
 			perRoleSwizzling[data.CanonicalSnapshotRole.String()],
 			swizzleExpectations{
-				desc:       fmt.Sprintf("snapshot missing root meta checksum"),
+				desc:       "snapshot missing root meta checksum",
 				expectErrs: []interface{}{data.ErrInvalidMetadata{}},
 				swizzle: func(s *testutils.MetadataSwizzler, role data.RoleName) error {
 					return s.MutateSnapshot(func(sn *data.Snapshot) {
@@ -1003,7 +1003,7 @@ func waysToMessUpServerNonRootPerRole(t *testing.T) map[string][]swizzleExpectat
 			})
 	}
 	perRoleSwizzling[data.CanonicalTargetsRole.String()] = []swizzleExpectations{{
-		desc:       fmt.Sprintf("target missing delegations data"),
+		desc:       "target missing delegations data",
 		expectErrs: []interface{}{data.ErrMismatchedChecksum{}},
 		swizzle: func(s *testutils.MetadataSwizzler, role data.RoleName) error {
 			return s.MutateTargets(func(tg *data.Targets) {
@@ -1012,7 +1012,7 @@ func waysToMessUpServerNonRootPerRole(t *testing.T) map[string][]swizzleExpectat
 		},
 	}}
 	perRoleSwizzling[data.CanonicalTimestampRole.String()] = []swizzleExpectations{{
-		desc:       fmt.Sprintf("timestamp missing snapshot meta checksum"),
+		desc:       "timestamp missing snapshot meta checksum",
 		expectErrs: []interface{}{data.ErrInvalidMetadata{}},
 		swizzle: func(s *testutils.MetadataSwizzler, role data.RoleName) error {
 			return s.MutateTimestamp(func(ts *data.Timestamp) {
@@ -1021,7 +1021,7 @@ func waysToMessUpServerNonRootPerRole(t *testing.T) map[string][]swizzleExpectat
 		},
 	}}
 	perRoleSwizzling["targets/a"] = []swizzleExpectations{{
-		desc:       fmt.Sprintf("delegation has invalid role"),
+		desc:       "delegation has invalid role",
 		expectErrs: []interface{}{data.ErrInvalidMetadata{}},
 		swizzle: func(s *testutils.MetadataSwizzler, role data.RoleName) error {
 			return s.MutateTargets(func(tg *data.Targets) {
@@ -1057,10 +1057,9 @@ func TestUpdateNonRootRemoteCorruptedNoLocalCache(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
-	for _, role := range append(data.BaseRoles) {
+	for _, role := range data.BaseRoles {
 		switch role {
 		case data.CanonicalRootRole:
-			break
 		default:
 			for _, testData := range waysToMessUpServer {
 				testUpdateRemoteCorruptValidChecksum(t, updateOpts{
@@ -1201,7 +1200,6 @@ func TestUpdateNonRootRemoteCorruptedCannotUseLocalCache(t *testing.T) {
 	for _, role := range data.BaseRoles {
 		switch role {
 		case data.CanonicalRootRole:
-			break
 		default:
 			for _, testData := range waysToMessUpServer {
 				testUpdateRemoteCorruptValidChecksum(t, updateOpts{

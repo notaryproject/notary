@@ -1191,6 +1191,7 @@ func fakeServerData(t *testing.T, repo *repository, mux *http.ServeMux,
 	rootJSONFile := filepath.Join(baseDir, "tuf",
 		filepath.FromSlash(repo.gun.String()), "metadata", "root.json")
 	rootFileBytes, err := ioutil.ReadFile(rootJSONFile)
+	require.NoError(t, err)
 
 	signedTargets, err := savedTUFRepo.SignTargets(
 		"targets", data.DefaultExpires("targets"))
@@ -1760,9 +1761,9 @@ func testPublishNoData(t *testing.T, rootType string, clearCache, serverManagesS
 		serverManagesSnapshot)
 	defer os.RemoveAll(baseDir1)
 
-	var rec *passRoleRecorder
+	rec := newRoleRecorder()
+
 	if clearCache {
-		rec = newRoleRecorder()
 		repo1, rec, _ = newRepoToTestRepo(t, repo1, baseDir1)
 	}
 
@@ -1851,9 +1852,9 @@ func testPublishWithData(t *testing.T, rootType string, clearCache, serverManage
 		serverManagesSnapshot)
 	defer os.RemoveAll(baseDir)
 
-	var rec *passRoleRecorder
+	rec := newRoleRecorder()
+
 	if clearCache {
-		rec = newRoleRecorder()
 		repo, rec, _ = newRepoToTestRepo(t, repo, baseDir)
 	}
 

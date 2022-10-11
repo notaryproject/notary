@@ -5,14 +5,10 @@ package signer_test
 import (
 	"crypto/rand"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"testing"
 	"time"
-
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 
 	"github.com/stretchr/testify/require"
 	"github.com/theupdateframework/notary"
@@ -26,16 +22,23 @@ import (
 	"github.com/theupdateframework/notary/tuf/signed"
 	"github.com/theupdateframework/notary/tuf/testutils/interfaces"
 	"github.com/theupdateframework/notary/tuf/utils"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
-func socketDialer(socketAddr string, timeout time.Duration) (net.Conn, error) {
-	return net.DialTimeout("unix", socketAddr, timeout)
+func socketDialer(ctx context.Context, socketAddr string) (net.Conn, error) {
+	if deadline, ok := ctx.Deadline(); ok {
+		return net.DialTimeout("unix", socketAddr, time.Until(deadline))
+	}
+
+	return nil, fmt.Errorf("context deadline excedded")
 }
 
 func setUpSignerClient(t *testing.T, grpcServer *grpc.Server) (*client.NotarySigner, *grpc.ClientConn, func()) {
-	socketFile, err := ioutil.TempFile("", "notary-grpc-test")
+	socketFile, err := os.CreateTemp("", "notary-grpc-test")
 	require.NoError(t, err)
 	socketFile.Close()
 	os.Remove(socketFile.Name())
@@ -46,7 +49,7 @@ func setUpSignerClient(t *testing.T, grpcServer *grpc.Server) (*client.NotarySig
 	go grpcServer.Serve(lis)
 
 	// client setup
-	clientConn, err := grpc.Dial(socketFile.Name(), grpc.WithInsecure(), grpc.WithDialer(socketDialer))
+	clientConn, err := grpc.Dial(socketFile.Name(), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(socketDialer))
 	require.NoError(t, err, "unable to connect to socket as a GRPC client")
 
 	signerClient := client.NewNotarySigner(clientConn)
@@ -61,6 +64,8 @@ func setUpSignerClient(t *testing.T, grpcServer *grpc.Server) (*client.NotarySig
 }
 
 type stubServer struct {
+	pb.UnimplementedKeyManagementServer
+	pb.UnimplementedSignerServer
 	healthServer *health.Server
 }
 
@@ -222,7 +227,7 @@ func TestHealthCheckNonexistentService(t *testing.T) {
 	// check a nonexistent service, expect to be failed.
 	err := signerClient.CheckHealth(1*time.Second, "Hola Rio")
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Unknown grpc service Hola Rio")
+	require.Contains(t, err.Error(), "unknown grpc service Hola Rio")
 }
 
 var constPass = func(string, string, bool, int) (string, bool, error) {
@@ -289,7 +294,7 @@ func TestCannotSignWithKeyThatDoesntExist(t *testing.T) {
 	_, err = remotePrivKey.Sign(rand.Reader, msg, nil)
 	require.Error(t, err)
 	// error translated into grpc error, so compare the text
-	require.Equal(t, trustmanager.ErrKeyNotFound{KeyID: key.ID()}.Error(), grpc.ErrorDesc(err))
+	require.Contains(t, err.Error(), trustmanager.ErrKeyNotFound{KeyID: key.ID()}.Error())
 }
 
 // Signer conforms to the signed.CryptoService interface behavior

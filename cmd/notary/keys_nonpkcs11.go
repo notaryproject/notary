@@ -1,3 +1,4 @@
+//go:build !pkcs11
 // +build !pkcs11
 
 package main
@@ -11,7 +12,7 @@ import (
 )
 
 func getYubiStore(fileKeyStore trustmanager.KeyStore, ret notary.PassRetriever) (trustmanager.KeyStore, error) {
-	return nil, errors.New("Not built with hardware support")
+	return nil, errors.New("not built with hardware support")
 }
 
 func getImporters(baseDir string, _ notary.PassRetriever) ([]trustmanager.Importer, error) {

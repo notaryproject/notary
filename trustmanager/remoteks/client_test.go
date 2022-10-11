@@ -4,17 +4,16 @@ import (
 	"net"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-
 	"crypto/tls"
 	"crypto/x509"
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
 
+	"github.com/stretchr/testify/require"
 	"github.com/theupdateframework/notary/storage"
 	"github.com/theupdateframework/notary/trustmanager"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -153,13 +152,13 @@ func TestErrors(t *testing.T) {
 
 	err = c.Set(name, bytes)
 	require.Error(t, err)
-	require.Equal(t, "test error", grpc.ErrorDesc(err))
+	require.Contains(t, err.Error(), "test error")
 
 	_, err = c.Get(name)
 	require.Error(t, err)
-	require.Equal(t, "test error", grpc.ErrorDesc(err))
+	require.Contains(t, err.Error(), "test error")
 
 	err = c.Remove(name)
 	require.Error(t, err)
-	require.Equal(t, "test error", grpc.ErrorDesc(err))
+	require.Contains(t, err.Error(), "test error")
 }

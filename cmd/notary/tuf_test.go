@@ -90,7 +90,7 @@ adLwkjqoeEKMaAXf
 
 	_, err = importRootCert(errCertFile)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Parsing certificate PEM bytes to x509 certificate")
+	require.Contains(t, err.Error(), "parsing certificate PEM bytes to x509 certificate")
 
 }
 

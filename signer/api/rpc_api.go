@@ -3,6 +3,7 @@ package api
 import (
 	"crypto/rand"
 	"fmt"
+	"google.golang.org/grpc/status"
 
 	ctxu "github.com/docker/distribution/context"
 	"github.com/theupdateframework/notary/signer"
@@ -10,7 +11,6 @@ import (
 	"github.com/theupdateframework/notary/tuf/data"
 	"golang.org/x/net/context"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
 	pb "github.com/theupdateframework/notary/proto"
@@ -18,11 +18,13 @@ import (
 
 //KeyManagementServer implements the KeyManagementServer grpc interface
 type KeyManagementServer struct {
+	pb.UnimplementedKeyManagementServer
 	CryptoServices signer.CryptoServiceIndex
 }
 
 //SignerServer implements the SignerServer grpc interface
 type SignerServer struct {
+	pb.UnimplementedSignerServer
 	CryptoServices signer.CryptoServiceIndex
 }
 
@@ -43,7 +45,7 @@ func (s *KeyManagementServer) CreateKey(ctx context.Context, req *pb.CreateKeyRe
 	tufKey, err = service.Create(data.RoleName(req.Role), data.GUN(req.Gun), req.Algorithm)
 	if err != nil {
 		logger.Error("CreateKey: failed to create key: ", err)
-		return nil, grpc.Errorf(codes.Internal, "Key creation failed")
+		return nil, status.Errorf(codes.Internal, "Key creation failed")
 	}
 	logger.Info("CreateKey: Created KeyID ", tufKey.ID())
 
@@ -63,7 +65,7 @@ func (s *KeyManagementServer) DeleteKey(ctx context.Context, keyID *pb.KeyID) (*
 	for _, service := range s.CryptoServices {
 		if err := service.RemoveKey(keyID.ID); err != nil {
 			logger.Errorf("Failed to delete key %s", keyID.ID)
-			return nil, grpc.Errorf(codes.Internal, "Key deletion for KeyID %s failed", keyID.ID)
+			return nil, status.Errorf(codes.Internal, "Key deletion for KeyID %s failed", keyID.ID)
 		}
 	}
 
@@ -78,7 +80,7 @@ func (s *KeyManagementServer) GetKeyInfo(ctx context.Context, keyID *pb.KeyID) (
 
 	if err != nil {
 		logger.Errorf("GetKeyInfo: key %s not found", keyID.ID)
-		return nil, grpc.Errorf(codes.NotFound, "key %s not found", keyID.ID)
+		return nil, status.Errorf(codes.NotFound, "key %s not found", keyID.ID)
 	}
 
 	logger.Debug("GetKeyInfo: Returning PublicKey for KeyID ", keyID.ID)
@@ -101,19 +103,19 @@ func (s *SignerServer) Sign(ctx context.Context, sr *pb.SignatureRequest) (*pb.S
 	switch err.(type) {
 	case trustmanager.ErrKeyNotFound:
 		logger.Errorf("Sign: key %s not found", sr.KeyID.ID)
-		return nil, grpc.Errorf(codes.NotFound, err.Error())
+		return nil, status.Errorf(codes.NotFound, err.Error())
 	case nil:
 		break
 	default:
 		logger.Errorf("Getting key %s failed: %s", sr.KeyID.ID, err.Error())
-		return nil, grpc.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, err.Error())
 
 	}
 
 	sig, err := privKey.Sign(rand.Reader, sr.Content, nil)
 	if err != nil {
 		logger.Errorf("Sign: signing failed for KeyID %s on hash %s", sr.KeyID.ID, sr.Content)
-		return nil, grpc.Errorf(codes.Internal, "Signing failed for KeyID %s on hash %s", sr.KeyID.ID, sr.Content)
+		return nil, status.Errorf(codes.Internal, "Signing failed for KeyID %s on hash %s", sr.KeyID.ID, sr.Content)
 	}
 
 	logger.Info("Sign: Signed ", string(sr.Content), " with KeyID ", sr.KeyID.ID)

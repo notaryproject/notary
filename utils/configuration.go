@@ -232,8 +232,9 @@ func ParseViper(v *viper.Viper, configFile string) error {
 	v.AddConfigPath(configPath)
 
 	if err := v.ReadInConfig(); err != nil {
-		return fmt.Errorf("Could not read config at :%s, viper error: %v", configFile, err)
+		return fmt.Errorf("could not read config at :%s, viper error: %w", configFile, err)
 	}
+
 	return nil
 }
 

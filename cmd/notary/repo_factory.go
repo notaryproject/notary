@@ -10,8 +10,6 @@ import (
 	"github.com/theupdateframework/notary/tuf/data"
 )
 
-const remoteConfigField = "api"
-
 // RepoFactory takes a GUN and returns an initialized client.Repository, or an error.
 type RepoFactory func(gun data.GUN) (client.Repository, error)
 

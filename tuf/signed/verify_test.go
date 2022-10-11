@@ -184,7 +184,6 @@ func TestUnknownKeyBelowThreshold(t *testing.T) {
 	require.NoError(t, err)
 	s := &data.Signed{Signed: (*json.RawMessage)(&b)}
 	require.NoError(t, Sign(cs, s, []data.PublicKey{k, unknown}, 2, nil))
-	s.Signatures = append(s.Signatures)
 	err = VerifySignatures(s, roleWithKeys)
 	require.IsType(t, ErrRoleThreshold{}, err)
 	require.Len(t, s.Signatures, 2)

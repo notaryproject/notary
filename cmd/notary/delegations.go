@@ -83,12 +83,12 @@ func (d *delegationCommander) GetCommand() *cobra.Command {
 func (d *delegationCommander) delegationPurgeKeys(cmd *cobra.Command, args []string) error {
 	if len(args) != 1 {
 		cmd.Usage()
-		return fmt.Errorf("Please provide a single Global Unique Name as an argument to remove")
+		return fmt.Errorf("please provide a single Global Unique Name as an argument to remove")
 	}
 
 	if len(d.keyIDs) == 0 {
 		cmd.Usage()
-		return fmt.Errorf("Please provide at least one key ID to be removed using the --key flag")
+		return fmt.Errorf("please provide at least one key ID to be removed using the --key flag")
 	}
 
 	gun := data.GUN(args[0])
@@ -132,7 +132,7 @@ func (d *delegationCommander) delegationsList(cmd *cobra.Command, args []string)
 	if len(args) != 1 {
 		cmd.Usage()
 		return fmt.Errorf(
-			"Please provide a Global Unique Name as an argument to list")
+			"please provide a Global Unique Name as an argument to list")
 	}
 
 	config, err := d.configGetter()
@@ -161,7 +161,7 @@ func (d *delegationCommander) delegationsList(cmd *cobra.Command, args []string)
 
 	delegationRoles, err := nRepo.GetDelegationRoles()
 	if err != nil {
-		return fmt.Errorf("Error retrieving delegation roles for repository %s: %v", gun, err)
+		return fmt.Errorf("error retrieving delegation roles for repository %s: %w", gun, err)
 	}
 
 	cmd.Println("")

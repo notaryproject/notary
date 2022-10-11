@@ -31,7 +31,7 @@ func getPayload(t *tufCommander) ([]byte, error) {
 	// Reads all of the data on STDIN
 	payload, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading content from STDIN: %v", err)
+		return nil, fmt.Errorf("error reading content from STDIN: %w", err)
 	}
 	return payload, nil
 }

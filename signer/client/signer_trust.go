@@ -118,7 +118,7 @@ func healthCheckKeyManagement(d time.Duration, hc healthpb.HealthClient) error {
 		return err
 	}
 	if out.Status != healthpb.HealthCheckResponse_SERVING {
-		return fmt.Errorf("Got the serving status of %s: %s, want %s", "KeyManagement", out.Status, healthpb.HealthCheckResponse_SERVING)
+		return fmt.Errorf("got the serving status of %s: %s, want %s", "KeyManagement", out.Status, healthpb.HealthCheckResponse_SERVING)
 	}
 	return nil
 }
@@ -129,7 +129,7 @@ func healthCheckSigner(d time.Duration, hc healthpb.HealthClient) error {
 		return err
 	}
 	if out.Status != healthpb.HealthCheckResponse_SERVING {
-		return fmt.Errorf("Got the serving status of %s: %s, want %s", "Signer", out.Status, healthpb.HealthCheckResponse_SERVING)
+		return fmt.Errorf("got the serving status of %s: %s, want %s", "Signer", out.Status, healthpb.HealthCheckResponse_SERVING)
 	}
 	return nil
 }
@@ -147,7 +147,7 @@ func (trust *NotarySigner) CheckHealth(d time.Duration, serviceName string) erro
 		}
 		return healthCheckSigner(d, trust.healthClient)
 	default:
-		return fmt.Errorf("Unknown grpc service %s", serviceName)
+		return fmt.Errorf("unknown grpc service %s", serviceName)
 	}
 }
 
@@ -186,7 +186,7 @@ func (trust *NotarySigner) Create(role data.RoleName, gun data.GUN, algorithm st
 
 // AddKey adds a key
 func (trust *NotarySigner) AddKey(role data.RoleName, gun data.GUN, k data.PrivateKey) error {
-	return errors.New("Adding a key to NotarySigner is not supported")
+	return errors.New("adding a key to NotarySigner is not supported")
 }
 
 // RemoveKey deletes a key by ID - if the key didn't exist, succeed anyway

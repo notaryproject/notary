@@ -74,7 +74,7 @@ func grpcTLS(configuration *viper.Viper) (*tls.Config, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf(
-			"Unable to configure TLS to the trust service: %s", err.Error())
+			"unable to configure TLS to the trust service: %s", err.Error())
 	}
 	return tlsConfig, nil
 }
@@ -96,7 +96,7 @@ func getStore(configuration *viper.Viper, hRegister healthRegister, doBootstrap 
 		}
 		s, err := storage.NewSQLStorage(storeConfig.Backend, storeConfig.Source)
 		if err != nil {
-			return nil, fmt.Errorf("Error starting %s driver: %s", backend, err.Error())
+			return nil, fmt.Errorf("error starting %s driver: %s", backend, err.Error())
 		}
 		store = *storage.NewTUFMetaStorage(s)
 		hRegister("DB operational", 10*time.Second, s.CheckHealth)
@@ -118,7 +118,7 @@ func getStore(configuration *viper.Viper, hRegister healthRegister, doBootstrap 
 			sess, err = rethinkdb.UserConnection(tlsOpts, storeConfig.Source, storeConfig.Username, storeConfig.Password)
 		}
 		if err != nil {
-			return nil, fmt.Errorf("Error starting %s driver: %s", backend, err.Error())
+			return nil, fmt.Errorf("error starting %s driver: %s", backend, err.Error())
 		}
 		s := storage.NewRethinkDBStorage(storeConfig.DBName, storeConfig.Username, storeConfig.Password, sess)
 		store = *storage.NewTUFMetaStorage(s)

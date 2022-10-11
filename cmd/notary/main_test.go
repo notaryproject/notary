@@ -114,7 +114,7 @@ func TestInvalidAddHashCommands(t *testing.T) {
 	cmd.SetArgs(append([]string{"-c", configFile, "-d", tempDir}, "addhash", "gun", "test", "10"))
 	err := cmd.Execute()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Must specify a GUN, target, byte size of target data, and at least one hash")
+	require.Contains(t, err.Error(), "must specify a GUN, target, byte size of target data, and at least one hash")
 
 	// Invalid byte size given
 	cmd = NewNotaryCommand()

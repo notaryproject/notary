@@ -279,7 +279,7 @@ func TestGetTrustServiceTLSFailure(t *testing.T) {
 
 	require.Error(t, err)
 	require.True(t, strings.Contains(err.Error(),
-		"Unable to configure TLS to the trust service"))
+		"unable to configure TLS to the trust service"))
 
 	// no health function ever registered
 	require.Equal(t, 0, registerCalled)

@@ -50,6 +50,7 @@ func TestErrorConditions(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	cl, err := NewFileChangelist(tmpDir)
+	require.NoError(t, err)
 	// Attempt to unmarshall a bad JSON file. Note: causes a WARN on the console.
 	ioutil.WriteFile(filepath.Join(tmpDir, "broken_file.change"), []byte{5}, 0644)
 	noItems := cl.List()
@@ -163,7 +164,9 @@ func TestFileChangeIterator(t *testing.T) {
 	}
 
 	// negative test case: changelist directory does not exist
-	os.RemoveAll(tmpDir)
-	it, err = cl.NewIterator()
+	err = os.RemoveAll(tmpDir)
+	require.NoError(t, err)
+
+	_, err = cl.NewIterator()
 	require.Error(t, err, "Initializing iterator without underlying file store")
 }

@@ -293,7 +293,7 @@ func (db *SQLStorage) Delete(gun data.GUN) error {
 func (db *SQLStorage) CheckHealth() (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("Panic checking db health: %v", r)
+			err = fmt.Errorf("panic checking db health: %v", r)
 		}
 	}()
 
@@ -303,7 +303,7 @@ func (db *SQLStorage) CheckHealth() (err error) {
 	}
 	if !tableOk {
 		return fmt.Errorf(
-			"Cannot access table: %s", TUFFile{}.TableName())
+			"cannot access table: %s", TUFFile{}.TableName())
 	}
 	return nil
 }

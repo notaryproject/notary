@@ -14,8 +14,10 @@ import (
 )
 
 type key struct {
+	//lint:ignore U1000 TODO check if this can be deleted
 	algorithm string
-	public    []byte
+	//lint:ignore U1000 TODO check if this can be deleted
+	public []byte
 }
 
 type ver struct {

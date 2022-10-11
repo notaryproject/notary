@@ -92,7 +92,6 @@ func serveError(log ctxu.Logger, w http.ResponseWriter, err error) {
 	if e != nil {
 		log.Error(e)
 	}
-	return
 }
 
 func (root *rootHandler) doAuth(ctx context.Context, gun string, w http.ResponseWriter, r *http.Request) (context.Context, error) {

@@ -43,7 +43,7 @@ func TestRemoveIfNoKey(t *testing.T) {
 	stores := []trustmanager.KeyStore{trustmanager.NewKeyMemoryStore(nil)}
 	err := removeKeyInteractively(stores, "12345", &buf, &buf)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "No key with ID")
+	require.Contains(t, err.Error(), "no key with ID")
 }
 
 // If there is one key, asking to remove it will ask for confirmation.  Passing
@@ -309,7 +309,7 @@ func TestRotateKeyNoGUN(t *testing.T) {
 	}
 	err := k.keysRotate(&cobra.Command{}, []string{})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Must specify a GUN")
+	require.Contains(t, err.Error(), "must specify a GUN")
 }
 
 // initialize a repo with keys, so they can be rotated
