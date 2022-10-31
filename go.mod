@@ -6,7 +6,7 @@ require (
 	github.com/Shopify/logrus-bugsnag v0.0.0-20170309145241-6dbc35f2c30d
 	github.com/bugsnag/bugsnag-go v1.0.5
 	github.com/cloudflare/cfssl v0.0.0-20180223231731-4e2dcbde5004 // 1.3.1
-	github.com/docker/distribution v2.7.1+incompatible
+	github.com/docker/distribution v2.8.0+incompatible
 	github.com/docker/go v1.5.1-1.0.20160303222718-d30aec9fd63c
 	github.com/docker/go-connections v0.4.0
 	github.com/dvsekhvalnov/jose2go v0.0.0-20200901110807-248326c1351b
