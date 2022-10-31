@@ -1,20 +1,20 @@
 # Changelog
 
-## [v0.7.1](https://github.com/docker/notary/releases/tag/v0.7.1) 10/31/2022
+## [v0.7.1](https://github.com/docker/notary/releases/tag/v0.7.1) 2022-10-31
 + Fix race condition in `UpdateMany` [#1636](https://github.com/notaryproject/notary/pull/1636)
 + Performance fix when using MySQL [#1639](https://github.com/notaryproject/notary/pull/1639)
 + Remove unbounded cache to improve memory usage [#1651](https://github.com/notaryproject/notary/pull/1651)
 + Update to Go 1.17 [#1641](https://github.com/theupdateframework/notary/pull/1641)
 + Fix various issues with later Go versions [#1635](https://github.com/theupdateframework/notary/pull/1635), [#1616](https://github.com/theupdateframework/notary/pull/1616), [#1607](https://github.com/theupdateframework/notary/pull/1607)
 
-## [v0.7.0](https://github.com/docker/notary/releases/tag/v0.7.0) 12/01/2021
+## [v0.7.0](https://github.com/docker/notary/releases/tag/v0.7.0) 2021-12-01
 + Switch to Go modules [#1523](https://github.com/theupdateframework/notary/pull/1523)
 + Use golang/x/crypto for ed25519 [#1344](https://github.com/theupdateframework/notary/pull/1344)
 + Update Go version
 + Update dependency versions
 + Fixes from using Gosec for source analysis
 
-## [v0.6.1](https://github.com/docker/notary/releases/tag/v0.6.0) 04/10/2018
+## [v0.6.1](https://github.com/docker/notary/releases/tag/v0.6.0) 2018-04-10
 + Fixed bug where CLI requested admin privileges for all metadata operations, including listing targets on a repo [#1315](https://github.com/theupdateframework/notary/pull/1315)
 + Prevented notary signer from being dumpable or being ptraced in Linux, except in debug mode [#1327](https://github.com/theupdateframework/notary/pull/1327)
 + Bumped JWT dependency to fix potential Invalid Curve Attack on NIST curves within ECDH key management [#1334](https://github.com/theupdateframework/notary/pull/1334)
@@ -22,7 +22,7 @@
 + Bumped go version and various dependencies [#1323](https://github.com/theupdateframework/notary/pull/1323) [#1332](https://github.com/theupdateframework/notary/pull/1332) [#1335](https://github.com/theupdateframework/notary/pull/1335) [#1336](https://github.com/theupdateframework/notary/pull/1336)
 + Various internal and documentation fixes [#1312](https://github.com/theupdateframework/notary/pull/1312) [#1313](https://github.com/theupdateframework/notary/pull/1313) [#1319](https://github.com/theupdateframework/notary/pull/1319) [#1320](https://github.com/theupdateframework/notary/pull/1320) [#1324](https://github.com/theupdateframework/notary/pull/1324) [#1326](https://github.com/theupdateframework/notary/pull/1326) [#1328](https://github.com/theupdateframework/notary/pull/1328) [#1329](https://github.com/theupdateframework/notary/pull/1329) [#1333](https://github.com/theupdateframework/notary/pull/1333)
 
-## [v0.6.0](https://github.com/docker/notary/releases/tag/v0.6.0) 02/28/2018
+## [v0.6.0](https://github.com/docker/notary/releases/tag/v0.6.0) 2018-02-28
 + **The project has been moved from https://github.com/docker/notary to https://github.com/theupdateframework/notary, as it has been accepted into the CNCF.  Downstream users should update their go imports.**
 + Removed support for RSA-key exchange ciphers supported by the server and signer and require TLS >= 1.2 for the server and signer. [#1307](https://github.com/theupdateframework/notary/pull/1307)
 + `libykcs11` can be found in several additional locations on Fedora.  [#1286](https://github.com/theupdateframework/notary/pull/1286/)
@@ -64,7 +64,7 @@
     + Key import/export logic has been moved from the `utils` package to the `trustmanager` package.  [#1250](https://github.com/theupdateframework/notary/pull/1250)
 
 
-## [v0.5.0](https://github.com/docker/notary/releases/tag/v0.5.0) 11/14/2016
+## [v0.5.0](https://github.com/docker/notary/releases/tag/v0.5.0) 2016-11-14
 + Non-certificate public keys in PEM format can now be added to delegation roles [#965](https://github.com/docker/notary/pull/965)
 + PostgreSQL support as a storage backend for Server and Signer [#920](https://github.com/docker/notary/pull/920)
 + Notary server's health check now fails if it cannot connect to the signer, since no new repositories can be created and existing repositories cannot be updated if the server cannot reach the signer [#952](https://github.com/docker/notary/pull/952)
@@ -72,21 +72,21 @@
 + The keys on disk are now stored in the `~/.notary/private` directory, rather than in a key hierarchy that separates them by GUN and by role.  Notary will automatically migrate old-style directory layouts to the new style.  **This is not forwards-compatible against notary<0.4.2 and docker<=1.12** [#872](https://github.com/docker/notary/pull/872)
 + A new changefeed API has been added to Notary Server. It is only supported when using one of the relational database backends: MySQL, PostgreSQL, or SQLite.[#1019](https://github.com/docker/notary/pull/1019)
 
-## [v0.4.3](https://github.com/docker/notary/releases/tag/v0.4.3) 1/3/2017
+## [v0.4.3](https://github.com/docker/notary/releases/tag/v0.4.3) 2017-01-03
 + Fix build tags for static notary client binaries in linux [#1039](https://github.com/docker/notary/pull/1039)
 + Fix key import for exported delegation keys [#1067](https://github.com/docker/notary/pull/1067)
 
-## [v0.4.2](https://github.com/docker/notary/releases/tag/v0.4.2) 9/30/2016
+## [v0.4.2](https://github.com/docker/notary/releases/tag/v0.4.2) 2016-09-30
 + Bump the cross compiler to golang 1.7.1, since [1.6.3 builds binaries that could have non-deterministic bugs in OS X Sierra](https://groups.google.com/forum/#!msg/golang-dev/Jho5sBHZgAg/cq6d97S1AwAJ) [#984](https://github.com/docker/notary/pull/984)
 
-## [v0.4.1](https://github.com/docker/notary/releases/tag/v0.4.1) 9/27/2016
+## [v0.4.1](https://github.com/docker/notary/releases/tag/v0.4.1) 2016-09-27
 + Preliminary Windows support for notary client [#970](https://github.com/docker/notary/pull/970)
 + Output message to CLI when repo changes have been successfully published [#974](https://github.com/docker/notary/pull/974)
 + Improved error messages for client authentication errors and for the witness command [#972](https://github.com/docker/notary/pull/972)
 + Support for finding keys that are anywhere in the notary directory's "private" directory, not just under "private/root_keys" or "private/tuf_keys" [#981](https://github.com/docker/notary/pull/981)
 + Previously, on any error updating, the client would fall back on the cache.  Now we only do so if there is a network error or if the server is unavailable or missing the TUF data. Invalid TUF data will cause the update to fail - for example if there was an invalid root rotation. [#884](https://github.com/docker/notary/pull/884) [#982](https://github.com/docker/notary/pull/982)
 
-## [v0.4.0](https://github.com/docker/notary/releases/tag/v0.4.0) 9/21/2016
+## [v0.4.0](https://github.com/docker/notary/releases/tag/v0.4.0) 2016-09-21
 + Server-managed key rotations [#889](https://github.com/docker/notary/pull/889)
 + Remove `timestamp_keys` table, which stored redundant information [#889](https://github.com/docker/notary/pull/889)
 + Introduce `notary delete` command to delete local and/or remote repo data [#895](https://github.com/docker/notary/pull/895)
@@ -110,7 +110,7 @@
 + Validate root rotations against trust pinning [#800](https://github.com/docker/notary/pull/800)
 + Update fixture certificates for two-year expiry window [#951](https://github.com/docker/notary/pull/951)
 
-## [v0.3.0](https://github.com/docker/notary/releases/tag/v0.3.0) 5/11/2016
+## [v0.3.0](https://github.com/docker/notary/releases/tag/v0.3.0) 2016-05-11
 + Root rotations
 + RethinkDB support as a storage backend for Server and Signer
 + A new TUF repo builder that merges server and client validation
@@ -137,7 +137,7 @@
 + Enforce TUF version to be >= 1, previously 0 was acceptable although unused
 + json.RawMessage should always be used as *json.RawMessage due to concepts of addressability in Go and effects on encoding
 
-## [v0.2](https://github.com/docker/notary/releases/tag/v0.2.0) 2/24/2016
+## [v0.2](https://github.com/docker/notary/releases/tag/v0.2.0) 2016-02-24
 + Add support for delegation roles in `notary` server and client
 + Add `notary CLI` commands for managing delegation roles: `notary delegation`
     + `add`, `list` and `remove` subcommands
@@ -157,7 +157,7 @@
 + Support logging as JSON format on server and signer
 + Support mutual TLS between notary client and notary server
 
-## [v0.1](https://github.com/docker/notary/releases/tag/v0.1) 11/15/2015
+## [v0.1](https://github.com/docker/notary/releases/tag/v0.1) 2015-11-15
 + Initial non-alpha `notary` version
 + Implement TUF (the update framework) with support for root, targets, snapshot, and timestamp roles
 + Add PKCS11 interface to store and sign with keys in HSMs (i.e. Yubikey)
