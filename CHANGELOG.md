@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.7.1](https://github.com/docker/notary/releases/tag/v0.7.1) 10/31/2022
++ Fix race condition in `UpdateMany` [#1636](https://github.com/notaryproject/notary/pull/1636)
++ Performance fix when using MySQL [#1639](https://github.com/notaryproject/notary/pull/1639)
++ Remove unbounded cache to improve memory usage [#1651](https://github.com/notaryproject/notary/pull/1651)
++ Update to Go 1.17 [#1641](https://github.com/theupdateframework/notary/pull/1641)
++ Fix various issues with later Go versions [#1635](https://github.com/theupdateframework/notary/pull/1635), [#1616](https://github.com/theupdateframework/notary/pull/1616), [#1607](https://github.com/theupdateframework/notary/pull/1607)
+
 ## [v0.7.0](https://github.com/docker/notary/releases/tag/v0.7.0) 12/01/2021
 + Switch to Go modules [#1523](https://github.com/theupdateframework/notary/pull/1523)
 + Use golang/x/crypto for ed25519 [#1344](https://github.com/theupdateframework/notary/pull/1344)
