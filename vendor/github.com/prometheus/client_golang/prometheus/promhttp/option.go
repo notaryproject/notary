@@ -1,4 +1,4 @@
-// Copyright 2017 The Prometheus Authors
+// Copyright 2022 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,34 +11,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !go1.8
-
 package promhttp
 
-import (
-	"io"
-	"net/http"
-)
+// Option are used to configure a middleware or round tripper..
+type Option func(*option)
 
-func newDelegator(w http.ResponseWriter, observeWriteHeaderFunc func(int)) delegator {
-	d := &responseWriterDelegator{
-		ResponseWriter:     w,
-		observeWriteHeader: observeWriteHeaderFunc,
-	}
+type option struct {
+	extraMethods []string
+}
 
-	id := 0
-	if _, ok := w.(http.CloseNotifier); ok {
-		id += closeNotifier
+// WithExtraMethods adds additional HTTP methods to the list of allowed methods.
+// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods for the default list.
+//
+// See the example for ExampleInstrumentHandlerWithExtraMethods for example usage.
+func WithExtraMethods(methods ...string) Option {
+	return func(o *option) {
+		o.extraMethods = methods
 	}
-	if _, ok := w.(http.Flusher); ok {
-		id += flusher
-	}
-	if _, ok := w.(http.Hijacker); ok {
-		id += hijacker
-	}
-	if _, ok := w.(io.ReaderFrom); ok {
-		id += readerFrom
-	}
-
-	return pickDelegator[id](d)
 }
