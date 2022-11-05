@@ -3,7 +3,7 @@ module github.com/theupdateframework/notary
 go 1.17
 
 require (
-	github.com/Shopify/logrus-bugsnag v0.0.0-20170309145241-6dbc35f2c30d
+	github.com/Shopify/logrus-bugsnag v0.0.0-20171204204709-577dee27f20d
 	github.com/bugsnag/bugsnag-go v1.0.5
 	github.com/cloudflare/cfssl v0.0.0-20180223231731-4e2dcbde5004 // 1.3.1
 	github.com/docker/distribution v2.7.1+incompatible

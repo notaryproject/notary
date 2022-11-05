@@ -1,7 +1,7 @@
 # github.com/BurntSushi/toml v0.3.1
 ## explicit
 github.com/BurntSushi/toml
-# github.com/Shopify/logrus-bugsnag v0.0.0-20170309145241-6dbc35f2c30d
+# github.com/Shopify/logrus-bugsnag v0.0.0-20171204204709-577dee27f20d
 ## explicit
 github.com/Shopify/logrus-bugsnag
 # github.com/beorn7/perks v1.0.1
