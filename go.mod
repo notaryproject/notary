@@ -10,7 +10,7 @@ require (
 	github.com/docker/go v1.5.1-1.0.20160303222718-d30aec9fd63c
 	github.com/docker/go-connections v0.4.0
 	github.com/docker/go-metrics v0.0.0-20180209012529-399ea8c73916
-	github.com/dvsekhvalnov/jose2go v0.0.0-20200901110807-248326c1351b
+	github.com/dvsekhvalnov/jose2go v1.5.0
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.7.0

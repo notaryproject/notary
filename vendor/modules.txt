@@ -73,8 +73,8 @@ github.com/docker/go-metrics
 # github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7
 ## explicit
 github.com/docker/libtrust
-# github.com/dvsekhvalnov/jose2go v0.0.0-20200901110807-248326c1351b
-## explicit
+# github.com/dvsekhvalnov/jose2go v1.5.0
+## explicit; go 1.15
 github.com/dvsekhvalnov/jose2go
 github.com/dvsekhvalnov/jose2go/aes
 github.com/dvsekhvalnov/jose2go/arrays
