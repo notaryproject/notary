@@ -19,7 +19,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.0
 	github.com/miekg/pkcs11 v1.0.3
 	github.com/sirupsen/logrus v1.8.1
-	github.com/spf13/cobra v1.6.0
+	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v0.0.0-20150530192845-be5ff3e4840c
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/crypto v0.0.0-20201117144127-c1f2f97bffc9
