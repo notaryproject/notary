@@ -40,7 +40,7 @@ github.com/cloudflare/cfssl/signer/local
 github.com/davecgh/go-spew/spew
 # github.com/denisenkom/go-mssqldb v0.0.0-20191128021309-1d7a30a10f73
 ## explicit; go 1.11
-# github.com/docker/distribution v2.7.1+incompatible
+# github.com/docker/distribution v2.8.1+incompatible
 ## explicit
 github.com/docker/distribution
 github.com/docker/distribution/context
