@@ -9,7 +9,7 @@ require (
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/go v1.5.1-1.0.20160303222718-d30aec9fd63c
 	github.com/docker/go-connections v0.4.0
-	github.com/docker/go-metrics v0.0.0-20180209012529-399ea8c73916
+	github.com/docker/go-metrics v0.0.1
 	github.com/dvsekhvalnov/jose2go v1.5.0
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/golang/protobuf v1.5.2
