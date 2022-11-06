@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/Shopify/logrus-bugsnag v0.0.0-20171204204709-577dee27f20d
 	github.com/bugsnag/bugsnag-go v1.0.5
-	github.com/cloudflare/cfssl v0.0.0-20180223231731-4e2dcbde5004 // 1.3.1
+	github.com/cloudflare/cfssl v1.5.0
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/go v1.5.1-1.0.20160303222718-d30aec9fd63c
 	github.com/docker/go-connections v0.4.0
@@ -41,13 +41,13 @@ require (
 	github.com/denisenkom/go-mssqldb v0.0.0-20191128021309-1d7a30a10f73 // indirect
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/google/certificate-transparency-go v1.0.10-0.20180222191210-5ab67e519c93 // indirect
+	github.com/google/certificate-transparency-go v1.0.21 // indirect
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.4 // indirect
+	github.com/jmoiron/sqlx v1.2.0 // indirect
 	github.com/juju/loggo v0.0.0-20190526231331-6e530bcce5d8 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
@@ -68,6 +68,9 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.4.1 // indirect
+	github.com/weppos/publicsuffix-go v0.13.0 // indirect
+	github.com/zmap/zcrypto v0.0.0-20200911161511-43ff0ea04f21 // indirect
+	github.com/zmap/zlint/v2 v2.2.1 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20220519153652-3a47de7e79bd // indirect
 	gopkg.in/cenkalti/backoff.v2 v2.2.1 // indirect

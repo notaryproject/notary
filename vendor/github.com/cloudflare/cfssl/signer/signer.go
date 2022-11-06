@@ -64,6 +64,15 @@ type SignRequest struct {
 	// for canonicalization) as the value of the notAfter field of the
 	// certificate.
 	NotAfter time.Time
+	// If ReturnPrecert is true a certificate with the CT poison extension
+	// will be returned from the Signer instead of attempting to retrieve
+	// SCTs and populate the tbsCert with them itself. This precert can then
+	// be passed to SignFromPrecert with the SCTs in order to create a
+	// valid certificate.
+	ReturnPrecert bool
+
+	// Arbitrary metadata to be stored in certdb.
+	Metadata map[string]interface{} `json:"metadata"`
 }
 
 // appendIf appends to a if s is not an empty string.
@@ -165,7 +174,7 @@ func DefaultSigAlgo(priv crypto.Signer) x509.SignatureAlgorithm {
 
 // ParseCertificateRequest takes an incoming certificate request and
 // builds a certificate template from it.
-func ParseCertificateRequest(s Signer, csrBytes []byte) (template *x509.Certificate, err error) {
+func ParseCertificateRequest(s Signer, p *config.SigningProfile, csrBytes []byte) (template *x509.Certificate, err error) {
 	csrv, err := x509.ParseCertificateRequest(csrBytes)
 	if err != nil {
 		err = cferr.Wrap(cferr.CSRError, cferr.ParseFailed, err)
@@ -186,6 +195,9 @@ func ParseCertificateRequest(s Signer, csrBytes []byte) (template *x509.Certific
 		DNSNames:           csrv.DNSNames,
 		IPAddresses:        csrv.IPAddresses,
 		EmailAddresses:     csrv.EmailAddresses,
+		URIs:               csrv.URIs,
+		Extensions:         csrv.Extensions,
+		ExtraExtensions:    []pkix.Extension{},
 	}
 
 	for _, val := range csrv.Extensions {
@@ -205,6 +217,11 @@ func ParseCertificateRequest(s Signer, csrBytes []byte) (template *x509.Certific
 			template.IsCA = constraints.IsCA
 			template.MaxPathLen = constraints.MaxPathLen
 			template.MaxPathLenZero = template.MaxPathLen == 0
+		} else {
+			// If the profile has 'copy_extensions' to true then lets add it
+			if p.CopyExtensions {
+				template.ExtraExtensions = append(template.ExtraExtensions, val)
+			}
 		}
 	}
 
@@ -314,6 +331,7 @@ func FillTemplate(template *x509.Certificate, defaultProfile, profile *config.Si
 		}
 		template.DNSNames = nil
 		template.EmailAddresses = nil
+		template.URIs = nil
 	}
 	template.SubjectKeyId = ski
 
