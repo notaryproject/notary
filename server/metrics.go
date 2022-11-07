@@ -8,23 +8,31 @@ import (
 
 	"github.com/docker/go-metrics"
 	"github.com/gorilla/mux"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 // namespacePrefix is the namespace prefix used for prometheus metrics.
 const namespacePrefix = "notary_server"
 
-func prometheusOpts(operation string) prometheus.SummaryOpts {
-	return prometheus.SummaryOpts{
-		Namespace:   namespacePrefix,
-		Subsystem:   "http",
-		ConstLabels: prometheus.Labels{"operation": operation},
-	}
-}
+// Server uses handlers.Changefeed for two separate routes. It's not allowed
+// to register twice ("duplicate metrics collector registration attempted"),
+// so checking if it's already instrumented, otherwise skip.
+var instrumented = map[string]struct{}{}
 
 // instrumentedHandler instruments a server handler for monitoring with prometheus.
 func instrumentedHandler(handlerName string, handler http.Handler) http.Handler {
-	return prometheus.InstrumentHandlerFuncWithOpts(prometheusOpts(handlerName), handler.ServeHTTP) //lint:ignore SA1019 TODO update prometheus API
+	if _, registered := instrumented[handlerName]; registered {
+		// handler for this operation is already registered.
+		return handler
+	}
+	instrumented[handlerName] = struct{}{}
+
+	// Preserve the old situation, which used ConstLabels: "operation: <operation>"
+	// for metrics, but ConstLabels in go-metrics are per-namespace, and use
+	// ConstLabels: "handler: <handlerName>" (we pass operationName as handlerName).
+	namespace := metrics.NewNamespace(namespacePrefix, "http", metrics.Labels{"operation": handlerName})
+	httpMetrics := namespace.NewDefaultHttpMetrics(handlerName)
+	metrics.Register(namespace)
+	return metrics.InstrumentHandler(httpMetrics, handler)
 }
 
 // handleMetricsEndpoint registers the /metrics endpoint.
