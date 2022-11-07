@@ -140,17 +140,6 @@ func TestRepoPrefixDoesNotMatch(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, res.StatusCode)
 }
 
-func TestMetricsEndpoint(t *testing.T) {
-	handler := RootHandler(context.Background(), nil, signed.NewEd25519(),
-		nil, nil, nil)
-	ts := httptest.NewServer(handler)
-	defer ts.Close()
-
-	res, err := http.Get(ts.URL + "/metrics")
-	require.NoError(t, err)
-	require.Equal(t, http.StatusOK, res.StatusCode)
-}
-
 // GetKeys supports only the timestamp and snapshot key endpoints
 func TestGetKeysEndpoint(t *testing.T) {
 	ctx := context.WithValue(

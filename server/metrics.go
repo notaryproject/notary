@@ -1,3 +1,6 @@
+//go:build !no_metrics
+// +build !no_metrics
+
 package server
 
 import (

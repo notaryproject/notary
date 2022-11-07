@@ -16,6 +16,11 @@ CTIMEVAR=-X $(NOTARY_PKG)/version.GitCommit=$(GITCOMMIT) -X $(NOTARY_PKG)/versio
 GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
 GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
 GOOSES = darwin linux windows
+
+# Available build-tags:
+#
+# - pkcs11      enables pkcs11 integration
+# - no_metrics  removes prometheus metrics and the /metrics endpoint
 NOTARY_BUILDTAGS ?= pkcs11
 NOTARYDIR := /go/src/github.com/theupdateframework/notary
 
