@@ -35,7 +35,7 @@ received content.
 
 ## Goals
 
-Notary is based on [The Update Framework](https://www.theupdateframework.com/), a secure general design for the problem of software distribution and updates. By using TUF, Notary achieves a number of key advantages:
+Notary is based on [The Update Framework](https://github.com/notaryproject/notary), a secure general design for the problem of software distribution and updates. By using TUF, Notary achieves a number of key advantages:
 
 * **Survivable Key Compromise**: Content publishers must manage keys in order to sign their content. Signing keys may be compromised or lost so systems must be designed in order to be flexible and recoverable in the case of key compromise. TUF's notion of key roles is utilized to separate responsibilities across a hierarchy of keys such that loss of any particular key (except the root role) by itself is not fatal to the security of the system.
 * **Freshness Guarantees**: Replay attacks are a common problem in designing secure systems, where previously valid payloads are replayed to trick another system. The same problem exists in the software update systems, where old signed can be presented as the most recent. Notary makes use of timestamping on publishing so that consumers can know that they are receiving the most up to date content. This is particularly important when dealing with software update where old vulnerable versions could be used to attack users.
@@ -59,7 +59,7 @@ Notary has had two public security audits:
 
 # Getting started with the Notary CLI
 
-Get the Notary Client CLI binary from [the official releases page](https://github.com/theupdateframework/notary/releases) or you can [build one yourself](#building-notary).
+Get the Notary Client CLI binary from [the official releases page](https://github.com/notaryproject/notary) or you can [build one yourself](#building-notary).
 The version of the Notary server and signer should be greater than or equal to Notary CLI's version to ensure feature compatibility (ex: CLI version 0.2, server/signer version >= 0.2), and all official releases are associated with GitHub tags.
 
 To use the Notary CLI with Docker hub images, have a look at Notary's
@@ -110,7 +110,7 @@ The `buildscripts/circle-validate-vendor.sh` runs `go mod tidy` and `go mod vend
 
 ## Building Notary
 
-Note that Notary's [latest stable release](https://github.com/theupdateframework/notary/releases) is at the head of the
+Note that Notary's [latest stable release](https://github.com/notaryproject/notary) is at the head of the
 [releases branch](https://github.com/theupdateframework/notary/tree/releases).  The master branch is the development
 branch and contains features for the next release.
 
