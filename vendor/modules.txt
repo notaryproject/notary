@@ -86,8 +86,8 @@ github.com/dvsekhvalnov/jose2go/padding
 # github.com/go-sql-driver/mysql v1.5.0
 ## explicit; go 1.10
 github.com/go-sql-driver/mysql
-# github.com/gogo/protobuf v1.0.0
-## explicit
+# github.com/gogo/protobuf v1.3.2
+## explicit; go 1.15
 github.com/gogo/protobuf/proto
 # github.com/golang/protobuf v1.5.2
 ## explicit; go 1.9
