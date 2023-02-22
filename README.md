@@ -1,13 +1,13 @@
 <img src="docs/images/notary-blk.svg" alt="Notary" width="400px"/>
 
-[![GoDoc](https://godoc.org/github.com/theupdateframework/notary?status.svg)](https://godoc.org/github.com/theupdateframework/notary)
-[![Circle CI](https://circleci.com/gh/theupdateframework/notary/tree/master.svg?style=shield)](https://circleci.com/gh/theupdateframework/notary/tree/master) [![CodeCov](https://codecov.io/github/theupdateframework/notary/coverage.svg?branch=master)](https://codecov.io/github/theupdateframework/notary) [![GoReportCard](https://goreportcard.com/badge/theupdateframework/notary)](https://goreportcard.com/report/github.com/theupdateframework/notary)
+[![GoDoc](https://godoc.org/github.com/notaryproject/notary?status.svg)](https://godoc.org/github.com/notaryproject/notary)
+[![Circle CI](https://circleci.com/gh/notaryproject/notary/tree/master.svg?style=shield)](https://circleci.com/gh/notaryproject/notary/tree/master) [![CodeCov](https://codecov.io/github/notaryproject/notary/coverage.svg?branch=master)](https://codecov.io/github/notaryproject/notary) [![GoReportCard](https://goreportcard.com/badge/notaryproject/notary)](https://goreportcard.com/report/github.com/notaryproject/notary)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Ftheupdateframework%2Fnotary.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Ftheupdateframework%2Fnotary?ref=badge_shield)
 
 # Notice
 
 The Notary project has officially been accepted in to the Cloud Native Computing Foundation (CNCF).
-It has moved to https://github.com/theupdateframework/notary. Any downstream consumers should update
+It has moved to https://github.com/notaryproject/notary. Any downstream consumers should update
 their Go imports to use this new location, which will be the canonical location going forward.
 
 We have moved the repo in GitHub, which will allow existing importers to continue using the old
@@ -59,7 +59,7 @@ Notary has had two public security audits:
 
 # Getting started with the Notary CLI
 
-Get the Notary Client CLI binary from [the official releases page](https://github.com/theupdateframework/notary/releases) or you can [build one yourself](#building-notary).
+Get the Notary Client CLI binary from [the official releases page](https://github.com/notaryproject/notary/releases) or you can [build one yourself](#building-notary).
 The version of the Notary server and signer should be greater than or equal to Notary CLI's version to ensure feature compatibility (ex: CLI version 0.2, server/signer version >= 0.2), and all official releases are associated with GitHub tags.
 
 To use the Notary CLI with Docker hub images, have a look at Notary's
@@ -110,8 +110,8 @@ The `buildscripts/circle-validate-vendor.sh` runs `go mod tidy` and `go mod vend
 
 ## Building Notary
 
-Note that Notary's [latest stable release](https://github.com/theupdateframework/notary/releases) is at the head of the
-[releases branch](https://github.com/theupdateframework/notary/tree/releases).  The master branch is the development
+Note that Notary's [latest stable release](https://github.com/notaryproject/notary/releases) is at the head of the
+[releases branch](https://github.com/notaryproject/notary/tree/releases).  The master branch is the development
 branch and contains features for the next release.
 
 Prerequisites:
