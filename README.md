@@ -8,6 +8,8 @@ This repository provides an implementaiton of
 *[The Update Framework specficaitions](https://github.com/theupdateframework/specification)* 
 and all references to `notary` in this repository refer to the implementation of the client 
 and server aligning with the [TUF](https://github.com/theupdateframework/specification) specification.
+The most prominent use of this implementation is in Docker Content Trust (DCT).
+The first release [v0.1](https://github.com/notaryproject/notary/releases/tag/v0.1) was released in November, 2015.
 
 # Overview
 
