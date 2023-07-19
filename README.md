@@ -4,8 +4,8 @@
 
 # Notice
 
-This repository provides an implementaiton of 
-*[The Update Framework specficaitions](https://github.com/theupdateframework/specification)* 
+This repository provides an implementation of 
+*[The Update Framework specification](https://github.com/theupdateframework/specification)* 
 and all references to `notary` in this repository refer to the implementation of the client 
 and server aligning with the [TUF](https://github.com/theupdateframework/specification) specification.
 The most prominent use of this implementation is in Docker Content Trust (DCT).
