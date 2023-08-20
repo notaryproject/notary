@@ -6,15 +6,12 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
-	"encoding/asn1"
 	"encoding/hex"
 	"errors"
-	"io"
-	"math/big"
-
 	"github.com/docker/go/canonical/json"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ed25519"
+	"io"
 )
 
 // PublicKey is the necessary interface for public keys
@@ -436,11 +433,6 @@ func (k UnknownPrivateKey) CryptoSigner() crypto.Signer {
 	return nil
 }
 
-type ecdsaSig struct {
-	R *big.Int
-	S *big.Int
-}
-
 // Sign creates an ecdsa signature
 func (k ECDSAPrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) (signature []byte, err error) {
 	ecdsaPrivKey, ok := k.CryptoSigner().(*ecdsa.PrivateKey)
@@ -452,22 +444,7 @@ func (k ECDSAPrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts
 	if err != nil {
 		return nil, err
 	}
-
-	sig := ecdsaSig{}
-	_, err = asn1.Unmarshal(sigASN1, &sig)
-	if err != nil {
-		return nil, err
-	}
-	rBytes, sBytes := sig.R.Bytes(), sig.S.Bytes()
-	octetLength := (ecdsaPrivKey.Params().BitSize + 7) >> 3
-
-	// MUST include leading zeros in the output
-	rBuf := make([]byte, octetLength-len(rBytes), octetLength)
-	sBuf := make([]byte, octetLength-len(sBytes), octetLength)
-
-	rBuf = append(rBuf, rBytes...)
-	sBuf = append(sBuf, sBytes...)
-	return append(rBuf, sBuf...), nil
+	return sigASN1, nil
 }
 
 // Sign creates an rsa signature

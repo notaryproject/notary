@@ -114,6 +114,30 @@ Yubikey support requires
 (which are bundled with the PIV tools)</a> to be available in standard
 library locations.
 
+### Signature algorithms
+
+Notary uses Elliptic Curve keys by default (RSA keys can only be imported but not generated within Notary,
+see [PR-1191](https://github.com/theupdateframework/notary/pull/1191)). The choice
+of elliptic curve depends on the ECC algorithm selected through the property "trust_service.key_algorithm" 
+in `server-config.json`. These are the two options:
+
+* for [ECDSA](https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm) it is the curve
+[NIST P-256](https://en.wikipedia.org/wiki/Elliptic-curve_cryptography#Applications), aka "secp256r1"
+* for [Ed25519](https://en.wikipedia.org/wiki/EdDSA#Ed25519) it is [Curve25519](https://en.wikipedia.org/wiki/Curve25519) with SHA-512
+
+### Signature format
+
+In cryptography some digital signatures are serialized in [ASN.1](https://en.wikipedia.org/wiki/ASN.1) form.
+This is true for RSA signatures in the `RSASSA-PKCS1-V1_5-SIGN` schema, which [always contain](https://stackoverflow.com/a/54420322/9698467) 
+the ASN.1 DER encoded structure by definition. This is also recommended for [ECDSA signatures](https://crypto.stackexchange.com/q/71403)
+but is [not the case](https://crypto.stackexchange.com/a/71404) with Ed25519 signatures.
+
+In Notary, until recently the ECDSA signatures were encoded without the ASN.1 frame, which made them incompatible
+with some third party libraries such as OpenSSL ([issue](https://github.com/theupdateframework/notary/issues/1544)) and AWS KMS.
+Going forward Notary will only generate ECDSA signatures in ASN.1 format but will continue to successfully verify
+signatures in the old format. This should make the change backwards-compatible for existing users of Notary should they
+wish to upgrade (they will only need to rebuild their client, server and signer).
+
 ## Work with delegation roles
 
 Delegation roles simplify collaborator workflows in notary trusted collections, and

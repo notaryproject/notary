@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
 	"math/big"
@@ -201,6 +202,11 @@ func (v RSAPyCryptoVerifier) Verify(key data.PublicKey, sig []byte, msg []byte) 
 	return verifyPSS(pub, digest[:], sig)
 }
 
+type ecdsaSig struct {
+	R *big.Int
+	S *big.Int
+}
+
 // ECDSAVerifier checks ECDSA signatures, decoding the keyType appropriately
 type ECDSAVerifier struct{}
 
@@ -242,6 +248,19 @@ func (v ECDSAVerifier) Verify(key data.PublicKey, sig []byte, msg []byte) error 
 		return ErrInvalid
 	}
 
+	digest := sha256.Sum256(msg)
+
+	// if the signature is in ASN.1 form, we can verify it directly
+	var signature ecdsaSig
+	if _, err := asn1.Unmarshal(sig, &signature); err == nil {
+		if !ecdsa.Verify(ecdsaPubKey, digest[:], signature.R, signature.S) {
+			logrus.Debugf("failed ECDSA signature validation")
+			return ErrInvalid
+		}
+		return nil
+	}
+
+	// the signature is the old-style Notary signature
 	sigLength := len(sig)
 	expectedOctetLength := 2 * ((ecdsaPubKey.Params().BitSize + 7) >> 3)
 	if sigLength != expectedOctetLength {
@@ -252,8 +271,6 @@ func (v ECDSAVerifier) Verify(key data.PublicKey, sig []byte, msg []byte) error 
 	rBytes, sBytes := sig[:sigLength/2], sig[sigLength/2:]
 	r := new(big.Int).SetBytes(rBytes)
 	s := new(big.Int).SetBytes(sBytes)
-
-	digest := sha256.Sum256(msg)
 
 	if !ecdsa.Verify(ecdsaPubKey, digest[:], r, s) {
 		logrus.Debugf("failed ECDSA signature validation")
