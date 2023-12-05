@@ -18,6 +18,7 @@
 		people = [
 			"hukeping",
 			"justincormack",
+			"jonnystoten"
 		]
 
 	[Org."Notation maintainers"]
@@ -64,3 +65,8 @@
 	Name = "Steve Lasker"
 	Email = "Steve.Lasker@microsoft.com"
 	GitHub = "stevelasker"
+
+	[people.jonnystoten]
+	Name = "Jonny Stoten"
+	Email = "jonny.stoten@docker.com"
+	GitHub = "jonnystoten"
