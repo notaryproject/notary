@@ -1,7 +1,7 @@
 # github.com/BurntSushi/toml v0.3.1
 ## explicit
 github.com/BurntSushi/toml
-# github.com/Shopify/logrus-bugsnag v0.0.0-20170309145241-6dbc35f2c30d
+# github.com/Shopify/logrus-bugsnag v0.0.0-20171204204709-577dee27f20d
 ## explicit
 github.com/Shopify/logrus-bugsnag
 # github.com/beorn7/perks v1.0.1
@@ -40,7 +40,7 @@ github.com/cloudflare/cfssl/signer/local
 github.com/davecgh/go-spew/spew
 # github.com/denisenkom/go-mssqldb v0.0.0-20191128021309-1d7a30a10f73
 ## explicit; go 1.11
-# github.com/docker/distribution v2.7.1+incompatible
+# github.com/docker/distribution v2.8.1+incompatible
 ## explicit
 github.com/docker/distribution
 github.com/docker/distribution/context
@@ -144,8 +144,8 @@ github.com/magiconair/properties
 # github.com/mattn/go-sqlite3 v1.14.0
 ## explicit; go 1.10
 github.com/mattn/go-sqlite3
-# github.com/matttproud/golang_protobuf_extensions v1.0.1
-## explicit
+# github.com/matttproud/golang_protobuf_extensions v1.0.2
+## explicit; go 1.9
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/miekg/pkcs11 v1.0.3
 ## explicit; go 1.12
@@ -156,7 +156,7 @@ github.com/mitchellh/mapstructure
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
-# github.com/opencontainers/image-spec v1.0.1
+# github.com/opencontainers/image-spec v1.0.2
 ## explicit
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
@@ -195,7 +195,7 @@ github.com/sirupsen/logrus
 # github.com/spf13/cast v0.0.0-20150508191742-4d07383ffe94
 ## explicit
 github.com/spf13/cast
-# github.com/spf13/cobra v1.6.0
+# github.com/spf13/cobra v1.6.1
 ## explicit; go 1.15
 github.com/spf13/cobra
 # github.com/spf13/jwalterweatherman v0.0.0-20141219030609-3d60171a6431
@@ -239,8 +239,8 @@ golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.0.0-20201117132131-f5c789dd3221
-## explicit; go 1.11
+# golang.org/x/term v0.1.0
+## explicit; go 1.17
 golang.org/x/term
 # golang.org/x/text v0.3.3
 ## explicit; go 1.11
