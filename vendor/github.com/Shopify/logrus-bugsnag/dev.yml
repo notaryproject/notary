@@ -6,7 +6,3 @@ up:
 commands:
   test:
     run: go get -t ./... && go test ./...
-
-packages:
-  - git@github.com:Shopify/dev-shopify.git
-
