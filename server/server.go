@@ -197,7 +197,7 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 		notFoundError,
 		false,
 		nil,
-		[]string{"*"},
+		[]string{"pull", "push", "delete"},
 		authWrapper,
 		repoPrefixes,
 	))
@@ -207,7 +207,7 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 		notFoundError,
 		false,
 		nil,
-		[]string{"*"},
+		[]string{"pull", "push", "delete"},
 		authWrapper,
 		repoPrefixes,
 	))
@@ -227,7 +227,7 @@ func RootHandler(ctx context.Context, ac auth.AccessController, trust signed.Cry
 		notFoundError,
 		false,
 		nil,
-		[]string{"*"},
+		[]string{"pull", "push", "delete"},
 		authWrapper,
 		repoPrefixes,
 	))
