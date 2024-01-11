@@ -12,6 +12,9 @@
 			"justincormack",
 			"niazfk",
 			"stevelasker",
+			"priteshbandi",
+			"shiweizhang",
+			"toddymladenov"
 		]
 
 	[Org."Notary maintainers"]
@@ -70,3 +73,18 @@
 	Name = "Jonny Stoten"
 	Email = "jonny.stoten@docker.com"
 	GitHub = "jonnystoten"
+
+	[people.priteshbandi]
+	Name = "Pritesh Bandi"
+	Email = "priteshbandi@gmail.com"
+	GitHub = "priteshbandi"
+
+	[people.shiweizhang]
+	Name = "Shiwei Zhang"
+	Email = "shizh@microsoft.com"
+	GitHub = "shizhMSFT"
+
+	[people.toddymladenov]
+	Name = "Toddy Mladenov"
+	Email = "toddysm@gmail.com"
+	GitHub = "toddysm"
