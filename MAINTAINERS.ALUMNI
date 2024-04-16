@@ -14,8 +14,10 @@
 			"dmcgowan",
 			"endophage",
 			"ecordell",
+			"justincormack"
 			"nathanmccauley",
 			"riyazdf",
+			"stevelasker"
 		]
 
 [people]
@@ -47,6 +49,11 @@
 	Email = "evan.cordell@coreos.com"
 	GitHub = "ecordell"
 
+	[people.justincormack]
+	Name = "Justin Cormack"
+	Email = "justin.cormack@docker.com"
+	GitHub = "justincormack"
+
 	[people.nathanmccauley]
 	Name = "Nathan McCauley"
 	Email = "nathan.mccauley@docker.com"
@@ -56,3 +63,8 @@
 	Name = "Riyaz Faizullabhoy"
 	Email = "riyazdf@berkeley.edu"
 	GitHub = "riyazdf"
+
+	[people.stevelasker]
+	Name = "Steve Lasker"
+	Email = "Steve.Lasker@microsoft.com"
+	GitHub = "stevelasker"

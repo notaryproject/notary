@@ -9,9 +9,12 @@
 [Org]
 	[Org."Org maintainers"]
 		people = [
-			"justincormack",
 			"niazfk",
-			"stevelasker",
+			"priteshbandi",
+			"shiweizhang",
+			"toddymladenov",
+			"vaninrao",
+			"yizha"
 		]
 
 	[Org."Notary maintainers"]
@@ -19,19 +22,6 @@
 			"hukeping",
 			"justincormack",
 			"jonnystoten"
-		]
-
-	[Org."Notation maintainers"]
-		people = [
-			"justincormack",
-			"niazfk",
-			"stevelasker",
-		]
-
-	[Org."TUF maintainers"]
-		people = [
-			"justincormack",
-			"mnm678",
 		]
 [people]
 
@@ -46,11 +36,6 @@
 	Email = "hukeping@huawei.com"
 	GitHub = "hukeping"
 
-	[people.justincormack]
-	Name = "Justin Cormack"
-	Email = "justin.cormack@docker.com"
-	GitHub = "justincormack"
-
 	[people.mnm678]
 	Name = "Marina Moore"
 	Email = "mm9693@nyu.edu"
@@ -61,12 +46,32 @@
 	Email = "niazfk@amazon.com"
 	GitHub = "niazfk"
 
-	[people.stevelasker]
-	Name = "Steve Lasker"
-	Email = "Steve.Lasker@microsoft.com"
-	GitHub = "stevelasker"
-
 	[people.jonnystoten]
 	Name = "Jonny Stoten"
 	Email = "jonny.stoten@docker.com"
 	GitHub = "jonnystoten"
+
+	[people.priteshbandi]
+	Name = "Pritesh Bandi"
+	Email = "priteshbandi@gmail.com"
+	GitHub = "priteshbandi"
+
+	[people.shiweizhang]
+	Name = "Shiwei Zhang"
+	Email = "shizh@microsoft.com"
+	GitHub = "shizhMSFT"
+
+	[people.toddymladenov]
+	Name = "Toddy Mladenov"
+	Email = "toddysm@gmail.com"
+	GitHub = "toddysm"
+
+	[people.vaninrao]
+	Name = "Vani Rao"
+	Email = "vaninrao@amazon.com"
+	GitHub = "vaninrao10"
+
+	[people.vaninrao]
+	Name = "Vani Rao"
+	Email = "vaninrao@amazon.com"
+	GitHub = "vaninrao10"
