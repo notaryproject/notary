@@ -34,7 +34,7 @@ func socketDialer(ctx context.Context, socketAddr string) (net.Conn, error) {
 		return net.DialTimeout("unix", socketAddr, time.Until(deadline))
 	}
 
-	return nil, fmt.Errorf("context deadline excedded")
+	return nil, fmt.Errorf("context deadline exceeded")
 }
 
 func setUpSignerClient(t *testing.T, grpcServer *grpc.Server) (*client.NotarySigner, *grpc.ClientConn, func()) {
