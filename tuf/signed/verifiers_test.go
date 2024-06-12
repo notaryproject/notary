@@ -519,20 +519,5 @@ func ecdsaSign(privKey data.PrivateKey, hashed []byte) ([]byte, error) {
 	}
 
 	// Use the ECDSA key to sign the data
-	r, s, err := ecdsa.Sign(rand.Reader, ecdsaPrivKey, hashed[:])
-	if err != nil {
-		return nil, err
-	}
-
-	rBytes, sBytes := r.Bytes(), s.Bytes()
-	octetLength := (ecdsaPrivKey.Params().BitSize + 7) >> 3
-
-	// MUST include leading zeros in the output
-	rBuf := make([]byte, octetLength-len(rBytes), octetLength)
-	sBuf := make([]byte, octetLength-len(sBytes), octetLength)
-
-	rBuf = append(rBuf, rBytes...)
-	sBuf = append(sBuf, sBytes...)
-
-	return append(rBuf, sBuf...), nil
+	return ecdsaPrivKey.Sign(rand.Reader, hashed[:], nil)
 }
