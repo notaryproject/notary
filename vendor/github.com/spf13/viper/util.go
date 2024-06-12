@@ -11,44 +11,102 @@
 package viper
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"unicode"
 
-	"github.com/BurntSushi/toml"
-	"github.com/magiconair/properties"
 	"github.com/spf13/cast"
-	jww "github.com/spf13/jwalterweatherman"
-	"gopkg.in/yaml.v2"
 )
+
+// ConfigParseError denotes failing to parse configuration file.
+type ConfigParseError struct {
+	err error
+}
+
+// Error returns the formatted configuration error.
+func (pe ConfigParseError) Error() string {
+	return fmt.Sprintf("While parsing config: %s", pe.err.Error())
+}
+
+// toCaseInsensitiveValue checks if the value is a  map;
+// if so, create a copy and lower-case the keys recursively.
+func toCaseInsensitiveValue(value interface{}) interface{} {
+	switch v := value.(type) {
+	case map[interface{}]interface{}:
+		value = copyAndInsensitiviseMap(cast.ToStringMap(v))
+	case map[string]interface{}:
+		value = copyAndInsensitiviseMap(v)
+	}
+
+	return value
+}
+
+// copyAndInsensitiviseMap behaves like insensitiviseMap, but creates a copy of
+// any map it makes case insensitive.
+func copyAndInsensitiviseMap(m map[string]interface{}) map[string]interface{} {
+	nm := make(map[string]interface{})
+
+	for key, val := range m {
+		lkey := strings.ToLower(key)
+		switch v := val.(type) {
+		case map[interface{}]interface{}:
+			nm[lkey] = copyAndInsensitiviseMap(cast.ToStringMap(v))
+		case map[string]interface{}:
+			nm[lkey] = copyAndInsensitiviseMap(v)
+		default:
+			nm[lkey] = v
+		}
+	}
+
+	return nm
+}
+
+func insensitiviseVal(val interface{}) interface{} {
+	switch val.(type) {
+	case map[interface{}]interface{}:
+		// nested map: cast and recursively insensitivise
+		val = cast.ToStringMap(val)
+		insensitiviseMap(val.(map[string]interface{}))
+	case map[string]interface{}:
+		// nested map: recursively insensitivise
+		insensitiviseMap(val.(map[string]interface{}))
+	case []interface{}:
+		// nested array: recursively insensitivise
+		insensitiveArray(val.([]interface{}))
+	}
+	return val
+}
 
 func insensitiviseMap(m map[string]interface{}) {
 	for key, val := range m {
+		val = insensitiviseVal(val)
 		lower := strings.ToLower(key)
 		if key != lower {
+			// remove old key (not lower-cased)
 			delete(m, key)
-			m[lower] = val
 		}
+		// update map
+		m[lower] = val
 	}
 }
 
-func absPathify(inPath string) string {
-	jww.INFO.Println("Trying to resolve absolute path to", inPath)
+func insensitiveArray(a []interface{}) {
+	for i, val := range a {
+		a[i] = insensitiviseVal(val)
+	}
+}
 
-	if strings.HasPrefix(inPath, "$HOME") {
+func absPathify(logger Logger, inPath string) string {
+	logger.Info("trying to resolve absolute path", "path", inPath)
+
+	if inPath == "$HOME" || strings.HasPrefix(inPath, "$HOME"+string(os.PathSeparator)) {
 		inPath = userHomeDir() + inPath[5:]
 	}
 
-	if strings.HasPrefix(inPath, "$") {
-		end := strings.Index(inPath, string(os.PathSeparator))
-		inPath = os.Getenv(inPath[1:end]) + inPath[end:]
-	}
+	inPath = os.ExpandEnv(inPath)
 
 	if filepath.IsAbs(inPath) {
 		return filepath.Clean(inPath)
@@ -57,23 +115,11 @@ func absPathify(inPath string) string {
 	p, err := filepath.Abs(inPath)
 	if err == nil {
 		return filepath.Clean(p)
-	} else {
-		jww.ERROR.Println("Couldn't discover absolute path")
-		jww.ERROR.Println(err)
 	}
-	return ""
-}
 
-// Check if File / Directory Exists
-func exists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return false, err
+	logger.Error(fmt.Errorf("could not discover absolute path: %w", err).Error())
+
+	return ""
 }
 
 func stringInSlice(a string, list []string) bool {
@@ -94,64 +140,6 @@ func userHomeDir() string {
 		return home
 	}
 	return os.Getenv("HOME")
-}
-
-func findCWD() (string, error) {
-	serverFile, err := filepath.Abs(os.Args[0])
-
-	if err != nil {
-		return "", fmt.Errorf("Can't get absolute path for executable: %v", err)
-	}
-
-	path := filepath.Dir(serverFile)
-	realFile, err := filepath.EvalSymlinks(serverFile)
-
-	if err != nil {
-		if _, err = os.Stat(serverFile + ".exe"); err == nil {
-			realFile = filepath.Clean(serverFile + ".exe")
-		}
-	}
-
-	if err == nil && realFile != serverFile {
-		path = filepath.Dir(realFile)
-	}
-
-	return path, nil
-}
-
-func marshallConfigReader(in io.Reader, c map[string]interface{}, configType string) {
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(in)
-
-	switch strings.ToLower(configType) {
-	case "yaml", "yml":
-		if err := yaml.Unmarshal(buf.Bytes(), &c); err != nil {
-			jww.ERROR.Fatalf("Error parsing config: %s", err)
-		}
-
-	case "json":
-		if err := json.Unmarshal(buf.Bytes(), &c); err != nil {
-			jww.ERROR.Fatalf("Error parsing config: %s", err)
-		}
-
-	case "toml":
-		if _, err := toml.Decode(buf.String(), &c); err != nil {
-			jww.ERROR.Fatalf("Error parsing config: %s", err)
-		}
-
-	case "properties", "props", "prop":
-		var p *properties.Properties
-		var err error
-		if p, err = properties.Load(buf.Bytes(), properties.UTF8); err != nil {
-			jww.ERROR.Fatalf("Error parsing config: %s", err)
-		}
-		for _, key := range p.Keys() {
-			value, _ := p.Get(key)
-			c[key] = value
-		}
-	}
-
-	insensitiviseMap(c)
 }
 
 func safeMul(a, b uint) uint {
@@ -195,4 +183,35 @@ func parseSizeInBytes(sizeStr string) uint {
 	}
 
 	return safeMul(uint(size), multiplier)
+}
+
+// deepSearch scans deep maps, following the key indexes listed in the
+// sequence "path".
+// The last value is expected to be another map, and is returned.
+//
+// In case intermediate keys do not exist, or map to a non-map value,
+// a new map is created and inserted, and the search continues from there:
+// the initial map "m" may be modified!
+func deepSearch(m map[string]interface{}, path []string) map[string]interface{} {
+	for _, k := range path {
+		m2, ok := m[k]
+		if !ok {
+			// intermediate key does not exist
+			// => create it and continue from there
+			m3 := make(map[string]interface{})
+			m[k] = m3
+			m = m3
+			continue
+		}
+		m3, ok := m2.(map[string]interface{})
+		if !ok {
+			// intermediate key is a value
+			// => replace with a new map
+			m3 = make(map[string]interface{})
+			m[k] = m3
+		}
+		// continue search from here
+		m = m3
+	}
+	return m
 }
