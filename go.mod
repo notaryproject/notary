@@ -3,10 +3,10 @@ module github.com/theupdateframework/notary
 go 1.17
 
 require (
-	github.com/Shopify/logrus-bugsnag v0.0.0-20170309145241-6dbc35f2c30d
+	github.com/Shopify/logrus-bugsnag v0.0.0-20171204204709-577dee27f20d
 	github.com/bugsnag/bugsnag-go v1.0.5
 	github.com/cloudflare/cfssl v0.0.0-20180223231731-4e2dcbde5004 // 1.3.1
-	github.com/docker/distribution v2.7.1+incompatible
+	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/go v1.5.1-1.0.20160303222718-d30aec9fd63c
 	github.com/docker/go-connections v0.4.0
 	github.com/dvsekhvalnov/jose2go v0.0.0-20200901110807-248326c1351b
@@ -19,13 +19,13 @@ require (
 	github.com/miekg/pkcs11 v1.0.3
 	github.com/prometheus/client_golang v0.9.0-pre1.0.20180209125602-c332b6f63c06
 	github.com/sirupsen/logrus v1.8.1
-	github.com/spf13/cobra v1.6.0
+	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v0.0.0-20150530192845-be5ff3e4840c
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/crypto v0.0.0-20201117144127-c1f2f97bffc9
 	golang.org/x/net v0.0.0-20201021035429-f5854403a974
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
-	golang.org/x/term v0.0.0-20201117132131-f5c789dd3221
+	golang.org/x/term v0.1.0
 	google.golang.org/grpc v1.47.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/rethinkdb/rethinkdb-go.v6 v6.2.1
@@ -51,10 +51,10 @@ require (
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/magiconair/properties v1.5.3 // indirect
-	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
+	github.com/matttproud/golang_protobuf_extensions v1.0.2 // indirect
 	github.com/mitchellh/mapstructure v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.0.1 // indirect
+	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
