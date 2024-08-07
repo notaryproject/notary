@@ -2592,7 +2592,7 @@ func TestPublishRemoveDelegationKeyFromDelegationRole(t *testing.T) {
 		"",
 		tdJSON,
 	)))
-	cl.Close()
+	_ = cl.Close()
 	require.NoError(t, ownerRepo.Publish())
 
 	// delegated repo can now no longer publish to delegated role

@@ -6,13 +6,13 @@ GOFLAGS := -mod=vendor
 # Populate version variables
 # Add to compile time flags
 NOTARY_PKG := github.com/theupdateframework/notary
-NOTARY_VERSION := $(shell cat NOTARY_VERSION)
+NOTARY_VERSION := $(shell git describe)
 GITCOMMIT := $(shell git rev-parse --short HEAD)
 GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
 ifneq ($(GITUNTRACKEDCHANGES),)
 GITCOMMIT := $(GITCOMMIT)-dirty
 endif
-CTIMEVAR=-X $(NOTARY_PKG)/version.GitCommit=$(GITCOMMIT) -X $(NOTARY_PKG)/version.NotaryVersion=$(NOTARY_VERSION)
+CTIMEVAR=-X $(NOTARY_PKG)/version.GitCommit=$(GITCOMMIT) -X $(NOTARY_PKG)/version.NotaryVersion=$(NOTARY_VERSION) -X $(NOTARY_PKG)/version.Version=$(NOTARY_VERSION)
 GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
 GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
 GOOSES = darwin linux windows
@@ -45,19 +45,19 @@ all: clean lint build test binaries
 version/version.go:
 	./version/version.sh > $@
 
-${PREFIX}/bin/notary-server: NOTARY_VERSION $(shell find . -type f -name '*.go')
+${PREFIX}/bin/notary-server: $(shell find . -type f -name '*.go')
 	@echo "+ $@"
 	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS} ./cmd/notary-server
 
-${PREFIX}/bin/notary: NOTARY_VERSION $(shell find . -type f -name '*.go')
+${PREFIX}/bin/notary: $(shell find . -type f -name '*.go')
 	@echo "+ $@"
 	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS} ./cmd/notary
 
-${PREFIX}/bin/notary-signer: NOTARY_VERSION $(shell find . -type f -name '*.go')
+${PREFIX}/bin/notary-signer: $(shell find . -type f -name '*.go')
 	@echo "+ $@"
 	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS} ./cmd/notary-signer
 
-${PREFIX}/bin/escrow: NOTARY_VERSION $(shell find . -type f -name '*.go')
+${PREFIX}/bin/escrow: $(shell find . -type f -name '*.go')
 	@echo "+ $@"
 	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS} ./cmd/escrow
 
@@ -71,11 +71,11 @@ ${PREFIX}/bin/static/notary-signer:
 ${PREFIX}/bin/static/notary:
 	@echo "notary: static builds not supported on OS X"
 else
-${PREFIX}/bin/static/notary-server: NOTARY_VERSION $(shell find . -type f -name '*.go')
+${PREFIX}/bin/static/notary-server: $(shell find . -type f -name '*.go')
 	@echo "+ $@"
 	@(export CGO_ENABLED=0; go build -tags "${NOTARY_BUILDTAGS} netgo" -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-server)
 
-${PREFIX}/bin/static/notary-signer: NOTARY_VERSION $(shell find . -type f -name '*.go')
+${PREFIX}/bin/static/notary-signer: $(shell find . -type f -name '*.go')
 	@echo "+ $@"
 	@(export CGO_ENABLED=0; go build -tags "${NOTARY_BUILDTAGS} netgo" -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-signer)
 
