@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -299,7 +298,7 @@ func TestGetStoreInvalid(t *testing.T) {
 }
 
 func TestGetStoreDBStore(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "sqlite3")
+	tmpFile, err := os.CreateTemp("", "sqlite3")
 	require.NoError(t, err)
 	tmpFile.Close()
 	defer os.Remove(tmpFile.Name())
